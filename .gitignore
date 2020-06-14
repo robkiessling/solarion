@@ -1,3 +1,9 @@
+# IDE / OS
+.idea
+*.swp
+.project
+.DS_Store
+
 # Logs
 logs
 *.log
