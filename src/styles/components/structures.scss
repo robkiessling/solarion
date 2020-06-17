@@ -1,0 +1,29 @@
+
+
+.structures {
+  flex: 1 1 auto;
+
+  display: flex;
+  flex-direction: row;
+
+  overflow-x: auto;
+
+  .structure {
+    width: 15rem;
+    padding: 0.5rem;
+    border-right: 1px solid #bbb;
+
+    display: flex;
+    flex-direction: column;
+
+    .header {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+
+      font-weight: bold;
+      font-size: 1rem;
+
+    }
+  }
+}

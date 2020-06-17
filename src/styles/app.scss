@@ -1,2 +1,20 @@
 @import 'normalize.css';
 @import 'components/hello_world';
+@import 'components/outside';
+@import 'components/resource_bar';
+@import 'components/structures';
+
+html, body, #app {
+  height: 100%;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+
+  background: #eee;
+  height: 100%;
+  //color: red;
+  //font-family: "Roboto Condensed", sans-serif;
+  font-family: monospace;
+}

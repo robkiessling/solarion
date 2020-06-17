@@ -2,17 +2,22 @@
 const path = require('path');
 module.exports = {
     entry: path.resolve(__dirname, 'src', 'index.jsx'),
+
+    output: {
+        path: path.resolve(__dirname, 'output'),
+        filename: 'bundle.js'
+    },
+
     devServer: {
-        contentBase: './src',
-        publicPath: '/output',
+        // Where webpack-dev-server serves bundle which is created in memory. <script> src should point to this path
+        publicPath: '/output/',
+
+        // Local filesystem directory where static html files are served
+        contentBase: path.resolve(__dirname, 'src'),
 
         // Live reloading is not useful for this kind of app
         hot: false,
         inline: false
-    },
-    output: {
-        path: path.resolve(__dirname, 'output'),
-        filename: 'bundle.js'
     },
     resolve: {
         extensions: ['.js', '.jsx']
