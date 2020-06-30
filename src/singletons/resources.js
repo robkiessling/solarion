@@ -1,33 +1,35 @@
 import * as Helpers from "../lib/helpers"
 import gameClock from "./game_clock";
+import store from "../redux/store";
 
 const UPDATES_PER_SECOND = 1;
 
 class Resources {
     constructor() {
-        this._resources = {
-            minerals: 100,
-        }
-        this._rates = {
-            minerals: 0
-        }
+        // this._resources = {
+        //     minerals: 100,
+        // }
+        // this._rates = {
+        //     minerals: 0
+        // }
 
-        this._setupInterval();
+        // this._setupInterval();
     }
 
     currentQuantity(resourceKey) {
-        return this._resources[resourceKey];
+        // return this._resources[resourceKey];
+        return store.getState().resources[resourceKey].amount;
     }
 
-    consume(resourceKey, amount) {
-        if (this.hasQuantity(resourceKey, amount)) {
-            this.modifyQuantity(resourceKey, -amount);
-            return true;
-        }
-        else {
-            return false;
-        }
-    }
+    // consume(resourceKey, amount) {
+    //     if (this.hasQuantity(resourceKey, amount)) {
+    //         this.modifyQuantity(resourceKey, -amount);
+    //         return true;
+    //     }
+    //     else {
+    //         return false;
+    //     }
+    // }
 
     hasQuantity(resourceKey, amount) {
         return this._resources[resourceKey] !== undefined && this._resources[resourceKey] >= amount;
@@ -46,14 +48,14 @@ class Resources {
     // }
 
 
-    _setupInterval() {
-        gameClock.setInterval('Resources', (iterations, period) => {
-            const seconds = iterations * period / 1000;
-            Helpers.iterateObject(this._resources, (key, quantity) => {
-                this._resources[key] += seconds * this._rates[key];
-            });
-        }, 1000 / UPDATES_PER_SECOND);
-    }
+    // _setupInterval() {
+    //     gameClock.setInterval('Resources', (iterations, period) => {
+    //         const seconds = iterations * period / 1000;
+    //         Helpers.iterateObject(this._resources, (key, quantity) => {
+    //             this._resources[key] += seconds * this._rates[key];
+    //         });
+    //     }, 1000 / UPDATES_PER_SECOND);
+    // }
 
 }
 

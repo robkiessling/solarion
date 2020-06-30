@@ -46,3 +46,4 @@ export default class Structure extends React.Component {
         );
     }
 }
+
