@@ -1,6 +1,6 @@
 import React from 'react';
 import gameClock from "../../singletons/game_clock"
-import resources from "../../singletons/resources"
+import resources from "../../singletons/resource_manager"
 
 export default class Structure extends React.Component {
     constructor(props) {

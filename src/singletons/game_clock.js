@@ -1,4 +1,6 @@
 import * as Helpers from "../lib/helpers"
+import store from "../redux/store";
+import {tick} from "../redux/modules/clock";
 
 class GameClock {
     constructor() {
@@ -9,6 +11,12 @@ class GameClock {
         this.delta = 0; // Time since last tick
         this.total = 0; // Total time elapsed
         this.periodicFns = {}; // functions to call periodically
+
+        // This affects time getting stored to store, and how often clock UI will be updated.
+        // Can be relatively slow (1s) since we only show seconds on the clock anyway.
+        this.setInterval('GameClock', (iterations, period) => {
+            store.dispatch(tick(iterations * period));
+        }, 1000);
 
         this.run();
     }

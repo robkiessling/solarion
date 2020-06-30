@@ -3,6 +3,7 @@ import React from 'react';
 import Outside from "./outside";
 import Structures from "./structures";
 import ResourceBar from "./resource_bar";
+import Tester from "./tester";
 
 // TODO
 // import game from "../singletons/game"
@@ -13,6 +14,9 @@ export default class App extends React.Component {
         return (
             <div className="app">
                 <ResourceBar/>
+                <ResourceBar/>
+                <Tester/>
+                <Tester/>
                 <Outside/>
                 <Structures/>
             </div>

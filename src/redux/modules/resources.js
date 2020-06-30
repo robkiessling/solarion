@@ -7,7 +7,7 @@ export const CONSUME = 'resources/CONSUME';
 const initialState = {
     order: ['minerals'],
     minerals: {
-        amount: 1000,
+        amount: 100,
         rate: 5
     }
 }

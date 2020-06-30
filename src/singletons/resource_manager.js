@@ -1,10 +1,11 @@
 import * as Helpers from "../lib/helpers"
 import gameClock from "./game_clock";
 import store from "../redux/store";
+import { consume } from '../redux/modules/resources';
 
 const UPDATES_PER_SECOND = 1;
 
-class Resources {
+class ResourceManager {
     constructor() {
         // this._resources = {
         //     minerals: 100,
@@ -16,29 +17,30 @@ class Resources {
         // this._setupInterval();
     }
 
-    currentQuantity(resourceKey) {
+    quantity(resourceKey) {
         // return this._resources[resourceKey];
         return store.getState().resources[resourceKey].amount;
     }
 
-    // consume(resourceKey, amount) {
-    //     if (this.hasQuantity(resourceKey, amount)) {
-    //         this.modifyQuantity(resourceKey, -amount);
-    //         return true;
-    //     }
-    //     else {
-    //         return false;
-    //     }
-    // }
+    consume(resourceKey, amount) {
+        if (this.hasQuantity(resourceKey, amount)) {
+            store.dispatch(consume(resourceKey, amount));
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
 
     hasQuantity(resourceKey, amount) {
-        return this._resources[resourceKey] !== undefined && this._resources[resourceKey] >= amount;
+        // return this._resources[resourceKey] !== undefined && this._resources[resourceKey] >= amount;
+        return this.quantity(resourceKey) >= amount;
     }
-
-    // Note: modifyQuantity does no validation; you should validate with hasQuantity first
-    modifyQuantity(resourceKey, amount) {
-        this._resources[resourceKey] += amount;
-    }
+    //
+    // // Note: modifyQuantity does no validation; you should validate with hasQuantity first
+    // modifyQuantity(resourceKey, amount) {
+    //     this._resources[resourceKey] += amount;
+    // }
 
     // getRate(resourceKey) {
     //
@@ -49,7 +51,7 @@ class Resources {
 
 
     // _setupInterval() {
-    //     gameClock.setInterval('Resources', (iterations, period) => {
+    //     gameClock.setInterval('ResourceManager', (iterations, period) => {
     //         const seconds = iterations * period / 1000;
     //         Helpers.iterateObject(this._resources, (key, quantity) => {
     //             this._resources[key] += seconds * this._rates[key];
@@ -59,4 +61,4 @@ class Resources {
 
 }
 
-export default (new Resources);
+export default (new ResourceManager);
