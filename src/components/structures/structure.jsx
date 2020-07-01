@@ -1,49 +1,51 @@
 import React from 'react';
-import gameClock from "../../singletons/game_clock"
-import resources from "../../singletons/resource_manager"
+import {connect} from "react-redux";
+import structures from "../../database/structures"
+import {build} from "../../redux/modules/structures";
+import resourceManager from "../../singletons/resource_manager";
 
-export default class Structure extends React.Component {
+class Structure extends React.Component {
     constructor(props) {
         super(props);
-
-        this.state = {
-            total: 0,
-            active: 0
-        };
-
-        this.build = this.build.bind(this);
     }
 
-    build() {
-        if (resources.consume('minerals', this.props.cost)) {
-            this.setState(prevState => {
-                return {
-                    total: prevState.total + 1
-                };
-            });
-        }
-        else {
-            console.warn("Failed to build: not enough resources.");
-        }
+    _canBuild() {
+        return resourceManager.hasQuantity('minerals', this.props.record.cost.minerals.base);
     }
 
     costString() {
-        return this.props.cost === undefined ? "" : ` (-${this.props.cost})`;
+        return ` (-${this.props.record.cost.minerals.base})`;
     }
 
     render() {
         return (
             <div className="structure">
                 <div className="header">
-                    <div className="name">{this.props.name}</div>
-                    <div className="count">{this.state.total}</div>
+                    <div className="name">{this.props.record.name}</div>
+                    <div className="count">{this.props.data.count}</div>
                 </div>
                 <div className="buttons">
-                    <button onClick={this.build}>Build {this.props.name}{this.costString()}</button>
+                    <button onClick={() => this.props.build(this.props.type, 1, this.props.record.cost)}
+                            disabled={!this._canBuild()}>
+                        Build {this.props.record.name}{this.costString()}
+                    </button>
                     {this.props.buttons}
                 </div>
             </div>
         );
     }
 }
+
+const mapStateToProps = (state, ownProps) => {
+    return {
+        resources: state.resources,
+        record: structures[ownProps.type],
+        data: state.structures.byId[ownProps.type]
+    }
+};
+
+export default connect(
+    mapStateToProps,
+    { build }
+)(Structure);
 

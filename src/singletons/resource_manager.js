@@ -1,24 +1,17 @@
 import * as Helpers from "../lib/helpers"
 import gameClock from "./game_clock";
 import store from "../redux/store";
-import { consume } from '../redux/modules/resources';
+import { consume, generate } from '../redux/modules/resources';
 
-const UPDATES_PER_SECOND = 1;
+const UPDATES_PER_SECOND = 5;
 
 class ResourceManager {
     constructor() {
-        // this._resources = {
-        //     minerals: 100,
-        // }
-        // this._rates = {
-        //     minerals: 0
-        // }
-
-        // this._setupInterval();
+        this._resetCache();
+        this._setupInterval();
     }
 
     quantity(resourceKey) {
-        // return this._resources[resourceKey];
         return store.getState().resources[resourceKey].amount;
     }
 
@@ -33,31 +26,30 @@ class ResourceManager {
     }
 
     hasQuantity(resourceKey, amount) {
-        // return this._resources[resourceKey] !== undefined && this._resources[resourceKey] >= amount;
         return this.quantity(resourceKey) >= amount;
     }
-    //
-    // // Note: modifyQuantity does no validation; you should validate with hasQuantity first
-    // modifyQuantity(resourceKey, amount) {
-    //     this._resources[resourceKey] += amount;
-    // }
 
-    // getRate(resourceKey) {
-    //
-    // }
-    // modifyRate(resourceKey, amount) {
-    //     // todo not going to work
-    // }
+    getRate(resourceKey) {
+        if (this._cache[resourceKey] && this._cache[resourceKey].net !== undefined) {
+            return this._cache[resourceKey].net;
+        }
+    }
 
+    _resetCache() {
+        this._cache = {};
+    }
 
-    // _setupInterval() {
-    //     gameClock.setInterval('ResourceManager', (iterations, period) => {
-    //         const seconds = iterations * period / 1000;
-    //         Helpers.iterateObject(this._resources, (key, quantity) => {
-    //             this._resources[key] += seconds * this._rates[key];
-    //         });
-    //     }, 1000 / UPDATES_PER_SECOND);
-    // }
+    _setupInterval() {
+        gameClock.setInterval('ResourceManager', (iterations, period) => {
+            const seconds = iterations * period / 1000;
+
+            // Helpers.iterateObject(this._resources, (key, quantity) => {
+            //     this._resources[key] += seconds * this._rates[key];
+            // });
+
+            // store.dispatch(generate('minerals', 10 * seconds));
+        }, 1000 / UPDATES_PER_SECOND);
+    }
 
 }
 

@@ -11,9 +11,9 @@ export default class Structures extends React.Component {
     render() {
         return (
             <div className="structures">
-                <Harvester />
-                <Structure name="Solar Panel" />
-                <Structure name="Wind Turbine"/>
+                <Structure type="harvester" />
+                {/*<Structure name="Solar Panel" />*/}
+                {/*<Structure name="Wind Turbine"/>*/}
             </div>
         );
     }

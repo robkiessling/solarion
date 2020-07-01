@@ -14,8 +14,6 @@ export default class App extends React.Component {
         return (
             <div className="app">
                 <ResourceBar/>
-                <ResourceBar/>
-                <Tester/>
                 <Tester/>
                 <Outside/>
                 <Structures/>
