@@ -12,7 +12,7 @@ class ResourceManager {
     }
 
     quantity(resourceKey) {
-        return store.getState().resources[resourceKey].amount;
+        return store.getState().resources.byId[resourceKey].amount;
     }
 
     consume(resourceKey, amount) {

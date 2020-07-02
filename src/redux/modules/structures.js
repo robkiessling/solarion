@@ -6,8 +6,15 @@ export const BUILD = 'structures/BUILD';
 
 // Initial State
 const initialState = {
+    order: [
+        'harvester',
+        'solarPanel'
+    ],
     byId: {
         harvester: {
+            count: 0
+        },
+        solarPanel: {
             count: 0
         }
     }

@@ -24,7 +24,7 @@ class Tester extends React.Component {
 }
 
 const mapStateToProps = state => {
-    return state.resources;
+    return state.resources.byId;
 };
 
 export default connect(

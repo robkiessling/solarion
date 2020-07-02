@@ -1,8 +1,8 @@
 import React from 'react';
 import {connect} from "react-redux";
-import structures from "../../database/structures"
-import {build} from "../../redux/modules/structures";
-import resourceManager from "../../singletons/resource_manager";
+import structures from "../database/structures"
+import {build} from "../redux/modules/structures";
+import resourceManager from "../singletons/resource_manager";
 
 class Structure extends React.Component {
     constructor(props) {

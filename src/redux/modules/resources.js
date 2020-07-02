@@ -8,16 +8,18 @@ export const GENERATE = 'resources/GENERATE';
 // Initial State
 const initialState = {
     order: ['minerals'],
-    minerals: {
-        amount: 100,
-        rate: 5
+    byId: {
+        minerals: {
+            amount: 100,
+            rate: 5
+        }
     }
 }
 
 function applyCost(state, cost, multiplier) {
-    let overrides = {}
+    let overrides = { byId: {} }
     for (const [key, value] of Object.entries(cost)) {
-        overrides[key] = { amount: { $apply: function(x) { return x - (value.base * multiplier); } } }
+        overrides.byId[key] = { amount: { $apply: function(x) { return x - (value.base * multiplier); } } }
     }
     return update(state, overrides);
 }
@@ -29,11 +31,11 @@ export default function reducer(state = initialState, action) {
     switch (action.type) {
         case CONSUME:
             return update(state, {
-                [payload.resourceKey]: { amount: { $apply: function(x) { return x - payload.amount; } } }
+                byId: { [payload.resourceKey]: { amount: { $apply: function(x) { return x - payload.amount; } } } }
             });
         case GENERATE:
             return update(state, {
-                [payload.resourceKey]: { amount: { $apply: function(x) { return x + payload.amount; } } }
+                byId: { [payload.resourceKey]: { amount: { $apply: function(x) { return x + payload.amount; } } } }
             });
         case structures.BUILD:
             return applyCost(state, payload.cost, payload.amount);

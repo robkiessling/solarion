@@ -1,9 +1,8 @@
 import React from 'react';
-import gameClock from "../singletons/game_clock"
-import Structure from "./structures/structure";
-import Harvester from "./structures/harvester";
+import {connect} from "react-redux";
+import Structure from "./structure";
 
-export default class Structures extends React.Component {
+class Structures extends React.Component {
     constructor(props) {
         super(props);
     }
@@ -11,10 +10,22 @@ export default class Structures extends React.Component {
     render() {
         return (
             <div className="structures">
-                <Structure type="harvester" />
-                {/*<Structure name="Solar Panel" />*/}
-                {/*<Structure name="Wind Turbine"/>*/}
+                {this.props.structureOrder.map((structureKey, index) =>
+                    <Structure type={structureKey} key={index} />
+                )}
             </div>
         );
     }
 }
+
+const mapStateToProps = (state) => {
+    return {
+        structureOrder: state.structures.order
+    };
+};
+
+export default connect(
+    mapStateToProps,
+    null
+)(Structures);
+

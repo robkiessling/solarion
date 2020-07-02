@@ -13,5 +13,18 @@ export default {
                 base: 10
             }
         }
+    },
+    solarPanel: {
+        name: "Solar Panel",
+        cost: {
+            minerals: {
+                base: 10
+            }
+        },
+        generates: {
+            minerals: {
+                base: 5
+            }
+        }
     }
 };
