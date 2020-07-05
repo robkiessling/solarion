@@ -1,5 +1,6 @@
 @import 'normalize.css';
-@import 'components/hello_world';
+@import './variables';
+@import 'components/log';
 @import 'components/outside';
 @import 'components/resource_bar';
 @import 'components/structures';
@@ -10,11 +11,38 @@ html, body, #app {
 
 .app {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 
-  background: #eee;
+  background: $background-color;
   height: 100%;
-  //color: red;
-  //font-family: "Roboto Condensed", sans-serif;
   font-family: monospace;
+  color: $font-color;
+
+  .left-column {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+
+    width: 300px;
+    height: 100%;
+  }
+  .middle-column {
+    display: flex;
+    flex-direction: column;
+
+    flex: 1 1 auto;
+    height: 100%;
+
+    border-left: 1px solid $border-color;
+    border-right: 1px solid $border-color;
+  }
+  .right-column {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+
+    width: 300px;
+    height: 100%;
+  }
+
 }

@@ -9,8 +9,7 @@ export const GENERATE = 'resources/GENERATE';
 const initialState = {
     byId: {
         minerals: {
-            amount: 100,
-            rate: 5
+            amount: 100
         }
     },
     visibleIds: ['minerals']

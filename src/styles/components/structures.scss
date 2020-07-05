@@ -1,17 +1,17 @@
-
+@import '../variables';
 
 .structures {
-  flex: 1 1 auto;
-
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
 
-  overflow-x: auto;
+  padding: $window-padding;
+
+  overflow-y: auto;
 
   .structure {
-    width: 15rem;
-    padding: 0.5rem;
-    border-right: 1px solid #bbb;
+    padding-bottom: $window-padding;
+    margin-bottom: $window-padding;
+    border-bottom: 1px solid #bbb;
 
     display: flex;
     flex-direction: column;

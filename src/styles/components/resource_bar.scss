@@ -1,17 +1,11 @@
+@import '../variables';
+
 .resource-bar {
   display: flex;
-  flex-direction: row;
-  //justify-content: flex-end;
-  justify-content: flex-start;
-  //flex-shrink: 0;
+  flex-direction: column;
+  flex: 1 0 auto;
+  padding: $window-padding;
 
-  background: #ddd;
-
-  padding: 0.25rem;
-  border-bottom: 1px solid #ccc;
-
-  > div {
-    margin-left: 1rem;
-  }
+  border-bottom: 1px solid $border-color;
 
 }

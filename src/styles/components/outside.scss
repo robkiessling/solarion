@@ -1,6 +1,37 @@
-.outside {
-  //flex-shrink: 0;
-  height: 10rem;
+@import '../variables';
 
-  background: #aaa;
+#outside-container {
+  //padding: $window-padding;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  height: 100%;
+  width: 100%;
+
+  #outside-content {
+    //background-color: red;
+
+    white-space: pre;
+  }
 }
+
+/**
+    TODO Remove this... this is for canvas
+ */
+//#outside-container {
+//  //padding: $window-padding;
+//
+//  display: flex;
+//  flex-direction: column;
+//  justify-content: center;
+//
+//  height: 100%;
+//  width: 100%;
+//
+//  #outside-canvas {
+//    background-color: red;
+//  }
+//}
