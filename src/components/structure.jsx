@@ -18,7 +18,7 @@ class Structure extends React.Component {
                 <div className="buttons">
                     <button onClick={() => this.props.build(this.props.type, 1)}
                             disabled={!this.props.canBuild}>
-                        Build {this.props.structure.name}{` (-${this.props.cost})`}
+                        Build {`(${this.props.cost}m)`}
                     </button>
                     {this.props.buttons}
                 </div>

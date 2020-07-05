@@ -1,22 +1,21 @@
 $window-padding: 0.5rem;
 
+// https://coolors.co/0d0630-18314f-384e77-8bbeb2-e6f9af
 
+// https://coolors.co/220901-621708-941b0c-bc3908-f6aa1c
 
-//https://coolors.co/0d0630-18314f-384e77-8bbeb2-e6f9af
-//$background-color: #0d0630;
-//$border-color: #e6f9af;
+// https://lospec.com/palette-list/slso8
 
+// https://lospec.com/palette-list/slso-clr17
 
-//https://coolors.co/220901-621708-941b0c-bc3908-f6aa1c
-//$background-color: #220901;
-//$border-color: #f6aa1c;
-
-
-//https://lospec.com/palette-list/slso8
-//$background-color: #0d2b45;
-//$border-color: #ffecd6;
-
-//https://lospec.com/palette-list/slso-clr17
-$background-color: #2e2c3b;
-$border-color: #c1e5ea;
-$font-color: #fff;
+// Planet Mars Color Palette
+// https://www.color-hex.com/color-palette/7175
+$ui-background: #2a0f02;
+$ui-font: #f0e7e7;
+$ui-border: #f0e7e7;
+//$canvas-background: #c1440e;
+//$canvas-font: #451804;
+$canvas-background: linear-gradient(180deg, #020024 0%, #451804 35%, #c1440e 100%);
+//$canvas-background: linear-gradient(180deg, #020024 0%, #451804 50%, #c1440e 100%);
+//$canvas-background: linear-gradient(180deg, #010b19 0%, #03214a 50%, #0858c5 100%);
+$canvas-font: #fff;

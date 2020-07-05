@@ -3,6 +3,8 @@
  */
 
 import React from 'react';
+import Background from "../lib/background";
+import backgrounds from "../database/backgrounds";
 
 export default class Outside extends React.Component {
     constructor(props) {
@@ -13,7 +15,8 @@ export default class Outside extends React.Component {
     }
 
     componentDidMount() {
-        // this.content.innerHTML()
+        const background = new Background(this.content.current);
+        background.drawImage(backgrounds.planet.background);
     }
 
     render() {

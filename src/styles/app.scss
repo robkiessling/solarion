@@ -4,6 +4,7 @@
 @import 'components/outside';
 @import 'components/resource_bar';
 @import 'components/structures';
+@import 'components/title';
 
 html, body, #app {
   height: 100%;
@@ -13,36 +14,47 @@ html, body, #app {
   display: flex;
   flex-direction: row;
 
-  background: $background-color;
+  background: $ui-background;
   height: 100%;
   font-family: monospace;
-  color: $font-color;
+  color: $ui-font;
 
   .left-column {
     display: flex;
     flex-direction: column;
-    flex-shrink: 0;
+    flex: 1 1 auto;
 
-    width: 300px;
+    min-width: 300px;
     height: 100%;
+
+    border-right: 1px solid $ui-border;
+    font-size: 1rem;
+    //display: none;
   }
   .middle-column {
     display: flex;
     flex-direction: column;
-
-    flex: 1 1 auto;
+    flex: 5 1 auto;
+    max-width: 1000px;
     height: 100%;
 
-    border-left: 1px solid $border-color;
-    border-right: 1px solid $border-color;
+    overflow: hidden;
+
+    background: $canvas-background;
+    color: $canvas-font;
+
   }
   .right-column {
     display: flex;
     flex-direction: column;
-    flex-shrink: 0;
+    flex: 1 1 auto;
 
-    width: 300px;
+    min-width: 300px;
     height: 100%;
+
+    border-left: 1px solid $ui-border;
+    font-size:1rem;
+    //display: none;
   }
 
 }

@@ -27,3 +27,10 @@ export function debounce(func, delayMs = 100){
         timer = setTimeout(func, delayMs, event);
     };
 }
+
+// Faster than `element.innerHTML = '';`
+export function emptyElement(element) {
+    while (element.firstChild) {
+        element.removeChild(element.firstChild);
+    }
+}
