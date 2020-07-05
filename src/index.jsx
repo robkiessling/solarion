@@ -12,7 +12,7 @@ import './styles/app.scss';
 // window.store = store;
 // const unsubscribe = store.subscribe(() => console.log('subscribed event: ', store.getState()));
 // store.dispatch(consume('minerals', 10));
-// window.boundConsume = (resourceKey, amount) => store.dispatch(consume(resourceKey, amount));
+// window.boundConsume = (id, amount) => store.dispatch(consume(id, amount));
 
 ReactDOM.render(
     <Provider store={store}>

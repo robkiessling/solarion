@@ -1,33 +1,24 @@
 import React from 'react';
 import {connect} from "react-redux";
-import structures from "../database/structures"
 import {build} from "../redux/modules/structures";
-import resourceManager from "../singletons/resource_manager";
+import { getStructure, getBuildCost, canBuild } from "../redux/modules/structures";
 
 class Structure extends React.Component {
     constructor(props) {
         super(props);
     }
 
-    _canBuild() {
-        return resourceManager.hasQuantity('minerals', this.props.record.cost.minerals.base);
-    }
-
-    costString() {
-        return ` (-${this.props.record.cost.minerals.base})`;
-    }
-
     render() {
         return (
             <div className="structure">
                 <div className="header">
-                    <div className="name">{this.props.record.name}</div>
-                    <div className="count">{this.props.data.count}</div>
+                    <div className="name">{this.props.structure.name}</div>
+                    <div className="count">{this.props.structure.count}</div>
                 </div>
                 <div className="buttons">
-                    <button onClick={() => this.props.build(this.props.type, 1, this.props.record.cost)}
-                            disabled={!this._canBuild()}>
-                        Build {this.props.record.name}{this.costString()}
+                    <button onClick={() => this.props.build(this.props.type, 1)}
+                            disabled={!this.props.canBuild}>
+                        Build {this.props.structure.name}{` (-${this.props.cost})`}
                     </button>
                     {this.props.buttons}
                 </div>
@@ -39,8 +30,9 @@ class Structure extends React.Component {
 const mapStateToProps = (state, ownProps) => {
     return {
         resources: state.resources,
-        record: structures[ownProps.type],
-        data: state.structures.byId[ownProps.type]
+        structure: getStructure(state, ownProps.type),
+        canBuild: canBuild(state, ownProps.type),
+        cost: getBuildCost(state, ownProps.type)
     }
 };
 

@@ -1,8 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux';
 
-import gameClock from "../singletons/game_clock"
-import resourceManager from "../singletons/resource_manager"
+import { consume, getQuantity } from "../redux/modules/resources"
 
 class ResourceBar extends React.Component {
     constructor(props) {
@@ -12,12 +11,12 @@ class ResourceBar extends React.Component {
     render() {
         return (
             <div className="resource-bar">
-                <button onClick={() => resourceManager.consume('minerals', 20)} disabled={!resourceManager.hasQuantity('minerals', 20)}>click!</button>
+                <button onClick={() => this.props.consume('minerals', 20)}>test!</button>
                 <div>
-                    Minerals: { resourceManager.quantity('minerals') }
+                    Minerals: { this.props.minerals }
                 </div>
                 <div>
-                    Time: { Math.floor(gameClock.total / 1000.0) }
+                    Time: { Math.floor(this.props.elapsedTime / 1000.0) }
                 </div>
                 {/*<div>*/}
                 {/*    /!*Real: { (new Date()).toLocaleString() }*!/*/}
@@ -31,12 +30,13 @@ class ResourceBar extends React.Component {
 // Updates to these fields will trigger re-renders
 const mapStateToProps = state => {
     return {
-        clock: state.clock,
-        resources: state.resources
+        elapsedTime: state.clock.elapsedTime,
+        resources: state.resources,
+        minerals: getQuantity(state, 'minerals')
     }
 };
 
 export default connect(
     mapStateToProps,
-    null
+    { consume }
 )(ResourceBar);
