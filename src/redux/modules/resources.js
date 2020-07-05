@@ -23,13 +23,13 @@ const initialState = {
 //     }
 // }
 
-function applyCost(state, cost, multiplier) {
-    let overrides = { byId: {} }
-    for (const [key, value] of Object.entries(cost)) {
-        overrides.byId[key] = { amount: { $apply: function(x) { return x - (value.base * multiplier); } } }
-    }
-    return update(state, overrides);
-}
+// function applyCost(state, cost, multiplier) {
+//     let overrides = { byId: {} }
+//     for (const [key, value] of Object.entries(cost)) {
+//         overrides.byId[key] = { amount: { $apply: function(x) { return x - (value.base * multiplier); } } }
+//     }
+//     return update(state, overrides);
+// }
 
 // Reducer
 export default function reducer(state = initialState, action) {
@@ -44,8 +44,6 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 byId: { [payload.id]: { amount: { $apply: function(x) { return x + payload.amount; } } } }
             });
-        // case structures.BUILD:
-        //     return applyCost(state, payload.cost, payload.amount);
         default:
             return state;
     }

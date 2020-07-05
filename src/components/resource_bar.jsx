@@ -13,7 +13,7 @@ class ResourceBar extends React.Component {
             <div className="resource-bar">
                 <button onClick={() => this.props.consume('minerals', 20)}>test!</button>
                 <div>
-                    Minerals: { this.props.minerals }
+                    Minerals: { Math.floor(this.props.minerals) }
                 </div>
                 <div>
                     Time: { Math.floor(this.props.elapsedTime / 1000.0) }

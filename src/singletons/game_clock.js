@@ -55,12 +55,12 @@ class GameClock {
         this._iteratePeriodicFns();
 
         /*. Run function again as soon as possible without lagging .*/
-        window.requestAnimationFrame(Helpers.makeCallback(this, this.run));
+        window.requestAnimationFrame(() => this.run())
     }
 
     // A periodic function does not run every game loop, it runs every X milliseconds (to improve performance)
     _iteratePeriodicFns() {
-        Helpers.iterateObject(this.periodicFns, (key, periodicFn) => {
+        for (const [key, periodicFn] of Object.entries(this.periodicFns)) {
             if (periodicFn === undefined) {
                 // When clearInterval is called, its periodicFn will still be called for the current iteration (the
                 // periodicFn will be undefined however). When this happens, ignore the fn. By next iteration
@@ -78,7 +78,7 @@ class GameClock {
                 }
                 periodicFn.fn(iterations, periodicFn.period);
             }
-        });
+        }
     }
 
 }

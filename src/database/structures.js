@@ -5,12 +5,12 @@ export default {
         cost: {
             minerals: {
                 base: 20,
-                increment: 0.5
+                increment: 1.25
             }
         },
-        generates: {
+        produces: {
             minerals: {
-                base: 10
+                base: 2
             }
         }
     },
@@ -18,12 +18,13 @@ export default {
         name: "Solar Panel",
         cost: {
             minerals: {
-                base: 10
+                base: 10,
+                increment: 1.25
             }
         },
-        generates: {
+        produces: {
             minerals: {
-                base: 5
+                base: 1
             }
         }
     }

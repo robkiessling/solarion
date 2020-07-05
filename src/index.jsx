@@ -14,6 +14,10 @@ import './styles/app.scss';
 // store.dispatch(consume('minerals', 10));
 // window.boundConsume = (id, amount) => store.dispatch(consume(id, amount));
 
+import { learn } from './redux/modules/structures';
+store.dispatch(learn('harvester'));
+store.dispatch(learn('solarPanel'));
+
 ReactDOM.render(
     <Provider store={store}>
         <App />
