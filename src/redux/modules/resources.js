@@ -82,5 +82,6 @@ export function getQuantity(state, id) {
 }
 
 export function toString(amounts) {
+    if (Object.keys(amounts).length === 0) { return 'N/A'; }
     return Object.entries(amounts).map(([k,v]) => `${k}: ${_.round(v, 1)}` ).join(', ')
 }

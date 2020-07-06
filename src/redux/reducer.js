@@ -10,5 +10,3 @@ export default combineReducers({
     structures
 });
 
-
-// TODO This is where functions that hit many stores would go

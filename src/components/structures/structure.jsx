@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {build, getProduction} from "../../redux/modules/structures";
+import {build, getProduction, getConsumption} from "../../redux/modules/structures";
 import { getStructure, getBuildCost, canBuild } from "../../redux/modules/structures";
 import {toString} from "../../redux/modules/resources";
 
@@ -26,6 +26,9 @@ class Structure extends React.Component {
                 <div>
                     Produces: {toString(this.props.production)}
                 </div>
+                <div>
+                    Consumes: {toString(this.props.consumption)}
+                </div>
             </div>
         );
     }
@@ -38,7 +41,8 @@ const mapStateToProps = (state, ownProps) => {
         structure: structure,
         canBuild: canBuild(state, structure),
         cost: getBuildCost(structure),
-        production: getProduction(structure)
+        production: getProduction(structure),
+        consumption: getConsumption(structure)
     }
 };
 

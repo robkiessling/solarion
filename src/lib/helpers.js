@@ -17,6 +17,7 @@
 //     }
 // }
 
+// TODO just use lodash debounce instead https://lodash.com/docs/4.17.15#debounce
 export function debounce(func, delayMs = 100){
     let timer;
 
@@ -36,6 +37,7 @@ export function emptyElement(element) {
 }
 
 // Maps an object to a new object https://stackoverflow.com/a/14810722/4904996
+// TODO just use lodash map values?
 export const mapObject = (obj, fn) =>
     Object.fromEntries(
         Object.entries(obj).map(

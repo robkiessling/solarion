@@ -1,8 +1,10 @@
 import update from 'immutability-helper';
-import {canConsume, consumeUnsafe} from "./resources";
+import {canConsume, consumeUnsafe, produce} from "./resources";
 import _ from 'lodash';
 import database from '../../database/structures'
 import {mapObject} from "../../lib/helpers";
+import {batch} from 'react-redux';
+import store from "../store";
 
 // Actions
 export const LEARN = 'structures/LEARN';
@@ -14,7 +16,7 @@ const initialState = {
     visibleIds: []
 }
 
-// Reducer
+// Reducers
 export default function reducer(state = initialState, action) {
     const payload = action.payload;
 
@@ -51,9 +53,10 @@ export function build(id, amount) {
         if (canBuild(getState(), structure)) {
             const cost = getBuildCost(structure);
 
-            // TODO Batch these
-            dispatch(buildUnsafe(id, amount));
-            dispatch(consumeUnsafe(cost));
+            batch(() => {
+                dispatch(buildUnsafe(id, amount));
+                dispatch(consumeUnsafe(cost));
+            })
         }
     }
 }
@@ -72,7 +75,12 @@ export function canBuild(state, structure) {
     return canConsume(state, getBuildCost(structure));
 }
 export function getProduction(structure) {
+    if (structure.produces === undefined) { return {}; }
     return mapObject(structure.produces, (k, v) => v.base * structure.count);
+}
+export function getConsumption(structure) {
+    if (structure.consumes === undefined) { return {}; }
+    return mapObject(structure.consumes, (k, v) => v.base * structure.count);
 }
 export function getTotalProduction(state) {
     let result = {};
@@ -84,6 +92,32 @@ export function getTotalProduction(state) {
     });
     return result;
 }
+export function getTotalConsumption(state) {
+    let result = {};
+    iterateVisible(state, structure => {
+        for (const [key, value] of Object.entries(getConsumption(structure))) {
+            if (result[key] === undefined) { result[key] = 0; }
+            result[key] += value;
+        }
+    });
+    return result;
+}
+
+// Note: This will emit a lot of dispatches... it should be surrounded by a batch()
+export function applyTime(time) {
+    return function(dispatch, getState) {
+        iterateVisible(getState(), structure => {
+            const consumption = mapObject(getConsumption(structure), (k, v) => v * time);
+            if (canConsume(getState(), consumption)) {
+                dispatch(consumeUnsafe(consumption));
+                dispatch(produce(mapObject(getProduction(structure), (k, v) => v * time)));
+            }
+        })
+    }
+}
+
+
+
 function iterateVisible(state, callback) {
     state.structures.visibleIds.forEach(id => {
         callback(getStructure(state, id));

@@ -5,7 +5,7 @@ export default {
         cost: {},
         produces: {
             energy: {
-                base: 100
+                base: 10
             }
         }
     },
@@ -15,6 +15,11 @@ export default {
             minerals: {
                 base: 20,
                 increment: 1.25
+            }
+        },
+        consumes: {
+            energy: {
+                base: 5
             }
         },
         produces: {
@@ -32,8 +37,8 @@ export default {
             }
         },
         produces: {
-            minerals: {
-                base: 1
+            energy: {
+                base: 5
             }
         }
     }
