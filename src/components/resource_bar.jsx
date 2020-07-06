@@ -1,7 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux';
 
-import { consume, getQuantity } from "../redux/modules/resources"
+import Resource from "./resource"
 
 class ResourceBar extends React.Component {
     constructor(props) {
@@ -11,17 +11,15 @@ class ResourceBar extends React.Component {
     render() {
         return (
             <div className="resource-bar">
-                {/*<button onClick={() => this.props.consume('minerals', 20)}>test!</button>*/}
-                <div>
-                    Minerals: { Math.floor(this.props.minerals) }
-                </div>
                 <div>
                     Time: { Math.floor(this.props.elapsedTime / 1000.0) }
                 </div>
-                {/*<div>*/}
-                {/*    /!*Real: { (new Date()).toLocaleString() }*!/*/}
-                {/*    Real: { Date.now() }*/}
-                {/*</div>*/}
+                <br/>
+                {
+                    this.props.visibleIds.map((id) => {
+                        return <Resource type={id} key={id} />
+                    })
+                }
             </div>
         );
     }
@@ -31,12 +29,11 @@ class ResourceBar extends React.Component {
 const mapStateToProps = state => {
     return {
         elapsedTime: state.clock.elapsedTime,
-        resources: state.resources,
-        minerals: getQuantity(state, 'minerals')
+        visibleIds: state.resources.visibleIds
     }
 };
 
 export default connect(
     mapStateToProps,
-    { consume }
+    {}
 )(ResourceBar);

@@ -41,8 +41,8 @@ html, body, #app {
     overflow: hidden;
 
     background: $canvas-background;
-    color: $canvas-font;
-
+    //color: $canvas-font;
+    color: white;
   }
   .right-column {
     display: flex;

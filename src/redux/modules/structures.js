@@ -1,7 +1,8 @@
 import update from 'immutability-helper';
-import {canConsume, consume, consumeUnsafe} from "./resources";
+import {canConsume, consumeUnsafe} from "./resources";
 import _ from 'lodash';
 import database from '../../database/structures'
+import {mapObject} from "../../lib/helpers";
 
 // Actions
 export const LEARN = 'structures/LEARN';
@@ -52,7 +53,7 @@ export function build(id, amount) {
 
             // TODO Batch these
             dispatch(buildUnsafe(id, amount));
-            dispatch(consumeUnsafe('minerals', cost));
+            dispatch(consumeUnsafe(cost));
         }
     }
 }
@@ -65,20 +66,23 @@ export function getStructure(state, id) {
     return state.structures.byId[id];
 }
 export function getBuildCost(structure) {
-    return Math.floor(structure.cost.minerals.base * (structure.cost.minerals.increment)**(structure.count));
+    return mapObject(structure.cost, (k, v) => v.base * (v.increment)**(structure.count));
 }
 export function canBuild(state, structure) {
-    return canConsume(state, 'minerals', getBuildCost(structure));
+    return canConsume(state, getBuildCost(structure));
 }
 export function getProduction(structure) {
-    return structure.produces.minerals.base * structure.count;
+    return mapObject(structure.produces, (k, v) => v.base * structure.count);
 }
 export function getTotalProduction(state) {
-    let total = 0;
+    let result = {};
     iterateVisible(state, structure => {
-        total += getProduction(structure);
+        for (const [key, value] of Object.entries(getProduction(structure))) {
+            if (result[key] === undefined) { result[key] = 0; }
+            result[key] += value;
+        }
     });
-    return total;
+    return result;
 }
 function iterateVisible(state, callback) {
     state.structures.visibleIds.forEach(id => {

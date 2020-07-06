@@ -7,14 +7,18 @@ import store from './redux/store';
 import App from './components/app';
 import './styles/app.scss';
 
-// import { consume } from './redux/modules/resources';
-//
+// Note: These imports are required; they actually initialize the singletons
+import gameClock from "./singletons/game_clock"
+import resourceManager from "./singletons/resource_manager"
+
 // window.store = store;
 // const unsubscribe = store.subscribe(() => console.log('subscribed event: ', store.getState()));
-// store.dispatch(consume('minerals', 10));
-// window.boundConsume = (id, amount) => store.dispatch(consume(id, amount));
 
-import { learn } from './redux/modules/structures';
+import {build, learn} from './redux/modules/structures';
+
+store.dispatch(learn('commandCenter'));
+store.dispatch(build('commandCenter', 1));
+
 store.dispatch(learn('harvester'));
 store.dispatch(learn('solarPanel'));
 

@@ -1,7 +1,8 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {build, getProduction} from "../redux/modules/structures";
-import { getStructure, getBuildCost, canBuild } from "../redux/modules/structures";
+import {build, getProduction} from "../../redux/modules/structures";
+import { getStructure, getBuildCost, canBuild } from "../../redux/modules/structures";
+import {toString} from "../../redux/modules/resources";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -18,12 +19,12 @@ class Structure extends React.Component {
                 <div className="buttons">
                     <button onClick={() => this.props.build(this.props.type, 1)}
                             disabled={!this.props.canBuild}>
-                        Build {`(${this.props.cost}m)`}
+                        Build {`(${toString(this.props.cost)})`}
                     </button>
                     {this.props.buttons}
                 </div>
                 <div>
-                    Produces: {this.props.production}/s
+                    Produces: {toString(this.props.production)}
                 </div>
             </div>
         );
@@ -34,7 +35,6 @@ const mapStateToProps = (state, ownProps) => {
     const structure = getStructure(state, ownProps.type);
 
     return {
-        resources: state.resources,
         structure: structure,
         canBuild: canBuild(state, structure),
         cost: getBuildCost(structure),

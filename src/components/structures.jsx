@@ -1,6 +1,7 @@
 import React from 'react';
 import {connect} from "react-redux";
-import Structure from "./structure";
+import Structure from "./structures/structure";
+import CommandCenter from "./structures/command_center";
 
 class Structures extends React.Component {
     constructor(props) {
@@ -10,9 +11,16 @@ class Structures extends React.Component {
     render() {
         return (
             <div className="structures">
-                {this.props.visibleIds.map((id) =>
-                    <Structure type={id} key={id} />
-                )}
+                {
+                    this.props.visibleIds.map((id) => {
+                        switch(id) {
+                            case 'commandCenter':
+                                return <CommandCenter type={id} key={id}/>
+                            default:
+                                return <Structure type={id} key={id} />
+                        }
+                    })
+                }
             </div>
         );
     }

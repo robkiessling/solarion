@@ -1,5 +1,14 @@
 
 export default {
+    commandCenter: {
+        name: "Command Center",
+        cost: {},
+        produces: {
+            energy: {
+                base: 100
+            }
+        }
+    },
     harvester: {
         name: "Harvester",
         cost: {

@@ -1,18 +1,24 @@
 import update from 'immutability-helper';
-// import * as structures from './structures';
+import {mapObject} from "../../lib/helpers";
+import _ from 'lodash';
 
 // Actions
 export const CONSUME = 'resources/CONSUME';
-export const GENERATE = 'resources/GENERATE';
+export const PRODUCE = 'resources/PRODUCE';
 
 // Initial State
 const initialState = {
     byId: {
         minerals: {
+            name: "Minerals",
             amount: 100
+        },
+        energy: {
+            name: "Energy",
+            amount: 0
         }
     },
-    visibleIds: ['minerals']
+    visibleIds: ['energy', 'minerals']
 }
 
 // const byId = (state = initialState.byId, action) => {
@@ -37,11 +43,11 @@ export default function reducer(state = initialState, action) {
     switch (action.type) {
         case CONSUME:
             return update(state, {
-                byId: { [payload.id]: { amount: { $apply: function(x) { return x - payload.amount; } } } }
+                byId: mapObject(payload.amounts, (k, v) => ({ amount: { $apply: function(x) { return x - v; } } }))
             });
-        case GENERATE:
+        case PRODUCE:
             return update(state, {
-                byId: { [payload.id]: { amount: { $apply: function(x) { return x + payload.amount; } } } }
+                byId: mapObject(payload.amounts, (k, v) => ({ amount: { $apply: function(x) { return x + v; } } }))
             });
         default:
             return state;
@@ -49,28 +55,32 @@ export default function reducer(state = initialState, action) {
 }
 
 // Action Creators
-export function consume(id, amount) {
+export function consume(amounts) {
     return function(dispatch, getState) {
-        if (canConsume(getState(), id, amount)) {
-            dispatch(consumeUnsafe(id, amount));
+        if (canConsume(getState(), amounts)) {
+            dispatch(consumeUnsafe(amounts));
         }
     }
 }
-export function consumeUnsafe(id, amount) {
-    return { type: CONSUME, payload: { id, amount } };
+export function consumeUnsafe(amounts) {
+    return { type: CONSUME, payload: { amounts } };
 }
 
-export function generate(id, amount) {
-    return { type: GENERATE, payload: { id, amount } };
+export function produce(amounts) {
+    return { type: PRODUCE, payload: { amounts } };
 }
 
 // Standard Functions
 export function getResource(state, id) {
     return state.resources.byId[id];
 }
-export function canConsume(state, id, amount) {
-    return getQuantity(state, id) >= amount;
+export function canConsume(state, amounts) {
+    return Object.entries(amounts).every(([k,v]) => getQuantity(state, k) >= v);
 }
 export function getQuantity(state, id) {
     return getResource(state, id).amount;
+}
+
+export function toString(amounts) {
+    return Object.entries(amounts).map(([k,v]) => `${k}: ${_.round(v, 1)}` ).join(', ')
 }

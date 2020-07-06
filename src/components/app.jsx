@@ -7,10 +7,6 @@ import Log from "./log";
 import Tester from "./tester";
 import Title from "./title";
 
-// Note: These imports are required; they actually initialize the singletons
-import gameClock from "../singletons/game_clock"
-import resourceManager from "../singletons/resource_manager"
-
 export default class App extends React.Component {
     render() {
         return (

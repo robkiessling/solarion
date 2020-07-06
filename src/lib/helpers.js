@@ -34,3 +34,11 @@ export function emptyElement(element) {
         element.removeChild(element.firstChild);
     }
 }
+
+// Maps an object to a new object https://stackoverflow.com/a/14810722/4904996
+export const mapObject = (obj, fn) =>
+    Object.fromEntries(
+        Object.entries(obj).map(
+            ([k, v], i) => [k, fn(k, v, i)]
+        )
+    )
