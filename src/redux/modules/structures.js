@@ -5,6 +5,7 @@ import database from '../../database/structures'
 import {mapObject} from "../../lib/helpers";
 import {batch} from 'react-redux';
 import store from "../store";
+import {canBuildStructure} from "../reducer";
 
 // Actions
 export const LEARN = 'structures/LEARN';
@@ -47,10 +48,12 @@ export default function reducer(state = initialState, action) {
 export function learn(id) {
     return { type: LEARN, payload: { id } };
 }
+
+// TODO Technically should this be moved into parent reducer? since it is using getState() not just getState().structures
 export function build(id, amount) {
     return function(dispatch, getState) {
-        const structure = getStructure(getState(), id);
-        if (canBuild(getState(), structure)) {
+        const structure = getStructure(getState().structures, id);
+        if (canBuildStructure(getState(), structure)) {
             const cost = getBuildCost(structure);
 
             batch(() => {
@@ -66,13 +69,10 @@ export function buildUnsafe(id, amount) {
 
 // Standard Functions
 export function getStructure(state, id) {
-    return state.structures.byId[id];
+    return state.byId[id];
 }
 export function getBuildCost(structure) {
     return mapObject(structure.cost, (k, v) => v.base * (v.increment)**(structure.count));
-}
-export function canBuild(state, structure) {
-    return canConsume(state, getBuildCost(structure));
 }
 export function getProduction(structure) {
     if (structure.produces === undefined) { return {}; }
@@ -106,9 +106,9 @@ export function getTotalConsumption(state) {
 // Note: This will emit a lot of dispatches... it should be surrounded by a batch()
 export function applyTime(time) {
     return function(dispatch, getState) {
-        iterateVisible(getState(), structure => {
+        iterateVisible(getState().structures, structure => {
             const consumption = mapObject(getConsumption(structure), (k, v) => v * time);
-            if (canConsume(getState(), consumption)) {
+            if (canConsume(getState().resources, consumption)) {
                 dispatch(consumeUnsafe(consumption));
                 dispatch(produce(mapObject(getProduction(structure), (k, v) => v * time)));
             }
@@ -119,7 +119,7 @@ export function applyTime(time) {
 
 
 function iterateVisible(state, callback) {
-    state.structures.visibleIds.forEach(id => {
+    state.visibleIds.forEach(id => {
         callback(getStructure(state, id));
     });
 }

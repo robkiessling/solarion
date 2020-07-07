@@ -26,7 +26,7 @@ class CommandCenter extends React.Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
-    const structure = getStructure(state, ownProps.type);
+    const structure = getStructure(state.structures, ownProps.type);
 
     return {
         structure: structure,

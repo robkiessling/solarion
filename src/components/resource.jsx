@@ -17,7 +17,7 @@ class Structure extends React.Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
-    const resource = getResource(state, ownProps.type);
+    const resource = getResource(state.resources, ownProps.type);
 
     return {
         resource: resource,
