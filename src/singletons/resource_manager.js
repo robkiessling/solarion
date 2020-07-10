@@ -6,7 +6,7 @@ import {consume, produce} from "../redux/modules/resources";
 import {mapObject} from "../lib/helpers";
 import {batch} from 'react-redux';
 
-const UPDATES_PER_SECOND = 5;
+const UPDATES_PER_SECOND = 10;
 
 class ResourceManager {
     constructor() {

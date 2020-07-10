@@ -38,9 +38,32 @@ export function emptyElement(element) {
 
 // Maps an object to a new object https://stackoverflow.com/a/14810722/4904996
 // TODO just use lodash map values?
-export const mapObject = (obj, fn) =>
-    Object.fromEntries(
+export const mapObject = (obj, fn) => {
+    return Object.fromEntries(
         Object.entries(obj).map(
             ([k, v], i) => [k, fn(k, v, i)]
         )
     )
+}
+
+const EPSILON = 0.000001; // Adding an epsilon to handle floating point rounding errors
+export const roundToDecimal = (num, numDecimals) => {
+    if (numDecimals === 0) {
+        return Math.round(num + EPSILON)
+    }
+    else {
+        const factor = Math.pow(10, numDecimals);
+        return Math.round((num + EPSILON) * factor) / factor;
+    }
+};
+
+// Rounds a float to 5 decimals. This should be used before any comparisons (e.g. < <= > >=) because of floating point rounding errors
+export const roundForComparison = (num) => {
+    return roundToDecimal(num, 5);
+};
+
+// Rounds to nearest int
+export const round = (num) => {
+    return roundToDecimal(num, 0);
+};
+

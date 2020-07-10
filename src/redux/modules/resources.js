@@ -1,6 +1,7 @@
 import update from 'immutability-helper';
 import {mapObject} from "../../lib/helpers";
 import _ from 'lodash';
+import database, { UNLIMITED } from '../../database/resources'
 
 // Actions
 export const CONSUME = 'resources/CONSUME';

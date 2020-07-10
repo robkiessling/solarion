@@ -1,7 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
 import Structure from "./structures/structure";
-import CommandCenter from "./structures/command_center";
 import MineralHarvester from "./structures/mineral_harvester";
 
 class Structures extends React.Component {
@@ -17,8 +16,6 @@ class Structures extends React.Component {
                         switch(id) {
                             case 'mineralHarvester':
                                 return <MineralHarvester type={id} key={id}/>
-                            case 'commandCenter':
-                                return <CommandCenter type={id} key={id}/>
                             default:
                                 return <Structure type={id} key={id} />
                         }

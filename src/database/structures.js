@@ -1,24 +1,23 @@
 
-export default {
-    commandCenter: {
-        name: "Command Center",
-        cost: {},
-        produces: {
-            energy: {
-                base: 10
-            }
-        }
+import _ from 'lodash';
+
+const base = {
+    name: 'Unknown',
+    buildable: false,
+    runnable: false,
+    count: {
+        total: 0,
+        running: 0
     },
-    mineralHarvester: {
+    cost: {},
+    consumes: {},
+    produces: {}
+}
+
+export default {
+    mineralHarvester: _.merge({}, base, {
         name: "Mineral Harvester",
-        buildable: false,
         runnable: true,
-        cost: {
-            // minerals: {
-            //     base: 20,
-            //     increment: 1.25
-            // }
-        },
         consumes: {
             energy: {
                 base: 5
@@ -29,8 +28,8 @@ export default {
                 base: 2
             }
         }
-    },
-    solarPanel: {
+    }),
+    solarPanel: _.merge({}, base, {
         name: "Solar Panel",
         cost: {
             minerals: {
@@ -43,5 +42,5 @@ export default {
                 base: 5
             }
         }
-    }
+    })
 };

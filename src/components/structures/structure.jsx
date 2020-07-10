@@ -29,7 +29,7 @@ class Structure extends React.Component {
                         this.props.structure.runnable &&
                             <label className="on-off-switch">
                                 <ReactSwitch onChange={(checked) => this.props.toggleRunning(this.props.type, checked)}
-                                             checked={this.props.structure.running === this.props.structure.count} />
+                                             checked={this.props.structure.count.running === this.props.structure.count.total} />
                             </label>
                     }
                     {this.props.buttons}
