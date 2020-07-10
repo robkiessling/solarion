@@ -14,14 +14,15 @@ import resourceManager from "./singletons/resource_manager"
 // window.store = store;
 // const unsubscribe = store.subscribe(() => console.log('subscribed event: ', store.getState()));
 
-import {learn as learnResource} from './redux/modules/resources';
-import {learn, build} from './redux/modules/structures';
+// import {learn as learnResource} from './redux/modules/resources';
+import {learn} from './redux/modules/structures';
+import {buildStructure} from './redux/reducer';
 
 
 
 store.dispatch(learn('mineralHarvester'));
-store.dispatch(build('mineralHarvester', 1));
-// store.dispatch(learn('solarPanel'));
+store.dispatch(buildStructure('mineralHarvester', 1));
+store.dispatch(learn('solarPanel'));
 
 ReactDOM.render(
     <Provider store={store}>

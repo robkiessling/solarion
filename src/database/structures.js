@@ -31,6 +31,7 @@ export default {
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
+        buildable: true,
         cost: {
             minerals: {
                 base: 10,
@@ -41,6 +42,7 @@ export default {
             energy: {
                 base: 5
             }
-        }
+        },
+        consumeString: 'sunlight'
     })
 };

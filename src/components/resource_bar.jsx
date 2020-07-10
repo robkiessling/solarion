@@ -2,6 +2,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 
 import Resource from "./resource"
+import {getNetResourceRates} from "../redux/reducer";
 
 class ResourceBar extends React.Component {
     constructor(props) {
@@ -17,7 +18,7 @@ class ResourceBar extends React.Component {
                 <br/>
                 {
                     this.props.visibleIds.map((id) => {
-                        return <Resource type={id} key={id} />
+                        return <Resource type={id} key={id} rate={this.props.netResourceRates[id]} resource={this.props.resources[id]}/>
                     })
                 }
             </div>
@@ -29,7 +30,9 @@ class ResourceBar extends React.Component {
 const mapStateToProps = state => {
     return {
         elapsedTime: state.clock.elapsedTime,
-        visibleIds: state.resources.visibleIds
+        visibleIds: state.resources.visibleIds,
+        resources: state.resources.byId,
+        netResourceRates: getNetResourceRates(state)
     }
 };
 

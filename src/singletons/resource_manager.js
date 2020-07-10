@@ -1,9 +1,7 @@
 // import * as Helpers from "../lib/helpers"
 import gameClock from "./game_clock";
 import store from "../redux/store";
-import {applyTime, getTotalConsumption, getTotalProduction} from "../redux/modules/structures";
-import {consume, produce} from "../redux/modules/resources";
-import {mapObject} from "../lib/helpers";
+import {applyTime} from "../redux/reducer";
 import {batch} from 'react-redux';
 
 const UPDATES_PER_SECOND = 10;

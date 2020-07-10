@@ -67,3 +67,11 @@ export const round = (num) => {
     return roundToDecimal(num, 0);
 };
 
+
+// Set functions
+export const a_minus_b = (a, b) => {
+    return new Set([...a].filter(x => !b.has(x)));
+}
+export const a_intersect_b = (a, b) => {
+    return new Set([...a].filter(x => b.has(x)));
+}

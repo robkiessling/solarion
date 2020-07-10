@@ -76,7 +76,7 @@ export function getCapacity(state, id) {
     return getResource(state, id).capacity.base;
 }
 
-export function toString(amounts) {
-    if (Object.keys(amounts).length === 0) { return 'N/A'; }
+export function toString(amounts, emptyString = 'none') {
+    if (Object.keys(amounts).length === 0) { return emptyString; }
     return Object.entries(amounts).map(([k,v]) => `${k}: ${_.round(v, 1)}` ).join(', ')
 }

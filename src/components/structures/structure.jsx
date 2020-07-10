@@ -1,9 +1,9 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {build, getProduction, getConsumption, toggleRunning} from "../../redux/modules/structures";
+import { getProduction, getConsumption, toggleRunning} from "../../redux/modules/structures";
 import { getStructure, getBuildCost } from "../../redux/modules/structures";
 import {toString} from "../../redux/modules/resources";
-import {canBuildStructure} from "../../redux/reducer";
+import {canBuildStructure, buildStructure} from "../../redux/reducer";
 import ReactSwitch from "react-switch";
 
 class Structure extends React.Component {
@@ -21,7 +21,7 @@ class Structure extends React.Component {
                 <div className="buttons">
                     {
                         this.props.structure.buildable &&
-                        <button onClick={() => this.props.build(this.props.type, 1)} disabled={!this.props.canBuild}>
+                        <button onClick={() => this.props.buildStructure(this.props.type, 1)} disabled={!this.props.canBuild}>
                             Build {`(${toString(this.props.cost)})`}
                         </button>
                     }
@@ -29,16 +29,16 @@ class Structure extends React.Component {
                         this.props.structure.runnable &&
                             <label className="on-off-switch">
                                 <ReactSwitch onChange={(checked) => this.props.toggleRunning(this.props.type, checked)}
-                                             checked={this.props.structure.count.running === this.props.structure.count.total} />
+                                             checked={this.props.isRunning} />
                             </label>
                     }
                     {this.props.buttons}
                 </div>
                 <div>
-                    Produces: {toString(this.props.production)}
+                    Producing: {toString(this.props.production)}
                 </div>
                 <div>
-                    Consumes: {toString(this.props.consumption)}
+                    Consuming: {toString(this.props.consumption, this.props.structure.consumeString)}
                 </div>
             </div>
         );
@@ -53,12 +53,13 @@ const mapStateToProps = (state, ownProps) => {
         canBuild: canBuildStructure(state, structure),
         cost: getBuildCost(structure),
         production: getProduction(structure),
-        consumption: getConsumption(structure)
+        consumption: getConsumption(structure),
+        isRunning: structure.count.running === structure.count.total
     }
 };
 
 export default connect(
     mapStateToProps,
-    { build, toggleRunning }
+    { buildStructure, toggleRunning }
 )(Structure);
 
