@@ -1,8 +1,40 @@
 @import '../variables';
 
+.log-container {
+  height: 100%;
+  width: 100%;
+}
+
 .log {
   flex: 1 0 auto;
 
-  padding: $window-padding;
+  //padding: $window-padding;
+  //height: calc(100% - 1rem);
 
+  padding: 2rem 0.5rem;
+  height: calc(100% - 4rem);
+
+  overflow-x: hidden;
+  overflow-y: hidden;
+
+  p {
+    margin: 0;
+    white-space: pre-wrap;
+
+    &:empty:before {
+      content: "\200b"; // unicode zero width space character
+    }
+
+  }
 }
+
+//.log-gradient {
+//  position:absolute;
+//  top: 0;
+//  left: 0;
+//  height: 100%;
+//  width: 100%;
+//
+//  background: linear-gradient( rgba(39, 40, 35, 1) 0%, rgba(39, 40, 35, 0) 100% );
+//
+//}

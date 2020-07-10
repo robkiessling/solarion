@@ -24,21 +24,6 @@ const initialState = {
     visibleIds: ['energy', 'minerals']
 }
 
-// const byId = (state = initialState.byId, action) => {
-//     switch (action.type) {
-//         default:
-//             return state;
-//     }
-// }
-
-// function applyCost(state, cost, multiplier) {
-//     let overrides = { byId: {} }
-//     for (const [key, value] of Object.entries(cost)) {
-//         overrides.byId[key] = { amount: { $apply: function(x) { return x - (value.base * multiplier); } } }
-//     }
-//     return update(state, overrides);
-// }
-
 // Reducer
 export default function reducer(state = initialState, action) {
     const payload = action.payload;

@@ -10,12 +10,21 @@ $window-padding: 0.5rem;
 
 // Planet Mars Color Palette
 // https://www.color-hex.com/color-palette/7175
-$ui-background: #2a0f02;
+//$ui-background: #2a0f02;
+//$ui-font: #f0e7e7;
+//$ui-border: #f0e7e7;
+////$canvas-background: #c1440e;
+////$canvas-font: #451804;
+//$canvas-background: linear-gradient(180deg, #020024 0%, #451804 35%, #c1440e 100%);
+////$canvas-background: linear-gradient(180deg, #020024 0%, #451804 50%, #c1440e 100%);
+////$canvas-background: linear-gradient(180deg, #010b19 0%, #03214a 50%, #0858c5 100%);
+//$canvas-font: #ff8750;
+
+
+$canvas-background: linear-gradient(180deg, #020024 0%, #451804 100%, #c1440e 100%);
+$canvas-font: #ff8750;
+
+$ui-background: $canvas-background;
+//$ui-background: #2a0f02;
 $ui-font: #f0e7e7;
 $ui-border: #f0e7e7;
-//$canvas-background: #c1440e;
-//$canvas-font: #451804;
-$canvas-background: linear-gradient(180deg, #020024 0%, #451804 35%, #c1440e 100%);
-//$canvas-background: linear-gradient(180deg, #020024 0%, #451804 50%, #c1440e 100%);
-//$canvas-background: linear-gradient(180deg, #010b19 0%, #03214a 50%, #0858c5 100%);
-$canvas-font: #ff8750;

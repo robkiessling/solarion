@@ -12,15 +12,13 @@ export default class App extends React.Component {
         return (
             <div className="app">
                 <div className="left-column">
-                    <ResourceBar/>
                     <Log/>
                 </div>
                 <div className="middle-column">
-                    <Title/>
-                    <Outside/>
+                    <Structures/>
                 </div>
                 <div className="right-column">
-                    <Structures/>
+                    <ResourceBar/>
                 </div>
             </div>
         );

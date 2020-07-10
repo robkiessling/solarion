@@ -4,7 +4,6 @@ import _ from 'lodash';
 import database from '../../database/structures'
 import {mapObject} from "../../lib/helpers";
 import {batch} from 'react-redux';
-import store from "../store";
 import {canBuildStructure} from "../reducer";
 
 // Actions
@@ -104,6 +103,7 @@ export function getTotalConsumption(state) {
 }
 
 // Note: This will emit a lot of dispatches... it should be surrounded by a batch()
+// TODO Technically should this be moved into parent reducer? since it is using getState().resources
 export function applyTime(time) {
     return function(dispatch, getState) {
         iterateVisible(getState().structures, structure => {

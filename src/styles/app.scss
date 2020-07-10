@@ -10,6 +10,10 @@ html, body, #app {
   height: 100%;
 }
 
+html {
+  font-size: 16px;
+}
+
 .app {
   display: flex;
   flex-direction: row;
@@ -22,39 +26,30 @@ html, body, #app {
   .left-column {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
 
-    min-width: 300px;
+    width: 330px;
     height: 100%;
 
-    border-right: 1px solid $ui-border;
-    font-size: 1rem;
-    //display: none;
+    position: relative;
   }
   .middle-column {
     display: flex;
     flex-direction: column;
-    flex: 5 1 auto;
-    max-width: 1000px;
+    flex: 1 1 auto;
+
     height: 100%;
 
-    overflow: hidden;
-
-    background: $canvas-background;
-    //color: $canvas-font;
-    color: white;
+    border-left: 1px solid $ui-border;
+    border-right: 1px solid $ui-border;
   }
   .right-column {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
 
-    min-width: 300px;
+    width: 330px;
     height: 100%;
-
-    border-left: 1px solid $ui-border;
-    font-size:1rem;
-    //display: none;
   }
 
 }
