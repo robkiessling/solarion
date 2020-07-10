@@ -9,6 +9,7 @@ import {canBuildStructure} from "../reducer";
 // Actions
 export const LEARN = 'structures/LEARN';
 export const BUILD = 'structures/BUILD';
+export const SET_RUNNING = 'structures/SET_RUNNING';
 
 // Initial State
 const initialState = {
@@ -25,7 +26,7 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 byId: {
                     [payload.id]: {
-                        $set: _.merge({}, database[payload.id], { count: 0 })
+                        $set: _.merge({}, database[payload.id], { count: 0, running: 0 })
                     }
                 },
                 visibleIds: { $push: [payload.id] }
@@ -35,6 +36,14 @@ export default function reducer(state = initialState, action) {
                 byId: {
                     [payload.id]: {
                         count: { $apply: function(x) { return x + payload.amount; } }
+                    }
+                }
+            });
+        case SET_RUNNING:
+            return update(state, {
+                byId: {
+                    [payload.id]: {
+                        running: { $set: payload.amount }
                     }
                 }
             })
@@ -66,6 +75,23 @@ export function buildUnsafe(id, amount) {
     return { type: BUILD, payload: { id, amount } };
 }
 
+// export function setRunning(id, amount) {
+//     return function(dispatch, getState) {
+//         const structure = getStructure(getState().structures, id);
+//         if (amount >= 0 && amount <= structure.count) {
+//             dispatch(setRunningUnsafe(id, amount));
+//         }
+//     }
+// }
+// export function setRunningUnsafe(id, amount) {
+//     return { type: SET_RUNNING, payload: { id, amount } };
+// }
+export function toggleRunning(id, isRunning) {
+    const amount = isRunning ? 1 : 0;
+    return { type: SET_RUNNING, payload: { id, amount } };
+}
+
+
 // Standard Functions
 export function getStructure(state, id) {
     return state.byId[id];
@@ -75,11 +101,11 @@ export function getBuildCost(structure) {
 }
 export function getProduction(structure) {
     if (structure.produces === undefined) { return {}; }
-    return mapObject(structure.produces, (k, v) => v.base * structure.count);
+    return mapObject(structure.produces, (k, v) => v.base * structure.running);
 }
 export function getConsumption(structure) {
     if (structure.consumes === undefined) { return {}; }
-    return mapObject(structure.consumes, (k, v) => v.base * structure.count);
+    return mapObject(structure.consumes, (k, v) => v.base * structure.running);
 }
 export function getTotalProduction(state) {
     let result = {};

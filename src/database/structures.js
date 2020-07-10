@@ -9,13 +9,15 @@ export default {
             }
         }
     },
-    harvester: {
-        name: "Harvester",
+    mineralHarvester: {
+        name: "Mineral Harvester",
+        buildable: false,
+        runnable: true,
         cost: {
-            minerals: {
-                base: 20,
-                increment: 1.25
-            }
+            // minerals: {
+            //     base: 20,
+            //     increment: 1.25
+            // }
         },
         consumes: {
             energy: {

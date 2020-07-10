@@ -2,7 +2,7 @@ import React from 'react';
 import {connect} from "react-redux";
 import {getResource} from "../redux/modules/resources";
 
-class Structure extends React.Component {
+class Resource extends React.Component {
     constructor(props) {
         super(props);
     }
@@ -28,5 +28,5 @@ const mapStateToProps = (state, ownProps) => {
 export default connect(
     mapStateToProps,
     {}
-)(Structure);
+)(Resource);
 

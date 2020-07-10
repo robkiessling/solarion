@@ -10,6 +10,7 @@ class Log extends React.Component {
     }
 
     componentDidMount() {
+        return;
         let text = [
             ['Resuming last session...', 0],
             ['', 2000],

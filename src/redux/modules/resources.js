@@ -11,13 +11,13 @@ const initialState = {
     byId: {
         minerals: {
             name: "Minerals",
-            amount: 200
+            amount: 0
         },
         energy: {
             name: "Energy",
-            amount: 0,
+            amount: 50,
             capacity: {
-                base: 10
+                base: 100
             }
         }
     },

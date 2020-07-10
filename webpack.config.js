@@ -34,6 +34,10 @@ module.exports = {
             {
                 test: /\.scss/,
                 use: ['style-loader', 'css-loader', 'postcss-loader', 'sass-loader'] // Note that postcss loader must come before sass-loader
+            },
+            {
+                test: /\.css$/,
+                use: [ 'style-loader', 'css-loader', 'postcss-loader' ]
             }
         ]
     }
