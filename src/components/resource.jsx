@@ -16,6 +16,8 @@ export default function Resource(props) {
     }
 
     return (
+        // TODO Maybe don't round? Can be in situation where it shows you have 10 resource, but you really have
+        //      9.6, so you can't actually build things that cost 10. 
         <div className="resource">
             {props.name}: {round(props.quantity)}
             {capacityText}

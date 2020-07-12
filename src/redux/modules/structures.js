@@ -61,7 +61,6 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 byId: {
                     [payload.structureId]: mapObject(payload.upgrade.effects, (attribute, resourceMods) => (
-                        // mergeResourceMods(resourceMods)
                         mergeModsAtDepth(resourceMods, 1)
                     ))
                 }

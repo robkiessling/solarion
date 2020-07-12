@@ -17,7 +17,7 @@ export default {
         effects: {
             produces: {
                 energy: {
-                    multiply: 1
+                    multiply: 1.5
                 }
             }
         }

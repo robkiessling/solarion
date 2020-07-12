@@ -4,8 +4,17 @@ export const MODIFIER_DEFAULTS = {
     add: 0,
     multiply: 1
 }
+const MODIFIER_FUNCTIONS = {
+    add: (x, modValue) => x + modValue,
+    multiply: (x, modValue) => x * modValue
+}
 
 export function getModifiedTotal(data) {
+    // return (function(base = MODIFIER_DEFAULTS.base, add = MODIFIER_DEFAULTS.add, multiply = MODIFIER_DEFAULTS.multiply) {
+    //     return (base + add) * multiply;
+    // })(data.base, data.add, data.multiply);
+
+    // Does same as commented out IIFE above; less readable but might be a little faster
     return (
         (data.base === undefined ? MODIFIER_DEFAULTS.base : data.base) +
         (data.add === undefined ? MODIFIER_DEFAULTS.add : data.add)
@@ -28,7 +37,7 @@ export function mergeModifications(modifications) {
                 if (x === undefined) {
                     x = MODIFIER_DEFAULTS[modType];
                 }
-                return x + modValue;
+                return MODIFIER_FUNCTIONS[modType](x, modValue);
             }
         }
     ))
