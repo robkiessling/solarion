@@ -4,6 +4,7 @@ import {batch} from "react-redux";
 import clock from './modules/clock'
 import resources, * as fromResources from './modules/resources';
 import structures, * as fromStructures from "./modules/structures";
+import upgrades, * as fromUpgrades from "./modules/upgrades";
 import {
     buildUnsafe,
     getConsumption,
@@ -13,13 +14,26 @@ import {
     toggleRunning
 } from "./modules/structures";
 import {mapObject} from "../lib/helpers";
-import {canConsume, consumeUnsafe, produce} from "./modules/resources";
 
 export default combineReducers({
     clock,
     resources,
-    structures
+    structures,
+    upgrades
 });
+
+export function canResearchUpgrade(state, upgrade) {
+    return fromResources.canConsume(state.resources, fromUpgrades.getResearchCost(upgrade));
+}
+export function researchUpgrade(structureId, upgradeId) {
+    return function(dispatch, getState) {
+        const upgrade = fromUpgrades.getUpgrade(getState().upgrades, upgradeId);
+        if (canResearchUpgrade(getState(), upgrade)) {
+            dispatch(fromUpgrades.researchUnsafe(structureId, upgrade));
+        }
+    }
+}
+
 
 export function canBuildStructure(state, structure) {
     return fromResources.canConsume(state.resources, fromStructures.getBuildCost(structure));
@@ -39,9 +53,9 @@ export function applyTime(time) {
     return function(dispatch, getState) {
         iterateVisible(getState().structures, structure => {
             const consumption = mapObject(getConsumption(structure), (resourceId, amount) => amount * time);
-            if (canConsume(getState().resources, consumption)) {
-                dispatch(consumeUnsafe(consumption));
-                dispatch(produce(mapObject(getProduction(structure), (resourceId, amount) => amount * time)));
+            if (fromResources.canConsume(getState().resources, consumption)) {
+                dispatch(fromResources.consumeUnsafe(consumption));
+                dispatch(fromResources.produce(mapObject(getProduction(structure), (resourceId, amount) => amount * time)));
             }
             else {
                 dispatch(toggleRunning(structure.id, false));
@@ -63,3 +77,16 @@ export function getNetResourceRates(state) {
     });
     return result;
 }
+
+export function getVisibleUpgrades(state, structure) {
+    return structure.visibleUpgrades.map(upgradeId => {
+        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
+        return {
+            id: upgrade.id,
+            name: upgrade.name,
+            cost: fromUpgrades.getResearchCost(upgrade),
+            canResearch: canResearchUpgrade(state, upgrade)
+        }
+    });
+}
+

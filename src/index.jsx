@@ -15,15 +15,17 @@ import resourceManager from "./singletons/resource_manager"
 // const unsubscribe = store.subscribe(() => console.log('subscribed event: ', store.getState()));
 
 // import {learn as learnResource} from './redux/modules/resources';
-import {learn} from './redux/modules/structures';
-import {buildStructure} from './redux/reducer';
+import * as fromStructures from './redux/modules/structures';
+import * as fromUpgrades from './redux/modules/upgrades';
+import * as fromReducer from './redux/reducer';
 
 
 
-store.dispatch(learn('solarPanel'));
-store.dispatch(learn('mineralHarvester'));
-store.dispatch(learn('energyBay'));
-store.dispatch(buildStructure('mineralHarvester', 1));
+store.dispatch(fromStructures.learn('solarPanel'));
+store.dispatch(fromStructures.learn('mineralHarvester'));
+store.dispatch(fromStructures.learn('energyBay'));
+store.dispatch(fromReducer.buildStructure('mineralHarvester', 1));
+store.dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
 
 ReactDOM.render(
     <Provider store={store}>

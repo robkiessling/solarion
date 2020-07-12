@@ -1,8 +1,9 @@
 import update from 'immutability-helper';
-import {mapObject} from "../../lib/helpers";
+import {getModifiedTotal, mapObject, mergeModsAtDepth} from "../../lib/helpers";
 import _ from 'lodash';
 import database, { UNLIMITED } from '../../database/resources'
 import * as fromStructures from "./structures";
+import * as fromUpgrades from "./upgrades";
 
 // Actions
 export const CONSUME = 'resources/CONSUME';
@@ -19,9 +20,7 @@ const initialState = {
             name: "Energy",
             amount: 0,
             capacity: {
-                base: 100,
-                add: 0,
-                multiply: 1,
+                base: 100
             }
         }
     },
@@ -39,10 +38,14 @@ export default function reducer(state = initialState, action) {
             return produceReducer(state, payload.amounts);
         case fromStructures.BUILD:
             state = consumeReducer(state, fromStructures.getBuildCost(payload.structure));
-            if (payload.structure.capacity !== undefined) {
-                state = capacityReducer(state, payload.structure.capacity);
+            if (payload.structure.resourceEffects) {
+                state = update(state, {
+                    byId: mergeModsAtDepth(payload.structure.resourceEffects, 2)
+                })
             }
             return state;
+        case fromUpgrades.RESEARCH:
+            return consumeReducer(state, fromUpgrades.getResearchCost(payload.upgrade));
         default:
             return state;
     }
@@ -58,17 +61,6 @@ function produceReducer(state, amounts) {
     return update(state, {
         byId: mapObject(amounts, (resourceId, amount) => (
             { amount: { $apply: function(x) { return Math.min(x + amount, getCapacity(getResource(state, resourceId))); } } }
-        ))
-    });
-}
-function capacityReducer(state, capacityByResource) {
-    return update(state, {
-        byId: mapObject(capacityByResource, (resourceId, capacity) => (
-            {
-                capacity: mapObject(capacity, (type, amount) => (
-                    { $apply: function(x) { return x + amount; } }
-                ))
-            }
         ))
     });
 }
@@ -101,7 +93,8 @@ export function getQuantity(resource) {
 }
 export function getCapacity(resource) {
     if (resource.capacity === undefined) { return Infinity; }
-    return resource.capacity.base + resource.capacity.add;
+
+    return getModifiedTotal(resource.capacity);
 }
 
 export function toString(amounts, emptyString = 'none') {

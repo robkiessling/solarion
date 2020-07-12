@@ -1,9 +1,14 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {getProduction, getConsumption, toggleRunning, getNumRunning} from "../../redux/modules/structures";
+import {
+    getProduction,
+    getConsumption,
+    toggleRunning,
+    getNumRunning
+} from "../../redux/modules/structures";
 import { getStructure, getBuildCost } from "../../redux/modules/structures";
 import {toString} from "../../redux/modules/resources";
-import {canBuildStructure, buildStructure} from "../../redux/reducer";
+import {canBuildStructure, buildStructure, getVisibleUpgrades, researchUpgrade} from "../../redux/reducer";
 import ReactSwitch from "react-switch";
 
 class Structure extends React.Component {
@@ -40,6 +45,17 @@ class Structure extends React.Component {
                 <div>
                     Consuming: {toString(this.props.consumption, this.props.structure.consumeString)}
                 </div>
+                <div>
+                    {
+                        this.props.upgrades.map((upgradeData) => {
+                            return <button key={upgradeData.id}
+                                           onClick={() => this.props.researchUpgrade(this.props.structure.id, upgradeData.id)}
+                                           disabled={!upgradeData.canResearch}>
+                                {upgradeData.name} {`(${toString(upgradeData.cost)})`}
+                            </button>
+                        })
+                    }
+                </div>
             </div>
         );
     }
@@ -55,12 +71,13 @@ const mapStateToProps = (state, ownProps) => {
         production: getProduction(structure),
         consumption: getConsumption(structure),
         isRunning: structure.count.running === structure.count.total,
-        numRunning: getNumRunning(structure)
+        numRunning: getNumRunning(structure),
+        upgrades: getVisibleUpgrades(state, structure)
     }
 };
 
 export default connect(
     mapStateToProps,
-    { buildStructure, toggleRunning }
+    { buildStructure, toggleRunning, researchUpgrade }
 )(Structure);
 

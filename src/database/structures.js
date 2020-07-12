@@ -11,24 +11,13 @@ const base = {
     },
     cost: {},
     consumes: {},
-    produces: {}
+    produces: {},
+
+    upgrades: [],
+    visibleUpgrades: []
 }
 
 export default {
-    mineralHarvester: _.merge({}, base, {
-        name: "Mineral Harvester",
-        runnable: true,
-        consumes: {
-            energy: {
-                base: 20
-            }
-        },
-        produces: {
-            minerals: {
-                base: 2
-            }
-        }
-    }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
         buildable: true,
@@ -43,7 +32,22 @@ export default {
                 base: 5
             }
         },
+        upgrades: ['solarPanel_largerPanels'],
         consumeString: 'sunlight'
+    }),
+    mineralHarvester: _.merge({}, base, {
+        name: "Mineral Harvester",
+        runnable: true,
+        consumes: {
+            energy: {
+                base: 20
+            }
+        },
+        produces: {
+            minerals: {
+                base: 2
+            }
+        }
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
@@ -57,9 +61,11 @@ export default {
         produces: {
 
         },
-        capacity: {
+        resourceEffects: {
             energy: {
-                add: 100
+                capacity: {
+                    add: 100
+                }
             }
         }
     }),

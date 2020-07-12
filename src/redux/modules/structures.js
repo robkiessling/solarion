@@ -1,7 +1,8 @@
 import update from 'immutability-helper';
 import _ from 'lodash';
 import database from '../../database/structures'
-import {mapObject} from "../../lib/helpers";
+import {getModifiedTotal, mapObject, mergeModsAtDepth} from "../../lib/helpers";
+import * as fromUpgrades from "./upgrades";
 
 // Actions
 export const LEARN = 'structures/LEARN';
@@ -47,6 +48,23 @@ export default function reducer(state = initialState, action) {
                         }
                     }
                 }
+            });
+        case fromUpgrades.LEARN:
+            return update(state, {
+                byId: {
+                    [payload.structureId]: {
+                        visibleUpgrades: { $push: [payload.id] }
+                    }
+                }
+            });
+        case fromUpgrades.RESEARCH:
+            return update(state, {
+                byId: {
+                    [payload.structureId]: mapObject(payload.upgrade.effects, (attribute, resourceMods) => (
+                        // mergeResourceMods(resourceMods)
+                        mergeModsAtDepth(resourceMods, 1)
+                    ))
+                }
             })
         default:
             return state;
@@ -73,7 +91,7 @@ export function getStructure(state, id) {
     return state.byId[id];
 }
 export function getBuildCost(structure) {
-    return mapObject(structure.cost, (resourceId, cost) => cost.base * (cost.increment)**(structure.count.total));
+    return mapObject(structure.cost, (resourceId, cost) => getModifiedTotal(cost) * (cost.increment)**(structure.count.total));
 }
 export function getNumRunning(structure) {
     // If not runnable (no on/off switch), the "num running" is always just the total amount built
@@ -82,14 +100,18 @@ export function getNumRunning(structure) {
 export function getProduction(structure, forCount) {
     if (forCount === undefined) { forCount = getNumRunning(structure); }
     if (structure.produces === undefined) { return {}; }
-    return mapObject(structure.produces, (resourceId, production) => production.base * forCount);
+    return mapObject(structure.produces, (resourceId, production) => getModifiedTotal(production) * forCount);
 }
 export function getConsumption(structure, forCount) {
     if (forCount === undefined) { forCount = getNumRunning(structure); }
     if (structure.consumes === undefined) { return {}; }
-    return mapObject(structure.consumes, (resourceId, consumption) => consumption.base * forCount);
+    return mapObject(structure.consumes, (resourceId, consumption) => getModifiedTotal(consumption) * forCount);
 }
 
+
+
+
+// Helpers
 export function iterateVisible(state, callback) {
     state.visibleIds.forEach(id => {
         callback(getStructure(state, id));

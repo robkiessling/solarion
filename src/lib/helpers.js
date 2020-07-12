@@ -1,4 +1,65 @@
 
+export const MODIFIER_DEFAULTS = {
+    base: 0,
+    add: 0,
+    multiply: 1
+}
+
+export function getModifiedTotal(data) {
+    return (
+        (data.base === undefined ? MODIFIER_DEFAULTS.base : data.base) +
+        (data.add === undefined ? MODIFIER_DEFAULTS.add : data.add)
+    ) * (data.multiply === undefined ? MODIFIER_DEFAULTS.multiply : data.multiply);
+}
+
+/**
+ *
+ * @param modifications Should be an object such as:
+ *  {
+ *      add: 10,
+ *      multiply: 2
+ *  }
+ * @returns An object to be passed to immutability-helper's `update` function
+ */
+export function mergeModifications(modifications) {
+    return mapObject(modifications, (modType, modValue) => (
+        {
+            $apply: function(x) {
+                if (x === undefined) {
+                    x = MODIFIER_DEFAULTS[modType];
+                }
+                return x + modValue;
+            }
+        }
+    ))
+}
+
+/**
+ * Applies the modifications (same param as mergeModifications) at a particular depth in the state.
+ * For example, if part of the state was:
+
+    energy: {
+        capacity: {
+            base: 100
+        }
+    }
+
+ * We could update the { base: 100 } modifications area by calling this function with a depth of 2.
+ * @param modifications See mergeModifications for spec
+ * @param depth How deep we need to traverse into the object
+ * @returns An object to be passed to immutability-helper's `update` function
+ */
+export function mergeModsAtDepth(modifications, depth) {
+    if (depth === 0) {
+        return mergeModifications(modifications);
+    }
+    else {
+        return mapObject(modifications, (key, value) => (
+            mergeModsAtDepth(value, depth - 1)
+        ));
+    }
+}
+
 
 /**
  * Iterates through the keys of the object, calling the given function on each (key, value) pair.
