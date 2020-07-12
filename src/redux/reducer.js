@@ -6,7 +6,6 @@ import resources, * as fromResources from './modules/resources';
 import structures, * as fromStructures from "./modules/structures";
 import {
     buildUnsafe,
-    getBuildCost,
     getConsumption,
     getProduction,
     getStructure,
@@ -30,12 +29,7 @@ export function buildStructure(id, amount) {
     return function(dispatch, getState) {
         const structure = getStructure(getState().structures, id);
         if (canBuildStructure(getState(), structure)) {
-            const cost = getBuildCost(structure);
-
-            batch(() => {
-                dispatch(buildUnsafe(id, amount));
-                dispatch(consumeUnsafe(cost));
-            })
+            dispatch(buildUnsafe(structure, amount));
         }
     }
 }
@@ -43,14 +37,14 @@ export function buildStructure(id, amount) {
 // Note: This can emit a lot of dispatches... it should be surrounded by a batch()
 export function applyTime(time) {
     return function(dispatch, getState) {
-        iterateVisible(getState().structures, (structure, id) => {
-            const consumption = mapObject(getConsumption(structure), (k, v) => v * time);
+        iterateVisible(getState().structures, structure => {
+            const consumption = mapObject(getConsumption(structure), (resourceId, amount) => amount * time);
             if (canConsume(getState().resources, consumption)) {
                 dispatch(consumeUnsafe(consumption));
-                dispatch(produce(mapObject(getProduction(structure), (k, v) => v * time)));
+                dispatch(produce(mapObject(getProduction(structure), (resourceId, amount) => amount * time)));
             }
             else {
-                dispatch(toggleRunning(id, false));
+                dispatch(toggleRunning(structure.id, false));
             }
         })
     }

@@ -1,41 +1,25 @@
 import React from 'react';
-// import {connect} from "react-redux";
-// import {getResource} from "../redux/modules/resources";
 import {round} from "../lib/helpers";
 
-export default class Resource extends React.Component {
-    constructor(props) {
-        super(props);
+export default function Resource(props) {
+    let rateText = null;
+    if (props.rate > 0) {
+        rateText = <span className="text-green"> (+{props.rate}/s)</span>
+    }
+    else if (props.rate < 0) {
+        rateText = <span className="text-red"> ({props.rate}/s)</span>
     }
 
-    render() {
-        let rate = null;
-        if (this.props.rate > 0) {
-            rate = <span className="text-green"> (+{this.props.rate}/s)</span>
-        }
-        else if (this.props.rate < 0) {
-            rate = <span className="text-red"> ({this.props.rate}/s)</span>
-        }
-
-        return (
-            <div className="resource">
-                {this.props.resource.name}: {round(this.props.resource.amount)}
-                {rate}
-            </div>
-        );
+    let capacityText = null;
+    if (props.capacity < Infinity) {
+        capacityText = `/${props.capacity}`;
     }
+
+    return (
+        <div className="resource">
+            {props.name}: {round(props.quantity)}
+            {capacityText}
+            {rateText}
+        </div>
+    );
 }
-
-// const mapStateToProps = (state, ownProps) => {
-//     const resource = getResource(state.resources, ownProps.type);
-//
-//     return {
-//         resource: resource
-//     }
-// };
-//
-// export default connect(
-//     mapStateToProps,
-//     {}
-// )(Resource);
-//

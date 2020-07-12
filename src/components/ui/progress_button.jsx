@@ -5,16 +5,6 @@
 
 import React from "react";
 
-// export default function ProgressButton(props) {
-//     return (
-//         <button
-//             className="progress-button"
-//             onClick={() => props.onClick()}>
-//             {props.label}
-//         </button>
-//     );
-// }
-
 export default class ProgressButton extends React.Component {
     constructor(props) {
         super(props);

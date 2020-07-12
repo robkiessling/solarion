@@ -20,9 +20,10 @@ import {buildStructure} from './redux/reducer';
 
 
 
-store.dispatch(learn('mineralHarvester'));
-store.dispatch(buildStructure('mineralHarvester', 1));
 store.dispatch(learn('solarPanel'));
+store.dispatch(learn('mineralHarvester'));
+store.dispatch(learn('energyBay'));
+store.dispatch(buildStructure('mineralHarvester', 1));
 
 ReactDOM.render(
     <Provider store={store}>

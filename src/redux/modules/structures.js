@@ -23,7 +23,7 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 byId: {
                     [payload.id]: {
-                        $set: _.merge({}, database[payload.id], { /* special overrides for learn */ })
+                        $set: _.merge({}, database[payload.id], { id: payload.id })
                     }
                 },
                 visibleIds: { $push: [payload.id] }
@@ -31,7 +31,7 @@ export default function reducer(state = initialState, action) {
         case BUILD:
             return update(state, {
                 byId: {
-                    [payload.id]: {
+                    [payload.structure.id]: {
                         count: {
                             total: { $apply: function(x) { return x + payload.amount; } }
                         }
@@ -58,8 +58,8 @@ export function learn(id) {
     return { type: LEARN, payload: { id } };
 }
 
-export function buildUnsafe(id, amount) {
-    return { type: BUILD, payload: { id, amount } };
+export function buildUnsafe(structure, amount) {
+    return { type: BUILD, payload: { structure, amount } };
 }
 
 export function toggleRunning(id, isRunning) {
@@ -73,7 +73,7 @@ export function getStructure(state, id) {
     return state.byId[id];
 }
 export function getBuildCost(structure) {
-    return mapObject(structure.cost, (k, v) => v.base * (v.increment)**(structure.count.total));
+    return mapObject(structure.cost, (resourceId, cost) => cost.base * (cost.increment)**(structure.count.total));
 }
 export function getNumRunning(structure) {
     // If not runnable (no on/off switch), the "num running" is always just the total amount built
@@ -82,16 +82,16 @@ export function getNumRunning(structure) {
 export function getProduction(structure, forCount) {
     if (forCount === undefined) { forCount = getNumRunning(structure); }
     if (structure.produces === undefined) { return {}; }
-    return mapObject(structure.produces, (k, v) => v.base * forCount);
+    return mapObject(structure.produces, (resourceId, production) => production.base * forCount);
 }
 export function getConsumption(structure, forCount) {
     if (forCount === undefined) { forCount = getNumRunning(structure); }
     if (structure.consumes === undefined) { return {}; }
-    return mapObject(structure.consumes, (k, v) => v.base * forCount);
+    return mapObject(structure.consumes, (resourceId, consumption) => consumption.base * forCount);
 }
 
 export function iterateVisible(state, callback) {
     state.visibleIds.forEach(id => {
-        callback(getStructure(state, id), id);
+        callback(getStructure(state, id));
     });
 }

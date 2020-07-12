@@ -2,6 +2,7 @@ import update from 'immutability-helper';
 import {mapObject} from "../../lib/helpers";
 import _ from 'lodash';
 import database, { UNLIMITED } from '../../database/resources'
+import * as fromStructures from "./structures";
 
 // Actions
 export const CONSUME = 'resources/CONSUME';
@@ -12,13 +13,15 @@ const initialState = {
     byId: {
         minerals: {
             name: "Minerals",
-            amount: 0
+            amount: 30
         },
         energy: {
             name: "Energy",
-            amount: 50,
+            amount: 0,
             capacity: {
-                base: 100
+                base: 100,
+                add: 0,
+                multiply: 1,
             }
         }
     },
@@ -31,18 +34,43 @@ export default function reducer(state = initialState, action) {
 
     switch (action.type) {
         case CONSUME:
-            return update(state, {
-                byId: mapObject(payload.amounts, (k, v) => ({ amount: { $apply: function(x) { return x - v; } } }))
-            });
+            return consumeReducer(state, payload.amounts);
         case PRODUCE:
-            return update(state, {
-                byId: mapObject(payload.amounts, (k, v) => ({ amount: { $apply: function(x) {
-                    return Math.min(x + v, getCapacity(state, k));
-                } } }))
-            });
+            return produceReducer(state, payload.amounts);
+        case fromStructures.BUILD:
+            state = consumeReducer(state, fromStructures.getBuildCost(payload.structure));
+            if (payload.structure.capacity !== undefined) {
+                state = capacityReducer(state, payload.structure.capacity);
+            }
+            return state;
         default:
             return state;
     }
+}
+function consumeReducer(state, amounts) {
+    return update(state, {
+        byId: mapObject(amounts, (resourceId, amount) => (
+            { amount: { $apply: function(x) { return x - amount; } } }
+        ))
+    });
+}
+function produceReducer(state, amounts) {
+    return update(state, {
+        byId: mapObject(amounts, (resourceId, amount) => (
+            { amount: { $apply: function(x) { return Math.min(x + amount, getCapacity(getResource(state, resourceId))); } } }
+        ))
+    });
+}
+function capacityReducer(state, capacityByResource) {
+    return update(state, {
+        byId: mapObject(capacityByResource, (resourceId, capacity) => (
+            {
+                capacity: mapObject(capacity, (type, amount) => (
+                    { $apply: function(x) { return x + amount; } }
+                ))
+            }
+        ))
+    });
 }
 
 // Action Creators
@@ -66,14 +94,14 @@ export function getResource(state, id) {
     return state.byId[id];
 }
 export function canConsume(state, amounts) {
-    return Object.entries(amounts).every(([k,v]) => getQuantity(state, k) >= v);
+    return Object.entries(amounts).every(([k,v]) => getQuantity(getResource(state, k)) >= v);
 }
-export function getQuantity(state, id) {
-    return getResource(state, id).amount;
+export function getQuantity(resource) {
+    return resource.amount;
 }
-export function getCapacity(state, id) {
-    if (getResource(state, id).capacity === undefined) { return Infinity; }
-    return getResource(state, id).capacity.base;
+export function getCapacity(resource) {
+    if (resource.capacity === undefined) { return Infinity; }
+    return resource.capacity.base + resource.capacity.add;
 }
 
 export function toString(amounts, emptyString = 'none') {

@@ -20,7 +20,7 @@ export default {
         runnable: true,
         consumes: {
             energy: {
-                base: 5
+                base: 20
             }
         },
         produces: {
@@ -35,7 +35,7 @@ export default {
         cost: {
             minerals: {
                 base: 10,
-                increment: 1.25
+                increment: 1.5
             }
         },
         produces: {
@@ -44,5 +44,23 @@ export default {
             }
         },
         consumeString: 'sunlight'
-    })
+    }),
+    energyBay: _.merge({}, base, {
+        name: "Energy Bay",
+        buildable: true,
+        cost: {
+            minerals: {
+                base: 1,
+                increment: 1.5
+            }
+        },
+        produces: {
+
+        },
+        capacity: {
+            energy: {
+                add: 100
+            }
+        }
+    }),
 };

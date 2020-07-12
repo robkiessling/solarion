@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import { getProduction, getConsumption, toggleRunning} from "../../redux/modules/structures";
+import {getProduction, getConsumption, toggleRunning, getNumRunning} from "../../redux/modules/structures";
 import { getStructure, getBuildCost } from "../../redux/modules/structures";
 import {toString} from "../../redux/modules/resources";
 import {canBuildStructure, buildStructure} from "../../redux/reducer";
@@ -16,7 +16,7 @@ class Structure extends React.Component {
             <div className="structure">
                 <div className="header">
                     <div className="name">{this.props.structure.name}</div>
-                    <div className="count">{this.props.buildable && this.props.structure.count}</div>
+                    <div className="count">{this.props.structure.buildable && this.props.numRunning}</div>
                 </div>
                 <div className="buttons">
                     {
@@ -54,7 +54,8 @@ const mapStateToProps = (state, ownProps) => {
         cost: getBuildCost(structure),
         production: getProduction(structure),
         consumption: getConsumption(structure),
-        isRunning: structure.count.running === structure.count.total
+        isRunning: structure.count.running === structure.count.total,
+        numRunning: getNumRunning(structure)
     }
 };
 
