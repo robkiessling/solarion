@@ -1,15 +1,21 @@
 import React from 'react';
 import {connect} from "react-redux";
 import {
-    getProduction,
-    getConsumption,
-    toggleRunning,
-    getNumRunning
+    getProduction, getConsumption,
+    getNumRunning, setRunning
 } from "../../redux/modules/structures";
 import { getStructure, getBuildCost } from "../../redux/modules/structures";
 import {toString} from "../../redux/modules/resources";
-import {canBuildStructure, buildStructure, getVisibleUpgrades, researchUpgrade} from "../../redux/reducer";
-import ReactSwitch from "react-switch";
+import {
+    canBuildStructure,
+    buildStructure,
+    getVisibleUpgrades,
+    researchUpgrade,
+    canRunStructure
+} from "../../redux/reducer";
+
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
 
 class Structure extends React.Component {
     constructor(props) {
@@ -17,11 +23,30 @@ class Structure extends React.Component {
     }
 
     render() {
+        let sliderMarks = {};
+        if (this.props.numBuilt === 1) {
+            sliderMarks = {
+                0: 'Off',
+                1: 'On'
+            }
+        }
+        else {
+            const maxTicks = 5;
+            const tickDistance = Math.ceil(this.props.numBuilt / maxTicks);
+            sliderMarks = {
+                0: `0 Off`,
+                [this.props.numBuilt]: `${this.props.numBuilt} On`
+            };
+            for (let i = tickDistance; i < this.props.numBuilt; i += tickDistance) {
+                sliderMarks[i] = i;
+            }
+        }
+
         return (
             <div className="structure">
                 <div className="header">
                     <div className="name">{this.props.structure.name}</div>
-                    <div className="count">{this.props.structure.buildable && this.props.numRunning}</div>
+                    <div className="count">{this.props.structure.buildable && this.props.numBuilt}</div>
                 </div>
                 <div className="buttons">
                     {
@@ -32,10 +57,11 @@ class Structure extends React.Component {
                     }
                     {
                         this.props.structure.runnable &&
-                            <label className="on-off-switch">
-                                <ReactSwitch onChange={(checked) => this.props.toggleRunning(this.props.type, checked)}
-                                             checked={this.props.isRunning} />
-                            </label>
+                            <Slider className={'range-slider'} min={0} max={this.props.numBuilt} marks={sliderMarks}
+                                    onChange={(value) => this.props.setRunning(this.props.type, value)}
+                                    disabled={!this.props.canRun}
+                                    value={this.props.numRunning}
+                            />
                     }
                     {this.props.buttons}
                 </div>
@@ -71,6 +97,8 @@ const mapStateToProps = (state, ownProps) => {
         production: getProduction(structure),
         consumption: getConsumption(structure),
         isRunning: structure.count.running === structure.count.total,
+        numBuilt: structure.count.total,
+        canRun: canRunStructure(state, structure),
         numRunning: getNumRunning(structure),
         upgrades: getVisibleUpgrades(state, structure)
     }
@@ -78,6 +106,6 @@ const mapStateToProps = (state, ownProps) => {
 
 export default connect(
     mapStateToProps,
-    { buildStructure, toggleRunning, researchUpgrade }
+    { buildStructure, setRunning, researchUpgrade }
 )(Structure);
 

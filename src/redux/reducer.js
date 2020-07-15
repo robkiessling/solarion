@@ -50,6 +50,12 @@ export function buildStructure(id, amount) {
     }
 }
 
+export function canRunStructure(state, structure) {
+    // Can run if have non-zero amounts for all required resources. We multiply by 0.001 instead of just 1 because
+    // we want to let structure run even if it can't do a full second's worth of running.
+    return fromResources.canConsume(state.resources, fromStructures.getConsumption(structure, 0.001));
+}
+
 // Note: This can emit a lot of dispatches... it should be surrounded by a batch()
 export function applyTime(time) {
     return function(dispatch, getState) {

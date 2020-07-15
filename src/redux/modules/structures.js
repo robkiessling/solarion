@@ -83,6 +83,9 @@ export function toggleRunning(id, isRunning) {
     const amount = isRunning ? 1 : 0;
     return { type: SET_RUNNING, payload: { id, amount } };
 }
+export function setRunning(id, amount) {
+    return { type: SET_RUNNING, payload: { id, amount } };
+}
 
 
 // Standard Functions

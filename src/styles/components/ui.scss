@@ -41,3 +41,18 @@
 .text-red {
   color: red;
 }
+
+.range-slider {
+  height: 2rem;
+  width: 15rem;
+
+  margin: 0.5rem 0.65rem 1.5rem 0.65rem;
+
+  &.rc-slider-disabled {
+    background-color: transparent;
+  }
+
+  .rc-slider-mark-text {
+    width: 20px; // So we can break into two lines
+  }
+}

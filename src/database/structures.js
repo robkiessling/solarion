@@ -38,6 +38,7 @@ export default {
     mineralHarvester: _.merge({}, base, {
         name: "Mineral Harvester",
         runnable: true,
+        buildable: true,
         consumes: {
             energy: {
                 base: 5
