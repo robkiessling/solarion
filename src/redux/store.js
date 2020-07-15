@@ -1,5 +1,4 @@
-
-import { createStore, applyMiddleware, compose } from 'redux';
+import {applyMiddleware, compose, createStore} from 'redux';
 import thunk from 'redux-thunk';
 import reducer from './reducer';
 import {batchedSubscribe} from 'redux-batched-subscribe';

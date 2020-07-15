@@ -1,7 +1,8 @@
 import { combineReducers } from 'redux'
 import {batch} from "react-redux";
 
-import clock from './modules/clock'
+import clock from './modules/clock';
+import log, * as fromLog from './modules/log';
 import resources, * as fromResources from './modules/resources';
 import structures, * as fromStructures from "./modules/structures";
 import upgrades, * as fromUpgrades from "./modules/upgrades";
@@ -17,6 +18,7 @@ import {mapObject} from "../lib/helpers";
 
 export default combineReducers({
     clock,
+    log,
     resources,
     structures,
     upgrades

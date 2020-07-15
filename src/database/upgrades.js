@@ -23,3 +23,11 @@ export default {
         }
     })
 };
+
+
+// TODO Move upgrades outside of the default database so we can store functions? (for more complex upgrades)
+// export const effects = {
+//     solarPanel_largerPanels: () => {
+//
+//     }
+// }

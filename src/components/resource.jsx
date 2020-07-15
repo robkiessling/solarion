@@ -16,10 +16,10 @@ export default function Resource(props) {
     }
 
     return (
-        // TODO Maybe don't round? Can be in situation where it shows you have 10 resource, but you really have
-        //      9.6, so you can't actually build things that cost 10. 
+        // Have to use Math.floor on quantity; cannot round because then it might show you having enough resources
+        // to build something when you actually don't
         <div className="resource">
-            {props.name}: {round(props.quantity)}
+            {props.name}: {Math.floor(props.quantity)}
             {capacityText}
             {rateText}
         </div>
