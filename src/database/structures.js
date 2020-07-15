@@ -29,7 +29,7 @@ export default {
         },
         produces: {
             energy: {
-                base: 5
+                base: 2
             }
         },
         upgrades: ['solarPanel_largerPanels'],
@@ -40,12 +40,12 @@ export default {
         runnable: true,
         consumes: {
             energy: {
-                base: 20
+                base: 5
             }
         },
         produces: {
             minerals: {
-                base: 2
+                base: 1
             }
         }
     }),

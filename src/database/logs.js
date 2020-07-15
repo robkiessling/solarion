@@ -1,6 +1,8 @@
 import * as fromStructures from '../redux/modules/structures';
-// import * as fromUpgrades from './redux/modules/upgrades';
-// import * as fromReducer from './redux/reducer';
+// import * as fromUpgrades from '../redux/modules/upgrades';
+import * as fromReducer from '../redux/reducer';
+import {addTrigger} from "../redux/triggers";
+import * as fromLog from "../redux/modules/log";
 
 // store.dispatch(fromStructures.learn('solarPanel'));
 // store.dispatch(fromStructures.learn('mineralHarvester'));
@@ -12,7 +14,7 @@ export default {
     startup: {
         text: [
             ['Resuming last session...', 0],
-            ['', 2000],
+            // ['', 2000],
             // ['yUE9ha2tMCpmVtpKqZSc', 100],
             // ['puKrMbdJZoO09kbxo40X', 100],
             // ['gFfKhzGPVSHwvGyYwdT6', 100],
@@ -117,11 +119,11 @@ export default {
             // ['', 10],
             // ['Solarion(R) CORE', 10],
             // ['', 5000],
-            ['Performing system checks...', 2000],
-            ['Energy        1200u', 800],
-            ['Capacity      2000u', 800],
-            ['Oxygen        40%', 800],
-            ['Water         33%', 800],
+            // ['Performing system checks...', 2000],
+            // ['Energy        1200u', 800],
+            // ['Capacity      2000u', 800],
+            // ['Oxygen        40%', 800],
+            // ['Water         33%', 800],
             // ['Mineral Ore   0', 2000],
             // ['Life Support  ERR', 2000],
             // ['Auxiliary     ERR', 800],
@@ -132,7 +134,30 @@ export default {
             ['System: ready', 100],
             ['Mining: operational', 100],
             ['', 100],
-            ['Awaiting input...', 0]
+            ['Awaiting input...', 0],
+            ['', 100]
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromStructures.learn('mineralHarvester'));
+            dispatch(fromReducer.buildStructure('mineralHarvester', 1));
+
+            addTrigger(
+                (state) => state.resources.byId.energy,
+                (slice) => slice.amount === 0,
+                () => {
+                    dispatch(fromLog.startLogSequence('energyDepleted'));
+                }
+            )
+        }
+    },
+
+    energyDepleted: {
+        text: [
+            ['Energy depleted. Researching solutions...', 4000],
+            ['', 0],
+            ['New Schematic Found:', 0],
+            ['Solar Panels', 0],
+            ['', 0]
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('solarPanel'));

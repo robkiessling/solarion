@@ -14,11 +14,11 @@ const initialState = {
     byId: {
         minerals: {
             name: "Minerals",
-            amount: 30
+            amount: 0
         },
         energy: {
             name: "Energy",
-            amount: 0,
+            amount: 100,
             capacity: {
                 base: 100
             }
@@ -99,5 +99,6 @@ export function getCapacity(resource) {
 
 export function toString(amounts, emptyString = 'none') {
     if (Object.keys(amounts).length === 0) { return emptyString; }
-    return Object.entries(amounts).map(([k,v]) => `${k}: ${_.round(v, 1)}` ).join(', ')
+    // return Object.entries(amounts).map(([k,v]) => `${k}: ${_.round(v, 1)}` ).join(', ')
+    return Object.entries(amounts).map(([k,v]) => `${_.round(v, 1)}${k[0]}` ).join(', ')
 }
