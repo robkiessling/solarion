@@ -1,30 +1,19 @@
 import update from 'immutability-helper';
 import {getModifiedTotal, mapObject, mergeModsAtDepth} from "../../lib/helpers";
 import _ from 'lodash';
-import database, { UNLIMITED } from '../../database/resources'
+import database from '../../database/resources'
 import * as fromStructures from "./structures";
 import * as fromUpgrades from "./upgrades";
 
 // Actions
+export const LEARN = 'resources/LEARN';
 export const CONSUME = 'resources/CONSUME';
 export const PRODUCE = 'resources/PRODUCE';
 
 // Initial State
 const initialState = {
-    byId: {
-        minerals: {
-            name: "Minerals",
-            amount: 0
-        },
-        energy: {
-            name: "Energy",
-            amount: 100,
-            capacity: {
-                base: 100
-            }
-        }
-    },
-    visibleIds: ['energy', 'minerals']
+    byId: {},
+    visibleIds: []
 }
 
 // Reducer
@@ -32,6 +21,15 @@ export default function reducer(state = initialState, action) {
     const payload = action.payload;
 
     switch (action.type) {
+        case LEARN:
+            return update(state, {
+                byId: {
+                    [payload.id]: {
+                        $set: _.merge({}, database[payload.id], { id: payload.id, lifetimeTotal: database[payload.id].amount })
+                    }
+                },
+                visibleIds: { $push: [payload.id] }
+            });
         case CONSUME:
             return consumeReducer(state, payload.amounts);
         case PRODUCE:
@@ -59,13 +57,25 @@ function consumeReducer(state, amounts) {
 }
 function produceReducer(state, amounts) {
     return update(state, {
-        byId: mapObject(amounts, (resourceId, amount) => (
-            { amount: { $apply: function(x) { return Math.min(x + amount, getCapacity(getResource(state, resourceId))); } } }
-        ))
+        byId: mapObject(amounts, (resourceId, amount) => {
+            const resource = getResource(state, resourceId);
+            const capacity = getCapacity(resource);
+            const oldAmount = getQuantity(resource);
+            const newAmount = Math.min(oldAmount + amount, capacity);
+            const gain = capacity === Infinity ? amount : (newAmount - oldAmount);
+            return {
+                amount: { $set: newAmount },
+                lifetimeTotal: { $apply: function(x) { return x + gain; } }
+            }
+        })
     });
 }
 
 // Action Creators
+export function learn(id) {
+    return { type: LEARN, payload: { id } };
+}
+
 export function consume(amounts) {
     return function(dispatch, getState) {
         if (canConsume(getState().resources, amounts)) {
@@ -92,7 +102,5 @@ export function getQuantity(resource) {
     return resource.amount;
 }
 export function getCapacity(resource) {
-    if (resource.capacity === undefined) { return Infinity; }
-
     return getModifiedTotal(resource.capacity);
 }

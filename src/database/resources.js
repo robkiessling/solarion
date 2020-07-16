@@ -1,12 +1,13 @@
 
 import _ from "lodash";
 
-export const UNLIMITED = 'unlimited';
-
 const base = {
     name: 'Unknown',
     amount: 0,
-    capacity: UNLIMITED
+    lifetimeTotal: 0,
+    capacity: {
+        base: Infinity
+    }
 }
 
 export default {
@@ -15,5 +16,9 @@ export default {
     }),
     energy: _.merge({}, base, {
         name: "Energy",
+        amount: 100,
+        capacity: {
+            base: 100
+        }
     })
 };

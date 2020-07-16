@@ -1,14 +1,10 @@
 import * as fromStructures from '../redux/modules/structures';
-// import * as fromUpgrades from '../redux/modules/upgrades';
+import * as fromResources from '../redux/modules/resources';
+import * as fromUpgrades from '../redux/modules/upgrades';
 import * as fromReducer from '../redux/reducer';
 import {addTrigger} from "../redux/triggers";
 import * as fromLog from "../redux/modules/log";
-
-// store.dispatch(fromStructures.learn('solarPanel'));
-// store.dispatch(fromStructures.learn('mineralHarvester'));
-// store.dispatch(fromStructures.learn('energyBay'));
-// store.dispatch(fromReducer.buildStructure('mineralHarvester', 1));
-// store.dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
+import {batch} from "react-redux";
 
 export default {
     startup: {
@@ -139,8 +135,12 @@ export default {
         ],
         onFinish: (dispatch) => {
             // TODO Move this into a 'game_processes' database file or something like that?
-            dispatch(fromStructures.learn('mineralHarvester'));
-            dispatch(fromStructures.buildForFree('mineralHarvester', 1));
+            batch(() => {
+                dispatch(fromResources.learn('energy'));
+                dispatch(fromResources.learn('minerals'));
+                dispatch(fromStructures.learn('mineralHarvester'));
+                dispatch(fromStructures.buildForFree('mineralHarvester', 1));
+            })
 
             addTrigger(
                 (state) => state.resources.byId.energy,
@@ -162,17 +162,15 @@ export default {
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('solarPanel'));
+
+            addTrigger(
+                (state) => state.resources.byId.energy,
+                (slice) => slice.lifetimeTotal > 250,
+                () => {
+                    dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
+                }
+            )
         }
     },
 
-    test: {
-        text: [
-            ['hello', 0],
-            ['hello2', 0],
-            ['hello3', 0]
-        ],
-        onFinish: (dispatch) => {
-
-        }
-    }
 }

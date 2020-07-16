@@ -31,25 +31,9 @@ export default function reducer(state = initialState, action) {
                 visibleIds: { $push: [payload.id] }
             });
         case BUILD:
-            return update(state, {
-                byId: {
-                    [payload.structure.id]: {
-                        count: {
-                            total: { $apply: function(x) { return x + payload.amount; } }
-                        }
-                    }
-                }
-            });
+            return buildReducer(state, payload.structure.id, payload.amount);
         case BUILD_FOR_FREE:
-            return update(state, {
-                byId: {
-                    [payload.id]: {
-                        count: {
-                            total: { $apply: function(x) { return x + payload.amount; } }
-                        }
-                    }
-                }
-            });
+            return buildReducer(state, payload.id, payload.amount);
         case SET_RUNNING:
             return update(state, {
                 byId: {
@@ -79,6 +63,18 @@ export default function reducer(state = initialState, action) {
         default:
             return state;
     }
+}
+
+function buildReducer(state, id, amount) {
+    return update(state, {
+        byId: {
+            [id]: {
+                count: {
+                    total: { $apply: function(x) { return x + amount; } }
+                }
+            }
+        }
+    });
 }
 
 // Action Creators

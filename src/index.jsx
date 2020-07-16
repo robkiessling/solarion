@@ -27,7 +27,6 @@ import resourceManager from "./singletons/resource_manager"
 // store.dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
 
 import * as fromLog from './redux/modules/log';
-// store.dispatch(fromLog.log('test'));
 store.dispatch(fromLog.startLogSequence('startup'));
 
 ReactDOM.render(
