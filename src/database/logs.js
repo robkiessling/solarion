@@ -140,7 +140,7 @@ export default {
         onFinish: (dispatch) => {
             // TODO Move this into a 'game_processes' database file or something like that?
             dispatch(fromStructures.learn('mineralHarvester'));
-            dispatch(fromReducer.buildStructure('mineralHarvester', 1));
+            dispatch(fromStructures.buildForFree('mineralHarvester', 1));
 
             addTrigger(
                 (state) => state.resources.byId.energy,

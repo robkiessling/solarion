@@ -43,13 +43,17 @@
 }
 
 .range-slider {
-  height: 2rem;
-  width: 15rem;
+  height: 1rem;
+  width: calc(100% - 1.3rem);
 
   margin: 0.5rem 0.65rem 1.5rem 0.65rem;
 
   &.rc-slider-disabled {
     background-color: transparent;
+  }
+
+  &.tall {
+    height: 2rem;
   }
 
   .rc-slider-mark-text {

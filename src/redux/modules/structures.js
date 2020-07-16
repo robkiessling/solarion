@@ -7,6 +7,7 @@ import * as fromUpgrades from "./upgrades";
 // Actions
 export const LEARN = 'structures/LEARN';
 export const BUILD = 'structures/BUILD';
+export const BUILD_FOR_FREE = 'structures/BUILD_FOR_FREE';
 export const SET_RUNNING = 'structures/SET_RUNNING';
 
 // Initial State
@@ -33,6 +34,16 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 byId: {
                     [payload.structure.id]: {
+                        count: {
+                            total: { $apply: function(x) { return x + payload.amount; } }
+                        }
+                    }
+                }
+            });
+        case BUILD_FOR_FREE:
+            return update(state, {
+                byId: {
+                    [payload.id]: {
                         count: {
                             total: { $apply: function(x) { return x + payload.amount; } }
                         }
@@ -77,6 +88,10 @@ export function learn(id) {
 
 export function buildUnsafe(structure, amount) {
     return { type: BUILD, payload: { structure, amount } };
+}
+
+export function buildForFree(id, amount) {
+    return { type: BUILD_FOR_FREE, payload: { id, amount } };
 }
 
 export function toggleRunning(id, isRunning) {

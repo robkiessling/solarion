@@ -14,7 +14,7 @@ const initialState = {
     byId: {
         minerals: {
             name: "Minerals",
-            amount: 1000
+            amount: 0
         },
         energy: {
             name: "Energy",

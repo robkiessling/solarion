@@ -26,7 +26,7 @@ export default {
         buildable: true,
         cost: {
             minerals: {
-                base: 50,
+                base: 20,
                 increment: 1.5
             }
         },
@@ -54,6 +54,7 @@ export default {
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
+        description: "Converts sunlight into energy. Conversion rate depends on the time of day.",
         buildable: true,
         cost: {
             minerals: {

@@ -59,40 +59,41 @@ class Structure extends React.Component {
                 <div className="right-side">
                     <div className="header">
                         <div className="name">{this.props.structure.name}</div>
-                        <div className="count">{this.props.structure.buildable && this.props.numBuilt}</div>
                     </div>
                     <div className="description">
                         {this.props.structure.description}
                     </div>
-                    <div className="buttons">
-                        {
-                            this.props.structure.buildable &&
+                    <div className="body">
+                        <div className="build-area">
+                            <div className="quantity">Quantity: {this.props.numBuilt}</div>
                             <button onClick={() => this.props.buildStructure(this.props.type, 1)} disabled={!this.props.canBuild}>
                                 Build (<ResourceAmounts amounts={this.props.cost} />)
                             </button>
-                        }
-                        {
-                            this.props.structure.runnable &&
-                            <Slider className={'range-slider'} min={0} max={this.props.numBuilt} marks={sliderMarks}
-                                    onChange={(value) => this.props.setRunning(this.props.type, value)}
-                                    disabled={!this.props.canRun}
-                                    value={this.props.numRunning}
-                            />
-                        }
-                        {this.props.buttons}
+                        </div>
+                        <div className="details-area">
+                            {
+                                this.props.structure.runnable &&
+                                <Slider className={'range-slider' + (this.props.numBuilt !== 1 ? ' tall' : '')}
+                                        min={0} max={this.props.numBuilt} marks={sliderMarks}
+                                        onChange={(value) => this.props.setRunning(this.props.type, value)}
+                                        disabled={!this.props.canRun}
+                                        value={this.props.numRunning}
+                                />
+                            }
+                            {
+                                Object.keys(this.props.production).length > 0 &&
+                                <div>
+                                    Production: <ResourceAmounts amounts={this.props.production} asRates={true} />
+                                </div>
+                            }
+                            {
+                                Object.keys(this.props.consumption).length > 0 &&
+                                <div>
+                                    Consumption: <ResourceAmounts amounts={this.props.consumption} asRates={true} invert={true} />
+                                </div>
+                            }
+                        </div>
                     </div>
-                    {
-                        Object.keys(this.props.production).length > 0 &&
-                        <div>
-                            Production: <ResourceAmounts amounts={this.props.production} asRates={true} />
-                        </div>
-                    }
-                    {
-                        Object.keys(this.props.consumption).length > 0 &&
-                        <div>
-                            Consumption: <ResourceAmounts amounts={this.props.consumption} asRates={true} invert={true} />
-                        </div>
-                    }
                     <div>
                         {
                             this.props.upgrades.map((upgradeData) => {
