@@ -15,20 +15,12 @@ import {
 
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
-import {paintImage} from "../../lib/helpers";
 import ResourceAmounts from "../ui/resource_amounts";
+import Animation from "../animation";
 
 class Structure extends React.Component {
     constructor(props) {
         super(props);
-
-        this.imageRef = React.createRef();
-    }
-
-    componentDidMount() {
-        if (this.props.structure.image) {
-            paintImage(this.props.structure.image.ascii, this.imageRef.current, this.props.structure.image.style);
-        }
     }
 
     render() {
@@ -51,10 +43,12 @@ class Structure extends React.Component {
             }
         }
 
+        const imageKey = this.props.structure.runnable ? (this.props.isRunning ? 'running' : 'idle') : 'idle';
+
         return (
             <div className="structure">
                 <div className="left-side">
-                    <div className="image" ref={this.imageRef}/>
+                    <Animation id={this.props.structure.id} imageKey={imageKey} />
                 </div>
                 <div className="right-side">
                     <div className="header">
@@ -120,7 +114,7 @@ const mapStateToProps = (state, ownProps) => {
         cost: getBuildCost(structure),
         production: getProduction(structure),
         consumption: getConsumption(structure),
-        isRunning: structure.count.running === structure.count.total,
+        isRunning: getNumRunning(structure) > 0,
         numBuilt: structure.count.total,
         canRun: canRunStructure(state, structure),
         numRunning: getNumRunning(structure),

@@ -146,21 +146,3 @@ export const a_minus_b = (a, b) => {
 export const a_intersect_b = (a, b) => {
     return new Set([...a].filter(x => b.has(x)));
 }
-
-export function paintImage(image, element, style = {}) {
-    emptyElement(element);
-
-    // element.style.color = color;
-    for (const [key, value] of Object.entries(style)) {
-        element.style[key] = value;
-    }
-
-    image.forEach(function(imageRow) {
-        imageRow = imageRow.replace('<', '&lt;').replace('>', '&gt;'); // todo hack...
-        let node = document.createElement('span');
-        node.appendChild(document.createTextNode(imageRow));
-        element.appendChild(node);
-    });
-};
-
-

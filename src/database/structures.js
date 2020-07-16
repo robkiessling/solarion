@@ -37,19 +37,8 @@ export default {
         },
         produces: {
             minerals: {
-                base: 1
+                base: 10 // real: 1
             }
-        },
-        image: {
-            ascii: [
-                '    T    ',
-                '   ´|`   ',
-                '   ´|`   ',
-                '   ´|`   ',
-                '   ´|`   ',
-                '_//|||\\\\_',
-                '---------'
-            ]
         }
     }),
     solarPanel: _.merge({}, base, {
@@ -70,14 +59,8 @@ export default {
         upgrades: ['solarPanel_largerPanels'],
         image: {
             ascii: [
-                ' _ _ _ _    ',
-                ' \\_\\_\\_\\_\\  ',
-                ' /\\_\\_\\_\\_\\ ',
-                '/I¯\\_\\_\\_\\_\\',
             ],
             style: {
-                paddingBottom: '0.5rem',
-                paddingTop: '1rem'
             }
         }
     }),
