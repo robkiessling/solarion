@@ -24,12 +24,13 @@ html {
   font-family: monospace;
   color: $ui-font;
 
-  .left-column {
+  .left-column, .right-column {
     display: flex;
     flex-direction: column;
     flex: 0 1 auto;
 
     width: 330px;
+    min-width: 330px;
     height: 100%;
 
     position: relative;
@@ -43,14 +44,6 @@ html {
 
     border-left: 1px solid $ui-border;
     border-right: 1px solid $ui-border;
-  }
-  .right-column {
-    display: flex;
-    flex-direction: column;
-    flex: 0 1 auto;
-
-    width: 330px;
-    height: 100%;
   }
 
 }

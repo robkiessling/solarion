@@ -14,7 +14,19 @@
     border-bottom: 1px solid #bbb;
 
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+
+    .left-side, .right-side {
+      display: flex;
+      flex-direction: column;
+    }
+    .left-side {
+      margin-right: 0.5rem;
+      flex-shrink: 0;
+    }
+    .right-side {
+      flex: auto;
+    }
 
     .header {
       display: flex;
@@ -22,8 +34,21 @@
       justify-content: space-between;
 
       font-weight: bold;
-
     }
 
+    .description {
+      font-size: 0.875rem;
+    }
+
+    .image {
+      white-space: pre;
+      border: 1px solid white;
+      width: 120px;
+
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+    }
   }
 }

@@ -3,6 +3,7 @@ import _ from 'lodash';
 
 const base = {
     name: 'Unknown',
+    description: '',
     buildable: false,
     runnable: false,
     count: {
@@ -18,6 +19,39 @@ const base = {
 }
 
 export default {
+    mineralHarvester: _.merge({}, base, {
+        name: "Mineral Harvester",
+        description: "Drills into the planet's surface to gather minerals.",
+        runnable: true,
+        buildable: true,
+        cost: {
+            minerals: {
+                base: 50,
+                increment: 1.5
+            }
+        },
+        consumes: {
+            energy: {
+                base: 5
+            }
+        },
+        produces: {
+            minerals: {
+                base: 1
+            }
+        },
+        image: {
+            ascii: [
+                '    T    ',
+                '   ´|`   ',
+                '   ´|`   ',
+                '   ´|`   ',
+                '   ´|`   ',
+                '_//|||\\\\_',
+                '---------'
+            ]
+        }
+    }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
         buildable: true,
@@ -33,20 +67,16 @@ export default {
             }
         },
         upgrades: ['solarPanel_largerPanels'],
-        consumeString: 'sunlight'
-    }),
-    mineralHarvester: _.merge({}, base, {
-        name: "Mineral Harvester",
-        runnable: true,
-        buildable: true,
-        consumes: {
-            energy: {
-                base: 5
-            }
-        },
-        produces: {
-            minerals: {
-                base: 1
+        image: {
+            ascii: [
+                ' _ _ _ _    ',
+                ' \\_\\_\\_\\_\\  ',
+                ' /\\_\\_\\_\\_\\ ',
+                '/I¯\\_\\_\\_\\_\\',
+            ],
+            style: {
+                paddingBottom: '0.5rem',
+                paddingTop: '1rem'
             }
         }
     }),

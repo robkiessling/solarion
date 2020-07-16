@@ -17,7 +17,7 @@
 #
 # And you run:
 #
-#   ruby ascii_art/art_parser.rb -f source.txt
+#   ruby art_parser.rb -f art/structures.txt
 #
 # An output.txt file will be generated with strings:
 #

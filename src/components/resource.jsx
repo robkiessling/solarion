@@ -1,15 +1,8 @@
 import React from 'react';
 import {round} from "../lib/helpers";
+import ResourceRate from "./ui/resource_rate";
 
 export default function Resource(props) {
-    let rateText = null;
-    if (props.rate > 0) {
-        rateText = <span className="text-green"> (+{props.rate}/s)</span>
-    }
-    else if (props.rate < 0) {
-        rateText = <span className="text-red"> ({props.rate}/s)</span>
-    }
-
     let capacityText = null;
     if (props.capacity < Infinity) {
         capacityText = `/${props.capacity}`;
@@ -21,7 +14,8 @@ export default function Resource(props) {
         <div className="resource">
             {props.name}: {Math.floor(props.quantity)}
             {capacityText}
-            {rateText}
+            &nbsp;
+            <ResourceRate rate={props.rate} parenthesis={true} />
         </div>
     );
 }

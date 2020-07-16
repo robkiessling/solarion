@@ -5,7 +5,6 @@ import {
     getNumRunning, setRunning
 } from "../../redux/modules/structures";
 import { getStructure, getBuildCost } from "../../redux/modules/structures";
-import {toString} from "../../redux/modules/resources";
 import {
     canBuildStructure,
     buildStructure,
@@ -16,10 +15,20 @@ import {
 
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
+import {paintImage} from "../../lib/helpers";
+import ResourceAmounts from "../ui/resource_amounts";
 
 class Structure extends React.Component {
     constructor(props) {
         super(props);
+
+        this.imageRef = React.createRef();
+    }
+
+    componentDidMount() {
+        if (this.props.structure.image) {
+            paintImage(this.props.structure.image.ascii, this.imageRef.current, this.props.structure.image.style);
+        }
     }
 
     render() {
@@ -44,43 +53,57 @@ class Structure extends React.Component {
 
         return (
             <div className="structure">
-                <div className="header">
-                    <div className="name">{this.props.structure.name}</div>
-                    <div className="count">{this.props.structure.buildable && this.props.numBuilt}</div>
+                <div className="left-side">
+                    <div className="image" ref={this.imageRef}/>
                 </div>
-                <div className="buttons">
-                    {
-                        this.props.structure.buildable &&
-                        <button onClick={() => this.props.buildStructure(this.props.type, 1)} disabled={!this.props.canBuild}>
-                            Build {`(${toString(this.props.cost)})`}
-                        </button>
-                    }
-                    {
-                        this.props.structure.runnable &&
+                <div className="right-side">
+                    <div className="header">
+                        <div className="name">{this.props.structure.name}</div>
+                        <div className="count">{this.props.structure.buildable && this.props.numBuilt}</div>
+                    </div>
+                    <div className="description">
+                        {this.props.structure.description}
+                    </div>
+                    <div className="buttons">
+                        {
+                            this.props.structure.buildable &&
+                            <button onClick={() => this.props.buildStructure(this.props.type, 1)} disabled={!this.props.canBuild}>
+                                Build (<ResourceAmounts amounts={this.props.cost} />)
+                            </button>
+                        }
+                        {
+                            this.props.structure.runnable &&
                             <Slider className={'range-slider'} min={0} max={this.props.numBuilt} marks={sliderMarks}
                                     onChange={(value) => this.props.setRunning(this.props.type, value)}
                                     disabled={!this.props.canRun}
                                     value={this.props.numRunning}
                             />
-                    }
-                    {this.props.buttons}
-                </div>
-                <div>
-                    Producing: {toString(this.props.production)}
-                </div>
-                <div>
-                    Consuming: {toString(this.props.consumption, this.props.structure.consumeString)}
-                </div>
-                <div>
+                        }
+                        {this.props.buttons}
+                    </div>
                     {
-                        this.props.upgrades.map((upgradeData) => {
-                            return <button key={upgradeData.id}
-                                           onClick={() => this.props.researchUpgrade(this.props.structure.id, upgradeData.id)}
-                                           disabled={!upgradeData.canResearch}>
-                                {upgradeData.name} {`(${toString(upgradeData.cost)})`}
-                            </button>
-                        })
+                        Object.keys(this.props.production).length > 0 &&
+                        <div>
+                            Production: <ResourceAmounts amounts={this.props.production} asRates={true} />
+                        </div>
                     }
+                    {
+                        Object.keys(this.props.consumption).length > 0 &&
+                        <div>
+                            Consumption: <ResourceAmounts amounts={this.props.consumption} asRates={true} invert={true} />
+                        </div>
+                    }
+                    <div>
+                        {
+                            this.props.upgrades.map((upgradeData) => {
+                                return <button key={upgradeData.id}
+                                               onClick={() => this.props.researchUpgrade(this.props.structure.id, upgradeData.id)}
+                                               disabled={!upgradeData.canResearch}>
+                                    {upgradeData.name} (<ResourceAmounts amounts={upgradeData.cost} />)
+                                </button>
+                            })
+                        }
+                    </div>
                 </div>
             </div>
         );
