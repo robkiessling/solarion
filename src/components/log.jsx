@@ -21,8 +21,12 @@ class Log extends React.Component {
             <div className="log-container">
                 <div className="log" ref={this.logRef}>
                     {
-                        this.props.visibleSequenceIds.map((sequenceId) => {
-                            return <LogSection sequenceId={sequenceId} key={sequenceId} onUpdate={() => this.onUpdate()} />
+                        this.props.visibleSequenceIds.map((sequenceId, index) => {
+                            return <LogSection sequenceId={sequenceId}
+                                               key={sequenceId}
+                                               onUpdate={() => this.onUpdate()}
+                                               active={index === (this.props.visibleSequenceIds.length - 1)}
+                            />
                         })
                     }
                 </div>

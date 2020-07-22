@@ -17,6 +17,15 @@
   overflow-x: hidden;
   overflow-y: hidden;
 
+  .log-section {
+    &.active {
+      color: #fff;
+    }
+    &.inactive {
+      color: #999;
+    }
+  }
+
   p {
     margin: 0;
     white-space: pre-wrap;

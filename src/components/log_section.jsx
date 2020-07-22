@@ -80,7 +80,7 @@ class LogSection extends React.Component {
 
     render() {
         return (
-            <div className="log-section" ref={this.logSectionRef}/>
+            <div className={`log-section ${this.props.active ? 'active' : 'inactive'}`} ref={this.logSectionRef}/>
         );
     }
 }

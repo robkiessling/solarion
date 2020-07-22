@@ -82,7 +82,7 @@ export default class Animation extends React.Component {
                 {
                     this.state.frame &&
                     this.state.frame.ascii.map((imageRow, index) => {
-                        imageRow = imageRow.replace('<', '&lt;').replace('>', '&gt;'); // todo hack...
+                        // imageRow = imageRow.replace('<', '&lt;').replace('>', '&gt;'); // todo hack...
                         return <span key={index}>{imageRow}</span>
                     })
                 }
