@@ -4,7 +4,6 @@ import Outside from "./outside";
 import Structures from "./structures";
 import ResourceBar from "./resource_bar";
 import Log from "./log";
-import Tester from "./tester";
 import Title from "./title";
 
 export default class App extends React.Component {

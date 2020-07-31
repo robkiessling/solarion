@@ -59,4 +59,58 @@
   .rc-slider-mark-text {
     width: 20px; // So we can break into two lines
   }
+
+  .rc-slider-handle, .rc-slider-dot-active {
+    border-color: $orange;
+  }
+  .rc-slider-track {
+    background-color: $orange;
+  }
+}
+
+button {
+  cursor: pointer;
+  padding: 2px 6px;
+  border: 2px outset #aaa;
+  background: #efefef;
+
+  &:focus {
+    outline: none !important;
+    //border: 2px outset $orange;
+  }
+  &:active {
+    background: #ccc;
+  }
+  &:disabled {
+    background: #888;
+  }
+
+  // If a button has a tip, we move the button text to an inner span (and that span will have the tip).
+  // We can't have the tip on the button itself because the tip will stop working if the button gets disabled.
+  // https://stackoverflow.com/a/60571469/4904996
+  &.has-tip {
+    padding: 0;
+
+    > span {
+      padding: 2px 6px;
+    }
+  }
+}
+
+.game-tooltip {
+  max-width: 15rem;
+  opacity: 1 !important;
+
+  background: $red-brown !important;
+  color: $white;
+  &.place-right {
+    &:after {
+      border-right-color: $red-brown !important;
+    }
+  }
+
+  p {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+  }
 }

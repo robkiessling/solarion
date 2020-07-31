@@ -139,6 +139,7 @@ export function getVisibleUpgrades(state, structure) {
         return {
             id: upgrade.id,
             name: upgrade.name,
+            description: upgrade.description,
             cost: fromUpgrades.getResearchCost(upgrade),
             canResearch: canResearchUpgrade(state, upgrade)
         }

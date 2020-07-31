@@ -13,6 +13,7 @@ const base = {
 export default {
     minerals: _.merge({}, base, {
         name: "Minerals",
+        amount: 100
     }),
     energy: _.merge({}, base, {
         name: "Energy",

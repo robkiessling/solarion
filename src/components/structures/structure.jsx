@@ -17,6 +17,7 @@ import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import ResourceAmounts from "../ui/resource_amounts";
 import Animation from "../animation";
+import ReactTooltip from "react-tooltip";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -43,6 +44,7 @@ class Structure extends React.Component {
             }
         }
 
+        const buildTipId = `build-${this.props.structure.id}`;
         const imageKey = this.props.structure.runnable ? (this.props.isRunning ? 'running' : 'idle') : 'idle';
 
         return (
@@ -60,9 +62,13 @@ class Structure extends React.Component {
                     <div className="body">
                         <div className="build-area">
                             <div className="quantity">Quantity: {this.props.numBuilt}</div>
-                            <button onClick={() => this.props.buildStructure(this.props.type, 1)} disabled={!this.props.canBuild}>
-                                Build (<ResourceAmounts amounts={this.props.cost} />)
+                            <button onClick={() => this.props.buildStructure(this.props.type, 1)}
+                                    disabled={!this.props.canBuild} className="has-tip">
+                                <span data-tip data-for={buildTipId}>Build</span>
                             </button>
+                            <ReactTooltip id={buildTipId} place="right" effect="solid" className="game-tooltip">
+                                Cost: <ResourceAmounts amounts={this.props.cost} />
+                            </ReactTooltip>
                         </div>
                         <div className="details-area">
                             {
@@ -88,14 +94,24 @@ class Structure extends React.Component {
                             }
                         </div>
                     </div>
-                    <div>
+                    <div class="upgrades-container">
                         {
                             this.props.upgrades.map((upgradeData) => {
-                                return <button key={upgradeData.id}
-                                               onClick={() => this.props.researchUpgrade(upgradeData.id)}
-                                               disabled={!upgradeData.canResearch}>
-                                    {upgradeData.name} (<ResourceAmounts amounts={upgradeData.cost} />)
-                                </button>
+                                const tipId = `upgrade-${upgradeData.id}-tip`;
+                                return <div>
+                                    <button key={upgradeData.id}
+                                            onClick={() => this.props.researchUpgrade(upgradeData.id)}
+                                            disabled={!upgradeData.canResearch} className="has-tip">
+                                        <span data-tip data-for={tipId}>{upgradeData.name}</span>
+                                    </button>
+                                    <ReactTooltip id={tipId} place="right" effect="solid" className="game-tooltip">
+                                        <p>
+                                            {upgradeData.description}
+                                        </p>
+                                        Cost: <ResourceAmounts amounts={upgradeData.cost} />
+                                    </ReactTooltip>
+                                </div>
+
                             })
                         }
                     </div>
