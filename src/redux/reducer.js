@@ -100,17 +100,17 @@ export function buildStructure(id, amount) {
 export function canRunStructure(state, structure) {
     // Can run if have non-zero amounts for all required resources. We multiply by 0.001 instead of just 1 because
     // we want to let structure run even if it can't do a full second's worth of running.
-    return fromResources.canConsume(state.resources, fromStructures.getConsumption(structure, 0.001));
+    return fromResources.canConsume(state.resources, fromStructures.getStatistic(structure, 'consumes', 0.001));
 }
 
 // Note: This can emit a lot of dispatches... it should be surrounded by a batch()
 export function applyTime(time) {
     return function(dispatch, getState) {
         fromStructures.iterateVisible(getState().structures, structure => {
-            const consumption = mapObject(fromStructures.getConsumption(structure), (resourceId, amount) => amount * time);
+            const consumption = mapObject(fromStructures.getStatistic(structure, 'consumes'), (resourceId, amount) => amount * time);
             if (fromResources.canConsume(getState().resources, consumption)) {
                 dispatch(fromResources.consumeUnsafe(consumption));
-                dispatch(fromResources.produce(mapObject(fromStructures.getProduction(structure), (resourceId, amount) => amount * time)));
+                dispatch(fromResources.produce(mapObject(fromStructures.getStatistic(structure, 'produces'), (resourceId, amount) => amount * time)));
             }
             else {
                 dispatch(fromStructures.toggleRunning(structure.id, false));
@@ -123,10 +123,10 @@ export function getNetResourceRates(state) {
     let result = Object.fromEntries(Object.keys(state.resources.byId).map((resourceId) => [resourceId, 0]));
 
     fromStructures.iterateVisible(state.structures, structure => {
-        for (const [key, value] of Object.entries(fromStructures.getConsumption(structure))) {
+        for (const [key, value] of Object.entries(fromStructures.getStatistic(structure, 'consumes'))) {
             result[key] -= value;
         }
-        for (const [key, value] of Object.entries(fromStructures.getProduction(structure))) {
+        for (const [key, value] of Object.entries(fromStructures.getStatistic(structure, 'produces'))) {
             result[key] += value;
         }
     });

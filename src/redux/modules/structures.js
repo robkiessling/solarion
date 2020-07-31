@@ -107,15 +107,16 @@ export function getNumRunning(structure) {
     // If not runnable (no on/off switch), the "num running" is always just the total amount built
     return structure.runnable ? structure.count.running : getNumBuilt(structure);
 }
-export function getProduction(structure, forCount) {
-    if (forCount === undefined) { forCount = getNumRunning(structure); }
-    if (structure.produces === undefined) { return {}; }
-    return mapObject(structure.produces, (resourceId, production) => production * forCount);
-}
-export function getConsumption(structure, forCount) {
-    if (forCount === undefined) { forCount = getNumRunning(structure); }
-    if (structure.consumes === undefined) { return {}; }
-    return mapObject(structure.consumes, (resourceId, consumption) => consumption * forCount);
+
+// Gets statistics based on how many of the structures are running. Statistics can be any keys on the structure record.
+export function getStatistic(structure, statistic, forCount) {
+    if (structure[statistic] === undefined) {
+        return {};
+    }
+    if (forCount === undefined) {
+        forCount = getNumRunning(structure);
+    }
+    return mapObject(structure[statistic], (key, value) => value * forCount);
 }
 
 /**

@@ -1,8 +1,7 @@
 import React from 'react';
 import {connect} from "react-redux";
 import {
-    getProduction, getConsumption,
-    getNumRunning, setRunning
+    getStatistic, getNumRunning, setRunning
 } from "../../redux/modules/structures";
 import { getStructure, getBuildCost } from "../../redux/modules/structures";
 import {
@@ -81,15 +80,21 @@ class Structure extends React.Component {
                                 />
                             }
                             {
-                                Object.keys(this.props.production).length > 0 &&
+                                Object.keys(this.props.perStructure.production).length > 0 &&
                                 <div>
                                     Produces: <ResourceAmounts amounts={this.props.perStructure.production} asRates={true} /> each
                                 </div>
                             }
                             {
-                                Object.keys(this.props.consumption).length > 0 &&
+                                Object.keys(this.props.perStructure.consumption).length > 0 &&
                                 <div>
                                     Consumes: <ResourceAmounts amounts={this.props.perStructure.consumption} asRates={true} invert={true} /> each
+                                </div>
+                            }
+                            {
+                                Object.keys(this.props.perStructure.capacity).length > 0 &&
+                                <div>
+                                    Capacity: <ResourceAmounts amounts={this.props.perStructure.capacity} /> each
                                 </div>
                             }
                         </div>
@@ -128,11 +133,10 @@ const mapStateToProps = (state, ownProps) => {
         structure: structure,
         canBuild: canBuildStructure(state, structure),
         cost: getBuildCost(structure),
-        production: getProduction(structure),
-        consumption: getConsumption(structure),
         perStructure: {
-            production: getProduction(structure, 1),
-            consumption: getConsumption(structure, 1),
+            production: getStatistic(structure, 'produces', 1),
+            consumption: getStatistic(structure, 'consumes', 1),
+            capacity: getStatistic(structure, 'capacity', 1)
         },
         isRunning: getNumRunning(structure) > 0,
         numBuilt: structure.count.total,

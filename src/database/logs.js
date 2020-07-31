@@ -9,7 +9,7 @@ import {batch} from "react-redux";
 export default {
     startup: {
         text: [
-            ['Resuming last session...', 0],
+            ['Resuming last session...', 0, true],
             // ['', 2000],
             // ['yUE9ha2tMCpmVtpKqZSc', 100],
             // ['puKrMbdJZoO09kbxo40X', 100],
@@ -84,7 +84,7 @@ export default {
             // ['▒', 0],
             // ['', 0],
             // ['FATAL ERROR DETECTED', 0],
-            // ['', 10000],
+            // ['', 8000],
             // ['****************', 0],
             // ['****************', 0],
             // ['****************', 0],
@@ -125,12 +125,12 @@ export default {
             // ['Auxiliary     ERR', 800],
             // ['Last OP       3419394', 800],
             // ['', 1000],
-            // ['Activating Central Interface', 1000],
+            // ['Activating Central Interface', 2000, true],
+            // ['', 100],
+            // ['System: ready', 2000],
+            // ['Mining: operational', 2000, true],
             ['', 100],
-            ['System: ready', 100],
-            ['Mining: operational', 100],
-            ['', 100],
-            ['Awaiting input...', 0],
+            ['Awaiting input...', 0, true],
             ['', 100]
         ],
         onFinish: (dispatch) => {
@@ -154,10 +154,10 @@ export default {
 
     energyDepleted: {
         text: [
-            ['Energy depleted. Researching solutions...', 4000],
+            ['Energy depleted. Researching solutions...', 4000, true],
             ['', 0],
-            ['New Schematic Found:', 0],
-            ['Solar Panels', 0],
+            ['New Schematic Found:', 0, true],
+            ['Solar Panels', 0, true],
             ['', 0]
         ],
         onFinish: (dispatch) => {

@@ -1,7 +1,6 @@
 
 import _ from "lodash";
-import {getNumBuilt, getStructure} from "../redux/modules/structures";
-import {getUpgrade} from "../redux/modules/upgrades";
+import {getStructure, getStatistic} from "../redux/modules/structures";
 
 const base = {
     name: 'Unknown',
@@ -29,9 +28,7 @@ export const calculators = {
 
             const energyBay = getStructure(state.structures, 'energyBay');
             if (energyBay) {
-                const largerCapacity = getUpgrade(state.upgrades, 'energyBay_largerCapacity');
-                const energyBayCapacity = energyBay.capacity.energy * (largerCapacity && largerCapacity.level ? largerCapacity.multiplier : 1);
-                capacity += (getNumBuilt(energyBay) * energyBayCapacity)
+                capacity += getStatistic(energyBay, 'capacity').energy;
             }
 
             return capacity;

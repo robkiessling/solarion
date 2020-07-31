@@ -35,6 +35,7 @@ export default {
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
+        description: "Provides energy storage and optimizations.",
         buildable: true
     }),
 };
@@ -69,9 +70,11 @@ export const calculators = {
         cost: (state, structure) => ({
             minerals: 10 * (1.5)**(getNumRunning(structure))
         }),
-        capacity: state => ({
-            energy: 100
-        })
+        capacity: (state, structure) => {
+            const largerCapacity = getUpgrade(state.upgrades, 'energyBay_largerCapacity');
+            const capacity = 50 * (largerCapacity && largerCapacity.level ? largerCapacity.multiplier : 1);
+            return { energy: capacity };
+        }
     }
 }
 

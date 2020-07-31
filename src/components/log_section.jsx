@@ -51,10 +51,22 @@ class LogSection extends React.Component {
         const text = databaseRecord.text;
         let i = 0, len = text.length;
 
+        // Each line has 3 elements in an array:
+        //  0: The text to display
+        //  1: How long to delay after the text is shown
+        //  2: If true, briefly flashes the text
         const printNextLine = (delay) => {
             setTimeout(() => {
                 let node = document.createElement('p');
                 node.appendChild(document.createTextNode(text[i][0]));
+
+                if (text[i][2] && text[i][0]) {
+                    node.classList.add('flash');
+                    setTimeout(() => {
+                        node.classList.add('fade-flash');
+                    }, 250)
+                }
+
                 logSection.appendChild(node);
                 this.props.onUpdate();
                 let nextDelay = text[i][1];
