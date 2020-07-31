@@ -66,9 +66,9 @@ export default {
     }),
     solarPanel: {
         style: {
-            height: '128px',
-            paddingBottom: '0.5rem',
-            paddingTop: '1rem'
+            height: '120px',
+            paddingBottom: '8px',
+            paddingTop: ''
         },
         idle: {
             ascii: [
@@ -76,6 +76,21 @@ export default {
                 ' \\_\\_\\_\\_\\  ',
                 ' /\\_\\_\\_\\_\\ ',
                 '/I¯\\_\\_\\_\\_\\',
+            ]
+        },
+    },
+    energyBay: {
+        style: {
+            height: '120px',
+            paddingBottom: '8px',
+            paddingTop: ''
+        },
+        idle: {
+            ascii: [
+                '  ______  ',
+                ' || . ; | ',
+                ' ||_____| ',
+                '/_ \\ _   \\',
             ]
         },
     }

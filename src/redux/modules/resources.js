@@ -1,9 +1,10 @@
 import update from 'immutability-helper';
-import {getModifiedTotal, mapObject, mergeModsAtDepth} from "../../lib/helpers";
+import {mapObject} from "../../lib/helpers";
 import _ from 'lodash';
-import database from '../../database/resources'
+import database, {calculators} from '../../database/resources';
 import * as fromStructures from "./structures";
 import * as fromUpgrades from "./upgrades";
+import {withRecalculation} from "../reducer";
 
 // Actions
 export const LEARN = 'resources/LEARN';
@@ -35,13 +36,7 @@ export default function reducer(state = initialState, action) {
         case PRODUCE:
             return produceReducer(state, payload.amounts);
         case fromStructures.BUILD:
-            state = consumeReducer(state, fromStructures.getBuildCost(payload.structure));
-            if (payload.structure.resourceEffects) {
-                state = update(state, {
-                    byId: mergeModsAtDepth(payload.structure.resourceEffects, 2)
-                })
-            }
-            return state;
+            return consumeReducer(state, fromStructures.getBuildCost(payload.structure));
         case fromUpgrades.RESEARCH:
             return consumeReducer(state, fromUpgrades.getResearchCost(payload.upgrade));
         default:
@@ -73,7 +68,7 @@ function produceReducer(state, amounts) {
 
 // Action Creators
 export function learn(id) {
-    return { type: LEARN, payload: { id } };
+    return withRecalculation({ type: LEARN, payload: { id } });
 }
 
 export function consume(amounts) {
@@ -91,6 +86,7 @@ export function produce(amounts) {
     return { type: PRODUCE, payload: { amounts } };
 }
 
+
 // Standard Functions
 export function getResource(state, id) {
     return state.byId[id];
@@ -102,5 +98,19 @@ export function getQuantity(resource) {
     return resource.amount;
 }
 export function getCapacity(resource) {
-    return getModifiedTotal(resource.capacity);
+    return resource.capacity;
+}
+
+/**
+ * @param state Refers to the full state (unlike other methods which already refer to the resources slice)
+ * @returns {*} Overrides to update various structure values
+ */
+export function calculations(state) {
+    return mapObject(state.resources.byId, (resourceId, resource) => {
+        if (!calculators[resourceId]) { return {}; }
+
+        return mapObject(calculators[resourceId], (attr, calculator) => {
+            return { $set: calculator(state, resource) };
+        });
+    });
 }

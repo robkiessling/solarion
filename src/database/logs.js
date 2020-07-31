@@ -162,12 +162,15 @@ export default {
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('solarPanel'));
+            dispatch(fromStructures.learn('energyBay'));
+            dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
+            dispatch(fromUpgrades.learn('energyBay', 'energyBay_largerCapacity'));
 
             addTrigger(
                 (state) => state.resources.byId.energy,
                 (slice) => slice.lifetimeTotal > 250,
                 () => {
-                    dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
+                    // dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
                 }
             )
         }

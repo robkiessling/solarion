@@ -1,8 +1,9 @@
 import update from 'immutability-helper';
 import _ from 'lodash';
-import database from '../../database/structures'
-import {getModifiedTotal, mapObject, mergeModsAtDepth} from "../../lib/helpers";
+import database, { calculators } from '../../database/structures'
+import {mapObject} from "../../lib/helpers";
 import * as fromUpgrades from "./upgrades";
+import {withRecalculation} from "../reducer";
 
 // Actions
 export const LEARN = 'structures/LEARN';
@@ -52,14 +53,6 @@ export default function reducer(state = initialState, action) {
                     }
                 }
             });
-        case fromUpgrades.RESEARCH:
-            return update(state, {
-                byId: {
-                    [payload.structureId]: mapObject(payload.upgrade.effects, (attribute, resourceMods) => (
-                        mergeModsAtDepth(resourceMods, 1)
-                    ))
-                }
-            })
         default:
             return state;
     }
@@ -79,23 +72,23 @@ function buildReducer(state, id, amount) {
 
 // Action Creators
 export function learn(id) {
-    return { type: LEARN, payload: { id } };
+    return withRecalculation({ type: LEARN, payload: { id } });
 }
 
 export function buildUnsafe(structure, amount) {
-    return { type: BUILD, payload: { structure, amount } };
+    return withRecalculation({ type: BUILD, payload: { structure, amount } });
 }
 
 export function buildForFree(id, amount) {
-    return { type: BUILD_FOR_FREE, payload: { id, amount } };
+    return withRecalculation({ type: BUILD_FOR_FREE, payload: { id, amount } });
 }
 
 export function toggleRunning(id, isRunning) {
     const amount = isRunning ? 1 : 0;
-    return { type: SET_RUNNING, payload: { id, amount } };
+    return withRecalculation({ type: SET_RUNNING, payload: { id, amount } });
 }
 export function setRunning(id, amount) {
-    return { type: SET_RUNNING, payload: { id, amount } };
+    return withRecalculation({ type: SET_RUNNING, payload: { id, amount } });
 }
 
 
@@ -104,24 +97,40 @@ export function getStructure(state, id) {
     return state.byId[id];
 }
 export function getBuildCost(structure) {
-    return mapObject(structure.cost, (resourceId, cost) => getModifiedTotal(cost) * (cost.increment)**(structure.count.total));
+    return structure.cost;
+}
+export function getNumBuilt(structure) {
+    if (!structure) { return 0; }
+    return structure.count.total;
 }
 export function getNumRunning(structure) {
     // If not runnable (no on/off switch), the "num running" is always just the total amount built
-    return structure.runnable ? structure.count.running : structure.count.total;
+    return structure.runnable ? structure.count.running : getNumBuilt(structure);
 }
 export function getProduction(structure, forCount) {
     if (forCount === undefined) { forCount = getNumRunning(structure); }
     if (structure.produces === undefined) { return {}; }
-    return mapObject(structure.produces, (resourceId, production) => getModifiedTotal(production) * forCount);
+    return mapObject(structure.produces, (resourceId, production) => production * forCount);
 }
 export function getConsumption(structure, forCount) {
     if (forCount === undefined) { forCount = getNumRunning(structure); }
     if (structure.consumes === undefined) { return {}; }
-    return mapObject(structure.consumes, (resourceId, consumption) => getModifiedTotal(consumption) * forCount);
+    return mapObject(structure.consumes, (resourceId, consumption) => consumption * forCount);
 }
 
+/**
+ * @param state Refers to the full state (unlike other methods which already refer to the structures slice)
+ * @returns {*} Overrides to update various structure values
+ */
+export function calculations(state) {
+    return mapObject(state.structures.byId, (structureId, structure) => {
+        if (!calculators[structureId]) { return {}; }
 
+        return mapObject(calculators[structureId], (attr, calculator) => {
+            return { $set: calculator(state, structure) };
+        });
+    });
+}
 
 
 // Helpers

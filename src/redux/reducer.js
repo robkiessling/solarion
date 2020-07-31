@@ -1,37 +1,84 @@
 import { combineReducers } from 'redux'
 import {batch} from "react-redux";
+import reduceReducers from "reduce-reducers";
+import update from 'immutability-helper';
 
 import clock from './modules/clock';
 import log, * as fromLog from './modules/log';
 import resources, * as fromResources from './modules/resources';
 import structures, * as fromStructures from "./modules/structures";
 import upgrades, * as fromUpgrades from "./modules/upgrades";
-import {
-    buildUnsafe,
-    getConsumption,
-    getProduction,
-    getStructure,
-    iterateVisible,
-    toggleRunning
-} from "./modules/structures";
 import {mapObject} from "../lib/helpers";
 
-export default combineReducers({
-    clock,
-    log,
-    resources,
-    structures,
-    upgrades
-});
+// Actions
+export const RECALCULATE = 'reducer/RECALCULATE';
+
+// Reducers
+export default reduceReducers(
+    combineReducers({
+        clock,
+        log,
+        resources,
+        structures,
+        upgrades
+    }),
+
+    // cross-cutting entire state
+    (state, action) => {
+        switch(action.type) {
+            case RECALCULATE:
+                return recalculateReducer(state);
+            default:
+                return state;
+        }
+    }
+);
+
+function recalculateReducer(state) {
+    state = update(state, {
+        structures: {
+            byId: fromStructures.calculations(state)
+        }
+    });
+
+    // Store totals? nah not yet
+
+    // Update resource capacities
+    return update(state, {
+        resources: {
+            byId: fromResources.calculations(state)
+        }
+    })
+}
+
+// Action Creators
+export function recalculateState() {
+    return { type: RECALCULATE };
+}
+
+// Helper method - wrapping this around another action will cause the full state to be recalculated once the action completes
+export function withRecalculation(action) {
+    return function(dispatch, getState) {
+        batch(() => {
+            dispatch(action);
+            dispatch(recalculateState())
+        });
+    }
+}
+
+
+// Standard Functions
+// Note: Functions are put here (instead of in a respective slice) because they need to access multiple slices of the state.
+// Parameter `state` for these functions will refer to the full state
 
 export function canResearchUpgrade(state, upgrade) {
     return fromResources.canConsume(state.resources, fromUpgrades.getResearchCost(upgrade));
 }
-export function researchUpgrade(structureId, upgradeId) {
+export function researchUpgrade(upgradeId) {
     return function(dispatch, getState) {
         const upgrade = fromUpgrades.getUpgrade(getState().upgrades, upgradeId);
         if (canResearchUpgrade(getState(), upgrade)) {
-            dispatch(fromUpgrades.researchUnsafe(structureId, upgrade));
+            dispatch(fromUpgrades.researchUnsafe(upgrade));
         }
     }
 }
@@ -43,9 +90,9 @@ export function canBuildStructure(state, structure) {
 
 export function buildStructure(id, amount) {
     return function(dispatch, getState) {
-        const structure = getStructure(getState().structures, id);
+        const structure = fromStructures.getStructure(getState().structures, id);
         if (canBuildStructure(getState(), structure)) {
-            dispatch(buildUnsafe(structure, amount));
+            dispatch(fromStructures.buildUnsafe(structure, amount));
         }
     }
 }
@@ -59,14 +106,14 @@ export function canRunStructure(state, structure) {
 // Note: This can emit a lot of dispatches... it should be surrounded by a batch()
 export function applyTime(time) {
     return function(dispatch, getState) {
-        iterateVisible(getState().structures, structure => {
-            const consumption = mapObject(getConsumption(structure), (resourceId, amount) => amount * time);
+        fromStructures.iterateVisible(getState().structures, structure => {
+            const consumption = mapObject(fromStructures.getConsumption(structure), (resourceId, amount) => amount * time);
             if (fromResources.canConsume(getState().resources, consumption)) {
                 dispatch(fromResources.consumeUnsafe(consumption));
-                dispatch(fromResources.produce(mapObject(getProduction(structure), (resourceId, amount) => amount * time)));
+                dispatch(fromResources.produce(mapObject(fromStructures.getProduction(structure), (resourceId, amount) => amount * time)));
             }
             else {
-                dispatch(toggleRunning(structure.id, false));
+                dispatch(fromStructures.toggleRunning(structure.id, false));
             }
         })
     }
@@ -75,11 +122,11 @@ export function applyTime(time) {
 export function getNetResourceRates(state) {
     let result = Object.fromEntries(Object.keys(state.resources.byId).map((resourceId) => [resourceId, 0]));
 
-    iterateVisible(state.structures, structure => {
-        for (const [key, value] of Object.entries(getConsumption(structure))) {
+    fromStructures.iterateVisible(state.structures, structure => {
+        for (const [key, value] of Object.entries(fromStructures.getConsumption(structure))) {
             result[key] -= value;
         }
-        for (const [key, value] of Object.entries(getProduction(structure))) {
+        for (const [key, value] of Object.entries(fromStructures.getProduction(structure))) {
             result[key] += value;
         }
     });

@@ -77,13 +77,13 @@ class Structure extends React.Component {
                             {
                                 Object.keys(this.props.production).length > 0 &&
                                 <div>
-                                    Production: <ResourceAmounts amounts={this.props.production} asRates={true} />
+                                    Produces: <ResourceAmounts amounts={this.props.perStructure.production} asRates={true} /> each
                                 </div>
                             }
                             {
                                 Object.keys(this.props.consumption).length > 0 &&
                                 <div>
-                                    Consumption: <ResourceAmounts amounts={this.props.consumption} asRates={true} invert={true} />
+                                    Consumes: <ResourceAmounts amounts={this.props.perStructure.consumption} asRates={true} invert={true} /> each
                                 </div>
                             }
                         </div>
@@ -92,7 +92,7 @@ class Structure extends React.Component {
                         {
                             this.props.upgrades.map((upgradeData) => {
                                 return <button key={upgradeData.id}
-                                               onClick={() => this.props.researchUpgrade(this.props.structure.id, upgradeData.id)}
+                                               onClick={() => this.props.researchUpgrade(upgradeData.id)}
                                                disabled={!upgradeData.canResearch}>
                                     {upgradeData.name} (<ResourceAmounts amounts={upgradeData.cost} />)
                                 </button>
@@ -114,6 +114,10 @@ const mapStateToProps = (state, ownProps) => {
         cost: getBuildCost(structure),
         production: getProduction(structure),
         consumption: getConsumption(structure),
+        perStructure: {
+            production: getProduction(structure, 1),
+            consumption: getConsumption(structure, 1),
+        },
         isRunning: getNumRunning(structure) > 0,
         numBuilt: structure.count.total,
         canRun: canRunStructure(state, structure),

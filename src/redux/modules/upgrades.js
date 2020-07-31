@@ -1,7 +1,7 @@
 import update from 'immutability-helper';
 import _ from 'lodash';
 import database from '../../database/upgrades'
-import {getModifiedTotal, mapObject} from "../../lib/helpers";
+import {withRecalculation} from "../reducer";
 
 // Actions
 export const LEARN = 'upgrades/LEARN';
@@ -26,8 +26,13 @@ export default function reducer(state = initialState, action) {
                 }
             });
         case RESEARCH:
-            // TODO increment upgrade level
-            return state;
+            return update(state, {
+                byId: {
+                    [payload.upgrade.id]: {
+                        level: { $apply: function(x) { return x + 1; } }
+                    }
+                }
+            });
         default:
             return state;
     }
@@ -38,8 +43,8 @@ export function learn(structureId, id) { // Note: `id` refers to the upgrade id 
     return { type: LEARN, payload: { structureId, id } };
 }
 
-export function researchUnsafe(structureId, upgrade) {
-    return { type: RESEARCH, payload: { structureId, upgrade } };
+export function researchUnsafe(upgrade) {
+    return withRecalculation({ type: RESEARCH, payload: { upgrade } });
 }
 
 
@@ -48,5 +53,5 @@ export function getUpgrade(state, id) {
     return state.byId[id];
 }
 export function getResearchCost(upgrade) {
-    return mapObject(upgrade.cost, (resourceId, cost) => getModifiedTotal(cost));
+    return upgrade.cost;
 }

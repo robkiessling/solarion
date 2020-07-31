@@ -30,11 +30,6 @@ class ResourceManager {
         //      1) try to consume. if CAN -> consume it AND produce what those structures can
         //      2) if cannot consume -> DON'T produce and DON'T consume
         store.dispatch(applyTime(seconds));
-
-        // const production = mapObject(getModifiedTotalProduction(store.getState().structures), (k, v) => v * seconds);
-        // store.dispatch(produce(production));
-        // const consumption = mapObject(getModifiedTotalConsumption(store.getState().structures), (k, v) => v * seconds);
-        // store.dispatch(consume(consumption));
     }
 
 }

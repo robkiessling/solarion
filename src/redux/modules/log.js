@@ -1,21 +1,12 @@
 import update from 'immutability-helper';
-import _ from 'lodash';
-import database from '../../database/logs'
-import * as fromStructures from "./structures";
 
 // Actions
 export const LOG = 'log/LOG';
 export const START_LOG_SEQUENCE = 'log/START_LOG_SEQUENCE';
 export const END_LOG_SEQUENCE = 'log/END_LOG_SEQUENCE';
 
-// export const LOG_START = 'log/LOG_START';
-// export const LOG_FINISH = 'log/LOG_FINISH';
-
 // Initial State
 const initialState = {
-    // sections: [
-    //     /* { id: 'startup', timestamp: '...', status: 'completed' } */
-    // ],
     bySequenceId: {},
     visibleSequenceIds: []
 }
