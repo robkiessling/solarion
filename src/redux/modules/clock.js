@@ -1,13 +1,14 @@
 import update from 'immutability-helper';
+import {batch} from "react-redux";
+import {recalculateState} from "../reducer";
 
 // Actions
 export const TICK = 'clock/TICK';
 
 // Initial State
 const initialState = {
-    elapsedTime: 0,
-    dayLength: 60 * 10, // 10 minutes
-
+    elapsedTime: 0, // in milliseconds
+    dayLength: 60 * 4, // in seconds
 }
 
 // Reducer
@@ -23,15 +24,58 @@ export default function reducer(state = initialState, action) {
 }
 
 // Action Creators
+// export function tick(timeDelta) {
+//     return { type: TICK, payload: { timeDelta } };
+// }
 export function tick(timeDelta) {
-    return { type: TICK, payload: { timeDelta } };
+    return (dispatch, getState) => {
+        batch(() => {
+            const startingDaylight = daylightPercent(getState().clock);
+            dispatch({ type: TICK, payload: { timeDelta } });
+
+            // Need to recalculate the state if daylight percentage changed
+            if (daylightPercent(getState().clock) !== startingDaylight) {
+                dispatch(recalculateState());
+            }
+        });
+    }
 }
 
-
-export function percentOfDay(state) {
-    const secondsIntoDay = state.clock.elapsedTime % state.clock.dayLength;
-    return secondsIntoDay / state.clock.dayLength;
+export function dayLength(state) {
+    return state.dayLength;
 }
-export function formattedTOD(state) {
+export function fractionOfDay(state) {
+    const secondsIntoDay = (state.elapsedTime / 1000.0) % state.dayLength;
+    return secondsIntoDay / state.dayLength;
+}
+export function dayNumber(state) {
+    return Math.floor((state.elapsedTime / 1000.0) / state.dayLength) + 1;
+}
 
+// duration, label, % daylight
+const TIME_PERIODS = [
+    [4/24, 'Night', 0],
+    [1/24, 'Dawn', 0.5],
+    [5/24, 'Morning', 0.75],
+    [4/24, 'Midday', 1],
+    [5/24, 'Afternoon', 0.75],
+    [1/24, 'Dusk', 0.5],
+    [4/24, 'Night', 0]
+];
+export function timePeriodData(fractionOfDay) {
+    let counter = 0;
+
+    for (let i = 0; i < TIME_PERIODS.length; i++) {
+        counter += TIME_PERIODS[i][0];
+
+        if (fractionOfDay <= counter) {
+            return TIME_PERIODS[i];
+        }
+    }
+}
+export function timePeriodName(state) {
+    return timePeriodData(fractionOfDay(state))[1];
+}
+export function daylightPercent(state) {
+    return timePeriodData(fractionOfDay(state))[2];
 }

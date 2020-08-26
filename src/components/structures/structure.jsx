@@ -99,7 +99,7 @@ class Structure extends React.Component {
                             }
                         </div>
                     </div>
-                    <div class="upgrades-container">
+                    <div className="upgrades-container">
                         {
                             this.props.upgrades.map((upgradeData) => {
                                 const tipId = `upgrade-${upgradeData.id}-tip`;

@@ -16,7 +16,7 @@ class GameClock {
         // Can be relatively slow (1s) since we only show seconds on the clock anyway.
         this.setInterval('GameClock', (iterations, period) => {
             store.dispatch(tick(iterations * period));
-        }, 1000);
+        }, 1000 / 10);
 
         this.run();
     }

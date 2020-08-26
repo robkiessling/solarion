@@ -4,6 +4,8 @@ import { connect } from 'react-redux';
 import Resource from "./resource"
 import {getNetResourceRates} from "../redux/reducer";
 import {getCapacity, getQuantity} from "../redux/modules/resources";
+import {dayLength, dayNumber, fractionOfDay} from "../redux/modules/clock";
+import Clock from "./clock";
 
 class ResourceBar extends React.Component {
     constructor(props) {
@@ -14,7 +16,10 @@ class ResourceBar extends React.Component {
         return (
             <div className="resource-bar">
                 <div>
-                    Time: { Math.floor(this.props.elapsedTime / 1000.0) }
+                    Time: { Math.floor(this.props.elapsedTime / 1000.0) }<br/>
+                    <Clock dayLength={this.props.dayLength}
+                           dayNumber={this.props.dayNumber}
+                           fractionOfDay={this.props.fractionOfDay} />
                 </div>
                 <br/>
                 {
@@ -39,7 +44,10 @@ const mapStateToProps = state => {
         elapsedTime: state.clock.elapsedTime,
         visibleIds: state.resources.visibleIds,
         resources: state.resources.byId,
-        netResourceRates: getNetResourceRates(state)
+        netResourceRates: getNetResourceRates(state),
+        dayLength: dayLength(state.clock),
+        dayNumber: dayNumber(state.clock),
+        fractionOfDay: fractionOfDay(state.clock),
     }
 };
 

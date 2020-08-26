@@ -2,6 +2,7 @@
 import _ from 'lodash';
 import {getNumRunning} from "../redux/modules/structures";
 import {getUpgrade} from "../redux/modules/upgrades";
+import {daylightPercent} from "../redux/modules/clock";
 
 const base = {
     name: 'Unknown',
@@ -59,10 +60,11 @@ export const calculators = {
         }),
         produces: (state, structure) => {
             const largerPanels = getUpgrade(state.upgrades, 'solarPanel_largerPanels');
-            const multiplier = largerPanels && largerPanels.level ? largerPanels.multiplier : 1;
+            const upgradeMult = largerPanels && largerPanels.level ? largerPanels.multiplier : 1;
+            const todMult = daylightPercent(state.clock);
 
             return {
-                energy: 5 * multiplier
+                energy: 5 * upgradeMult * todMult
             }
         }
     },

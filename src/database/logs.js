@@ -154,7 +154,7 @@ export default {
 
     energyDepleted: {
         text: [
-            ['Energy depleted. Researching solutions...', 4000, true],
+            ['Energy depleted. Researching solutions...', 500, true], // todo make longer?
             ['', 0],
             ['New Schematic Found:', 0, true],
             ['Solar Panels', 0, true],
