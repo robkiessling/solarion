@@ -8,7 +8,7 @@ export const TICK = 'clock/TICK';
 // Initial State
 const initialState = {
     elapsedTime: 0, // in milliseconds
-    dayLength: 60 * 4, // in seconds
+    dayLength: 60 * 1, // in seconds
 }
 
 // Reducer

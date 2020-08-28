@@ -11,19 +11,10 @@ export default function ResourceRate(props) {
     else if (props.rate < 0) {
         className = 'text-red';
     }
-    else {
-        
-    }
 
-    if (props.units) {
-        text = `${text}${props.units}`;
-    }
-
-    text = `${text}/s`;
-
-    if (props.parenthesis) {
-        text = `(${text})`;
-    }
-
-    return <span className={className}>{text}</span>;
+    return <span className={className}>
+        {props.parenthesis && '('}
+        {text}{props.icon && <span className={props.icon}/>}/s
+        {props.parenthesis && ')'}
+    </span>;
 }

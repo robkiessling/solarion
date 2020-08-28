@@ -38,6 +38,13 @@ module.exports = {
             {
                 test: /\.css$/,
                 use: [ 'style-loader', 'css-loader', 'postcss-loader' ]
+            },
+            {
+                test: /\.woff/,
+                loader: "url-loader?limit=10000&mimetype=application/font-woff"
+            }, {
+                test: /\.(ttf|eot|svg)/,
+                loader: "file-loader"
             }
         ]
     }

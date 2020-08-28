@@ -30,13 +30,11 @@ export default {
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
-        description: "Converts sunlight into energy. Conversion rate depends on the time of day.",
         buildable: true,
         upgrades: ['solarPanel_largerPanels']
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
-        description: "Provides energy storage and optimizations.",
         buildable: true
     }),
 };
@@ -58,14 +56,11 @@ export const calculators = {
         cost: (state, structure) => ({
             minerals: 10 * (1.5)**(getNumRunning(structure))
         }),
-        produces: (state, structure) => {
-            const largerPanels = getUpgrade(state.upgrades, 'solarPanel_largerPanels');
-            const upgradeMult = largerPanels && largerPanels.level ? largerPanels.multiplier : 1;
-            const todMult = daylightPercent(state.clock);
-
-            return {
-                energy: 5 * upgradeMult * todMult
-            }
+        produces: (state, structure) => ({
+            energy: baseSolarProduction(state) * daylightPercent(state.clock)
+        }),
+        description: (state, structure) => {
+            return `Converts sunlight into energy. Each panel produces ${baseSolarProduction(state)}e/s in peak sunlight.`;
         }
     },
     energyBay: {
@@ -73,10 +68,22 @@ export const calculators = {
             minerals: 10 * (1.5)**(getNumRunning(structure))
         }),
         capacity: (state, structure) => {
-            const largerCapacity = getUpgrade(state.upgrades, 'energyBay_largerCapacity');
-            const capacity = 50 * (largerCapacity && largerCapacity.level ? largerCapacity.multiplier : 1);
-            return { energy: capacity };
+            return { energy: energyBayCapacity(state) };
+        },
+        description: (state, structure) => {
+            return `Provides ${energyBayCapacity(state)}e storage and has optimization upgrades.`;
         }
     }
 }
 
+// Does not include time-of-day (TOD) multiplier
+function baseSolarProduction(state) {
+    const largerPanels = getUpgrade(state.upgrades, 'solarPanel_largerPanels');
+    const upgradeMult = largerPanels && largerPanels.level ? largerPanels.multiplier : 1;
+    return 5 * upgradeMult;
+}
+
+function energyBayCapacity(state) {
+    const largerCapacity = getUpgrade(state.upgrades, 'energyBay_largerCapacity');
+    return 50 * (largerCapacity && largerCapacity.level ? largerCapacity.multiplier : 1);
+}

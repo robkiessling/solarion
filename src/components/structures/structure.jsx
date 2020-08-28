@@ -80,21 +80,21 @@ class Structure extends React.Component {
                                 />
                             }
                             {
-                                Object.keys(this.props.perStructure.production).length > 0 &&
+                                Object.keys(this.props.production).length > 0 &&
                                 <div>
-                                    Produces: <ResourceAmounts amounts={this.props.perStructure.production} asRates={true} /> each
+                                    Producing: <ResourceAmounts amounts={this.props.production} asRates={true} />
                                 </div>
                             }
                             {
-                                Object.keys(this.props.perStructure.consumption).length > 0 &&
+                                Object.keys(this.props.consumption).length > 0 &&
                                 <div>
-                                    Consumes: <ResourceAmounts amounts={this.props.perStructure.consumption} asRates={true} invert={true} /> each
+                                    Consuming: <ResourceAmounts amounts={this.props.consumption} asRates={true} invert={true} />
                                 </div>
                             }
                             {
-                                Object.keys(this.props.perStructure.capacity).length > 0 &&
+                                Object.keys(this.props.capacity).length > 0 &&
                                 <div>
-                                    Capacity: <ResourceAmounts amounts={this.props.perStructure.capacity} /> each
+                                    Capacity: <ResourceAmounts amounts={this.props.capacity} />
                                 </div>
                             }
                         </div>
@@ -103,9 +103,8 @@ class Structure extends React.Component {
                         {
                             this.props.upgrades.map((upgradeData) => {
                                 const tipId = `upgrade-${upgradeData.id}-tip`;
-                                return <div>
-                                    <button key={upgradeData.id}
-                                            onClick={() => this.props.researchUpgrade(upgradeData.id)}
+                                return <div key={upgradeData.id}>
+                                    <button onClick={() => this.props.researchUpgrade(upgradeData.id)}
                                             disabled={!upgradeData.canResearch} className="has-tip">
                                         <span data-tip data-for={tipId}>{upgradeData.name}</span>
                                     </button>
@@ -133,11 +132,10 @@ const mapStateToProps = (state, ownProps) => {
         structure: structure,
         canBuild: canBuildStructure(state, structure),
         cost: getBuildCost(structure),
-        perStructure: {
-            production: getStatistic(structure, 'produces', 1),
-            consumption: getStatistic(structure, 'consumes', 1),
-            capacity: getStatistic(structure, 'capacity', 1)
-        },
+        production: getStatistic(structure, 'produces'),
+        consumption: getStatistic(structure, 'consumes'),
+        capacity: getStatistic(structure, 'capacity'),
+
         isRunning: getNumRunning(structure) > 0,
         numBuilt: structure.count.total,
         canRun: canRunStructure(state, structure),

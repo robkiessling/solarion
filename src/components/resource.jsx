@@ -12,6 +12,7 @@ export default function Resource(props) {
         // Have to use Math.floor on quantity; cannot round because then it might show you having enough resources
         // to build something when you actually don't
         <div className="resource">
+            <span className={props.icon} />
             {props.name}: {Math.floor(props.quantity)}
             {capacityText}
             &nbsp;

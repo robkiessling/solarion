@@ -1,6 +1,7 @@
 import React from 'react';
 import _ from "lodash";
 import ResourceRate from "./resource_rate";
+import {getIcon} from "../../redux/modules/resources";
 
 export default function ResourceAmounts(props) {
 
@@ -14,9 +15,9 @@ export default function ResourceAmounts(props) {
                 Object.entries(props.amounts).map(([k,v]) => {
                     let rate = _.round(v, 1);
                     if (props.invert) { rate = rate * -1; }
-                    const units = k[0];
-                    return props.asRates ? <ResourceRate rate={rate} units={units} key={k} /> :
-                        <span key={k}>{rate}{units}</span>
+                    const icon = getIcon(k);
+                    return props.asRates ? <ResourceRate rate={rate} icon={icon} key={k} /> :
+                        <span key={k}>{rate}<span className={icon}/></span>
                 })
             }
             </span>

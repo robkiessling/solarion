@@ -100,6 +100,9 @@ export function getQuantity(resource) {
 export function getCapacity(resource) {
     return resource.capacity;
 }
+export function getIcon(id) {
+    return database[id].icon;
+}
 
 /**
  * @param state Refers to the full state (unlike other methods which already refer to the resources slice)
