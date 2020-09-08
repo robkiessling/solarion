@@ -33,6 +33,11 @@ export default {
         buildable: true,
         upgrades: ['solarPanel_largerPanels']
     }),
+    thermalVent: _.merge({}, base, {
+        name: "Geothermal Vent",
+        buildable: true,
+        upgrades: []
+    }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
         buildable: true
@@ -43,7 +48,7 @@ export default {
 export const calculators = {
     mineralHarvester: {
         cost: (state, structure) => ({
-            minerals: 20 * (1.5)**(getNumRunning(structure))
+            minerals: 1000 * (1.5)**(getNumRunning(structure))
         }),
         consumes: (state, structure) => ({
             energy: 20
@@ -60,7 +65,19 @@ export const calculators = {
             energy: baseSolarProduction(state) * daylightPercent(state.clock)
         }),
         description: (state, structure) => {
-            return `Converts sunlight into energy. Each panel produces ${baseSolarProduction(state)}e/s in peak sunlight.`;
+            return `Converts sunlight into energy. Each panel produces ${baseSolarProduction(state)} energy/s in peak sunlight.`;
+        }
+    },
+    thermalVent: {
+        cost: (state, structure) => ({
+            minerals: 50 * (1.5)**(getNumRunning(structure)),
+            vents: 1
+        }),
+        produces: (state, structure) => ({
+            energy: ventProduction(state)
+        }),
+        description: (state, structure) => {
+            return `Harvests ${ventProduction(state)} energy from a geothermal vent. `
         }
     },
     energyBay: {
@@ -81,6 +98,10 @@ function baseSolarProduction(state) {
     const largerPanels = getUpgrade(state.upgrades, 'solarPanel_largerPanels');
     const upgradeMult = largerPanels && largerPanels.level ? largerPanels.multiplier : 1;
     return 5 * upgradeMult;
+}
+
+function ventProduction(state) {
+    return 10;
 }
 
 function energyBayCapacity(state) {

@@ -11,14 +11,19 @@ const base = {
 
 export default {
     minerals: _.merge({}, base, {
-        name: "Minerals",
+        name: "Ore",
         amount: 100,
-        icon: 'icon-crystal-growth'
+        icon: 'icon-rock'
     }),
     energy: _.merge({}, base, {
         name: "Energy",
         amount: 100,
         icon: 'icon-electric'
+    }),
+    vents: _.merge({}, base, {
+        name: "Thermal Vent",
+        amount: 2,
+        icon: 'icon-caldera'
     })
 };
 

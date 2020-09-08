@@ -1,0 +1,12 @@
+@import '../variables';
+
+.computer-container {
+  flex: 1 1 0; // take up half of vertical space
+  height: 0; // don't let it grow past half
+
+  border-top: 1px solid $ui-border;
+}
+
+.computer {
+  margin: 1rem 0.5rem;
+}

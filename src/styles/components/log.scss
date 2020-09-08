@@ -1,8 +1,8 @@
 @import '../variables';
 
 .log-container {
-  height: 100%;
-  width: 100%;
+  flex: 1 1 0; // take up half of vertical space
+  height: 0; // don't let it grow past half
 }
 
 .log {
@@ -12,7 +12,8 @@
   //height: calc(100% - 1rem);
 
   margin: 1rem 0.5rem;
-  height: calc(100% - 4rem);
+  //height: calc(100% - 4rem);
+  height: calc(100% - 2rem);
 
   overflow-x: hidden;
   overflow-y: hidden;

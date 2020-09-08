@@ -15,11 +15,11 @@
  */
 @font-face {
   font-family: 'icomoon';
-  src:  url('fonts/icomoon.eot?j57t17');
-  src:  url('fonts/icomoon.eot?j57t17#iefix') format('embedded-opentype'),
-  url('fonts/icomoon.ttf?j57t17') format('truetype'),
-  url('fonts/icomoon.woff?j57t17') format('woff'),
-  url('fonts/icomoon.svg?j57t17#icomoon') format('svg');
+  src:  url('fonts/icomoon.eot?my5gjl');
+  src:  url('fonts/icomoon.eot?my5gjl#iefix') format('embedded-opentype'),
+  //url('fonts/icomoon.ttf?my5gjl') format('truetype'),
+  url('fonts/icomoon.woff?my5gjl') format('woff'),
+  url('fonts/icomoon.svg?my5gjl#icomoon') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -55,9 +55,29 @@
 //----- Add classes here:
 .icon-electric:before {
   content: "\e900";
-  color: #ffb413;
+  color: #ffeb3b;
 }
 .icon-crystal-growth:before {
   content: "\e901";
   color: #20d9ff;
+  //color: #87f0cd;
+}
+.icon-caldera:before {
+  content: "\e902";
+}
+.icon-metal-bar:before {
+  content: "\e903";
+}
+.icon-oil-drum:before {
+  content: "\e904";
+}
+.icon-ore:before {
+  content: "\e905";
+}
+.icon-rock:before {
+  content: "\e906";
+  color: #f9903c;
+}
+.icon-stone-pile:before {
+  content: "\e907";
 }

@@ -4,7 +4,7 @@ import Outside from "./outside";
 import Structures from "./structures";
 import ResourceBar from "./resource_bar";
 import Log from "./log";
-import Title from "./title";
+import Computer from "./computer";
 
 export default class App extends React.Component {
     render() {
@@ -12,6 +12,7 @@ export default class App extends React.Component {
             <div className="app">
                 <div className="left-column">
                     <Log/>
+                    <Computer/>
                 </div>
                 <div className="middle-column">
                     <Structures/>

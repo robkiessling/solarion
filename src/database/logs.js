@@ -161,8 +161,12 @@ export default {
             ['', 0]
         ],
         onFinish: (dispatch) => {
+            dispatch(fromResources.learn('vents'));
             dispatch(fromStructures.learn('solarPanel'));
+            dispatch(fromStructures.learn('thermalVent'));
+
             dispatch(fromStructures.learn('energyBay'));
+
             dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
             dispatch(fromUpgrades.learn('energyBay', 'energyBay_largerCapacity'));
 
