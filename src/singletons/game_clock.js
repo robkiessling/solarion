@@ -1,6 +1,9 @@
 import * as Helpers from "../lib/helpers"
 import store from "../redux/store";
-import {tick} from "../redux/modules/clock";
+import {clockTick} from "../redux/modules/clock";
+import {batch} from "react-redux";
+import {resourcesTick} from "../redux/reducer";
+import {upgradesTick} from "../redux/modules/upgrades";
 
 class GameClock {
     constructor() {
@@ -12,10 +15,27 @@ class GameClock {
         this.total = 0; // Total time elapsed
         this.periodicFns = {}; // functions to call periodically
 
-        // This affects time getting stored to store, and how often clock UI will be updated.
-        // Can be relatively slow (1s) since we only show seconds on the clock anyway.
+        // This just affects time getting stored to store, and how often clock UI will be updated.
+        // Can be relatively slow since we only show seconds on the clock anyway.
         this.setInterval('GameClock', (iterations, period) => {
-            store.dispatch(tick(iterations * period));
+            store.dispatch(clockTick(iterations * period));
+        }, 1000 / 10);
+
+        // Resource Manager
+        this.setInterval('ResourceManager', (iterations, period) => {
+            const seconds = period / 1000;
+
+            // TODO if iterations is large, can batch updates into groups of 5, 10, etc.
+            batch(() => {
+                while (iterations > 0) {
+                    store.dispatch(resourcesTick(seconds));
+                    iterations--;
+                }
+            });
+        }, 1000 / 10);
+
+        this.setInterval('Upgrades', (iterations, period) => {
+            store.dispatch(upgradesTick(iterations * period));
         }, 1000 / 10);
 
         this.run();

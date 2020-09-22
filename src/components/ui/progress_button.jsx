@@ -1,34 +1,36 @@
-/**
- * TODO This is not implemented yet
- */
-
-
 import React from "react";
+import ReactTooltip from "react-tooltip";
 
-export default class ProgressButton extends React.Component {
-    constructor(props) {
-        super(props);
-
-        this.progressBar = React.createRef();
+export default function ProgressButton(props) {
+    let className = 'progress-button';
+    if (props.fullWidth) {
+        className += ' full-width';
     }
 
-    onClick() {
-        console.log('inner');
-        // let progress = 100;
-
-        // window.setInterval(() => {
-        //     this.progressBar.current.style.width = `${progress}%`;
-        // }, 10);
-
-        this.props.onClick();
-    }
-
-    render() {
+    if (props.tooltip) {
+        if (!props.tooltipId) {
+            console.error("ProgressButton: `tooltipId` is required if using `tooltip`.");
+        }
         return (
-            <div className="progress-button" onClick={() => this.onClick()}>
-                {this.props.label}
-                <div className="progress-bar" ref={this.progressBar} style={ { width: `${this.props.remaining}%` } }/>
+            <div>
+                <div className={className} onClick={() => props.onClick()}
+                     data-tip data-for={props.tooltipId}>
+                    {props.children}
+                    <div className="progress-bar" style={ { width: `${props.progress}%` } }/>
+                </div>
+                <ReactTooltip id={props.tooltipId} place="right" effect="solid" className="game-tooltip">
+                    {props.tooltip}
+                </ReactTooltip>
             </div>
         );
     }
+    else {
+        return (
+            <div className={className} onClick={() => props.onClick()}>
+                {props.children}
+                <div className="progress-bar" style={ { width: `${props.progress}%` } }/>
+            </div>
+        );
+    }
+
 }

@@ -15,10 +15,7 @@ const base = {
     },
     cost: {},
     consumes: {},
-    produces: {},
-
-    upgrades: [],
-    visibleUpgrades: []
+    produces: {}
 }
 
 export default {
@@ -30,13 +27,11 @@ export default {
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
-        buildable: true,
-        upgrades: ['solarPanel_largerPanels']
+        buildable: true
     }),
     thermalVent: _.merge({}, base, {
         name: "Geothermal Vent",
-        buildable: true,
-        upgrades: []
+        buildable: true
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
@@ -63,6 +58,7 @@ export const calculators = {
         }),
         produces: (state, structure) => ({
             energy: baseSolarProduction(state) * daylightPercent(state.clock)
+            // energy: baseSolarProduction(state)
         }),
         description: (state, structure) => {
             return `Converts sunlight into energy. Each panel produces ${baseSolarProduction(state)} energy/s in peak sunlight.`;

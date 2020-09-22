@@ -1,14 +1,11 @@
 @import '../variables';
 
 .progress-button {
-  margin: 0.5rem 0.5rem 0.5rem 0;
-  min-width: 200px;
-  min-height: 2rem;
-  line-height: 2rem;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
   display: inline-block;
 
   border: 1px solid $white;
-  text-align: center;
   background: $red;
   color: $white;
   cursor: pointer;
@@ -22,10 +19,20 @@
     height: 100%;
     background-color: #ddd;
     opacity: 0.4;
+
+    transition: width 100ms linear 0s; // transition-duration should match ANIMATION_SPEED in redux/modules/upgrades.js
   }
 
   &.disabled {
 
+  }
+
+  &.full-width {
+    width: calc(100% - 1rem);
+  }
+
+  .game-tooltip.place-right {
+    margin-left: 16px;
   }
 }
 

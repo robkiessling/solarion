@@ -24,10 +24,12 @@ export default function reducer(state = initialState, action) {
 }
 
 // Action Creators
-// export function tick(timeDelta) {
+// export function clockTick(timeDelta) {
 //     return { type: TICK, payload: { timeDelta } };
 // }
-export function tick(timeDelta) {
+
+// Note: This is an example of how to dispatch another action during a reduction
+export function clockTick(timeDelta) {
     return (dispatch, getState) => {
         batch(() => {
             const startingDaylight = daylightPercent(getState().clock);

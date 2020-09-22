@@ -23,7 +23,8 @@ html {
 
   background: $ui-background;
   height: 100%;
-  font-family: monospace;
+  font-family: Courier, monospace;
+  font-size: 0.875rem;
   color: $ui-font;
 
   .left-column, .right-column {

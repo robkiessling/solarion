@@ -104,7 +104,10 @@ export function canRunStructure(state, structure) {
 }
 
 // Note: This can emit a lot of dispatches... it should be surrounded by a batch()
-export function applyTime(time) {
+// For each structure:
+//      1) try to consume. if CAN -> consume it AND produce what those structures can
+//      2) if cannot consume -> DON'T produce and DON'T consume
+export function resourcesTick(time) {
     return function(dispatch, getState) {
         fromStructures.iterateVisible(getState().structures, structure => {
             const consumption = mapObject(fromStructures.getStatistic(structure, 'consumes'), (resourceId, amount) => amount * time);
@@ -115,7 +118,7 @@ export function applyTime(time) {
             else {
                 dispatch(fromStructures.toggleRunning(structure.id, false));
             }
-        })
+        });
     }
 }
 
@@ -132,17 +135,3 @@ export function getNetResourceRates(state) {
     });
     return result;
 }
-
-export function getVisibleUpgrades(state, structure) {
-    return structure.visibleUpgrades.map(upgradeId => {
-        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
-        return {
-            id: upgrade.id,
-            name: upgrade.name,
-            description: upgrade.description,
-            cost: fromUpgrades.getResearchCost(upgrade),
-            canResearch: canResearchUpgrade(state, upgrade)
-        }
-    });
-}
-

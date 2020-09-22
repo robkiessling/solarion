@@ -7,7 +7,6 @@ import { getStructure, getBuildCost } from "../../redux/modules/structures";
 import {
     canBuildStructure,
     buildStructure,
-    getVisibleUpgrades,
     researchUpgrade,
     canRunStructure
 } from "../../redux/reducer";
@@ -99,26 +98,6 @@ class Structure extends React.Component {
                             }
                         </div>
                     </div>
-                    <div className="upgrades-container">
-                        {
-                            this.props.upgrades.map((upgradeData) => {
-                                const tipId = `upgrade-${upgradeData.id}-tip`;
-                                return <div key={upgradeData.id}>
-                                    <button onClick={() => this.props.researchUpgrade(upgradeData.id)}
-                                            disabled={!upgradeData.canResearch} className="has-tip">
-                                        <span data-tip data-for={tipId}>{upgradeData.name}</span>
-                                    </button>
-                                    <ReactTooltip id={tipId} place="right" effect="solid" className="game-tooltip">
-                                        <p>
-                                            {upgradeData.description}
-                                        </p>
-                                        Cost: <ResourceAmounts amounts={upgradeData.cost} />
-                                    </ReactTooltip>
-                                </div>
-
-                            })
-                        }
-                    </div>
                 </div>
             </div>
         );
@@ -139,8 +118,7 @@ const mapStateToProps = (state, ownProps) => {
         isRunning: getNumRunning(structure) > 0,
         numBuilt: structure.count.total,
         canRun: canRunStructure(state, structure),
-        numRunning: getNumRunning(structure),
-        upgrades: getVisibleUpgrades(state, structure)
+        numRunning: getNumRunning(structure)
     }
 };
 

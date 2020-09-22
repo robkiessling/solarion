@@ -161,22 +161,25 @@ export default {
             ['', 0]
         ],
         onFinish: (dispatch) => {
-            dispatch(fromResources.learn('vents'));
-            dispatch(fromStructures.learn('solarPanel'));
-            dispatch(fromStructures.learn('thermalVent'));
+            dispatch(fromUpgrades.discover('researchSolar'));
+            dispatch(fromUpgrades.discover('researchGas'));
 
-            dispatch(fromStructures.learn('energyBay'));
+            // dispatch(fromResources.learn('vents'));
+            // dispatch(fromStructures.learn('solarPanel'));
+            // dispatch(fromStructures.learn('thermalVent'));
+            //
+            // dispatch(fromStructures.learn('energyBay'));
+            //
+            // dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
+            // dispatch(fromUpgrades.learn('energyBay', 'energyBay_largerCapacity'));
 
-            dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
-            dispatch(fromUpgrades.learn('energyBay', 'energyBay_largerCapacity'));
-
-            addTrigger(
-                (state) => state.resources.byId.energy,
-                (slice) => slice.lifetimeTotal > 250,
-                () => {
-                    // dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
-                }
-            )
+            // addTrigger(
+            //     (state) => state.resources.byId.energy,
+            //     (slice) => slice.lifetimeTotal > 250,
+            //     () => {
+            //         // dispatch(fromUpgrades.learn('solarPanel', 'solarPanel_largerPanels'));
+            //     }
+            // )
         }
     },
 

@@ -22,6 +22,7 @@ export default function reducer(state = initialState, action) {
     const payload = action.payload;
 
     switch (action.type) {
+        // todo if already learned, log error
         case LEARN:
             return update(state, {
                 byId: {
@@ -42,14 +43,6 @@ export default function reducer(state = initialState, action) {
                         count: {
                             running: { $set: payload.amount }
                         }
-                    }
-                }
-            });
-        case fromUpgrades.LEARN:
-            return update(state, {
-                byId: {
-                    [payload.structureId]: {
-                        visibleUpgrades: { $push: [payload.id] }
                     }
                 }
             });
