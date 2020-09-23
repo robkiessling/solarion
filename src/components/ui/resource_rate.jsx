@@ -5,11 +5,15 @@ export default function ResourceRate(props) {
     let text = `${props.rate}`;
 
     if (props.rate > 0) {
-        // className = 'text-green';
+        className = 'text-green';
         text = `+${text}`;
     }
     else if (props.rate < 0) {
-        // className = 'text-red';
+        className = 'text-red';
+    }
+
+    if (!props.colorRate) {
+        className = '';
     }
 
     return <span className={className}>

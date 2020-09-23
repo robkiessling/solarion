@@ -5,9 +5,9 @@
   padding: 0.5rem;
   display: inline-block;
 
-  border: 1px solid $white;
-  background: $red;
-  color: $white;
+  border: 1px solid $progress-button-border;
+  background: $progress-button-bg;
+  color: $progress-button-text;
   cursor: pointer;
   position: relative;
 
@@ -68,18 +68,18 @@
   }
 
   .rc-slider-handle, .rc-slider-dot-active {
-    border-color: $orange;
+    border-color: $range-slider-color;
   }
   .rc-slider-track {
-    background-color: $orange;
+    background-color: $range-slider-color;
   }
 }
 
 button {
   cursor: pointer;
   padding: 2px 6px;
-  border: 2px outset #aaa;
-  background: #efefef;
+  border: 2px outset $button-border;
+  background: $button-bg;
 
   &:focus {
     outline: none !important;
@@ -89,7 +89,7 @@ button {
     background: #ccc;
   }
   &:disabled {
-    background: #888;
+    background: $button-bg-disabled;
   }
 
   // If a button has a tip, we move the button text to an inner span (and that span will have the tip).
@@ -109,11 +109,11 @@ button {
   opacity: 1 !important;
   border-radius: 0;
 
-  background: $red-brown !important;
-  color: $white;
+  background: $tooltip-bg !important;
+  color: $tooltip-text;
   &.place-right {
     &:after {
-      border-right-color: $red-brown !important;
+      border-right-color: $tooltip-bg !important;
     }
   }
 

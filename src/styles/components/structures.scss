@@ -11,7 +11,7 @@
   .structure {
     padding-bottom: $window-padding;
     margin-bottom: $window-padding;
-    border-bottom: 1px solid #bbb;
+    border-bottom: 1px solid $structure-border;
 
     display: flex;
     flex-direction: row;
@@ -67,7 +67,7 @@
 
     .image {
       white-space: pre;
-      border: 1px solid white;
+      border: 1px solid $structure-image-border;
       width: 120px;
 
       display: flex;

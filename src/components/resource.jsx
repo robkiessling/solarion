@@ -16,7 +16,7 @@ export default function Resource(props) {
             {props.name}: {Math.floor(props.quantity)}
             {capacityText}
             &nbsp;
-            <ResourceRate rate={props.rate} parenthesis={true} />
+            <ResourceRate rate={props.rate} colorRate={props.colorRate} parenthesis={true} />
         </div>
     );
 }

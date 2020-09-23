@@ -21,11 +21,11 @@ html {
   display: flex;
   flex-direction: row;
 
-  background: $ui-background;
+  background: $ui-bg;
   height: 100%;
-  font-family: Courier, monospace;
+  font-family: $font-family;
   font-size: 0.875rem;
-  color: $ui-font;
+  color: $ui-text;
 
   .left-column, .right-column {
     display: flex;

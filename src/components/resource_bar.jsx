@@ -30,6 +30,7 @@ class ResourceBar extends React.Component {
                                          rate={this.props.netResourceRates[id]}
                                          name={resource.name}
                                          icon={resource.icon}
+                                         colorRate={true}
                                          quantity={getQuantity(resource)}
                                          capacity={getCapacity(resource)}
                         />

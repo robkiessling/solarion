@@ -1,4 +1,5 @@
 $window-padding: 0.5rem;
+$font-family: Courier, monospace;
 
 // https://coolors.co/0d0630-18314f-384e77-8bbeb2-e6f9af
 
@@ -10,29 +11,51 @@ $window-padding: 0.5rem;
 
 // Planet Mars Color Palette
 // https://www.color-hex.com/color-palette/7175
-//$ui-background: #2a0f02;
-//$ui-font: #f0e7e7;
+//$yellow: #fda600;
+//$orange: #e77d11;
+//$red: #c1440e;
+//$red-brown: rgb(100,46,9); // half way between $red and $brown
+//$brown: #451804;
+//$white: #f0e7e7;
+//
+//$ui-bg: linear-gradient(180deg, #020024 0%, #451804 100%, #c1440e 100%);;
+//$ui-text: #f0e7e7;
 //$ui-border: #f0e7e7;
-////$canvas-background: #c1440e;
-////$canvas-font: #451804;
-//$canvas-background: linear-gradient(180deg, #020024 0%, #451804 35%, #c1440e 100%);
-////$canvas-background: linear-gradient(180deg, #020024 0%, #451804 50%, #c1440e 100%);
-////$canvas-background: linear-gradient(180deg, #010b19 0%, #03214a 50%, #0858c5 100%);
-//$canvas-font: #ff8750;
+//
+//$button-bg: #efefef;
+//$button-bg-disabled: #888;
+//$button-border: #aaa;
+//
+//$tooltip-bg: $red-brown;
+//$tooltip-text: $white;
+//
+//$progress-button-bg: $red;
+//$progress-button-border: $white;
+//$progress-button-text: $white;
+//
+//$range-slider-color: $orange;
+//
+//$structure-border: #bbb;
+//$structure-image-border: $white;
 
 
-$yellow: #fda600;
-$orange: #e77d11;
-$red: #c1440e;
-$red-brown: rgb(100,46,9); // half way between $red and $brown
-$brown: #451804;
-$white: #f0e7e7;
-
-
-$canvas-background: linear-gradient(180deg, #020024 0%, #451804 100%, #c1440e 100%);
-$canvas-font: #ff8750;
-
-$ui-background: $canvas-background;
-//$ui-background: #2a0f02;
-$ui-font: #f0e7e7;
+// https://lospec.com/palette-list/galaxy-flame
+$ui-bg: #151d1a;
+$ui-text: #f0e7e7;
 $ui-border: #f0e7e7;
+
+$button-bg: #efefef;
+$button-bg-disabled: #888;
+$button-border: #aaa;
+
+$tooltip-bg: #4f5d42;
+$tooltip-text: #151d1a;
+
+$progress-button-bg: #314e3f;
+$progress-button-border: #ede6cb;
+$progress-button-text: #ede6cb;
+
+$range-slider-color: #b6834c;
+
+$structure-border: #bbb;
+$structure-image-border: #ede6cb;
