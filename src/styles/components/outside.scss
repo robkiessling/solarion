@@ -2,9 +2,11 @@
 
 #outside {
 
-  width: $left-side-width;
   height: $outside-height;
   position: relative;
+
+  flex: 1 0 auto;
+  max-height: $outside-height;
 
   .sky {
     position: absolute;

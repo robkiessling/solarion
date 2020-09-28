@@ -12,8 +12,10 @@ export default class App extends React.Component {
             <div className="app">
                 <div className="left-column">
                     <Outside/>
-                    <Log/>
-                    <Computer/>
+                    <div className="split-container">
+                        <Log/>
+                        <Computer/>
+                    </div>
                 </div>
                 <div className="right-column">
                     <Structures/>

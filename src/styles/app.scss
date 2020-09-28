@@ -30,8 +30,9 @@ html {
   .left-column {
     display: flex;
     flex-direction: column;
-    flex: 0 1 auto;
-
+    flex: 1 1 auto;
+    max-width: $left-side-width;
+    min-width: $left-side-width;
   }
   .right-column {
     display: flex;
@@ -41,12 +42,21 @@ html {
     border-left: 1px solid $ui-border;
   }
 
-  .log-container {
+  .split-container {
+    display: flex;
+    flex-direction: row;
+    flex: 1 1 auto;
     border-top: 1px solid $ui-border;
+    overflow: hidden;
+  }
+
+  .log-container {
+    //border-top: 1px solid $ui-border;
   }
 
   .computer-container {
-    border-top: 1px solid $ui-border;
+    //border-top: 1px solid $ui-border;
+    border-left: 1px solid $ui-border;
   }
 
 }
