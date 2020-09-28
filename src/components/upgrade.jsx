@@ -11,7 +11,6 @@ class Upgrade extends React.Component {
 
     render() {
         return <ProgressButton
-            fullWidth={true}
             onClick={() => this.props.researchUpgrade(this.props.id)}
             disabled={!this.props.canResearch}
             tooltipId={`upgrade-${this.props.id}-tip`}

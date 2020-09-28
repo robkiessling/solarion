@@ -1,45 +1,36 @@
 @import '../variables';
 
-#outside-container {
-  //padding: $window-padding;
+#outside {
 
-  display: flex;
-  flex-direction: column;
-  //justify-content: center;
-  justify-content: flex-start;
-  align-items: center;
+  width: $left-side-width;
+  height: $outside-height;
+  position: relative;
 
-  height: 100%;
-  width: 100%;
+  .sky {
+    position: absolute;
 
-  //background: rgb(2,0,36);
-  //background: linear-gradient(180deg, rgba(2,0,36,1) 0%, rgba(98,98,224,1) 53%, rgba(0,212,255,1) 100%);
+    height: 100%;
+    width: 100%;
 
-  //background: rgb(2,0,36);
-  //background: linear-gradient(180deg, #020024 0%, #451804 50%, #c1440e 100%);
-  color: $ui-text;
+    overflow: hidden;
 
-  #outside-content {
-    //background-color: red;
+    background: #151d1a;
+    margin: 0;
 
-    white-space: pre;
   }
-}
 
-/**
-    TODO Remove this... this is for canvas
- */
-//#outside-container {
-//  //padding: $window-padding;
-//
-//  display: flex;
-//  flex-direction: column;
-//  justify-content: center;
-//
-//  height: 100%;
-//  width: 100%;
-//
-//  #outside-canvas {
-//    background-color: red;
-//  }
-//}
+  .outside-border {
+    position: absolute;
+
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+
+    //border: 4px solid $ui-border;
+    border: 10px ridge #485850;
+
+  }
+
+
+
+}

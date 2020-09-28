@@ -49,25 +49,25 @@ class Structure extends React.Component {
             <div className="structure">
                 <div className="left-side">
                     <Animation id={this.props.structure.id} imageKey={imageKey} />
+                    <div className="test">
+                        <span>{this.props.numBuilt}</span>
+                        <button onClick={() => this.props.buildStructure(this.props.type, 1)}
+                                disabled={!this.props.canBuild} className="has-tip">
+                            <span data-tip data-for={buildTipId}>Build</span>
+                        </button>
+                        <ReactTooltip id={buildTipId} place="right" effect="solid" className="game-tooltip">
+                            Cost: <ResourceAmounts amounts={this.props.cost} />
+                        </ReactTooltip>
+                    </div>
                 </div>
                 <div className="right-side">
                     <div className="header">
-                        <div className="name">{this.props.structure.name}</div>
+                        <span>{this.props.structure.name}</span>
                     </div>
                     <div className="description">
                         {this.props.structure.description}
                     </div>
                     <div className="body">
-                        <div className="build-area">
-                            <div className="quantity">Quantity: {this.props.numBuilt}</div>
-                            <button onClick={() => this.props.buildStructure(this.props.type, 1)}
-                                    disabled={!this.props.canBuild} className="has-tip">
-                                <span data-tip data-for={buildTipId}>Build</span>
-                            </button>
-                            <ReactTooltip id={buildTipId} place="right" effect="solid" className="game-tooltip">
-                                Cost: <ResourceAmounts amounts={this.props.cost} />
-                            </ReactTooltip>
-                        </div>
                         <div className="details-area">
                             {
                                 this.props.structure.runnable &&

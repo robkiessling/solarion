@@ -12,7 +12,7 @@ const base = {
 export default {
     mineralHarvester: _.merge({}, base, {
         style: {
-            height: '128px'
+            height: '112px'
         },
         idle: {
             ascii: [
@@ -66,7 +66,7 @@ export default {
     }),
     solarPanel: {
         style: {
-            height: '120px',
+            height: '104px',
             paddingBottom: '8px',
             paddingTop: ''
         },
@@ -84,7 +84,7 @@ export default {
     },
     thermalVent: {
         style: {
-            height: '128px',
+            height: '112px',
             paddingBottom: '0px',
             paddingTop: ''
         },
@@ -275,7 +275,7 @@ export default {
     },
     energyBay: {
         style: {
-            height: '120px',
+            height: '104px',
             paddingBottom: '8px',
             paddingTop: ''
         },

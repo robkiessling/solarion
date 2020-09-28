@@ -27,26 +27,26 @@ html {
   font-size: 0.875rem;
   color: $ui-text;
 
-  .left-column, .right-column {
+  .left-column {
     display: flex;
     flex-direction: column;
     flex: 0 1 auto;
 
-    width: 330px;
-    min-width: 330px;
-    height: 100%;
-
-    position: relative;
   }
-  .middle-column {
+  .right-column {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
 
-    height: 100%;
-
     border-left: 1px solid $ui-border;
-    border-right: 1px solid $ui-border;
+  }
+
+  .log-container {
+    border-top: 1px solid $ui-border;
+  }
+
+  .computer-container {
+    border-top: 1px solid $ui-border;
   }
 
 }
