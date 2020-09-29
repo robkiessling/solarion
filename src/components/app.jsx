@@ -18,6 +18,7 @@ export default class App extends React.Component {
                     </div>
                 </div>
                 <div className="right-column">
+                    <ResourceBar/>
                     <Structures/>
                 </div>
 

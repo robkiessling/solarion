@@ -1,21 +1,15 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {
-    getStatistic, getNumRunning, setRunning
-} from "../../redux/modules/structures";
-import { getStructure, getBuildCost } from "../../redux/modules/structures";
-import {
-    canBuildStructure,
-    buildStructure,
-    researchUpgrade,
-    canRunStructure
-} from "../../redux/reducer";
+import { getStatistic, getNumRunning } from "../../redux/modules/structures";
+import { getStructure } from "../../redux/modules/structures";
+import { buildStructure, researchUpgrade } from "../../redux/reducer";
 
-import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import ResourceAmounts from "../ui/resource_amounts";
 import Animation from "../animation";
-import ReactTooltip from "react-tooltip";
+import RunSlider from "./run_slider";
+import BuildButton from "./build_button";
+import {daylightPercent} from "../../redux/modules/clock";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -23,42 +17,13 @@ class Structure extends React.Component {
     }
 
     render() {
-        let sliderMarks = {};
-        if (this.props.numBuilt === 1) {
-            sliderMarks = {
-                0: 'Off',
-                1: 'On'
-            }
-        }
-        else {
-            const maxTicks = 5;
-            const tickDistance = Math.ceil(this.props.numBuilt / maxTicks);
-            sliderMarks = {
-                0: `0 Off`,
-                [this.props.numBuilt]: `${this.props.numBuilt} On`
-            };
-            for (let i = tickDistance; i < this.props.numBuilt; i += tickDistance) {
-                sliderMarks[i] = i;
-            }
-        }
-
-        const buildTipId = `build-${this.props.structure.id}`;
         const imageKey = this.props.structure.runnable ? (this.props.isRunning ? 'running' : 'idle') : 'idle';
 
         return (
             <div className="structure">
                 <div className="left-side">
                     <Animation id={this.props.structure.id} imageKey={imageKey} />
-                    <div className="test">
-                        <span>{this.props.numBuilt}</span>
-                        <button onClick={() => this.props.buildStructure(this.props.type, 1)}
-                                disabled={!this.props.canBuild} className="has-tip">
-                            <span data-tip data-for={buildTipId}>Build</span>
-                        </button>
-                        <ReactTooltip id={buildTipId} place="right" effect="solid" className="game-tooltip">
-                            Cost: <ResourceAmounts amounts={this.props.cost} />
-                        </ReactTooltip>
-                    </div>
+                    <BuildButton structure={this.props.structure}/>
                 </div>
                 <div className="right-side">
                     <div className="header">
@@ -69,19 +34,13 @@ class Structure extends React.Component {
                     </div>
                     <div className="body">
                         <div className="details-area">
-                            {
-                                this.props.structure.runnable &&
-                                <Slider className={'range-slider' + (this.props.numBuilt !== 1 ? ' tall' : '')}
-                                        min={0} max={this.props.numBuilt} marks={sliderMarks}
-                                        onChange={(value) => this.props.setRunning(this.props.type, value)}
-                                        disabled={!this.props.canRun}
-                                        value={this.props.numRunning}
-                                />
-                            }
+                            { this.props.structure.runnable && <RunSlider structure={this.props.structure}/> }
+
                             {
                                 Object.keys(this.props.production).length > 0 &&
                                 <div>
                                     Producing: <ResourceAmounts amounts={this.props.production} asRates={true} />
+                                    { this.props.productionSuffix }
                                 </div>
                             }
                             {
@@ -107,23 +66,26 @@ class Structure extends React.Component {
 const mapStateToProps = (state, ownProps) => {
     const structure = getStructure(state.structures, ownProps.type);
 
+    let productionSuffix = null;
+    if (structure.id === 'solarPanel') {
+        // todo this logic should be elsewhere...
+        productionSuffix = ` (${daylightPercent(state.clock) * 100}% daylight)`;
+    }
+
     return {
         structure: structure,
-        canBuild: canBuildStructure(state, structure),
-        cost: getBuildCost(structure),
         production: getStatistic(structure, 'produces'),
         consumption: getStatistic(structure, 'consumes'),
         capacity: getStatistic(structure, 'capacity'),
 
-        isRunning: getNumRunning(structure) > 0,
-        numBuilt: structure.count.total,
-        canRun: canRunStructure(state, structure),
-        numRunning: getNumRunning(structure)
+        productionSuffix: productionSuffix,
+
+        isRunning: getNumRunning(structure) > 0
     }
 };
 
 export default connect(
     mapStateToProps,
-    { buildStructure, setRunning, researchUpgrade }
+    { buildStructure, researchUpgrade }
 )(Structure);
 

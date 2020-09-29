@@ -15,7 +15,7 @@ class Structures extends React.Component {
                     this.props.visibleIds.map((id) => {
                         switch(id) {
                             case 'mineralHarvester':
-                                return <MineralHarvester type={id} key={id}/>
+                                return <MineralHarvester key={id}/>
                             default:
                                 return <Structure type={id} key={id} />
                         }

@@ -3,7 +3,9 @@
 .resource-bar {
   display: flex;
   flex-direction: column;
-  flex: 1 0 auto;
+  flex: 0 1 auto;
   padding: $window-padding;
+
+  border-bottom: 1px solid $ui-border;
 
 }
