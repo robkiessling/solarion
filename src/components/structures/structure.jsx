@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import { getStatistic, getNumRunning } from "../../redux/modules/structures";
+import { getStatistic, getRunningRate } from "../../redux/modules/structures";
 import { getStructure } from "../../redux/modules/structures";
 import { buildStructure, researchUpgrade } from "../../redux/reducer";
 
@@ -80,7 +80,7 @@ const mapStateToProps = (state, ownProps) => {
 
         productionSuffix: productionSuffix,
 
-        isRunning: getNumRunning(structure) > 0
+        isRunning: getRunningRate(structure) > 0
     }
 };
 

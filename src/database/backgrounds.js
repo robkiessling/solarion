@@ -2,8 +2,8 @@
 export default {
     stars: {
         background: [
-            '  .               *                                .        *                      ·',
-            '                                  ·                                  ·',
+            // '  .               *                                .        *                      ·',
+            // '                                  ·                                  ·',
             '    ·                                     *                                *',
             '             ·               .                                                       ·',
             '                                                       ·',
@@ -39,8 +39,8 @@ export default {
     },
     planet: {
         background: [
-            '',
-            '',
+            // '',
+            // '',
             '',
             '',
             '',

@@ -1,7 +1,6 @@
 import React from "react";
 import Slider from "rc-slider";
-import {getNumRunning, setRunning} from "../../redux/modules/structures";
-import {canRunStructure} from "../../redux/reducer";
+import {getRunningRate, setRunningRate, canRunStructure} from "../../redux/modules/structures";
 import {connect} from "react-redux";
 
 class RunSlider extends React.Component {
@@ -9,30 +8,19 @@ class RunSlider extends React.Component {
         super(props);
     }
     render() {
-        let sliderMarks;
-        if (this.props.numBuilt === 1) {
-            sliderMarks = {
-                0: 'Off',
-                1: 'On'
-            }
-        }
-        else {
-            const maxTicks = 5;
-            const tickDistance = Math.ceil(this.props.numBuilt / maxTicks);
-            sliderMarks = {
-                0: `0 Off`,
-                [this.props.numBuilt]: `${this.props.numBuilt} On`
-            };
-            for (let i = tickDistance; i < this.props.numBuilt; i += tickDistance) {
-                sliderMarks[i] = i;
-            }
+        const sliderMarks = {
+            0: 'Off',
+            0.25: '25%',
+            0.5: '50%',
+            0.75: '75%',
+            1: '100%'
         }
 
-        return <Slider className={'range-slider' + (this.props.numBuilt !== 1 ? ' tall' : '')}
-                       min={0} max={this.props.numBuilt} marks={sliderMarks}
-                       onChange={(value) => this.props.setRunning(this.props.structure.id, value)}
+        return <Slider className={'range-slider'}
+                       min={0} max={1} step={0.25} marks={sliderMarks}
+                       onChange={(value) => this.props.setRunningRate(this.props.structure.id, value)}
                        disabled={!this.props.canRun}
-                       value={this.props.numRunning}/>;
+                       value={this.props.runningRate}/>;
     }
 }
 
@@ -42,12 +30,12 @@ const mapStateToProps = (state, ownProps) => {
     return {
         numBuilt: structure.count.total,
         canRun: canRunStructure(state, structure),
-        numRunning: getNumRunning(structure)
+        runningRate: getRunningRate(structure)
     }
 };
 
 export default connect(
     mapStateToProps,
-    { setRunning }
+    { setRunningRate }
 )(RunSlider);
 

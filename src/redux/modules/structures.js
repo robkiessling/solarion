@@ -9,7 +9,7 @@ import {withRecalculation} from "../reducer";
 export const LEARN = 'structures/LEARN';
 export const BUILD = 'structures/BUILD';
 export const BUILD_FOR_FREE = 'structures/BUILD_FOR_FREE';
-export const SET_RUNNING = 'structures/SET_RUNNING';
+export const SET_RUNNING_RATE = 'structures/SET_RUNNING_RATE';
 
 // Initial State
 const initialState = {
@@ -36,13 +36,11 @@ export default function reducer(state = initialState, action) {
             return buildReducer(state, payload.structure.id, payload.amount);
         case BUILD_FOR_FREE:
             return buildReducer(state, payload.id, payload.amount);
-        case SET_RUNNING:
+        case SET_RUNNING_RATE:
             return update(state, {
                 byId: {
                     [payload.id]: {
-                        count: {
-                            running: { $set: payload.amount }
-                        }
+                        runningRate: { $set: payload.amount }
                     }
                 }
             });
@@ -76,12 +74,11 @@ export function buildForFree(id, amount) {
     return withRecalculation({ type: BUILD_FOR_FREE, payload: { id, amount } });
 }
 
-export function toggleRunning(id, isRunning) {
-    const amount = isRunning ? 1 : 0;
-    return withRecalculation({ type: SET_RUNNING, payload: { id, amount } });
+export function turnOff(id) {
+    return setRunningRate(id, 0);
 }
-export function setRunning(id, amount) {
-    return withRecalculation({ type: SET_RUNNING, payload: { id, amount } });
+export function setRunningRate(id, amount) {
+    return withRecalculation({ type: SET_RUNNING_RATE, payload: { id, amount } });
 }
 
 
@@ -96,18 +93,21 @@ export function getNumBuilt(structure) {
     if (!structure) { return 0; }
     return structure.count.total;
 }
-export function getNumRunning(structure) {
-    // If not runnable (no on/off switch), the "num running" is always just the total amount built
-    return structure.runnable ? structure.count.running : getNumBuilt(structure);
+export function getRunningRate(structure) {
+    return structure.runnable ? structure.runningRate : 1;
+}
+export function canRunStructure(state, structure) {
+    return structure.runnable && calculators[structure.id].canRun &&
+        calculators[structure.id].canRun(state, structure);
 }
 
-// Gets statistics based on how many of the structures are running. Statistics can be any keys on the structure record.
+// Gets statistics based on how many of the structures are built. Statistics can be any keys on the structure record.
 export function getStatistic(structure, statistic, forCount) {
     if (structure[statistic] === undefined) {
         return {};
     }
     if (forCount === undefined) {
-        forCount = getNumRunning(structure);
+        forCount = getNumBuilt(structure);
     }
     return mapObject(structure[statistic], (key, value) => value * forCount);
 }

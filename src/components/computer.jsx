@@ -1,6 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import Upgrade from "./upgrade";
+import ResourceBar from "./resource_bar";
 
 class Computer extends React.Component {
     constructor(props) {
@@ -10,7 +11,10 @@ class Computer extends React.Component {
     render() {
         return (
             <div className="computer-container">
+                <ResourceBar/>
+
                 <div className="computer">
+
                     <div>
                         <b>Computing</b>
                     </div>

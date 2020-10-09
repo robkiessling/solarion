@@ -97,12 +97,6 @@ export function buildStructure(id, amount) {
     }
 }
 
-export function canRunStructure(state, structure) {
-    // Can run if have non-zero amounts for all required resources. We multiply by 0.001 instead of just 1 because
-    // we want to let structure run even if it can't do a full second's worth of running.
-    return fromResources.canConsume(state.resources, fromStructures.getStatistic(structure, 'consumes', 0.001));
-}
-
 // Note: This can emit a lot of dispatches... it should be surrounded by a batch()
 // For each structure:
 //      1) try to consume. if CAN -> consume it AND produce what those structures can
@@ -116,7 +110,7 @@ export function resourcesTick(time) {
                 dispatch(fromResources.produce(mapObject(fromStructures.getStatistic(structure, 'produces'), (resourceId, amount) => amount * time)));
             }
             else {
-                dispatch(fromStructures.toggleRunning(structure.id, false));
+                dispatch(fromStructures.turnOff(structure.id));
             }
         });
     }

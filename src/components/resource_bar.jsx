@@ -16,8 +16,8 @@ class ResourceBar extends React.Component {
         return (
             <div className="resource-bar">
                 <div>
-                    Time: { Math.floor(this.props.elapsedTime / 1000.0) }
-                    <br/>
+                    {/*Time: { Math.floor(this.props.elapsedTime / 1000.0) }*/}
+                    {/*<br/>*/}
                     <Clock dayLength={this.props.dayLength}
                            dayNumber={this.props.dayNumber}
                            fractionOfDay={this.props.fractionOfDay} />

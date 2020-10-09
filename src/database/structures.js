@@ -1,17 +1,18 @@
 
 import _ from 'lodash';
-import {getNumRunning} from "../redux/modules/structures";
+import {getNumBuilt, getRunningRate} from "../redux/modules/structures";
 import {getUpgrade} from "../redux/modules/upgrades";
 import {daylightPercent} from "../redux/modules/clock";
+import {canConsume} from "../redux/modules/resources";
 
 const base = {
     name: 'Unknown',
     description: '',
     buildable: false,
     runnable: false,
+    runningRate: 0,
     count: {
-        total: 0,
-        running: 0
+        total: 0
     },
     cost: {},
     consumes: {},
@@ -43,18 +44,21 @@ export default {
 export const calculators = {
     mineralHarvester: {
         cost: (state, structure) => ({
-            minerals: 1000 * (1.5)**(getNumRunning(structure))
+            minerals: 1000 * (1.5)**(getNumBuilt(structure))
         }),
         consumes: (state, structure) => ({
-            energy: 20
+            energy: 20 * getRunningRate(structure)
         }),
         produces: (state, structure) => ({
-            minerals: 10
-        })
+            minerals: 10 * getRunningRate(structure)
+        }),
+        canRun: (state, structure) => {
+            return canConsume(state.resources, { energy: 1 });
+        }
     },
     solarPanel: {
         cost: (state, structure) => ({
-            minerals: 10 * (1.5)**(getNumRunning(structure))
+            minerals: 10 * (1.5)**(getNumBuilt(structure))
         }),
         produces: (state, structure) => ({
             energy: baseSolarProduction(state) * daylightPercent(state.clock)
@@ -66,7 +70,7 @@ export const calculators = {
     },
     thermalVent: {
         cost: (state, structure) => ({
-            minerals: 50 * (1.5)**(getNumRunning(structure)),
+            minerals: 50 * (1.5)**(getNumBuilt(structure)),
             vents: 1
         }),
         produces: (state, structure) => ({
@@ -78,7 +82,7 @@ export const calculators = {
     },
     energyBay: {
         cost: (state, structure) => ({
-            minerals: 10 * (1.5)**(getNumRunning(structure))
+            minerals: 10 * (1.5)**(getNumBuilt(structure))
         }),
         capacity: (state, structure) => {
             return { energy: energyBayCapacity(state) };
