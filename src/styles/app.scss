@@ -24,22 +24,34 @@ html {
   background: $ui-bg;
   height: 100%;
   font-family: $font-family;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: $ui-text;
 
   .left-column {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
-    max-width: $left-side-width;
-    min-width: $left-side-width;
+    flex: 2 1 0;
+    //max-width: $side-width;
+    //min-width: $side-width;
+
+    border-right: 1px solid $ui-border;
+
+  }
+  .middle-column {
+    display: flex;
+    flex-direction: column;
+    flex: 3 1 0;
+
   }
   .right-column {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
+    flex: 2 1 0;
 
     border-left: 1px solid $ui-border;
+
+    //max-width: $side-width;
+    //min-width: $side-width;
   }
 
   .split-container {

@@ -11,14 +11,19 @@ export default class App extends React.Component {
         return (
             <div className="app">
                 <div className="left-column">
-                    <Outside/>
-                    <div className="split-container">
-                        <Log/>
-                        <Computer/>
-                    </div>
+                    <Log/>
+
+                </div>
+                <div className="middle-column">
+                    <Structures/>
+
                 </div>
                 <div className="right-column">
-                    <Structures/>
+                    {/*<div className="split-container">*/}
+                    {/*</div>*/}
+                    <Outside/>
+                    <Computer/>
+
                 </div>
             </div>
         );

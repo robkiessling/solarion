@@ -29,9 +29,9 @@ class Structure extends React.Component {
                     <div className="header">
                         <span>{this.props.structure.name}</span>
                     </div>
-                    <div className="description">
-                        {this.props.structure.description}
-                    </div>
+                    {/*<div className="description">*/}
+                    {/*    {this.props.structure.description}*/}
+                    {/*</div>*/}
                     <div className="body">
                         <div className="details-area">
                             { this.props.structure.runnable && <RunSlider structure={this.props.structure}/> }

@@ -17,7 +17,7 @@ class RunSlider extends React.Component {
         }
 
         return <Slider className={'range-slider'}
-                       min={0} max={1} step={0.25} marks={sliderMarks}
+                       min={0} max={1} step={0.01} marks={sliderMarks}
                        onChange={(value) => this.props.setRunningRate(this.props.structure.id, value)}
                        disabled={!this.props.canRun}
                        value={this.props.runningRate}/>;

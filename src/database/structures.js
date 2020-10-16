@@ -49,9 +49,13 @@ export const calculators = {
         consumes: (state, structure) => ({
             energy: 20 * getRunningRate(structure)
         }),
-        produces: (state, structure) => ({
-            minerals: 10 * getRunningRate(structure)
-        }),
+        produces: (state, structure) => {
+            const minEfficiency = 0.75;
+            const efficiency = 1 - (getRunningRate(structure) * (1 - minEfficiency))
+            return {
+                minerals: 10 * getRunningRate(structure) * efficiency
+            }
+        },
         canRun: (state, structure) => {
             return canConsume(state.resources, { energy: 1 });
         }

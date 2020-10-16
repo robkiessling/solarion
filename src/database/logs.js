@@ -144,7 +144,7 @@ export default {
 
             addTrigger(
                 (state) => state.resources.byId.energy,
-                (slice) => slice.amount === 0,
+                (slice) => slice.amount <= 10,
                 () => {
                     dispatch(fromLog.startLogSequence('energyDepleted'));
                 }

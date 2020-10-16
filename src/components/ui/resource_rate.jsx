@@ -1,8 +1,9 @@
 import React from 'react';
+import {roundToDecimal} from "../../lib/helpers";
 
 export default function ResourceRate(props) {
     let className = '';
-    let text = `${props.rate}`;
+    let text = `${roundToDecimal(props.rate, 1)}`;
 
     if (props.rate > 0) {
         className = 'text-green';
