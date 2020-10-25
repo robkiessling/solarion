@@ -1,10 +1,11 @@
 import update from 'immutability-helper';
 import _ from 'lodash';
-import database, {callbacks} from '../../database/upgrades'
+import database, {STATES, callbacks} from '../../database/upgrades'
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 
 // Actions
+export const SILHOUETTE = 'upgrades/SILHOUETTE';
 export const DISCOVER = 'upgrades/DISCOVER';
 export const RESEARCH = 'upgrades/RESEARCH';
 export const PROGRESS = 'upgrades/PROGRESS';
@@ -12,8 +13,7 @@ export const FINISH = 'upgrades/FINISH';
 
 // Initial State
 const initialState = {
-    byId: {},
-    visibleIds: []
+    byId: {}
 }
 
 // Reducers
@@ -21,21 +21,15 @@ export default function reducer(state = initialState, action) {
     const payload = action.payload;
 
     switch (action.type) {
+        case SILHOUETTE:
+            return setUpgradeState(state, payload.id, STATES.silhouetted)
         case DISCOVER:
-            if (!database[payload.id]) { console.error(`Invalid upgrade: ${payload.id}`); }
-            return update(state, {
-                byId: {
-                    [payload.id]: {
-                        $set: _.merge({}, database[payload.id], { id: payload.id })
-                    }
-                },
-                visibleIds: { $push: [payload.id] }
-            });
+            return setUpgradeState(state, payload.id, STATES.discovered)
         case RESEARCH:
             return update(state, {
                 byId: {
                     [payload.upgrade.id]: {
-                        isResearching: { $set: true },
+                        state: { $set: STATES.researching },
                         researchProgress: { $set: 0 }
                     }
                 }
@@ -43,7 +37,7 @@ export default function reducer(state = initialState, action) {
         case PROGRESS:
             let newState = {};
             for (const [key, value] of Object.entries(state.byId)) {
-                if (value.isResearching) {
+                if (value.state === STATES.researching) {
                     newState[key] = Object.assign({}, value, {
                         researchProgress: value.researchProgress + payload.timeDelta
                     });
@@ -58,23 +52,57 @@ export default function reducer(state = initialState, action) {
                 byId: {
                     [payload.id]: {
                         level: { $apply: function(x) { return x + 1; } },
-                        isResearching: { $set: false }
+                        state: { $set: STATES.researched }
                     }
-                },
-                // visibleIds: { $apply: function(x) { return x.filter(id => id !== payload.id); } }
+                }
             });
         default:
             return state;
     }
 }
 
+export function setUpgradeState(state, upgradeId, upgradeState) {
+    if (state.byId[upgradeId]) {
+        return update(state, {
+            byId: {
+                [upgradeId]: {
+                    state: { $set: upgradeState }
+                }
+            }
+        });
+    }
+    else {
+        if (!database[upgradeId]) { console.error(`Invalid upgrade: ${upgradeId}`); }
+
+        return update(state, {
+            byId: {
+                [upgradeId]: {
+                    $set: _.merge({}, database[upgradeId], { id: upgradeId, state: upgradeState })
+                }
+            }
+        });
+    }
+}
+
 // Action Creators
+export function silhouette(id) {
+    return { type: SILHOUETTE, payload: { id } };
+}
 export function discover(id) {
     return { type: DISCOVER, payload: { id } };
 }
 
 export function researchUnsafe(upgrade) {
-    return withRecalculation({ type: RESEARCH, payload: { upgrade } });
+    if (upgrade.researchTime) {
+        return { type: RESEARCH, payload: { upgrade } };
+    }
+    else {
+        return function(dispatch, getState) {
+            batch(() => {
+                finishResearch(dispatch, upgrade.id);
+            });
+        }
+    }
 }
 
 export function upgradesTick(timeDelta) {
@@ -83,18 +111,22 @@ export function upgradesTick(timeDelta) {
             dispatch({ type: PROGRESS, payload: { timeDelta } });
 
             for (const [key, value] of Object.entries(getState().upgrades.byId)) {
-                if (value.isResearching && value.researchProgress >= value.researchTime * 1000) {
-                    dispatch({ type: FINISH, payload: { id: key } });
-
-                    if (callbacks[key] && callbacks[key].onFinish) {
-                        callbacks[key].onFinish(dispatch);
-                    }
-
-                    dispatch(recalculateState());
+                if (value.state === STATES.researching && value.researchProgress >= value.researchTime * 1000) {
+                    finishResearch(dispatch, key);
                 }
             }
         });
     }
+}
+
+function finishResearch(dispatch, upgradeId) {
+    dispatch({ type: FINISH, payload: { id: upgradeId } });
+
+    if (callbacks[upgradeId] && callbacks[upgradeId].onFinish) {
+        callbacks[upgradeId].onFinish(dispatch);
+    }
+
+    dispatch(recalculateState());
 }
 
 
@@ -104,6 +136,12 @@ export function getUpgrade(state, id) {
 }
 export function getResearchCost(upgrade) {
     return upgrade.cost;
+}
+export function getName(upgrade) {
+    return upgrade.state === STATES.silhouetted ? '?' : upgrade.name;
+}
+export function isResearchableState(upgrade) {
+    return upgrade.state === STATES.discovered;
 }
 
 const ANIMATION_SPEED = 100; // should match transition-duration in ui.scss -> .progress-bar

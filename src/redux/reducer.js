@@ -72,6 +72,9 @@ export function withRecalculation(action) {
 // Parameter `state` for these functions will refer to the full state
 
 export function canResearchUpgrade(state, upgrade) {
+    if (upgrade.state !== fromUpgrades.isResearchableState(upgrade)) {
+        return false;
+    }
     return fromResources.canConsume(state.resources, fromUpgrades.getResearchCost(upgrade));
 }
 export function researchUpgrade(upgradeId) {
@@ -83,6 +86,17 @@ export function researchUpgrade(upgradeId) {
     }
 }
 
+export function getStructureUpgrades(state, structure) {
+    return structure.upgrades.map(upgradeId => {
+        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
+
+        return _.merge({}, upgrade, {
+            cost: fromUpgrades.getResearchCost(upgrade),
+            canResearch: canResearchUpgrade(state, upgrade),
+            name: fromUpgrades.getName(upgrade)
+        });
+    })
+}
 
 export function canBuildStructure(state, structure) {
     return fromResources.canConsume(state.resources, fromStructures.getBuildCost(structure));

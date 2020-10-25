@@ -10,6 +10,7 @@ import Animation from "../animation";
 import RunSlider from "./run_slider";
 import BuildButton from "./build_button";
 import {daylightPercent} from "../../redux/modules/clock";
+import Upgrades from "./upgrades";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -56,6 +57,8 @@ class Structure extends React.Component {
                                 </div>
                             }
                         </div>
+
+                        <Upgrades structure={this.props.structure}/>
                     </div>
                 </div>
             </div>

@@ -3,11 +3,20 @@ import _ from 'lodash';
 import * as fromResources from "../redux/modules/resources";
 import * as fromStructures from "../redux/modules/structures";
 
+export const STATES = { // short values to improve string comparison performance
+    hidden: 'h',
+    silhouetted: 's',
+    discovered: 'd',
+    researching: 'r1',
+    researched: 'r2'
+}
+
 const base = {
     name: 'Unknown',
     description: "",
     level: 0,
-    isResearching: false
+    researchTime: 0, // if 0, research will occur instantly
+    state: STATES.hidden
 }
 
 // Functions can't be stored in the state so storing them in this const

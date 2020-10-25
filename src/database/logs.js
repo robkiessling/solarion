@@ -140,13 +140,19 @@ export default {
                 dispatch(fromResources.learn('minerals'));
                 dispatch(fromStructures.learn('mineralHarvester'));
                 dispatch(fromStructures.buildForFree('mineralHarvester', 1));
+
+                dispatch(fromStructures.learn('solarPanel'));
+                dispatch(fromResources.learn('vents'));
+                dispatch(fromStructures.learn('thermalVent'));
+                dispatch(fromUpgrades.silhouette('solarPanel_largerPanels'))
             })
 
             addTrigger(
                 (state) => state.resources.byId.energy,
-                (slice) => slice.amount <= 10,
+                (slice) => slice.amount <= 5,
                 () => {
-                    dispatch(fromLog.startLogSequence('energyDepleted'));
+                    dispatch(fromUpgrades.discover('solarPanel_largerPanels'))
+                    // dispatch(fromLog.startLogSequence('energyDepleted'));
                 }
             )
         }

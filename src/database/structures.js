@@ -16,7 +16,8 @@ const base = {
     },
     cost: {},
     consumes: {},
-    produces: {}
+    produces: {},
+    upgrades: []
 }
 
 export default {
@@ -28,7 +29,8 @@ export default {
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
-        buildable: true
+        buildable: true,
+        upgrades: ['solarPanel_largerPanels']
     }),
     thermalVent: _.merge({}, base, {
         name: "Geothermal Vent",

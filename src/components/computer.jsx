@@ -18,11 +18,11 @@ class Computer extends React.Component {
                     <div>
                         <b>Computing</b>
                     </div>
-                    {
-                        this.props.visibleUpgradeIds.map((id) => {
-                            return <Upgrade id={id} key={id}/>
-                        })
-                    }
+                    {/*{*/}
+                    {/*    this.props.visibleUpgradeIds.map((id) => {*/}
+                    {/*        return <Upgrade id={id} key={id}/>*/}
+                    {/*    })*/}
+                    {/*}*/}
                 </div>
             </div>
         );
@@ -31,7 +31,7 @@ class Computer extends React.Component {
 
 const mapStateToProps = state => {
     return {
-        visibleUpgradeIds: state.upgrades.visibleIds
+        // visibleUpgradeIds: state.upgrades.visibleIds
     }
 };
 
