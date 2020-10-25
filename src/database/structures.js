@@ -5,6 +5,11 @@ import {getUpgrade} from "../redux/modules/upgrades";
 import {daylightPercent} from "../redux/modules/clock";
 import {canConsume} from "../redux/modules/resources";
 
+export const STATUSES = { // short values to improve string comparison performance
+    normal: 'n',
+    insufficient: 'i',
+}
+
 const base = {
     name: 'Unknown',
     description: '',
@@ -14,6 +19,7 @@ const base = {
     count: {
         total: 0
     },
+    status: STATUSES.normal,
     cost: {},
     consumes: {},
     produces: {},

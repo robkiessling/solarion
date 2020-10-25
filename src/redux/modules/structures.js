@@ -1,6 +1,6 @@
 import update from 'immutability-helper';
 import _ from 'lodash';
-import database, { calculators } from '../../database/structures'
+import database, {calculators, STATUSES} from '../../database/structures'
 import {mapObject} from "../../lib/helpers";
 import * as fromUpgrades from "./upgrades";
 import {withRecalculation} from "../reducer";
@@ -10,6 +10,7 @@ export const LEARN = 'structures/LEARN';
 export const BUILD = 'structures/BUILD';
 export const BUILD_FOR_FREE = 'structures/BUILD_FOR_FREE';
 export const SET_RUNNING_RATE = 'structures/SET_RUNNING_RATE';
+export const SET_STATUS = 'structures/SET_STATUS';
 
 // Initial State
 const initialState = {
@@ -44,6 +45,14 @@ export default function reducer(state = initialState, action) {
                     }
                 }
             });
+        case SET_STATUS:
+            return update(state, {
+                byId: {
+                    [payload.id]: {
+                        status: { $set: payload.status }
+                    }
+                }
+            })
         default:
             return state;
     }
@@ -81,6 +90,18 @@ export function setRunningRate(id, amount) {
     return withRecalculation({ type: SET_RUNNING_RATE, payload: { id, amount } });
 }
 
+// Passing dispatch so we can determine if we need the action to do something or not (no sense dispatch if nothing will change)
+export function setNormalStatus(dispatch, structure) {
+    if (structure.status !== STATUSES.normal) {
+        dispatch({ type: SET_STATUS, payload: { id: structure.id, status: STATUSES.normal } })
+    }
+}
+export function setInsufficientStatus(dispatch, structure) {
+    if (structure.status !== STATUSES.insufficient) {
+        dispatch({ type: SET_STATUS, payload: { id: structure.id, status: STATUSES.insufficient } })
+    }
+}
+
 
 // Standard Functions
 export function getStructure(state, id) {
@@ -99,6 +120,25 @@ export function getRunningRate(structure) {
 export function canRunStructure(state, structure) {
     return structure.runnable && calculators[structure.id].canRun &&
         calculators[structure.id].canRun(state, structure);
+}
+export function getImage(structure) {
+    if (hasInsufficientResources(structure)) {
+        return 'idle';
+    }
+    return structure.runnable ? (getRunningRate(structure) > 0 ? 'running' : 'idle') : 'idle'
+}
+export function getStatusMessage(structure) {
+    switch(structure.status) {
+        case STATUSES.normal:
+            return '';
+        case STATUSES.insufficient:
+            return 'Insufficient Resources';
+        default:
+            return '';
+    }
+}
+export function hasInsufficientResources(structure) {
+    return structure.status === STATUSES.insufficient;
 }
 
 // Gets statistics based on how many of the structures are built. Statistics can be any keys on the structure record.

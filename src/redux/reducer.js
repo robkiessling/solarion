@@ -122,9 +122,11 @@ export function resourcesTick(time) {
             if (fromResources.canConsume(getState().resources, consumption)) {
                 dispatch(fromResources.consumeUnsafe(consumption));
                 dispatch(fromResources.produce(mapObject(fromStructures.getStatistic(structure, 'produces'), (resourceId, amount) => amount * time)));
+                fromStructures.setNormalStatus(dispatch, structure);
             }
             else {
-                dispatch(fromStructures.turnOff(structure.id));
+                fromStructures.setInsufficientStatus(dispatch, structure);
+                // dispatch(fromStructures.turnOff(structure.id));
             }
         });
     }
@@ -134,11 +136,13 @@ export function getNetResourceRates(state) {
     let result = Object.fromEntries(Object.keys(state.resources.byId).map((resourceId) => [resourceId, 0]));
 
     fromStructures.iterateVisible(state.structures, structure => {
-        for (const [key, value] of Object.entries(fromStructures.getStatistic(structure, 'consumes'))) {
-            result[key] -= value;
-        }
-        for (const [key, value] of Object.entries(fromStructures.getStatistic(structure, 'produces'))) {
-            result[key] += value;
+        if (!fromStructures.hasInsufficientResources(structure)) {
+            for (const [key, value] of Object.entries(fromStructures.getStatistic(structure, 'consumes'))) {
+                result[key] -= value;
+            }
+            for (const [key, value] of Object.entries(fromStructures.getStatistic(structure, 'produces'))) {
+                result[key] += value;
+            }
         }
     });
     return result;

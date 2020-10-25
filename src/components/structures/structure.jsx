@@ -1,6 +1,12 @@
 import React from 'react';
 import {connect} from "react-redux";
-import { getStatistic, getRunningRate } from "../../redux/modules/structures";
+import {
+    getStatistic,
+    getRunningRate,
+    getImage,
+    getStatusMessage,
+    hasInsufficientResources
+} from "../../redux/modules/structures";
 import { getStructure } from "../../redux/modules/structures";
 import { buildStructure, researchUpgrade } from "../../redux/reducer";
 
@@ -18,12 +24,10 @@ class Structure extends React.Component {
     }
 
     render() {
-        const imageKey = this.props.structure.runnable ? (this.props.isRunning ? 'running' : 'idle') : 'idle';
-
         return (
             <div className="structure">
                 <div className="left-side">
-                    <Animation id={this.props.structure.id} imageKey={imageKey} />
+                    <Animation id={this.props.structure.id} imageKey={this.props.imageKey} />
                     <BuildButton structure={this.props.structure}/>
                 </div>
                 <div className="right-side">
@@ -39,23 +43,24 @@ class Structure extends React.Component {
 
                             {
                                 Object.keys(this.props.production).length > 0 &&
-                                <div>
+                                <div className={this.props.hasInsufficientResources ? 'text-grey' : ''}>
                                     Producing: <ResourceAmounts amounts={this.props.production} asRates={true} />
                                     { this.props.productionSuffix }
                                 </div>
                             }
                             {
                                 Object.keys(this.props.consumption).length > 0 &&
-                                <div>
+                                <div className={this.props.hasInsufficientResources ? 'text-grey' : ''}>
                                     Consuming: <ResourceAmounts amounts={this.props.consumption} asRates={true} invert={true} />
                                 </div>
                             }
                             {
                                 Object.keys(this.props.capacity).length > 0 &&
-                                <div>
+                                <div className={this.props.hasInsufficientResources ? 'text-grey' : ''}>
                                     Capacity: <ResourceAmounts amounts={this.props.capacity} />
                                 </div>
                             }
+                            <span className="text-red">{this.props.statusMessage}</span>
                         </div>
 
                         <Upgrades structure={this.props.structure}/>
@@ -83,7 +88,9 @@ const mapStateToProps = (state, ownProps) => {
 
         productionSuffix: productionSuffix,
 
-        isRunning: getRunningRate(structure) > 0
+        hasInsufficientResources: hasInsufficientResources(structure),
+        imageKey: getImage(structure),
+        statusMessage: getStatusMessage(structure)
     }
 };
 
