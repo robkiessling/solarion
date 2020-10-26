@@ -14,20 +14,21 @@ class Outside extends React.Component {
     constructor(props) {
         super(props);
 
-        this.nightSky = React.createRef();
-        this.daySky = React.createRef();
+        this.nightImage = React.createRef();
+        this.dayImage = React.createRef();
+        this.skyColor = React.createRef();
     }
 
     componentDidMount() {
-        const background = new Background(this.nightSky.current);
-        background.drawImage(backgrounds.stars.background);
-        const background2 = new Background(this.daySky.current);
-        background2.drawImage(backgrounds.planet.background);
+        const background = new Background(this.nightImage.current);
+        background.drawImage(backgrounds.stars.background, 3);
+        const background2 = new Background(this.dayImage.current);
+        background2.drawImage(backgrounds.planet.background, 3);
 
         // if (!DYNAMIC_SKY) {
-        //     this.nightSky.current.style.opacity = 0;
-        //     this.daySky.current.style.opacity = 0.75;
-        //     this.daySky.current.style.background = `radial-gradient(circle at ${25}% ${25}%, rgb(212 132 41) 5%, rgb(142, 56, 18) 5%, rgb(61 19 0) 100%)`;
+        //     this.nightImage.current.style.opacity = 0;
+        //     this.dayImage.current.style.opacity = 0.75;
+        //     this.dayImage.current.style.background = `radial-gradient(circle at ${25}% ${25}%, rgb(212 132 41) 5%, rgb(142, 56, 18) 5%, rgb(61 19 0) 100%)`;
         // }
         // else {
         //     const minX = -10;
@@ -42,15 +43,16 @@ class Outside extends React.Component {
         //         let x = ((Math.cos(t / 360 * 2 * Math.PI) + 1) / 2) * Math.abs(maxX - minX) + minX;
         //         let y = ((-Math.sin(t / 360 * 2 * Math.PI) + 1) / 2) * Math.abs(maxY - minY) + minY;
         //
-        //         this.daySky.current.style.background = `radial-gradient(circle at ${x}% ${y}%, rgb(212 132 41) 10%, rgb(142, 56, 18) 50%, rgb(116 37 10) 100%)`;
-        //         // this.daySky.current.style.background = `radial-gradient(circle at ${x}% ${y}%, rgb(212, 132, 41) 4%, rgb(142, 56, 18) 6%, rgb(110 39 7) 100%)`
+        //         this.dayImage.current.style.background = `radial-gradient(circle at ${x}% ${y}%, rgb(212 132 41) 10%, rgb(142, 56, 18) 50%, rgb(116 37 10) 100%)`;
+        //         // this.dayImage.current.style.background = `radial-gradient(circle at ${x}% ${y}%, rgb(212, 132, 41) 4%, rgb(142, 56, 18) 6%, rgb(110 39 7) 100%)`
         //
-        //         this.daySky.current.style.opacity = Math.sin(t / 360 * 2 * Math.PI) + 0.25;
+        //         this.dayImage.current.style.opacity = Math.sin(t / 360 * 2 * Math.PI) + 0.25;
         //     }, 100);
         // }
     }
 
     render() {
+        // These are percentages:
         const minX = -10;
         const maxX = 110;
         const minY = -20;
@@ -62,14 +64,16 @@ class Outside extends React.Component {
         const x = ((Math.cos(radians) + 1) / 2) * Math.abs(maxX - minX) + minX;
         const y = ((-Math.sin(radians) + 1) / 2) * Math.abs(maxY - minY) + minY;
 
-        const dayBackground = `radial-gradient(circle at ${x}% ${y}%, ` +
+        const skyColor = `radial-gradient(circle at ${x}% ${y}%, ` +
             `rgb(212 132 41) 10%, rgb(142, 56, 18) 50%, rgb(116 37 10) 100%)`;
-        const dayOpacity = Math.sin(radians) + 0.25;
+        const skyOpacity = Math.sin(radians) + 0.25;
+        const nightOpacity = -Math.sin(radians) + 0.6;
 
         return (
             <div id="outside">
-                <pre className="sky" ref={this.nightSky}/>
-                <pre className="sky" ref={this.daySky} style={{background: dayBackground, opacity: dayOpacity}}/>
+                <pre className="sky-color" ref={this.skyColor} style={{background: skyColor, opacity: skyOpacity}}/>
+                <pre className="sky-image" ref={this.dayImage}/>
+                <pre className="sky-image" ref={this.nightImage} style={{opacity: nightOpacity}}/>
                 <div className="outside-border"/>
             </div>
         );

@@ -4,6 +4,7 @@
 @import 'components/computer';
 @import 'components/log';
 @import 'components/outside';
+@import 'components/planet_status';
 @import 'components/resource_bar';
 @import 'components/structures';
 @import 'components/title';
@@ -18,57 +19,49 @@ html {
 }
 
 .app {
-  display: flex;
-  flex-direction: row;
-
   background: $ui-bg;
   height: 100%;
   font-family: $font-family;
   font-size: 0.875rem;
   color: $ui-text;
 
-  .left-column {
-    display: flex;
-    flex-direction: column;
-    flex: 2 1 0;
-    //max-width: $side-width;
-    //min-width: $side-width;
+  display: flex;
+  flex-direction: column;
 
-    border-right: 1px solid $ui-border;
-
-  }
-  .middle-column {
-    display: flex;
-    flex-direction: column;
-    flex: 3 1 0;
-
-  }
-  .right-column {
-    display: flex;
-    flex-direction: column;
-    flex: 2 1 0;
-
-    border-left: 1px solid $ui-border;
-
-    //max-width: $side-width;
-    //min-width: $side-width;
-  }
-
-  .split-container {
+  .top-row {
     display: flex;
     flex-direction: row;
+
+    flex: 0 0 auto;
+    position: relative;
+  }
+
+  .bottom-row {
+    display: flex;
+    flex-direction: row;
+
     flex: 1 1 auto;
-    border-top: 1px solid $ui-border;
-    overflow: hidden;
-  }
 
-  .log-container {
-    //border-top: 1px solid $ui-border;
-  }
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      flex: 0 0 25rem;
+      //max-width: $side-width;
+      //min-width: $side-width;
 
-  .computer-container {
-    //border-top: 1px solid $ui-border;
-    border-left: 1px solid $ui-border;
-  }
+      border-right: 1px solid $ui-border;
 
+    }
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+
+      //border-left: 1px solid $ui-border;
+
+      //max-width: $side-width;
+      //min-width: $side-width;
+    }
+
+  }
 }

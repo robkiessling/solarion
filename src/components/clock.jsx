@@ -9,7 +9,8 @@ export default function Clock(props) {
     const minutes = _.padStart(Math.round((secondsOfDay % (60 * 60)) / 60), 2, '0');
 
     return <div>
-        Day { props.dayNumber } &mdash; { hour }:{ minutes } ({ timePeriod })
+        Day: { props.dayNumber } <br/>
+        { hour }:{ minutes } ({ timePeriod })
         {/*&mdash; { nextTimePeriod } in { Math.round(periodRemaining) }s*/}
     </div>;
 }

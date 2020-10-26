@@ -7,8 +7,9 @@
 
   flex: 1 0 auto;
   max-height: $outside-height;
+  background: #151d1a;
 
-  .sky {
+  .sky-color {
     position: absolute;
 
     height: 100%;
@@ -16,7 +17,17 @@
 
     overflow: hidden;
 
-    background: #151d1a;
+    margin: 0;
+  }
+
+  .sky-image {
+    position: absolute;
+
+    height: 100%;
+    width: 100%;
+
+    overflow: hidden;
+
     margin: 0;
 
   }

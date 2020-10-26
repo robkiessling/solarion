@@ -6,25 +6,25 @@ import ResourceBar from "./resource_bar";
 import Log from "./log";
 import Computer from "./computer";
 import StandaloneUpgrades from "./standalone_upgrades";
+import PlanetStatus from "./planet_status";
 
 export default class App extends React.Component {
     render() {
         return (
             <div className="app">
-                <div className="left-column">
-                    <Log/>
-
-                </div>
-                <div className="middle-column">
-                    <Structures/>
-                    <StandaloneUpgrades/>
-                </div>
-                <div className="right-column">
-                    {/*<div className="split-container">*/}
-                    {/*</div>*/}
+                <div className="top-row">
                     <Outside/>
-                    <Computer/>
-
+                    <PlanetStatus/>
+                    <ResourceBar/>
+                </div>
+                <div className="bottom-row">
+                    <div className="left-column">
+                        <Log/>
+                    </div>
+                    <div className="right-column">
+                        <Structures/>
+                        <StandaloneUpgrades/>
+                    </div>
                 </div>
             </div>
         );
