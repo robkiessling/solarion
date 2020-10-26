@@ -6,6 +6,9 @@ export default function ProgressButton(props) {
     if (props.fullWidth) {
         className += ' full-width';
     }
+    if (props.disabled) {
+        className += ' disabled';
+    }
 
     if (props.tooltip) {
         if (!props.tooltipId) {

@@ -5,9 +5,9 @@ import {getUpgrade} from "../redux/modules/upgrades";
 import {daylightPercent} from "../redux/modules/clock";
 import {canConsume} from "../redux/modules/resources";
 
-export const STATUSES = { // short values to improve string comparison performance
-    normal: 'n',
-    insufficient: 'i',
+export const STATUSES = {
+    normal: 0,
+    insufficient: 1,
 }
 
 const base = {
@@ -23,7 +23,8 @@ const base = {
     cost: {},
     consumes: {},
     produces: {},
-    upgrades: []
+    upgrades: [],
+    type: 'generator'
 }
 
 export default {
@@ -31,7 +32,8 @@ export default {
         name: "Mineral Harvester",
         description: "Drills into the planet's surface to gather minerals.",
         runnable: true,
-        buildable: true
+        buildable: true,
+        type: 'consumer'
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",

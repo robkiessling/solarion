@@ -145,6 +145,9 @@ export default {
                 // dispatch(fromResources.learn('vents'));
                 // dispatch(fromStructures.learn('thermalVent'));
                 // dispatch(fromUpgrades.silhouette('solarPanel_largerPanels'))
+
+                dispatch(fromUpgrades.discover('researchSolar'));
+                dispatch(fromUpgrades.discover('researchGas'));
             })
 
             addTrigger(
@@ -166,11 +169,11 @@ export default {
             ['', 0]
         ],
         onFinish: (dispatch) => {
-            dispatch(fromUpgrades.discover('researchSolar'));
-            dispatch(fromUpgrades.discover('researchGas'));
+            // dispatch(fromUpgrades.discover('researchSolar'));
+            // dispatch(fromUpgrades.discover('researchGas'));
 
             // dispatch(fromResources.learn('vents'));
-            // dispatch(fromStructures.learn('solarPanel'));
+            dispatch(fromStructures.learn('solarPanel'));
             // dispatch(fromStructures.learn('thermalVent'));
             //
             // dispatch(fromStructures.learn('energyBay'));

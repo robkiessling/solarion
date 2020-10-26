@@ -3,12 +3,12 @@ import _ from 'lodash';
 import * as fromResources from "../redux/modules/resources";
 import * as fromStructures from "../redux/modules/structures";
 
-export const STATES = { // short values to improve string comparison performance
-    hidden: 'h',
-    silhouetted: 's',
-    discovered: 'd',
-    researching: 'r1',
-    researched: 'r2'
+export const STATES = {
+    hidden: 0,
+    silhouetted: 1,
+    discovered: 2,
+    researching: 3,
+    researched: 4
 }
 
 const base = {
@@ -36,12 +36,14 @@ export const callbacks = {
 
 export default {
     researchSolar: _.merge({}, base, {
+        standalone: true,
         name: "Research Solar Power",
         description: "todo",
         researchTime: 5,
         cost: {}
     }),
     researchGas: _.merge({}, base, {
+        standalone: true,
         name: "Research Geothermal Power",
         description: "todo",
         researchTime: 10,

@@ -144,6 +144,13 @@ export function isResearchableState(upgrade) {
     return upgrade.state === STATES.discovered;
 }
 
+
+export function getStandaloneUpgrades(state) {
+    return Object.values(state.byId).filter(upgrade => {
+        return upgrade.standalone && upgrade.state < STATES.researched;
+    });
+}
+
 const ANIMATION_SPEED = 100; // should match transition-duration in ui.scss -> .progress-bar
 
 // Returns an integer between 0 and 100 to represent % progress

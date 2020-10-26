@@ -23,7 +23,6 @@ export default function reducer(state = initialState, action) {
     const payload = action.payload;
 
     switch (action.type) {
-        // todo if already learned, log error
         case LEARN:
             return update(state, {
                 byId: {

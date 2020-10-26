@@ -72,7 +72,7 @@ export function withRecalculation(action) {
 // Parameter `state` for these functions will refer to the full state
 
 export function canResearchUpgrade(state, upgrade) {
-    if (upgrade.state !== fromUpgrades.isResearchableState(upgrade)) {
+    if (!fromUpgrades.isResearchableState(upgrade)) {
         return false;
     }
     return fromResources.canConsume(state.resources, fromUpgrades.getResearchCost(upgrade));
@@ -87,7 +87,9 @@ export function researchUpgrade(upgradeId) {
 }
 
 export function getStructureUpgrades(state, structure) {
-    return structure.upgrades.map(upgradeId => {
+    return structure.upgrades.filter(upgradeId => {
+        return !!fromUpgrades.getUpgrade(state.upgrades, upgradeId);
+    }).map(upgradeId => {
         const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
 
         return _.merge({}, upgrade, {
@@ -122,11 +124,11 @@ export function resourcesTick(time) {
             if (fromResources.canConsume(getState().resources, consumption)) {
                 dispatch(fromResources.consumeUnsafe(consumption));
                 dispatch(fromResources.produce(mapObject(fromStructures.getStatistic(structure, 'produces'), (resourceId, amount) => amount * time)));
-                fromStructures.setNormalStatus(dispatch, structure);
+                // fromStructures.setNormalStatus(dispatch, structure);
             }
             else {
-                fromStructures.setInsufficientStatus(dispatch, structure);
-                // dispatch(fromStructures.turnOff(structure.id));
+                // fromStructures.setInsufficientStatus(dispatch, structure);
+                dispatch(fromStructures.turnOff(structure.id));
             }
         });
     }

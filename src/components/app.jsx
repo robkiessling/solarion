@@ -5,6 +5,7 @@ import Structures from "./structures";
 import ResourceBar from "./resource_bar";
 import Log from "./log";
 import Computer from "./computer";
+import StandaloneUpgrades from "./standalone_upgrades";
 
 export default class App extends React.Component {
     render() {
@@ -16,7 +17,7 @@ export default class App extends React.Component {
                 </div>
                 <div className="middle-column">
                     <Structures/>
-
+                    <StandaloneUpgrades/>
                 </div>
                 <div className="right-column">
                     {/*<div className="split-container">*/}
