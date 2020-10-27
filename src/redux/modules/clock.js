@@ -5,10 +5,31 @@ import {recalculateState} from "../reducer";
 // Actions
 export const TICK = 'clock/TICK';
 
+const WIND_SPEEDS = [17, 18, 22, 33, 25, 20, 15, 22, 12, 3, 10, 15, 25, 35, 60, 40, 33, 25, 20];
+const WIND_STEP_SIZE = 10000; // seconds per step
+
+// const WIND_SPEEDS = [0,10,20,30,40,50,60,70]
+// const WIND_STEP_SIZE = 1000;
+
+const WIND_STEP_COUNT = 5; // steps per target
+
+const WIND_SPEEDS_SPLAT = [];
+WIND_SPEEDS.forEach((speed, index) => {
+    if (index === 0) {
+        WIND_SPEEDS_SPLAT.push(speed);
+        return;
+    }
+
+    for (let step = 1; step <= WIND_STEP_COUNT; step++) {
+        const prevSpeed = WIND_SPEEDS[index - 1];
+        WIND_SPEEDS_SPLAT.push(prevSpeed + (step / WIND_STEP_COUNT) * (speed - prevSpeed));
+    }
+})
+
 // Initial State
 const initialState = {
-    elapsedTime: 15000, // in milliseconds
-    dayLength: 60 * 4, // in seconds
+    elapsedTime: 0, // in milliseconds
+    dayLength: 60 * 1, // in seconds
 }
 
 // Reducer
@@ -33,10 +54,13 @@ export function clockTick(timeDelta) {
     return (dispatch, getState) => {
         batch(() => {
             const startingDaylight = daylightPercent(getState().clock);
+            const startingWindSpeed = windSpeed(getState().clock);
+
             dispatch({ type: TICK, payload: { timeDelta } });
 
             // Need to recalculate the state if daylight percentage changed
-            if (daylightPercent(getState().clock) !== startingDaylight) {
+            if (daylightPercent(getState().clock) !== startingDaylight ||
+                windSpeed(getState().clock) !== startingWindSpeed) {
                 dispatch(recalculateState());
             }
         });
@@ -80,4 +104,15 @@ export function timePeriodName(state) {
 }
 export function daylightPercent(state) {
     return timePeriodData(fractionOfDay(state))[2];
+}
+
+const MIN_TEMPERATURE = -105;
+const MAX_TEMPERATURE = 190;
+export function surfaceTemperature(state) {
+    return daylightPercent(state) * (MAX_TEMPERATURE - MIN_TEMPERATURE) + MIN_TEMPERATURE;
+}
+
+export function windSpeed(state) {
+    const step = Math.floor(state.elapsedTime / WIND_STEP_SIZE) % WIND_SPEEDS_SPLAT.length;
+    return WIND_SPEEDS_SPLAT[step];
 }

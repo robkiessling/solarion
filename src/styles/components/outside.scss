@@ -43,7 +43,37 @@
     border: 10px ridge #485850;
 
   }
+}
 
 
+.planet-status {
+  position: absolute;
+  //height: calc(100% - 3rem);
+  width: 15rem;
+  top: 1.5rem;
+  left: 1.5rem;
+  background: $ui-bg;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  border: 3px solid $ui-border;
 
+  .planet-name {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fdf67f;
+  }
+}
+
+
+.resource-bar {
+  position: absolute;
+  //height: calc(100% - 3rem);
+  width: 20rem;
+  top: 1.5rem;
+  right: 1.5rem;
+
+  background: $ui-bg;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  border: 3px solid $ui-border;
 }

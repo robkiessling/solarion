@@ -75,17 +75,27 @@ export default class Animation extends React.Component {
             return <div className="image"/>;
         }
 
-        const style = this.animation.style
+        const style = this.animation.style;
 
         return (
-            <div className="image" style={style}>
+            <div className="image">
                 {
-                    this.state.frame &&
-                    this.state.frame.ascii.map((imageRow, index) => {
-                        // imageRow = imageRow.replace('<', '&lt;').replace('>', '&gt;'); // todo hack...
-                        return <span key={index}>{imageRow}</span>
-                    })
+                    this.animation.background &&
+                        <div className="image-layer" style={style}>
+                            { this.animation.background.map((imageRow, index) => {
+                                return <span key={index}>{imageRow}</span>
+                            }) }
+                        </div>
                 }
+                <div className="image-layer" style={style}>
+                    {
+                        this.state.frame &&
+                        this.state.frame.ascii.map((imageRow, index) => {
+                            // imageRow = imageRow.replace('<', '&lt;').replace('>', '&gt;'); // todo hack...
+                            return <span key={index}>{imageRow}</span>
+                        })
+                    }
+                </div>
             </div>
         );
     }

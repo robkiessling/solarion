@@ -4,8 +4,6 @@
 @import 'components/computer';
 @import 'components/log';
 @import 'components/outside';
-@import 'components/planet_status';
-@import 'components/resource_bar';
 @import 'components/structures';
 @import 'components/title';
 @import 'components/ui';
@@ -29,39 +27,42 @@ html {
   flex-direction: column;
 
   .top-row {
+    flex: 0 0 auto;
+
     display: flex;
     flex-direction: row;
-
-    flex: 0 0 auto;
     position: relative;
   }
 
   .bottom-row {
-    display: flex;
-    flex-direction: row;
-
     flex: 1 1 auto;
 
+    display: flex;
+    flex-direction: row;
+    overflow-y: hidden;
+
     .left-column {
+      flex: 0 0 20rem;
+
       display: flex;
       flex-direction: column;
-      flex: 0 0 25rem;
-      //max-width: $side-width;
-      //min-width: $side-width;
-
       border-right: 1px solid $ui-border;
-
     }
     .right-column {
-      display: flex;
-      flex-direction: column;
       flex: 1 1 auto;
 
-      //border-left: 1px solid $ui-border;
-
-      //max-width: $side-width;
-      //min-width: $side-width;
+      display: flex;
+      flex-direction: column;
     }
 
+  }
+
+  .column-container {
+    flex: 1 1 0;
+    padding: $window-padding;
+    overflow-y: auto;
+
+    display: flex;
+    flex-direction: column;
   }
 }

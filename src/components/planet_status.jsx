@@ -1,7 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import Clock from "./clock";
-import {dayLength, dayNumber, fractionOfDay} from "../redux/modules/clock";
+import {dayLength, dayNumber, fractionOfDay, surfaceTemperature, windSpeed} from "../redux/modules/clock";
 
 class PlanetStatus extends React.Component {
     constructor(props) {
@@ -15,8 +15,8 @@ class PlanetStatus extends React.Component {
                 <Clock dayLength={this.props.dayLength}
                        dayNumber={this.props.dayNumber}
                        fractionOfDay={this.props.fractionOfDay} />
-                Temperature: 200C<br/>
-                Wind: 13mph NNE
+                Temperature: {this.props.temperature}°C<br/>
+                Wind: {this.props.windSpeed} knots
             </div>
 
         );
@@ -28,7 +28,9 @@ const mapStateToProps = state => {
     return {
         dayLength: dayLength(state.clock),
         dayNumber: dayNumber(state.clock),
-        fractionOfDay: fractionOfDay(state.clock)
+        fractionOfDay: fractionOfDay(state.clock),
+        temperature: surfaceTemperature(state.clock),
+        windSpeed: windSpeed(state.clock)
     }
 };
 

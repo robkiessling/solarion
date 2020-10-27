@@ -22,8 +22,10 @@ export default class App extends React.Component {
                         <Log/>
                     </div>
                     <div className="right-column">
-                        <Structures/>
-                        <StandaloneUpgrades/>
+                        <div className="column-container">
+                            <Structures/>
+                            <StandaloneUpgrades/>
+                        </div>
                     </div>
                 </div>
             </div>

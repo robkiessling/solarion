@@ -2,6 +2,7 @@
 import _ from 'lodash';
 
 const base = {
+    style: {},
     idle: {
         ascii: [
             'TBD'
@@ -11,9 +12,7 @@ const base = {
 
 export default {
     mineralHarvester: _.merge({}, base, {
-        style: {
-            height: '112px'
-        },
+        style: {},
         idle: {
             ascii: [
                 '    T    ',
@@ -66,9 +65,7 @@ export default {
     }),
     solarPanel: {
         style: {
-            height: '104px',
-            paddingBottom: '8px',
-            paddingTop: ''
+            bottom: '8px',
         },
         idle: [
             {
@@ -82,11 +79,112 @@ export default {
             }
         ],
     },
+    windTurbine: {
+        style: {
+            bottom: '2px'
+        },
+        background: [
+            '       ',
+            '       ',
+            '   OD  ',
+            '    ║  ',
+            '    ║  ',
+            '    ║  ',
+        ],
+        idle: [
+            {
+                ascii: [
+                    '     / ',
+                    '    /  ',
+                    '---O   ',
+                    '    \\  ',
+                    '    ║\\ ',
+                    '    ║  ',
+                ],
+                duration: 0.45
+            },
+            {
+                ascii: [
+                    '   |   ',
+                    '   |   ',
+                    '   O---',
+                    '  / ║  ',
+                    ' /  ║  ',
+                    '    ║  ',
+                ],
+                duration: 0.45
+            },
+            {
+                ascii: [
+                    ' \\   / ',
+                    '  \\ /  ',
+                    '   O   ',
+                    '   |║  ',
+                    '   |║  ',
+                    '    ║  ',
+                ],
+                duration: 0.45
+            },
+            {
+                ascii: [
+                    '   |   ',
+                    '   |   ',
+                    '---O   ',
+                    '    \\  ',
+                    '    ║\\ ',
+                    '    ║  ',
+                ],
+                duration: 0.45
+            },
+            {
+                ascii: [
+                    ' \\     ',
+                    '  \\    ',
+                    '   O---',
+                    '  / ║  ',
+                    ' /  ║  ',
+                    '    ║  ',
+                ],
+                duration: 0.45
+            },
+            {
+                ascii: [
+                    '     / ',
+                    '    /  ',
+                    '---O   ',
+                    '   |║  ',
+                    '   |║  ',
+                    '    ║  ',
+                ],
+                duration: 0.45
+            },
+            {
+                ascii: [
+                    '   |   ',
+                    '   |   ',
+                    '   O   ',
+                    '  / \\  ',
+                    ' /  ║\\ ',
+                    '    ║  ',
+                ],
+                duration: 0.45
+            },
+            {
+                ascii: [
+                    ' \\     ',
+                    '  \\    ',
+                    '   O---',
+                    '   |║  ',
+                    '   |║  ',
+                    '    ║  ',
+                ],
+                duration: 0.45
+            },
+        ],
+    },
     thermalVent: {
         style: {
-            height: '112px',
-            paddingBottom: '0px',
-            paddingTop: ''
+            bottom: '2px',
         },
         idle: [
             {
@@ -275,9 +373,7 @@ export default {
     },
     energyBay: {
         style: {
-            height: '104px',
-            paddingBottom: '8px',
-            paddingTop: ''
+            bottom: '8px',
         },
         idle: [
             {

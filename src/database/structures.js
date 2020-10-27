@@ -2,7 +2,7 @@
 import _ from 'lodash';
 import {getNumBuilt, getRunningRate} from "../redux/modules/structures";
 import {getUpgrade} from "../redux/modules/upgrades";
-import {daylightPercent} from "../redux/modules/clock";
+import {daylightPercent, windSpeed} from "../redux/modules/clock";
 import {canConsume} from "../redux/modules/resources";
 
 export const STATUSES = {
@@ -39,6 +39,10 @@ export default {
         name: "Solar Panel",
         buildable: true,
         upgrades: ['solarPanel_largerPanels']
+    }),
+    windTurbine: _.merge({}, base, {
+        name: "Wind Turbine",
+        buildable: true,
     }),
     thermalVent: _.merge({}, base, {
         name: "Geothermal Vent",
@@ -80,6 +84,36 @@ export const calculators = {
         }),
         description: (state, structure) => {
             return `Converts sunlight into energy. Each panel produces ${baseSolarProduction(state)} energy/s in peak sunlight.`;
+        }
+    },
+    windTurbine: {
+        cost: (state, structure) => ({
+            minerals: 100 * (1.5)**(getNumBuilt(structure))
+        }),
+        produces: (state, structure) => {
+            // O < CUT_IN_SPEED < linear < RATED_SPEED < flatline < CUT_OUT_SPEED < 0
+            const CUT_IN_SPEED = 7;
+            const RATED_SPEED = 28;
+            const CUT_OUT_SPEED = 47;
+            const RATED_POWER = 50 // 3MW?
+
+            const wind = windSpeed(state.clock);
+
+            if (wind < CUT_IN_SPEED || wind > CUT_OUT_SPEED) {
+                return { energy: 0 };
+            }
+
+            if (wind < RATED_SPEED) {
+                // linear
+                const percent = (wind - CUT_IN_SPEED) / (RATED_SPEED - CUT_IN_SPEED);
+                return { energy: percent * RATED_POWER }
+            }
+
+            // flatline
+            return { energy: RATED_POWER }
+        },
+        description: (state, structure) => {
+            return `TODO`
         }
     },
     thermalVent: {

@@ -26,6 +26,11 @@ export const callbacks = {
             dispatch(fromStructures.learn('solarPanel'));
         }
     },
+    researchWind: {
+        onFinish: (dispatch) => {
+            dispatch(fromStructures.learn('windTurbine'));
+        }
+    },
     researchGas: {
         onFinish: (dispatch) => {
             dispatch(fromResources.learn('vents'));
@@ -38,6 +43,13 @@ export default {
     researchSolar: _.merge({}, base, {
         standalone: true,
         name: "Research Solar Power",
+        description: "todo",
+        researchTime: 5,
+        cost: {}
+    }),
+    researchWind: _.merge({}, base, {
+        standalone: true,
+        name: "Research Wind Power",
         description: "todo",
         researchTime: 5,
         cost: {}
