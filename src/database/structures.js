@@ -1,5 +1,3 @@
-
-import _ from 'lodash';
 import {getNumBuilt, getRunningRate} from "../redux/modules/structures";
 import {getUpgrade} from "../redux/modules/upgrades";
 import {daylightPercent, windSpeed} from "../redux/modules/clock";
@@ -8,6 +6,10 @@ import {canConsume} from "../redux/modules/resources";
 export const STATUSES = {
     normal: 0,
     insufficient: 1,
+}
+export const TYPES = {
+    generator: 0,
+    consumer: 1
 }
 
 const base = {
@@ -24,7 +26,7 @@ const base = {
     consumes: {},
     produces: {},
     upgrades: [],
-    type: 'generator'
+    type: TYPES.generator
 }
 
 export default {
@@ -33,7 +35,7 @@ export default {
         description: "Drills into the planet's surface to gather minerals.",
         runnable: true,
         buildable: true,
-        type: 'consumer'
+        type: TYPES.consumer
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",

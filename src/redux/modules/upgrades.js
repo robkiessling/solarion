@@ -1,6 +1,5 @@
 import update from 'immutability-helper';
-import _ from 'lodash';
-import database, {STATES, callbacks} from '../../database/upgrades'
+import database, {STATES, TYPES, callbacks} from '../../database/upgrades'
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 
@@ -145,9 +144,11 @@ export function isResearchableState(upgrade) {
 }
 
 
-export function getStandaloneUpgrades(state) {
-    return Object.values(state.byId).filter(upgrade => {
-        return upgrade.standalone && upgrade.state < STATES.researched;
+export function getStandaloneIds(state, type) {
+    return Object.keys(state.byId).filter(id => {
+        const upgrade = getUpgrade(state, id);
+        return upgrade.standalone && upgrade.state < STATES.researched &&
+            (type === undefined || upgrade.type === TYPES[type]);
     });
 }
 

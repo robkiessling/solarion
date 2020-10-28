@@ -1,6 +1,4 @@
 
-import _ from 'lodash';
-
 const base = {
     style: {},
     idle: {

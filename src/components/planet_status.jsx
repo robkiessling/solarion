@@ -15,7 +15,7 @@ class PlanetStatus extends React.Component {
                 <Clock dayLength={this.props.dayLength}
                        dayNumber={this.props.dayNumber}
                        fractionOfDay={this.props.fractionOfDay} />
-                Temperature: {this.props.temperature}°C<br/>
+                Temperature: {_.round(this.props.temperature)}°C<br/>
                 Wind: {this.props.windSpeed} knots
             </div>
 

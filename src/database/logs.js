@@ -141,10 +141,13 @@ export default {
                 dispatch(fromStructures.learn('mineralHarvester'));
                 dispatch(fromStructures.buildForFree('mineralHarvester', 1));
 
-                // dispatch(fromStructures.learn('solarPanel'));
-                // dispatch(fromStructures.learn('thermalVent'));
-                // dispatch(fromStructures.learn('windTurbine'));
-                // dispatch(fromStructures.learn('energyBay'));
+                dispatch(fromStructures.learn('solarPanel'));
+                dispatch(fromStructures.learn('thermalVent'));
+                dispatch(fromStructures.learn('windTurbine'));
+                dispatch(fromStructures.learn('energyBay'));
+
+                dispatch(fromUpgrades.discover('researchSolar'))
+                dispatch(fromUpgrades.discover('researchWind'))
 
                 // dispatch(fromResources.learn('vents'));
                 // dispatch(fromStructures.learn('thermalVent'));

@@ -1,5 +1,4 @@
 
-import _ from 'lodash';
 import * as fromResources from "../redux/modules/resources";
 import * as fromStructures from "../redux/modules/structures";
 
@@ -11,12 +10,18 @@ export const STATES = {
     researched: 4
 }
 
+export const TYPES = {
+    generator: 0,
+    consumer: 1
+}
+
 const base = {
     name: 'Unknown',
     description: "",
     level: 0,
     researchTime: 0, // if 0, research will occur instantly
-    state: STATES.hidden
+    state: STATES.hidden,
+    type: TYPES.generator
 }
 
 // Functions can't be stored in the state so storing them in this const

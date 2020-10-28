@@ -1,6 +1,5 @@
 import update from 'immutability-helper';
 import {mapObject} from "../../lib/helpers";
-import _ from 'lodash';
 import database, {calculators} from '../../database/resources';
 import * as fromStructures from "./structures";
 import * as fromUpgrades from "./upgrades";

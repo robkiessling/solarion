@@ -1,5 +1,4 @@
 import React from 'react';
-import _ from "lodash";
 import ResourceRate from "./resource_rate";
 import {getIcon} from "../../redux/modules/resources";
 

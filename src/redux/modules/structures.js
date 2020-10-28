@@ -1,8 +1,6 @@
 import update from 'immutability-helper';
-import _ from 'lodash';
-import database, {calculators, STATUSES} from '../../database/structures'
+import database, {calculators, STATUSES, TYPES} from '../../database/structures'
 import {mapObject} from "../../lib/helpers";
-import * as fromUpgrades from "./upgrades";
 import {withRecalculation} from "../reducer";
 
 // Actions
@@ -138,6 +136,16 @@ export function getStatusMessage(structure) {
 }
 export function hasInsufficientResources(structure) {
     return structure.status === STATUSES.insufficient;
+}
+
+export function getVisibleIds(state, type) {
+    if (type === undefined) {
+        return state.visibleIds;
+    }
+
+    return state.visibleIds.filter(id => {
+        return getStructure(state, id).type === TYPES[type];
+    });
 }
 
 // Gets statistics based on how many of the structures are built. Statistics can be any keys on the structure record.

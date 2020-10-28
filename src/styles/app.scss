@@ -53,16 +53,9 @@ html {
 
       display: flex;
       flex-direction: column;
+
+      overflow-y: auto;
     }
-
   }
 
-  .column-container {
-    flex: 1 1 0;
-    padding: $window-padding;
-    overflow-y: auto;
-
-    display: flex;
-    flex-direction: column;
-  }
 }
