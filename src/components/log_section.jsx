@@ -35,9 +35,16 @@ class LogSection extends React.Component {
         const logSection = this.logSectionRef.current;
         const text = databaseRecord.text;
 
-        for (let i = 0, len = text.length; i < len; i++) {
+        if (_.isArray(text)) {
+            for (let i = 0, len = text.length; i < len; i++) {
+                let node = document.createElement('p');
+                node.appendChild(document.createTextNode(text[i][0]));
+                logSection.appendChild(node);
+            }
+        }
+        else {
             let node = document.createElement('p');
-            node.appendChild(document.createTextNode(text[i][0]));
+            node.appendChild(document.createTextNode(text));
             logSection.appendChild(node);
         }
 

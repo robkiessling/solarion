@@ -131,7 +131,6 @@ export default {
             // ['Mining: operational', 2000, true],
             ['', 100],
             ['Awaiting input...', 0, true],
-            ['', 100]
         ],
         onFinish: (dispatch) => {
             // TODO Move this into a 'game_processes' database file or something like that?
@@ -141,11 +140,11 @@ export default {
                 dispatch(fromStructures.learn('mineralHarvester'));
                 dispatch(fromStructures.buildForFree('mineralHarvester', 1));
 
-                dispatch(fromStructures.learn('solarPanel'));
-                dispatch(fromStructures.learn('thermalVent'));
-                dispatch(fromStructures.learn('windTurbine'));
-                dispatch(fromStructures.learn('energyBay'));
-
+                // dispatch(fromStructures.learn('solarPanel'));
+                // dispatch(fromStructures.learn('thermalVent'));
+                // dispatch(fromStructures.learn('windTurbine'));
+                // dispatch(fromStructures.learn('energyBay'));
+                //
                 dispatch(fromUpgrades.discover('researchSolar'))
                 dispatch(fromUpgrades.discover('researchWind'))
 
@@ -201,5 +200,9 @@ export default {
             // )
         }
     },
+
+    researchComplete: {
+        text: 'Research complete.'
+    }
 
 }

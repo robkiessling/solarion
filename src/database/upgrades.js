@@ -1,18 +1,15 @@
 
 import * as fromResources from "../redux/modules/resources";
 import * as fromStructures from "../redux/modules/structures";
+import * as fromLog from "../redux/modules/log"
 
 export const STATES = {
     hidden: 0,
     silhouetted: 1,
     discovered: 2,
     researching: 3,
-    researched: 4
-}
-
-export const TYPES = {
-    generator: 0,
-    consumer: 1
+    paused: 4,
+    researched: 5
 }
 
 const base = {
@@ -20,8 +17,7 @@ const base = {
     description: "",
     level: 0,
     researchTime: 0, // if 0, research will occur instantly
-    state: STATES.hidden,
-    type: TYPES.generator
+    state: STATES.hidden
 }
 
 // Functions can't be stored in the state so storing them in this const
@@ -29,17 +25,20 @@ export const callbacks = {
     researchSolar: {
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('solarPanel'));
+            dispatch(fromLog.logMessage('researchComplete'))
         }
     },
     researchWind: {
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('windTurbine'));
+            dispatch(fromLog.logMessage('researchComplete'))
         }
     },
     researchGas: {
         onFinish: (dispatch) => {
             dispatch(fromResources.learn('vents'));
             dispatch(fromStructures.learn('thermalVent'));
+            dispatch(fromLog.logMessage('researchComplete'))
         }
     }
 }
@@ -48,15 +47,15 @@ export default {
     researchSolar: _.merge({}, base, {
         standalone: true,
         name: "Research Solar Power",
-        description: "todo",
-        researchTime: 5,
+        description: "Find ways to produce energy based on sunlight. Only viable during daylight hours.",
+        researchTime: 15,
         cost: {}
     }),
     researchWind: _.merge({}, base, {
         standalone: true,
         name: "Research Wind Power",
-        description: "todo",
-        researchTime: 5,
+        description: "Find ways to produce energy based on the planet's wind and atmosphere.",
+        researchTime: 15,
         cost: {}
     }),
     researchGas: _.merge({}, base, {

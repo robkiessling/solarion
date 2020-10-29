@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import database, {STATES, TYPES, callbacks} from '../../database/upgrades'
+import database, {STATES, callbacks} from '../../database/upgrades'
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 
@@ -8,6 +8,8 @@ export const SILHOUETTE = 'upgrades/SILHOUETTE';
 export const DISCOVER = 'upgrades/DISCOVER';
 export const RESEARCH = 'upgrades/RESEARCH';
 export const PROGRESS = 'upgrades/PROGRESS';
+export const PAUSE = 'upgrades/PAUSE';
+export const RESUME = 'upgrades/RESUME';
 export const FINISH = 'upgrades/FINISH';
 
 // Initial State
@@ -46,6 +48,10 @@ export default function reducer(state = initialState, action) {
                 }
             }
             return Object.assign({}, state, { byId: newState });
+        case PAUSE:
+            return setUpgradeState(state, payload.id, STATES.paused);
+        case RESUME:
+            return setUpgradeState(state, payload.id, STATES.researching);
         case FINISH:
             return update(state, {
                 byId: {
@@ -104,6 +110,13 @@ export function researchUnsafe(upgrade) {
     }
 }
 
+export function pause(id) {
+    return { type: PAUSE, payload: { id } };
+}
+export function resume(id) {
+    return { type: RESUME, payload: { id } };
+}
+
 export function upgradesTick(timeDelta) {
     return (dispatch, getState) => {
         batch(() => {
@@ -144,11 +157,10 @@ export function isResearchableState(upgrade) {
 }
 
 
-export function getStandaloneIds(state, type) {
+export function getStandaloneIds(state) {
     return Object.keys(state.byId).filter(id => {
         const upgrade = getUpgrade(state, id);
-        return upgrade.standalone && upgrade.state < STATES.researched &&
-            (type === undefined || upgrade.type === TYPES[type]);
+        return upgrade.standalone && upgrade.state < STATES.researched;
     });
 }
 

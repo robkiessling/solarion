@@ -1,7 +1,8 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import Upgrade from "./upgrade";
-import ResourceBar from "./resource_bar";
+import {getStandaloneIds} from "../redux/modules/upgrades";
+import Upgrade2 from "./upgrade2";
 
 class Computer extends React.Component {
     constructor(props) {
@@ -11,18 +12,12 @@ class Computer extends React.Component {
     render() {
         return (
             <div className="computer-container">
-                <ResourceBar/>
-
                 <div className="computer">
-
-                    <div>
-                        <b>Computing</b>
-                    </div>
-                    {/*{*/}
-                    {/*    this.props.visibleUpgradeIds.map((id) => {*/}
-                    {/*        return <Upgrade id={id} key={id}/>*/}
-                    {/*    })*/}
-                    {/*}*/}
+                    {
+                        this.props.visibleUpgradeIds.map((id) => {
+                            return <Upgrade2 id={id} key={id}/>
+                        })
+                    }
                 </div>
             </div>
         );
@@ -31,7 +26,7 @@ class Computer extends React.Component {
 
 const mapStateToProps = state => {
     return {
-        // visibleUpgradeIds: state.upgrades.visibleIds
+        visibleUpgradeIds: getStandaloneIds(state.upgrades)
     }
 };
 

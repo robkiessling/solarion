@@ -1,6 +1,8 @@
 @import '../variables';
 
 .log-container {
+  flex: 1 1 auto;
+
   overflow: hidden;
 }
 
@@ -10,9 +12,8 @@
   //padding: $window-padding;
   //height: calc(100% - 1rem);
 
-  margin: 1rem 0.5rem;
-  //height: calc(100% - 4rem);
-  height: calc(100% - 2rem);
+  margin: 0.75rem 0.5rem;
+  height: calc(100% - 1.5rem);
 
   overflow-x: hidden;
   overflow-y: hidden;

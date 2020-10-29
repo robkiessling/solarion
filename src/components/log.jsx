@@ -13,7 +13,7 @@ class Log extends React.Component {
         let log = this.logRef.current;
 
         // Scroll to the bottom of the log
-        log.scrollTop = log.scrollHeight;
+        log.scrollTop = log.scrollHeight - log.clientHeight;
     }
 
     render() {

@@ -10,6 +10,7 @@
   background: #151d1a;
 
   .sky-color {
+    display: none;
     position: absolute;
 
     height: 100%;
@@ -21,6 +22,7 @@
   }
 
   .sky-image {
+    display: none;
     position: absolute;
 
     height: 100%;
@@ -49,7 +51,7 @@
 .planet-status {
   position: absolute;
   //height: calc(100% - 3rem);
-  width: 15rem;
+  width: 17rem;
   top: 1.5rem;
   left: 1.5rem;
   background: $ui-bg;
@@ -68,7 +70,7 @@
 .resource-bar {
   position: absolute;
   //height: calc(100% - 3rem);
-  width: 20rem;
+  width: 17rem;
   top: 1.5rem;
   right: 1.5rem;
 

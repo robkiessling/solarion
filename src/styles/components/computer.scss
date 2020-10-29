@@ -1,11 +1,32 @@
 @import '../variables';
 
 .computer-container {
-  flex: 1 1 0;
+  flex: 0 0 10rem;
 
+  border-top: 1px solid $ui-border;
 }
 
 .computer {
-  margin: 1rem 0.5rem;
+  margin: 0.5rem 0.5rem;
 
+  .computer-upgrade {
+    display: flex;
+    flex-direction: row;
+    //justify-content: space-between;
+
+    margin-bottom: 0.5rem;
+
+    a {
+      flex: 1 1 auto;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    .progress {
+      flex: 0 0 auto;
+    }
+  }
 }
