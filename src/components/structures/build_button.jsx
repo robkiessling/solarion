@@ -11,10 +11,10 @@ class BuildButton extends React.Component {
         const tipId = `build-${this.props.structure.id}`;
 
         return <div className="build-area">
-            <span className="build-count">{this.props.numBuilt}</span>
+            {/*<span className="build-count">{this.props.numBuilt}</span>*/}
             <button onClick={() => this.props.buildStructure(this.props.structure.id, 1)}
                     disabled={!this.props.canBuild} className="has-tip">
-                <span data-tip data-for={tipId}>+</span>
+                <span data-tip data-for={tipId}>Build</span>
             </button>
             <ReactTooltip id={tipId} place="right" effect="solid" className="game-tooltip">
                 <p>

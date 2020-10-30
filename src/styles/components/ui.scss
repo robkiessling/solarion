@@ -114,7 +114,10 @@ button {
     padding: 0;
 
     > span {
-      padding: 2px 6px;
+      //padding: 2px 6px;
+
+      display: inline-block;
+      width: 100%;
     }
   }
 }

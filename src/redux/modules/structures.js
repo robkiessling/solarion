@@ -3,6 +3,8 @@ import database, {calculators, STATUSES, TYPES} from '../../database/structures'
 import {mapObject} from "../../lib/helpers";
 import {withRecalculation} from "../reducer";
 
+export const UNKNOWN_IMAGE_KEY = 'unknown';
+
 // Actions
 export const LEARN = 'structures/LEARN';
 export const BUILD = 'structures/BUILD';
@@ -121,6 +123,9 @@ export function canRunStructure(state, structure) {
 export function getImage(structure) {
     if (hasInsufficientResources(structure)) {
         return 'idle';
+    }
+    if (getNumBuilt(structure) === 0) {
+        return UNKNOWN_IMAGE_KEY;
     }
     return structure.runnable ? (getRunningRate(structure) > 0 ? 'running' : 'idle') : 'idle'
 }

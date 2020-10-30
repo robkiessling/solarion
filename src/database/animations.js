@@ -8,6 +8,18 @@ const base = {
     }
 }
 
+export const UNKNOWN_IMAGE = {
+    ascii: [
+        '   _   ',
+        '.´   ` ',
+        '      )',
+        '    .´ ',
+        '   |   ',
+        '       ',
+        '   °   ',
+    ]
+}
+
 export default {
     mineralHarvester: _.merge({}, base, {
         style: {

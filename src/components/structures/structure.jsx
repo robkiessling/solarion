@@ -27,6 +27,7 @@ class Structure extends React.Component {
         return (
             <div className="structure">
                 <div className="left-side">
+                    <span className="build-count">{this.props.numBuilt}</span>
                     <Animation id={this.props.structure.id} imageKey={this.props.imageKey} />
                     <BuildButton structure={this.props.structure}/>
                 </div>
@@ -82,6 +83,8 @@ const mapStateToProps = (state, ownProps) => {
 
     return {
         structure: structure,
+        numBuilt: structure.count.total === 0 ? '' : structure.count.total,
+
         production: getStatistic(structure, 'produces'),
         consumption: getStatistic(structure, 'consumes'),
         capacity: getStatistic(structure, 'capacity'),
