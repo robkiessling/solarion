@@ -54,6 +54,17 @@ export default {
         name: "Energy Bay",
         buildable: true
     }),
+    sensorTower: _.merge({}, base, {
+        name: "Sensor Tower",
+        buildable: true,
+        type: TYPES.consumer
+    }),
+    refinery: _.merge({}, base, {
+        name: "Refinery",
+        buildable: true,
+        type: TYPES.consumer
+    }),
+
 };
 
 // These are not part of the stored state because they contain functions
@@ -139,6 +150,22 @@ export const calculators = {
         },
         description: (state, structure) => {
             return `Provides ${energyBayCapacity(state)}e storage and has optimization upgrades.`;
+        }
+    },
+    sensorTower: {
+        cost: (state, structure) => ({
+            minerals: 1
+        }),
+        description: (state, structure) => {
+            return `TODO`;
+        }
+    },
+    refinery: {
+        cost: (state, structure) => ({
+            minerals: 1
+        }),
+        description: (state, structure) => {
+            return `TODO`;
         }
     }
 }

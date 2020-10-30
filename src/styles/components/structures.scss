@@ -27,6 +27,7 @@
 
     display: flex;
     flex-direction: row;
+    //position: relative;
 
     .left-side, .right-side {
       display: flex;
@@ -43,31 +44,17 @@
     .header {
       display: flex;
       flex-direction: row;
-      //justify-content: space-between;
 
-      font-weight: bold;
+      font-size: 1rem;
 
-      .quantity {
-        color: $structure-quantity-color;
+      .structure-name {
+        color: #3ec0da;
       }
     }
 
     .body {
       display: flex;
 
-      //.build-area {
-      //  display: flex;
-      //  flex-shrink: 0;
-      //  flex-direction: column;
-      //  align-items: flex-start;
-      //
-      //  margin-right: 2rem;
-      //  min-width: 10rem;
-      //
-      //  .quantity {
-      //    margin-bottom: 0.25rem;
-      //  }
-      //}
       .details-area {
         display: flex;
         flex: auto;
@@ -81,7 +68,19 @@
     }
 
     .build-area {
-      display:flex;justify-content:space-between;align-items:center;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+
+
+      .build-count {
+        font-size: 1.5rem;
+
+        //position: absolute;
+        //top: 3px;
+        //right: 85px;
+        //font-size: 1rem;
+      }
     }
 
     .range-slider {

@@ -61,6 +61,17 @@
 
   &.rc-slider-disabled {
     background-color: transparent;
+
+    .rc-slider-rail {
+      background-color: #555;
+    }
+    .rc-slider-dot {
+      background-color: #555;
+      border-color: #888;
+    }
+    .rc-slider-handle {
+      background-color: #555;
+    }
   }
 
   &.tall {

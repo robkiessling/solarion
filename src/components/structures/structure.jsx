@@ -32,7 +32,7 @@ class Structure extends React.Component {
                 </div>
                 <div className="right-side">
                     <div className="header">
-                        <span>{this.props.structure.name}</span>
+                        <span className="structure-name">{this.props.structure.name}</span>
                     </div>
                     {/*<div className="description">*/}
                     {/*    {this.props.structure.description}*/}
