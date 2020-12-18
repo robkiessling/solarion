@@ -15,7 +15,6 @@ export const TYPES = {
 const base = {
     name: 'Unknown',
     description: '',
-    buildable: false,
     runnable: false,
     runningRate: 0,
     count: {
@@ -34,34 +33,28 @@ export default {
         name: "Mineral Harvester",
         description: "Drills into the planet's surface to gather minerals.",
         runnable: true,
-        buildable: true,
         type: TYPES.consumer
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
-        buildable: true,
         upgrades: ['solarPanel_largerPanels']
     }),
     windTurbine: _.merge({}, base, {
         name: "Wind Turbine",
-        buildable: true,
     }),
     thermalVent: _.merge({}, base, {
         name: "Geothermal Vent",
-        buildable: true
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
-        buildable: true
     }),
     sensorTower: _.merge({}, base, {
         name: "Sensor Tower",
-        buildable: true,
         type: TYPES.consumer
     }),
     refinery: _.merge({}, base, {
         name: "Refinery",
-        buildable: true,
+        runnable: true,
         type: TYPES.consumer
     }),
 

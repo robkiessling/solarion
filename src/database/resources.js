@@ -11,7 +11,7 @@ const base = {
 export default {
     minerals: _.merge({}, base, {
         name: "Ore",
-        amount: 0,
+        amount: 100,
         icon: 'icon-rock'
     }),
     energy: _.merge({}, base, {

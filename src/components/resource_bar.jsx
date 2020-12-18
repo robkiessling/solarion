@@ -4,8 +4,6 @@ import { connect } from 'react-redux';
 import Resource from "./resource"
 import {getNetResourceRates} from "../redux/reducer";
 import {getCapacity, getQuantity} from "../redux/modules/resources";
-import {dayLength, dayNumber, fractionOfDay} from "../redux/modules/clock";
-import Clock from "./clock";
 
 class ResourceBar extends React.Component {
     constructor(props) {

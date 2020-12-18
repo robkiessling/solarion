@@ -94,6 +94,9 @@ export function canConsume(state, amounts) {
     return Object.entries(amounts).every(([k,v]) => getQuantity(getResource(state, k)) >= v);
 }
 export function getQuantity(resource) {
+    if (!resource) {
+        return 0;
+    }
     return resource.amount;
 }
 export function getCapacity(resource) {

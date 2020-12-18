@@ -153,7 +153,7 @@ export default {
 
                 // dispatch(fromResources.learn('vents'));
                 // dispatch(fromStructures.learn('thermalVent'));
-                // dispatch(fromUpgrades.silhouette('solarPanel_largerPanels'))
+                dispatch(fromUpgrades.silhouette('solarPanel_largerPanels'))
 
                 // dispatch(fromUpgrades.discover('researchSolar'));
                 // dispatch(fromUpgrades.discover('researchGas'));
