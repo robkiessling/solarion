@@ -25,6 +25,7 @@ const base = {
     consumes: {},
     produces: {},
     upgrades: [],
+    abilities: [],
     type: TYPES.generator
 }
 
@@ -33,7 +34,8 @@ export default {
         name: "Mineral Harvester",
         description: "Drills into the planet's surface to gather minerals.",
         runnable: true,
-        type: TYPES.consumer
+        type: TYPES.consumer,
+        abilities: ['mineralHarvester_manual', 'mineralHarvester_power']
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",

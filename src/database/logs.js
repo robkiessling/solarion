@@ -1,6 +1,7 @@
 import * as fromStructures from '../redux/modules/structures';
 import * as fromResources from '../redux/modules/resources';
 import * as fromUpgrades from '../redux/modules/upgrades';
+import * as fromAbilities from '../redux/modules/abilities';
 import * as fromReducer from '../redux/reducer';
 import {addTrigger} from "../redux/triggers";
 import * as fromLog from "../redux/modules/log";
@@ -153,7 +154,10 @@ export default {
 
                 // dispatch(fromResources.learn('vents'));
                 // dispatch(fromStructures.learn('thermalVent'));
-                dispatch(fromUpgrades.silhouette('solarPanel_largerPanels'))
+                dispatch(fromUpgrades.discover('solarPanel_largerPanels'))
+
+                dispatch(fromAbilities.learn('mineralHarvester_manual'));
+                dispatch(fromAbilities.learn('mineralHarvester_power'));
 
                 // dispatch(fromUpgrades.discover('researchSolar'));
                 // dispatch(fromUpgrades.discover('researchGas'));

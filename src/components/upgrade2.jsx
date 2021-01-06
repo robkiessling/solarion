@@ -5,7 +5,6 @@ import ResourceAmounts from "./ui/resource_amounts";
 import {getUpgrade, pause, resume} from "../redux/modules/upgrades";
 import * as fromUpgrades from "../redux/modules/upgrades";
 import {canResearchUpgrade, researchUpgrade} from "../redux/reducer";
-import ProgressButton from "./ui/progress_button";
 import {STATES} from "../database/upgrades";
 
 class Upgrade2 extends React.Component {

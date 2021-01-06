@@ -3,7 +3,10 @@ import {mapObject} from "../../lib/helpers";
 import database, {calculators} from '../../database/resources';
 import * as fromStructures from "./structures";
 import * as fromUpgrades from "./upgrades";
+import * as fromAbilities from "./abilities";
 import {withRecalculation} from "../reducer";
+
+export { calculators };
 
 // Actions
 export const LEARN = 'resources/LEARN';
@@ -38,6 +41,10 @@ export default function reducer(state = initialState, action) {
             return consumeReducer(state, fromStructures.getBuildCost(payload.structure));
         case fromUpgrades.RESEARCH:
             return consumeReducer(state, fromUpgrades.getResearchCost(payload.upgrade));
+        case fromAbilities.START_CAST:
+            return consumeReducer(state, fromAbilities.getAbilityCost(payload.ability));
+        case fromAbilities.END_CAST:
+            return produceReducer(state, fromAbilities.getAbilityProduction(payload.ability));
         default:
             return state;
     }
@@ -104,18 +111,4 @@ export function getCapacity(resource) {
 }
 export function getIcon(id) {
     return database[id].icon;
-}
-
-/**
- * @param state Refers to the full state (unlike other methods which already refer to the resources slice)
- * @returns {*} Overrides to update various structure values
- */
-export function calculations(state) {
-    return mapObject(state.resources.byId, (resourceId, resource) => {
-        if (!calculators[resourceId]) { return {}; }
-
-        return mapObject(calculators[resourceId], (attr, calculator) => {
-            return { $set: calculator(state, resource) };
-        });
-    });
 }

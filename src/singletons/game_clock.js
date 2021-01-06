@@ -4,6 +4,7 @@ import {clockTick} from "../redux/modules/clock";
 import {batch} from "react-redux";
 import {resourcesTick} from "../redux/reducer";
 import {upgradesTick} from "../redux/modules/upgrades";
+import {abilitiesTick} from "../redux/modules/abilities";
 
 class GameClock {
     constructor() {
@@ -21,8 +22,8 @@ class GameClock {
             store.dispatch(clockTick(iterations * period));
         }, 1000 / 10);
 
-        // Resource Manager
-        this.setInterval('ResourceManager', (iterations, period) => {
+        // Ticks in this block must be done iteratively (one by one in order)
+        this.setInterval('Iterative', (iterations, period) => {
             const seconds = period / 1000;
 
             // TODO if iterations is large, can batch updates into groups of 5, 10, etc.
@@ -34,8 +35,11 @@ class GameClock {
             });
         }, 1000 / 10);
 
-        this.setInterval('Upgrades', (iterations, period) => {
+        // Ticks in this block can be batched into a single update for the entire time period
+        // TODO Do these have to be iterative as well? What if an upgrade that boosts production finishes while offline?
+        this.setInterval('Summable', (iterations, period) => {
             store.dispatch(upgradesTick(iterations * period));
+            store.dispatch(abilitiesTick(iterations * period));
         }, 1000 / 10);
 
         this.run();

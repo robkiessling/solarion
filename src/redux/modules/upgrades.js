@@ -104,7 +104,8 @@ export function researchUnsafe(upgrade) {
     else {
         return function(dispatch, getState) {
             batch(() => {
-                finishResearch(dispatch, upgrade.id);
+                dispatch({ type: RESEARCH, payload: { upgrade } }); // Still need to dispatch RESEARCH to trigger research cost
+                finishResearch(dispatch, upgrade.id); // Then immediately finish research
             });
         }
     }

@@ -16,6 +16,7 @@ import RunSlider from "./run_slider";
 import BuildButton from "./build_button";
 import {daylightPercent} from "../../redux/modules/clock";
 import Upgrades from "./upgrades";
+import Abilities from "./abilities";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -34,6 +35,9 @@ class Structure extends React.Component {
                     <div className="header">
                         <span className="structure-name">{this.props.structure.name}</span>
                     </div>
+
+                    <Abilities structure={this.props.structure}/>
+
                     {/*<div className="description">*/}
                     {/*    {this.props.structure.description}*/}
                     {/*</div>*/}

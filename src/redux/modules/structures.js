@@ -4,6 +4,7 @@ import {mapObject} from "../../lib/helpers";
 import {withRecalculation} from "../reducer";
 
 export const UNKNOWN_IMAGE_KEY = 'unknown';
+export { calculators };
 
 // Actions
 export const LEARN = 'structures/LEARN';
@@ -162,20 +163,6 @@ export function getStatistic(structure, statistic, forCount) {
         forCount = getNumBuilt(structure);
     }
     return mapObject(structure[statistic], (key, value) => value * forCount);
-}
-
-/**
- * @param state Refers to the full state (unlike other methods which already refer to the structures slice)
- * @returns {*} Overrides to update various structure values
- */
-export function calculations(state) {
-    return mapObject(state.structures.byId, (structureId, structure) => {
-        if (!calculators[structureId]) { return {}; }
-
-        return mapObject(calculators[structureId], (attr, calculator) => {
-            return { $set: calculator(state, structure) };
-        });
-    });
 }
 
 
