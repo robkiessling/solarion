@@ -1,16 +1,24 @@
 // This library allows us to combine paths easily
 const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+
 module.exports = {
     entry: path.resolve(__dirname, 'src', 'index.jsx'),
 
     output: {
-        path: path.resolve(__dirname, 'output'),
+        path: path.resolve(__dirname, 'dist'),
         filename: 'bundle.js'
     },
-
+    plugins: [
+        // Takes the src/index.html and builds it in dist
+        new HtmlWebpackPlugin({
+            hash: true,
+            template: path.resolve(__dirname, 'src', 'index.html'),
+        })
+    ],
     devServer: {
         // Where webpack-dev-server serves bundle which is created in memory. <script> src should point to this path
-        publicPath: '/output/',
+        publicPath: '/dist/',
 
         // Local filesystem directory where static html files are served
         contentBase: path.resolve(__dirname, 'src'),
