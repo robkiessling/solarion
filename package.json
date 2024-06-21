@@ -8,6 +8,9 @@
     "build": "webpack -p",
     "dev": "webpack-dev-server"
   },
+  "engines": {
+    "node": ">=14.0.0 <15.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/robkiessling/solarion.git"
