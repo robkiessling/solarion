@@ -70,7 +70,8 @@ class Outside extends React.Component {
         const nightOpacity = -Math.sin(radians) + 0.6;
 
         return (
-            <div id="outside">
+            <div id="outside" className={this.props.windowOpen ? 'open' : 'closed'}>
+                <pre className="shutters"></pre>
                 <pre className="sky-color" ref={this.skyColor} style={{background: skyColor, opacity: skyOpacity}}/>
                 <pre className="sky-image" ref={this.dayImage}/>
                 <pre className="sky-image" ref={this.nightImage} style={{opacity: nightOpacity}}/>
@@ -84,6 +85,7 @@ class Outside extends React.Component {
 const mapStateToProps = state => {
     return {
         fractionOfDay: fractionOfDay(state.clock),
+        windowOpen: state.game.windowOpen
     }
 };
 

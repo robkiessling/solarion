@@ -3,6 +3,7 @@ import {batch} from "react-redux";
 import reduceReducers from "reduce-reducers";
 import update from 'immutability-helper';
 
+import game from './modules/game';
 import clock from './modules/clock';
 import log, * as fromLog from './modules/log';
 import resources, * as fromResources from './modules/resources';
@@ -17,6 +18,7 @@ export const RECALCULATE = 'reducer/RECALCULATE';
 // Reducers
 export default reduceReducers(
     combineReducers({
+        game,
         clock,
         log,
         resources,

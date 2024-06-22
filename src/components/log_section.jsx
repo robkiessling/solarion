@@ -58,6 +58,11 @@ class LogSection extends React.Component {
         const text = databaseRecord.text;
         let i = 0, len = text.length;
 
+        if (len === 0) {
+            databaseRecord.onFinish(dispatch);
+            dispatch(endLogSequence(this.props.logData.sequence));
+        }
+
         // Each line has 3 elements in an array:
         //  0: The text to display
         //  1: How long to delay after the text is shown
@@ -83,10 +88,12 @@ class LogSection extends React.Component {
                     printNextLine(nextDelay);
                 }
                 else {
-                    batch(() => {
-                        databaseRecord.onFinish(dispatch);
-                        dispatch(endLogSequence(this.props.logData.sequence));
-                    })
+                    setTimeout(() => {
+                        batch(() => {
+                            databaseRecord.onFinish(dispatch);
+                            dispatch(endLogSequence(this.props.logData.sequence));
+                        })
+                    }, nextDelay)
                 }
             }, delay);
         }

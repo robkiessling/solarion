@@ -6,6 +6,8 @@ import {resourcesTick} from "../redux/reducer";
 import {upgradesTick} from "../redux/modules/upgrades";
 import {abilitiesTick} from "../redux/modules/abilities";
 
+const GAME_SPEED = 1.0; // Overall game speed (can increase/decrease for testing purposes)
+
 class GameClock {
     constructor() {
         // TODO Is this needed with babel?
@@ -100,7 +102,7 @@ class GameClock {
                     iterations += 1;
                     periodicFn.current -= periodicFn.period;
                 }
-                periodicFn.fn(iterations, periodicFn.period);
+                periodicFn.fn(iterations, periodicFn.period * GAME_SPEED);
             }
         }
     }

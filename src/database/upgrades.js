@@ -2,6 +2,8 @@
 import * as fromResources from "../redux/modules/resources";
 import * as fromStructures from "../redux/modules/structures";
 import * as fromLog from "../redux/modules/log"
+import * as fromUpgrades from "../redux/modules/upgrades";
+import {addTrigger} from "../redux/triggers";
 
 export const STATES = {
     hidden: 0,
@@ -40,6 +42,20 @@ export const callbacks = {
             dispatch(fromStructures.learn('thermalVent'));
             dispatch(fromLog.logMessage('researchComplete'))
         }
+    },
+    researchEnergyBay: {
+        onFinish: (dispatch) => {
+            dispatch(fromStructures.learn('energyBay'));
+            dispatch(fromLog.logMessage('researchComplete'))
+
+            addTrigger(
+                (state) => state.resources.byId.energy,
+                (slice) => slice.capacity >= 700,
+                () => {
+                    dispatch(fromUpgrades.discover('energyBay_largerCapacity'));
+                }
+            )
+        }
     }
 }
 
@@ -49,21 +65,39 @@ export default {
         name: "Research Solar Power",
         description: "Find ways to produce energy based on sunlight. Only viable during daylight hours.",
         researchTime: 15,
-        cost: {}
+        cost: {
+            minerals: 50
+        }
     }),
     researchWind: _.merge({}, base, {
         standalone: true,
         name: "Research Wind Power",
         description: "Find ways to produce energy based on the planet's wind and atmosphere.",
-        researchTime: 15,
-        cost: {}
+        researchTime: 10,
+        cost: {
+            energy: 50,
+            minerals: 50
+        }
     }),
     researchGas: _.merge({}, base, {
         standalone: true,
         name: "Research Geothermal Power",
-        description: "todo",
+        description: "Find ways to produce energy based on exhaust from the planet's surface.",
         researchTime: 10,
-        cost: {}
+        cost: {
+            energy: 50,
+            minerals: 100
+        }
+    }),
+    researchEnergyBay: _.merge({}, base, {
+        standalone: true,
+        name: "Research Energy Bays",
+        description: "Research potential structures for energy storage.",
+        researchTime: 10,
+        cost: {
+            energy: 100,
+            minerals: 100
+        }
     }),
 
     solarPanel_largerPanels: _.merge({}, base, {
@@ -78,11 +112,11 @@ export default {
     }),
     energyBay_largerCapacity: _.merge({}, base, {
         name: "Flux Capacitors",
-        description: "Increase energy bay capacity by 1000%.",
+        description: "Increase energy bay capacity by 300%.",
         cost: {
-            minerals: 10
+            minerals: 1000
         },
-        multiplier: 10
+        multiplier: 3
     })
 };
 

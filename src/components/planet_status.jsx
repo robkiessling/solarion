@@ -10,7 +10,7 @@ class PlanetStatus extends React.Component {
 
     render() {
         return (
-            <div className="planet-status">
+            <div className={`planet-status ${this.props.visible ? '' : 'hidden'}`}>
                 <span className="planet-name">Planet: XLJ-800</span><br/>
                 <Clock dayLength={this.props.dayLength}
                        dayNumber={this.props.dayNumber}
@@ -26,6 +26,7 @@ class PlanetStatus extends React.Component {
 // Updates to these fields will trigger re-renders
 const mapStateToProps = state => {
     return {
+        visible: state.game.showPlanetStatus,
         dayLength: dayLength(state.clock),
         dayNumber: dayNumber(state.clock),
         fractionOfDay: fractionOfDay(state.clock),

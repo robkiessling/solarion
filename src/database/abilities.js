@@ -20,7 +20,8 @@ export const callbacks = {
 
 export default {
     mineralHarvester_manual: _.merge({}, base, {
-        name: 'Manual',
+        name: 'Manual Harvest',
+        description: "Manually dig up some ore. Seems slow to do this manually...",
         cost: {},
         produces: {
             minerals: 10

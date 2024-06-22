@@ -12,7 +12,7 @@ class ResourceBar extends React.Component {
 
     render() {
         return (
-            <div className="resource-bar">
+            <div className={`resource-bar ${this.props.visible ? '' : 'hidden'}`}>
                 {
                     this.props.visibleIds.map((id) => {
                         const resource = this.props.resources[id];
@@ -34,6 +34,7 @@ class ResourceBar extends React.Component {
 // Updates to these fields will trigger re-renders
 const mapStateToProps = state => {
     return {
+        visible: state.game.showResourceBar,
         elapsedTime: state.clock.elapsedTime,
         visibleIds: state.resources.visibleIds,
         resources: state.resources.byId,

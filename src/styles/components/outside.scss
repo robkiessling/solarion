@@ -1,5 +1,7 @@
 @import '../variables';
 
+$window-transition: 10s;
+
 #outside {
 
   height: $outside-height;
@@ -7,10 +9,38 @@
 
   flex: 1 0 auto;
   max-height: $outside-height;
-  background: #151d1a;
+  background: $ui-bg;
+
+
+  &.closed {
+    .shutters {
+      height: 100%;
+    }
+    .sky-image, .sky-color {
+      height: 0;
+    }
+  }
+
+  .shutters {
+    transition: $window-transition;
+    bottom: 0;
+
+    position: absolute;
+    height: 0;
+    width: 100%;
+    overflow: hidden;
+    margin: 0;
+    border-top: 1px solid $ui-border;
+
+    background-color: $ui-bg;
+    opacity: 1;
+    background-size: 17px 17px;
+    background-image: repeating-linear-gradient(45deg, $ui-border 0, $ui-border 1.7000000000000002px, $ui-bg 0, $ui-bg 50%);
+  }
 
   .sky-color {
-    //display: none;
+    transition: $window-transition;
+
     position: absolute;
 
     height: 100%;
@@ -22,7 +52,8 @@
   }
 
   .sky-image {
-    //display: none;
+    transition: $window-transition;
+
     position: absolute;
 
     height: 100%;

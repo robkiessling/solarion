@@ -3,6 +3,7 @@ import {connect} from "react-redux";
 import {castAbility, getStructureAbilities} from "../../redux/reducer";
 import ResourceAmounts from "../ui/resource_amounts";
 import ProgressButton from "../ui/progress_button";
+import _ from "lodash";
 
 class Abilities extends React.Component {
     constructor(props) {
@@ -26,7 +27,7 @@ class Abilities extends React.Component {
                                     <p>
                                         {ability.description}
                                     </p>
-                                    Cost: <ResourceAmounts amounts={ability.cost} />
+                                    {!_.isEmpty(ability.cost) && <div>Cost: <ResourceAmounts amounts={ability.cost} /></div>}
                                 </div>
                             }>
                             {ability.name}

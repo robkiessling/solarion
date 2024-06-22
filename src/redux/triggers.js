@@ -11,17 +11,15 @@ import store from './store';
  * @param condition Function that accepts one parameter `slice` and should return true when the `action` is to be performed.
  *                  Note: `slice` is the piece of the state specified by `selector`.
  * @param action    Function to call when triggered.
+ * @return function Returns an unsubscribe function that can be called to cancel the trigger early (if necessary)
  */
 export function addTrigger(selector, condition, action) {
-    let unsubscribe = observeStore(store, selector, (state) => {
+    return observeStore(store, selector, (state, unsubscribe) => {
         if (condition(state)) {
             action();
             unsubscribe();
         }
     });
-
-    // Returning unsubscribe so you can cancel the trigger early (if necessary).
-    return unsubscribe;
 }
 
 // Subscribes to changes to a specific part of the store (specified by the `selector` parameter function).
@@ -33,7 +31,7 @@ function observeStore(store, selector, onChange) {
         let nextState = selector(store.getState());
         if (nextState !== currentState) {
             currentState = nextState;
-            onChange(currentState);
+            onChange(currentState, unsubscribe);
         }
     }
 

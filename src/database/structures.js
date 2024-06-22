@@ -49,6 +49,7 @@ export default {
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
+        upgrades: ['energyBay_largerCapacity']
     }),
     sensorTower: _.merge({}, base, {
         name: "Sensor Tower",
@@ -66,7 +67,7 @@ export default {
 export const calculators = {
     mineralHarvester: {
         cost: (state, structure) => ({
-            minerals: 1000 * (1.5)**(getNumBuilt(structure))
+            minerals: 100 * (1.4)**(getNumBuilt(structure))
         }),
         consumes: (state, structure) => ({
             energy: 20 * getRunningRate(structure)
@@ -138,7 +139,7 @@ export const calculators = {
     },
     energyBay: {
         cost: (state, structure) => ({
-            minerals: 10 * (1.5)**(getNumBuilt(structure))
+            minerals: 100 * (1.4)**(getNumBuilt(structure))
         }),
         capacity: (state, structure) => {
             return { energy: energyBayCapacity(state) };
