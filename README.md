@@ -6,8 +6,7 @@
 
 Note: This is an **unfinished** game. In fact, it's barely a game at 
 all at this point. It was primarily a way to learn about [React Redux](https://react-redux.js.org/) 
-and to test ASCII animations. I will probably remake it from scratch
-at some point in the future. 
+and to test ASCII animations. 
 
 ## Building game locally
 

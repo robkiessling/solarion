@@ -120,6 +120,7 @@
       width: $structure-image-width;
       height: $structure-image-height;
       margin-bottom: 0.25rem;
+      overflow: hidden;
 
       .image-layer {
         position: absolute;

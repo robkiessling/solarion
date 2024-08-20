@@ -7,12 +7,13 @@ import * as fromReducer from '../redux/reducer';
 import {addTrigger} from "../redux/triggers";
 import * as fromLog from "../redux/modules/log";
 import {batch} from "react-redux";
+import {mapObject} from "../lib/helpers";
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard crash log sequence
 const SKIP_BOOTUP = 'skipBootup'; // Skip crash log, normal story playthrough
 const SKIP_EVERYTHING = 'skipEverything'; // Skip to all structures buildable
 
-const GAME_MODE = NORMAL_BOOTUP; /* Controls overall game mode (e.g. set to SKIP_BOOTUP to skip bootup sequence) */
+const GAME_MODE = SKIP_EVERYTHING; /* Controls overall game mode (e.g. set to SKIP_BOOTUP to skip bootup sequence) */
 
 
 export default {
@@ -110,7 +111,7 @@ export default {
             ['▒', 0],
             ['', 0],
             ['FATAL ERROR OCCURRED', 0],
-            ['', 8000],
+            ['', 5000],
             ['****************', 0],
             ['****************', 0],
             ['****************', 0],
@@ -181,7 +182,7 @@ export default {
 
     scanForHostiles: {
         text: [
-            ['Scanning for hostile activity.', 1000, true],
+            ['Scanning for hostile activity.', 2000, true],
             ['.', 2000],
             ['..', 2000],
             ['...', 2000],
@@ -200,7 +201,7 @@ export default {
 
     openWindow: {
         text: [
-            ['Lowering blast shield...', 11000, true],
+            ['Lowering blast shield...', 16000, true], // should match $window-transition
             ['', 0],
         ],
         onFinish: (dispatch) => {
@@ -265,8 +266,8 @@ export default {
 
     skipEverything: {
         text: [
-            ['Skipping Normal Login', 1000, true],
-            ['', 100],
+            ['Skipping Normal Login', 1, true],
+            ['', 1],
             ['All known resources have been loaded.', 0, true]
         ],
         onFinish: (dispatch) => {
@@ -277,6 +278,7 @@ export default {
             dispatch(fromResources.learn('energy'));
             dispatch(fromResources.learn('minerals'));
             dispatch(fromResources.learn('vents'));
+            dispatch(fromResources.learn('refinedMinerals'));
 
             dispatch(fromStructures.learn('mineralHarvester'));
             dispatch(fromStructures.buildForFree('mineralHarvester', 1));
@@ -292,6 +294,11 @@ export default {
             dispatch(fromStructures.learn('windTurbine'));
             dispatch(fromStructures.learn('energyBay'));
             dispatch(fromUpgrades.discover('energyBay_largerCapacity'))
+
+            dispatch(fromResources.produce({
+                minerals: 5000,
+                energy: 5000
+            }))
         }
     },
 

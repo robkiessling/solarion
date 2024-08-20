@@ -67,7 +67,7 @@ export default {
 export const calculators = {
     mineralHarvester: {
         cost: (state, structure) => ({
-            minerals: 100 * (1.4)**(getNumBuilt(structure))
+            minerals: 150 * (1.4)**(getNumBuilt(structure))
         }),
         consumes: (state, structure) => ({
             energy: 20 * getRunningRate(structure)
@@ -162,6 +162,20 @@ export const calculators = {
         }),
         description: (state, structure) => {
             return `TODO`;
+        },
+        consumes: (state, structure) => ({
+            energy: 50 * getRunningRate(structure),
+            minerals: 20 * getRunningRate(structure)
+        }),
+        produces: (state, structure) => {
+            const minEfficiency = 0.75;
+            const efficiency = 1 - (getRunningRate(structure) * (1 - minEfficiency))
+            return {
+                refinedMinerals: 1 * getRunningRate(structure) * efficiency
+            }
+        },
+        canRun: (state, structure) => {
+            return canConsume(state.resources, { energy: 1, minerals: 1 });
         }
     }
 }

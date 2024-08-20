@@ -504,7 +504,7 @@ export default {
             ' ║║==║-=║  ',
             '/__\\  \\  \\ ',
         ],
-        idle: [
+        running: [
             {
                 ascii: [
                     '           ',
@@ -512,7 +512,7 @@ export default {
                     '           ',
                     '           ',
                 ],
-                duration: 1
+                duration: 0.41
             },
             {
                 ascii: [
@@ -594,6 +594,15 @@ export default {
                     '     ¯=¯   ',
                     '           ',
                     '           ',
+                    '           ',
+                    '           ',
+                    '           ',
+                    '           ',
+                ],
+                duration: 0.41
+            },
+            {
+                ascii: [
                     '           ',
                     '           ',
                     '           ',

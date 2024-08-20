@@ -23,6 +23,11 @@ export default {
         name: "Thermal Vent",
         amount: 2,
         icon: 'icon-caldera'
+    }),
+    refinedMinerals: _.merge({}, base, {
+        name: "Refined Ore",
+        amount: 0,
+        icon: 'icon-rock2'
     })
 };
 

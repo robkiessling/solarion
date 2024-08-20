@@ -19,6 +19,6 @@ export default function ResourceAmounts(props) {
                         <span key={k}>{rate}<span className={icon}/></span>
                 })
             }
-            </span>
+        </span>
     );
 }

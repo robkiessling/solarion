@@ -61,6 +61,7 @@ class LogSection extends React.Component {
         if (len === 0) {
             databaseRecord.onFinish(dispatch);
             dispatch(endLogSequence(this.props.logData.sequence));
+            return;
         }
 
         // Each line has 3 elements in an array:
