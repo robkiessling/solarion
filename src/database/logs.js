@@ -138,7 +138,7 @@ export default {
             ['*** 0x003041 0x000000 0xA03B00', 10],
             ['***', 10],
             ['', 2000],
-            ['AE74923 V8.4 2104-04-11', 10],
+            ['AE74923 V8.4 2154-04-11', 10],
             ['', 10],
             ['Solarion(R) CORE', 10],
             ['', 10],
@@ -301,7 +301,7 @@ export default {
 
             dispatch(fromResources.produce({
                 minerals: 5000,
-                energy: 5000,
+                energy: 0,
                 refinedMinerals: 100,
             }))
         }

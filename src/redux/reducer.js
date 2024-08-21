@@ -11,6 +11,7 @@ import structures, * as fromStructures from "./modules/structures";
 import upgrades, * as fromUpgrades from "./modules/upgrades";
 import abilities, * as fromAbilities from "./modules/abilities";
 import {mapObject} from "../lib/helpers";
+import {STATUSES} from "../database/structures";
 
 // Actions
 export const RECALCULATE = 'reducer/RECALCULATE';
@@ -189,15 +190,17 @@ export function buildStructure(id, amount) {
 export function resourcesTick(time) {
     return function(dispatch, getState) {
         fromStructures.iterateVisible(getState().structures, structure => {
+            if (structure.runningCooldown && structure.runningCooldown > 0) { return; }
+
             const consumption = mapObject(fromStructures.getStatistic(structure, 'consumes'), (resourceId, amount) => amount * time);
             if (fromResources.canConsume(getState().resources, consumption)) {
                 dispatch(fromResources.consumeUnsafe(consumption));
                 dispatch(fromResources.produce(mapObject(fromStructures.getStatistic(structure, 'produces'), (resourceId, amount) => amount * time)));
-                // fromStructures.setNormalStatus(dispatch, structure);
+                fromStructures.setStatus(dispatch, structure, STATUSES.normal);
             }
             else {
-                // fromStructures.setInsufficientStatus(dispatch, structure);
-                dispatch(fromStructures.turnOff(structure.id));
+                fromStructures.setStatus(dispatch, structure, STATUSES.insufficient);
+                // dispatch(fromStructures.turnOff(structure.id)); // todo we are not turning off anymore; too jarring
             }
         });
     }

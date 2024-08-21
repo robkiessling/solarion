@@ -5,6 +5,7 @@ import {batch} from "react-redux";
 import {resourcesTick} from "../redux/reducer";
 import {upgradesTick} from "../redux/modules/upgrades";
 import {abilitiesTick} from "../redux/modules/abilities";
+import {structuresTick} from "../redux/modules/structures";
 
 const GAME_SPEED = 1.0; // Overall game speed (can increase/decrease for testing purposes)
 
@@ -42,6 +43,7 @@ class GameClock {
         this.setInterval('Summable', (iterations, period) => {
             store.dispatch(upgradesTick(iterations * period));
             store.dispatch(abilitiesTick(iterations * period));
+            store.dispatch(structuresTick(iterations * period));
         }, 1000 / 10);
 
         this.run();

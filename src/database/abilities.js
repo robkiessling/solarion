@@ -41,7 +41,7 @@ export default {
 
     droidFactory_maintenanceDroid: _.merge({}, base, {
         name: 'Build Maintenance Droid',
-        description: "Maintenance droids can be assigned to structures, improving the structure's performance.",
+        description: "Maintenance droids can be assigned to a structures, improving their performance.",
         cost: {
             minerals: 100,
             refinedMinerals: 10

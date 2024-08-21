@@ -30,7 +30,7 @@ const mapStateToProps = (state, ownProps) => {
     return {
         numBuilt: structure.count.total,
         runningRate: getRunningRate(structure),
-        canRun: canRunStructure(state, structure)
+        canRun: true//canRunStructure(state, structure) // TODO Remove canRun code?
     }
 };
 

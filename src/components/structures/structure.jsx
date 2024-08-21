@@ -47,7 +47,7 @@ class Structure extends React.Component {
                                 this.props.isBuilt && Object.keys(this.props.production).length > 0 &&
                                 <div className={this.props.hasInsufficientResources ? 'text-grey' : ''}>
                                     Producing: <ResourceAmounts amounts={this.props.production} asRates={true}/>
-                                    {this.props.productionSuffix ? `${this.props.productionSuffix}` : ''}
+                                    {this.props.structure.productionSuffix}
                                 </div>
                             }
                             {
@@ -55,6 +55,7 @@ class Structure extends React.Component {
                                 <div className={this.props.hasInsufficientResources ? 'text-grey' : ''}>
                                     Consuming: <ResourceAmounts amounts={this.props.consumption} asRates={true}
                                                                 invert={true}/>
+                                    {this.props.structure.consumptionSuffix}
                                 </div>
                             }
                             {
@@ -85,8 +86,6 @@ const mapStateToProps = (state, ownProps) => {
         production: getStatistic(structure, 'produces'),
         consumption: getStatistic(structure, 'consumes'),
         capacity: getStatistic(structure, 'capacity'),
-
-        productionSuffix: structure.productionSuffix,
 
         hasInsufficientResources: hasInsufficientResources(structure),
         imageKey: structure.imageKey,

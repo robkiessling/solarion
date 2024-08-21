@@ -24,6 +24,7 @@ const base = {
     description: '',
     runnable: false,
     runningRate: 0,
+    runningCooldown: 0,
     count: {
         total: 0
     },
@@ -35,13 +36,14 @@ const base = {
     abilities: [],
     type: TYPES.generator,
     productionSuffix: null,
+    consumptionSuffix: null,
 }
 
 export default {
     mineralHarvester: _.merge({}, base, {
         name: "Mineral Harvester",
         description: "Drills into the planet's surface to gather minerals." +
-            " The drill is less efficient at higher harvesting rates.",
+            " The drill is less energy efficient at higher harvesting rates.",
         runnable: true,
         type: TYPES.consumer,
         abilities: ['mineralHarvester_manual', 'mineralHarvester_power']
@@ -81,11 +83,11 @@ export default {
 
 const baseCalculator = {
     imageKey: (state, structure) => {
-        // if (hasInsufficientResources(structure)) {
-        //     return 'idle';
-        // }
         if (getNumBuilt(structure) === 0) {
             return UNKNOWN_IMAGE_KEY;
+        }
+        if (hasInsufficientResources(structure)) {
+            return 'idle';
         }
         return isRunning(structure) ? 'running' : 'idle';
     }
@@ -105,7 +107,10 @@ export const calculators = {
                 minerals: 10 * getRunningRate(structure) * variables.efficiency
             }
         },
-        productionSuffix: (state, structure, variables) => {
+        consumptionSuffix: (state, structure, variables) => {
+            // if (hasInsufficientResources(structure)) {
+            //     return '(Insufficient)';
+            // }
             if (variables.efficiency !== undefined && isRunning(structure)) {
                 return `(${round(variables.efficiency * 100)}% efficiency)`;
             }
@@ -117,7 +122,7 @@ export const calculators = {
             // Efficiency: 100% efficiency at 25% rate, 50% efficiency at 100% rate
             const rate = getRunningRate(structure);
             const cutoffRate = 0.05; // Running at this rate or lower will result in 100% efficiency
-            const minEfficiency = 0.5; // Running at 100% will result in this efficiency
+            const minEfficiency = 0.25; // Running at 100% will result in this efficiency
             let efficiency;
 
             if (rate <= cutoffRate) {
@@ -254,7 +259,7 @@ export const calculators = {
             return `Provides ${variables.capacity}e additional storage.`;
         },
         variables: (state, structure) => {
-            let capacity = 50;
+            let capacity = 200;
 
             const largerCapacity = getUpgrade(state.upgrades, 'energyBay_largerCapacity');
             capacity *= (largerCapacity && largerCapacity.level ? largerCapacity.multiplier : 1);

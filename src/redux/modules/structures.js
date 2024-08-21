@@ -2,9 +2,11 @@ import update from 'immutability-helper';
 import database, {calculators, STATUSES, TYPES} from '../../database/structures'
 import {mapObject} from "../../lib/helpers";
 import {withRecalculation} from "../reducer";
+import {batch} from "react-redux";
 
 export const UNKNOWN_IMAGE_KEY = 'unknown';
 export { calculators };
+const RUNNING_COOLDOWN = 2; // After running out of resources, wait this number of seconds before running again
 
 // Actions
 export const LEARN = 'structures/LEARN';
@@ -12,6 +14,7 @@ export const BUILD = 'structures/BUILD';
 export const BUILD_FOR_FREE = 'structures/BUILD_FOR_FREE';
 export const SET_RUNNING_RATE = 'structures/SET_RUNNING_RATE';
 export const SET_STATUS = 'structures/SET_STATUS';
+export const PROGRESS = 'structures/PROGRESS';
 
 // Initial State
 const initialState = {
@@ -49,10 +52,28 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 byId: {
                     [payload.id]: {
-                        status: { $set: payload.status }
+                        status: { $set: payload.status },
+                        runningCooldown: { $set: payload.status === STATUSES.insufficient ? RUNNING_COOLDOWN * 1000 : 0 }
                     }
                 }
-            })
+            });
+        case PROGRESS:
+            let newState = {};
+            for (const [key, value] of Object.entries(state.byId)) {
+                if (value.runningCooldown !== 0) {
+                    let newCooldown = value.runningCooldown - payload.timeDelta;
+                    if (newCooldown <= 0) { newCooldown = 0; }
+
+                    newState[key] = Object.assign({}, value, {
+                        runningCooldown: newCooldown
+                    });
+                }
+                else {
+                    newState[key] = value;
+                }
+            }
+            return Object.assign({}, state, { byId: newState });
+
         default:
             return state;
     }
@@ -90,17 +111,22 @@ export function setRunningRate(id, amount) {
     return withRecalculation({ type: SET_RUNNING_RATE, payload: { id, amount } });
 }
 
-// Passing dispatch so we can determine if we need the action to do something or not (no sense dispatch if nothing will change)
-export function setNormalStatus(dispatch, structure) {
-    if (structure.status !== STATUSES.normal) {
-        dispatch({ type: SET_STATUS, payload: { id: structure.id, status: STATUSES.normal } })
+// Unlike other action creators, we are passing the dispatch as a parameter because we don't always end up dispatching
+export function setStatus(dispatch, structure, status) {
+    if (structure.status !== status) {
+        return dispatch(withRecalculation({ type: SET_STATUS, payload: { id: structure.id, status: status } }))
     }
 }
-export function setInsufficientStatus(dispatch, structure) {
-    if (structure.status !== STATUSES.insufficient) {
-        dispatch({ type: SET_STATUS, payload: { id: structure.id, status: STATUSES.insufficient } })
+
+export function structuresTick(timeDelta) {
+    return (dispatch, getState) => {
+        batch(() => {
+            dispatch({ type: PROGRESS, payload: { timeDelta } });
+        });
     }
 }
+
+
 
 
 // Standard Functions
