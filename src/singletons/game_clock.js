@@ -33,6 +33,7 @@ class GameClock {
             batch(() => {
                 while (iterations > 0) {
                     store.dispatch(resourcesTick(seconds));
+                    store.dispatch(structuresTick(iterations * period)); // Cannot be batched since runningCooldown can affect resourcesTick
                     iterations--;
                 }
             });
@@ -43,7 +44,6 @@ class GameClock {
         this.setInterval('Summable', (iterations, period) => {
             store.dispatch(upgradesTick(iterations * period));
             store.dispatch(abilitiesTick(iterations * period));
-            store.dispatch(structuresTick(iterations * period));
         }, 1000 / 10);
 
         this.run();
@@ -51,10 +51,10 @@ class GameClock {
 
     /**
      * Register a function to be called every x milliseconds
-     * @param key: Unique key for the interval. Can be used to clear the interval later.
-     * @param fn: function to be called periodically with params: (iterations, period)
-     * @param period: number of milliseconds between intervals
-     * @param skipFirstInterval: If true, the first call is skipped
+     * @param key Unique key for the interval. Can be used to clear the interval later.
+     * @param fn function to be called periodically with params: (iterations, period)
+     * @param period number of milliseconds between intervals
+     * @param skipFirstInterval If true, the first call is skipped
      */
     setInterval(key, fn, period, skipFirstInterval) {
         this.periodicFns[key] = {

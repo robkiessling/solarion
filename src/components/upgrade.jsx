@@ -1,6 +1,5 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import ReactTooltip from "react-tooltip";
 import ResourceAmounts from "./ui/resource_amounts";
 import {getUpgrade} from "../redux/modules/upgrades";
 import * as fromUpgrades from "../redux/modules/upgrades";
@@ -18,8 +17,8 @@ class Upgrade extends React.Component {
             progress={this.props.progress}
             tooltip={
                 <div>
-                    <p>{this.props.description}</p>
-                    Cost: <ResourceAmounts amounts={this.props.cost} />
+                    <p className="tooltip-header">{this.props.description}</p>
+                    <p>Cost: <ResourceAmounts amounts={this.props.cost} /></p>
                 </div>
             }>
             <b>{this.props.name}</b><br/>

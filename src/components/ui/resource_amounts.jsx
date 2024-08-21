@@ -16,7 +16,7 @@ export default function ResourceAmounts(props) {
                     if (props.invert) { rate = rate * -1; }
                     const icon = getIcon(k);
                     return props.asRates ? <ResourceRate rate={rate} icon={icon} key={k} /> :
-                        <span key={k}>{rate}<span className={icon}/></span>
+                        <span key={k} className="resource-cost">{rate}<span className={icon}/></span>
                 })
             }
         </span>

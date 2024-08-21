@@ -31,7 +31,13 @@ export default {
         icon: 'icon-rock2'
     }),
     maintenanceDroids: _.merge({}, base, {
-        name: "Maintenance Droid",
+        name: "Maintenance Droids",
+        amount: 0,
+        icon: 'icon-rock2',
+        visible: false
+    }),
+    reconDroids: _.merge({}, base, {
+        name: "Recon Droids",
         amount: 0,
         icon: 'icon-rock2',
         visible: false

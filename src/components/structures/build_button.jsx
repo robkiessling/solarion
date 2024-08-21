@@ -1,9 +1,9 @@
 import React from 'react';
 import {connect} from "react-redux";
-import ReactTooltip from "react-tooltip";
 import ResourceAmounts from "../ui/resource_amounts";
 import {buildStructure, canBuildStructure} from "../../redux/reducer";
 import {getBuildCost} from "../../redux/modules/structures";
+import Tooltip from "../ui/tooltip";
 
 class BuildButton extends React.Component {
 
@@ -16,12 +16,14 @@ class BuildButton extends React.Component {
                     disabled={!this.props.canBuild} className="has-tip">
                 <span data-tip data-for={tipId}>Build</span>
             </button>
-            <ReactTooltip id={tipId} place="right" effect="solid" className="game-tooltip">
+            <Tooltip id={tipId} place="right">
                 <p>
-                    <b>Build {this.props.name}</b>
+                    <span className="tooltip-header">Build {this.props.name}</span>
                 </p>
-                Cost: <ResourceAmounts amounts={this.props.cost} />
-            </ReactTooltip>
+                <p>
+                    Cost: <ResourceAmounts amounts={this.props.cost} />
+                </p>
+            </Tooltip>
         </div>
     }
 }

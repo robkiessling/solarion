@@ -138,20 +138,12 @@ button {
 }
 
 .game-tooltip {
-  max-width: 15rem;
+  max-width: 20rem;
   opacity: 1 !important;
-  border-radius: 0;
+  padding: 0 1rem !important;
 
-  background: $tooltip-bg !important;
-  color: $tooltip-text;
-  &.place-right {
-    &:after {
-      border-right-color: $tooltip-bg !important;
-    }
-  }
-
-  p {
-    margin-top: 0;
-    margin-bottom: 0.5rem;
+  .tooltip-header {
+    //color: $structure-description-color;
+    font-weight: bold;
   }
 }

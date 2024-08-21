@@ -1,8 +1,8 @@
 import React from "react";
 import {connect} from "react-redux";
 import {getStructureUpgrades, researchUpgrade} from "../../redux/reducer";
-import ReactTooltip from "react-tooltip";
 import ResourceAmounts from "../ui/resource_amounts";
+import Tooltip from "../ui/tooltip";
 
 class Upgrades extends React.Component {
     constructor(props) {
@@ -22,12 +22,17 @@ class Upgrades extends React.Component {
                                 {upgrade.name}
                             </span>
                         </button>
-                        <ReactTooltip id={tipId} place="right" effect="solid" className="game-tooltip">
+                        <Tooltip id={tipId} place="right">
+                            <p>
+                                <span className="tooltip-header">{upgrade.name}</span>
+                            </p>
                             <p>
                                 {upgrade.description}
                             </p>
-                            Cost: <ResourceAmounts amounts={upgrade.cost} />
-                        </ReactTooltip>
+                            <p>
+                                Cost: <ResourceAmounts amounts={upgrade.cost} />
+                            </p>
+                        </Tooltip>
                     </div>;
                 })
             }

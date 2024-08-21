@@ -183,6 +183,56 @@ export function buildStructure(id, amount) {
     }
 }
 
+export function canAssignDroid(state, structure) {
+    return fromResources.canConsume(state.resources, { maintenanceDroids: 1 });
+}
+export function canRemoveDroid(state, structure) {
+    return structure.numDroids > 0;
+}
+
+export function assignDroid(structureId) {
+    return function(dispatch, getState) {
+        const structure = fromStructures.getStructure(getState().structures, structureId);
+        if (canAssignDroid(getState(), structure)) {
+            dispatch(fromStructures.assignDroidUnsafe(structure));
+        }
+    }
+}
+export function removeDroid(structureId) {
+    return function(dispatch, getState) {
+        const structure = fromStructures.getStructure(getState().structures, structureId);
+        if (canRemoveDroid(getState(), structure)) {
+            dispatch(fromStructures.removeDroidUnsafe(structure));
+        }
+    }
+}
+
+export function showDroidUI(state, structure) {
+    if (fromResources.getLifetimeQuantity(fromResources.getResource(state.resources, 'maintenanceDroids')) === 0) {
+        return false;
+    }
+
+    return structure.usesDroids;
+}
+
+// The maintenance droid resource amount goes up/down when droids are assigned to structures. To get the total
+// (deployed & undeployed) we sum the resource amount plus all the structure counts.
+export function numMaintenanceDroids(state) {
+    let total = 0;
+
+    fromStructures.iterateVisible(state.structures, structure => {
+        total += structure.numDroids;
+    });
+
+    total += fromResources.getQuantity(fromResources.getResource(state.resources, 'maintenanceDroids'));
+
+    return total;
+}
+export function numReconDroids(state) {
+    return fromResources.getQuantity(fromResources.getResource(state.resources, 'reconDroids'));
+}
+
+
 // Note: This can emit a lot of dispatches... it should be surrounded by a batch()
 // For each structure:
 //      1) try to consume. if CAN -> consume it AND produce what those structures can

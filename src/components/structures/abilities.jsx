@@ -27,7 +27,8 @@ class Abilities extends React.Component {
                                     <p>
                                         {ability.description}
                                     </p>
-                                    {!_.isEmpty(ability.cost) && <div>Cost: <ResourceAmounts amounts={ability.cost} /></div>}
+                                    {!_.isEmpty(ability.cost) && <p>Cost: <ResourceAmounts amounts={ability.cost} /></p>}
+                                    {ability.castTime && <p>Time: {_.round(ability.castTime)}s</p>}
                                 </div>
                             }>
                             {ability.name}

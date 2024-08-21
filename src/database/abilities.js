@@ -1,3 +1,5 @@
+import {getResource} from "../redux/modules/resources";
+import {numMaintenanceDroids, numReconDroids} from "../redux/reducer";
 
 export const STATES = {
     ready: 0,
@@ -41,7 +43,7 @@ export default {
 
     droidFactory_maintenanceDroid: _.merge({}, base, {
         name: 'Build Maintenance Droid',
-        description: "Maintenance droids can be assigned to a structures, improving their performance.",
+        description: "Maintenance droids can be assigned to structures, improving their performance.",
         cost: {
             minerals: 100,
             refinedMinerals: 10
@@ -49,11 +51,47 @@ export default {
         produces: {
             maintenanceDroids: 1
         },
-        castTime: 10,
-        displayInfo: '0 / 2 droids deployed' // TODO
+        castTime: 1
+    }),
+    droidFactory_reconDroid: _.merge({}, base, {
+        name: 'Build Recon Droid',
+        description: "Recon droids search the planet's surface for resources.",
+        cost: {
+            minerals: 100,
+            refinedMinerals: 10
+        },
+        produces: {
+            reconDroids: 1
+        },
+        castTime: 1,
     }),
 };
 
+// These are not part of the stored state because they contain functions
 export const calculators = {
+    droidFactory_maintenanceDroid: {
+        cost: (state, ability) => ({
+            minerals: 100 * (1.4)**(numMaintenanceDroids(state)),
+            refinedMinerals: 10 * (1.4)**(numMaintenanceDroids(state))
+        }),
+        displayInfo: (state, ability) => {
+            const total = numMaintenanceDroids(state);
+            const remaining = getResource(state.resources, 'maintenanceDroids').amount;
 
+            if (total === 0) {
+                return `0 droid(s)`;
+            }
+            return `${total - remaining} / ${total} droid(s) deployed`;
+        }
+    },
+    droidFactory_reconDroid: {
+        cost: (state, ability) => ({
+            minerals: 100 * (1.4)**(numReconDroids(state)),
+            refinedMinerals: 10 * (1.4)**(numReconDroids(state))
+        }),
+        displayInfo: (state, ability) => {
+            const droids = numReconDroids(state);
+            return `${droids} droid(s)`;
+        }
+    }
 }

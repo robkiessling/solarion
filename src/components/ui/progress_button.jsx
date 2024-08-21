@@ -1,5 +1,5 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
+import Tooltip from "./tooltip";
 
 export default function ProgressButton(props) {
     let className = 'progress-button';
@@ -22,9 +22,9 @@ export default function ProgressButton(props) {
                     <div className={`progress-bar ${props.progress <= 0 ? 'hidden' : ''}`}
                          style={ { width: `${100 - props.progress}%` } }/>
                 </div>
-                <ReactTooltip id={props.tooltipId} place="right" effect="solid" className="game-tooltip">
+                <Tooltip id={props.tooltipId}>
                     {props.tooltip}
-                </ReactTooltip>
+                </Tooltip>
             </div>
         );
     }

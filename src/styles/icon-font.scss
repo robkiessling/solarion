@@ -52,6 +52,13 @@
   text-align: center;
 }
 
+.skinny-icon {
+  width: 12px;
+}
+.colorless-icon:before {
+  color: inherit !important;
+}
+
 //----- Add classes here:
 .icon-electric:before {
   content: "\e900";

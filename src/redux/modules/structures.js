@@ -15,6 +15,8 @@ export const BUILD_FOR_FREE = 'structures/BUILD_FOR_FREE';
 export const SET_RUNNING_RATE = 'structures/SET_RUNNING_RATE';
 export const SET_STATUS = 'structures/SET_STATUS';
 export const PROGRESS = 'structures/PROGRESS';
+export const ASSIGN_DROID = 'structures/ASSIGN_DROID';
+export const REMOVE_DROID = 'structures/REMOVE_DROID';
 
 // Initial State
 const initialState = {
@@ -73,6 +75,23 @@ export default function reducer(state = initialState, action) {
                 }
             }
             return Object.assign({}, state, { byId: newState });
+        case ASSIGN_DROID:
+            return update(state, {
+                byId: {
+                    [payload.structure.id]: {
+                        numDroids: { $apply: (x) => x + 1 }
+                    }
+                }
+            });
+        case REMOVE_DROID:
+            return update(state, {
+                byId: {
+                    [payload.structure.id]: {
+                        numDroids: { $apply: (x) => x - 1 }
+                    }
+                }
+            });
+
 
         default:
             return state;
@@ -96,12 +115,21 @@ export function learn(id) {
     return withRecalculation({ type: LEARN, payload: { id } });
 }
 
+// "Unsafe" means this will build the structure regardless of whether we have enough resources; you should always
+// call canBuildStructure beforehand.
 export function buildUnsafe(structure, amount) {
     return withRecalculation({ type: BUILD, payload: { structure, amount } });
 }
 
 export function buildForFree(id, amount) {
     return withRecalculation({ type: BUILD_FOR_FREE, payload: { id, amount } });
+}
+
+export function assignDroidUnsafe(structure) {
+    return withRecalculation({ type: ASSIGN_DROID, payload: { structure } });
+}
+export function removeDroidUnsafe(structure) {
+    return withRecalculation({ type: REMOVE_DROID, payload: { structure } });
 }
 
 export function turnOff(id) {

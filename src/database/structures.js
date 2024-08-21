@@ -7,7 +7,7 @@ import {
 } from "../redux/modules/structures";
 import {getUpgrade} from "../redux/modules/upgrades";
 import {daylightPercent, windSpeed} from "../redux/modules/clock";
-import {canConsume} from "../redux/modules/resources";
+import {canConsume, getIcon, getIconSpan} from "../redux/modules/resources";
 import {round} from "lodash";
 
 export const STATUSES = {
@@ -37,30 +37,37 @@ const base = {
     type: TYPES.generator,
     productionSuffix: null,
     consumptionSuffix: null,
+    usesDroids: false,
+    numDroids: 0
 }
 
 export default {
     mineralHarvester: _.merge({}, base, {
         name: "Mineral Harvester",
         description: "Drills into the planet's surface to gather minerals." +
-            " The drill is less energy efficient at higher harvesting rates.",
+            " Less energy efficient at higher harvesting rates.",
         runnable: true,
         type: TYPES.consumer,
-        abilities: ['mineralHarvester_manual', 'mineralHarvester_power']
+        abilities: ['mineralHarvester_manual', 'mineralHarvester_power'],
+        usesDroids: true
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
-        upgrades: ['solarPanel_largerPanels']
+        upgrades: ['solarPanel_largerPanels'],
+        usesDroids: true
     }),
     windTurbine: _.merge({}, base, {
         name: "Wind Turbine",
+        usesDroids: true
     }),
     thermalVent: _.merge({}, base, {
         name: "Geothermal Vent",
+        usesDroids: true
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
-        upgrades: ['energyBay_largerCapacity']
+        upgrades: ['energyBay_largerCapacity'],
+        usesDroids: true
     }),
     sensorTower: _.merge({}, base, {
         name: "Sensor Tower",
@@ -70,13 +77,14 @@ export default {
         name: "Refinery",
         runnable: true,
         type: TYPES.consumer,
-        description: "Converts ore into refined ore."
+        description: "Converts ore into refined ore.",
+        usesDroids: true
     }),
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
         description: "Constructs droids to improve production and explore the planet.",
         type: TYPES.consumer,
-        abilities: ['droidFactory_maintenanceDroid']
+        abilities: ['droidFactory_maintenanceDroid', 'droidFactory_reconDroid']
     })
 
 };
@@ -104,7 +112,7 @@ export const calculators = {
         }),
         produces: (state, structure, variables) => {
             return {
-                minerals: 10 * getRunningRate(structure) * variables.efficiency
+                minerals: 10 * getRunningRate(structure) * variables.efficiency * netDroidPerformanceBoost(state, structure)
             }
         },
         consumptionSuffix: (state, structure, variables) => {
@@ -153,13 +161,15 @@ export const calculators = {
             return `(${daylightPercent(state.clock) * 100}% daylight)`
         },
         description: (state, structure, variables) => {
-            return `Produces ${variables.peakEnergy} e/s in peak sunlight.`;
+            return `Produces ${variables.peakEnergy}${getIconSpan('energy', true)} per second in peak sunlight.`;
         },
         variables: (state, structure) => {
             let peakEnergy = 5;
 
             const largerPanels = getUpgrade(state.upgrades, 'solarPanel_largerPanels');
             peakEnergy *= largerPanels && largerPanels.level ? largerPanels.multiplier : 1;
+
+            peakEnergy *= netDroidPerformanceBoost(state, structure);
 
             const actualEnergy = peakEnergy * daylightPercent(state.clock);
 
@@ -179,18 +189,23 @@ export const calculators = {
 
             const wind = windSpeed(state.clock);
 
-            if (wind < variables.cutInSpeed || wind > variables.cutOutSpeed) {
-                return { energy: 0 };
-            }
+            let energy;
 
-            if (wind < variables.ratedSpeed) {
+            if (wind < variables.cutInSpeed || wind > variables.cutOutSpeed) {
+                // cutoff
+                energy = 0;
+            }
+            else if (wind < variables.ratedSpeed) {
                 // linear
                 const percent = (wind - variables.cutInSpeed) / (variables.ratedSpeed - variables.cutInSpeed);
-                return { energy: percent * variables.ratedPower }
+                energy = percent * variables.ratedPower;
+            }
+            else {
+                // flatline
+                energy = variables.ratedPower;
             }
 
-            // flatline
-            return { energy: variables.ratedPower };
+            return { energy: energy };
         },
         productionSuffix: (state, structure, variables) => {
             // return `(${daylightPercent(state.clock) * 100}% daylight)`
@@ -211,15 +226,15 @@ export const calculators = {
             return '(Rated speed)'
         },
         description: (state, structure, variables) => {
-            return `Produces up to ${variables.ratedPower} e/s when wind speed is between` +
-                ` ${variables.cutInSpeed} and ${variables.cutOutSpeed} knots`;
+            return `Produces up to ${variables.ratedPower}${getIconSpan('energy', true)} per second when wind speed is between` +
+                ` ${variables.cutInSpeed} and ${variables.cutOutSpeed} mph`;
         },
         variables: (state, structure) => {
             return {
                 cutInSpeed: 7,
                 ratedSpeed: 28,
                 cutOutSpeed: 47,
-                ratedPower: 50
+                ratedPower: 50 * netDroidPerformanceBoost(state, structure)
             }
         },
         imageKey: (state, structure, variables) => {
@@ -236,15 +251,17 @@ export const calculators = {
             minerals: 50 * (1.5)**(getNumBuilt(structure)),
             vents: 1
         }),
-        produces: (state, structure, variables) => ({
-            energy: variables.energy
-        }),
+        produces: (state, structure, variables) => {
+            return {
+                energy: variables.energy
+            }
+        },
         description: (state, structure, variables) => {
-            return `Produces ${variables.energy} e/s with occasional bursts of energy. `
+            return `Produces ${variables.energy}${getIconSpan('energy', true)} per second with occasional bursts of energy. `
         },
         variables: (state, structure) => {
             return {
-                energy: 20
+                energy: 20 * netDroidPerformanceBoost(state, structure)
             }
         }
     }),
@@ -256,13 +273,15 @@ export const calculators = {
             return { energy: variables.capacity };
         },
         description: (state, structure, variables) => {
-            return `Provides ${variables.capacity}e additional storage.`;
+            return `Provides ${variables.capacity}${getIconSpan('energy', true)} storage capacity.`;
         },
         variables: (state, structure) => {
             let capacity = 200;
 
             const largerCapacity = getUpgrade(state.upgrades, 'energyBay_largerCapacity');
             capacity *= (largerCapacity && largerCapacity.level ? largerCapacity.multiplier : 1);
+
+            capacity *= netDroidPerformanceBoost(state, structure);
 
             return {
                 capacity: capacity
@@ -279,7 +298,8 @@ export const calculators = {
     }),
     refinery: _.merge({}, baseCalculator, {
         cost: (state, structure) => ({
-            minerals: 1
+            minerals: 1,
+            energy: 10
         }),
         consumes: (state, structure) => ({
             energy: 50 * getRunningRate(structure),
@@ -289,7 +309,7 @@ export const calculators = {
             const minEfficiency = 0.75;
             const efficiency = 1 - (getRunningRate(structure) * (1 - minEfficiency))
             return {
-                refinedMinerals: 1 * getRunningRate(structure) * efficiency
+                refinedMinerals: 1 * getRunningRate(structure) * efficiency * netDroidPerformanceBoost(state, structure)
             }
         },
         canRun: (state, structure) => {
@@ -299,4 +319,17 @@ export const calculators = {
     droidFactory: _.merge({}, baseCalculator, {
 
     }),
+}
+
+export function droidPerformanceBoost(state) {
+    let boost = 0.20;
+
+    const improvedMaintenance = getUpgrade(state.upgrades, 'droidFactory_improvedMaintenance');
+    boost *= (improvedMaintenance && improvedMaintenance.level ? improvedMaintenance.multiplier : 1);
+
+    return boost;
+}
+
+function netDroidPerformanceBoost(state, structure) {
+    return 1 + (droidPerformanceBoost(state) * structure.numDroids);
 }

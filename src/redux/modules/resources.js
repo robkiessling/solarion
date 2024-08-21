@@ -47,6 +47,11 @@ export default function reducer(state = initialState, action) {
             return consumeReducer(state, fromAbilities.getAbilityCost(payload.ability));
         case fromAbilities.END_CAST:
             return produceReducer(state, fromAbilities.getAbilityProduction(payload.ability));
+        case fromStructures.ASSIGN_DROID:
+            return consumeReducer(state, { maintenanceDroids: 1 })
+        case fromStructures.REMOVE_DROID:
+            return produceReducer(state, { maintenanceDroids: 1 })
+
         default:
             return state;
     }
@@ -108,9 +113,18 @@ export function getQuantity(resource) {
     }
     return resource.amount;
 }
+export function getLifetimeQuantity(resource) {
+    if (!resource) {
+        return 0;
+    }
+    return resource.lifetimeTotal;
+}
 export function getCapacity(resource) {
     return resource.capacity;
 }
 export function getIcon(id) {
     return database[id].icon;
+}
+export function getIconSpan(id, skinny = false, colorless = true) {
+    return `<span class="${getIcon(id)} ${skinny ? 'skinny-icon' : ''} ${colorless ? 'colorless-icon' : ''}"></span>`;
 }

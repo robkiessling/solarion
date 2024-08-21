@@ -1,11 +1,11 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import ReactTooltip from "react-tooltip";
 import ResourceAmounts from "./ui/resource_amounts";
 import {getUpgrade, pause, resume} from "../redux/modules/upgrades";
 import * as fromUpgrades from "../redux/modules/upgrades";
 import {canResearchUpgrade, researchUpgrade} from "../redux/reducer";
 import {STATES} from "../database/upgrades";
+import Tooltip from "./ui/tooltip";
 
 class Upgrade2 extends React.Component {
 
@@ -38,7 +38,7 @@ class Upgrade2 extends React.Component {
                 </span>
             </div>
 
-            <ReactTooltip id={tooltipId} place="right" effect="solid" className="game-tooltip">
+            <Tooltip id={tooltipId} place="right">
                 <div>
                     <p>{this.props.description}</p>
                     {
@@ -47,7 +47,7 @@ class Upgrade2 extends React.Component {
                     }
                     {this.props.time > 0 && <p>Time: {this.props.time}</p>}
                 </div>
-            </ReactTooltip>
+            </Tooltip>
         </div>
     }
 }

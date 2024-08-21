@@ -280,6 +280,7 @@ export default {
             dispatch(fromResources.learn('vents'));
             dispatch(fromResources.learn('refinedMinerals'));
             dispatch(fromResources.learn('maintenanceDroids'));
+            dispatch(fromResources.learn('reconDroids'));
 
             dispatch(fromStructures.learn('mineralHarvester'));
             dispatch(fromStructures.buildForFree('mineralHarvester', 1));
@@ -298,10 +299,11 @@ export default {
 
             dispatch(fromStructures.learn('droidFactory'));
             dispatch(fromAbilities.learn('droidFactory_maintenanceDroid'));
+            dispatch(fromAbilities.learn('droidFactory_reconDroid'));
 
             dispatch(fromResources.produce({
                 minerals: 5000,
-                energy: 0,
+                energy: 500,
                 refinedMinerals: 100,
             }))
         }

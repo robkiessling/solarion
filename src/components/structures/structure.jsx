@@ -6,7 +6,7 @@ import {
     hasInsufficientResources
 } from "../../redux/modules/structures";
 import { getStructure } from "../../redux/modules/structures";
-import { buildStructure, researchUpgrade } from "../../redux/reducer";
+import {buildStructure, researchUpgrade, showDroidUI} from "../../redux/reducer";
 
 import 'rc-slider/assets/index.css';
 import ResourceAmounts from "../ui/resource_amounts";
@@ -15,6 +15,7 @@ import RunSlider from "./run_slider";
 import BuildButton from "./build_button";
 import Upgrades from "./upgrades";
 import Abilities from "./abilities";
+import Droids from "./droids";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -32,16 +33,20 @@ class Structure extends React.Component {
                 <div className="right-side">
                     <div className="header">
                         <span className="structure-name">{this.props.structure.name}</span>
+                        {this.props.isBuilt && this.props.showDroidUI && <Droids structure={this.props.structure} />}
                     </div>
-                    <div className="description">
-                        {this.props.structure.description}
-                    </div>
+                    {/*<div className="description">*/}
+                    {/*    {this.props.structure.description}*/}
+                    {/*</div>*/}
+                    <div className="description"
+                         dangerouslySetInnerHTML={{__html: this.props.structure.description}}></div>
 
                     {this.props.isBuilt && <Abilities structure={this.props.structure}/>}
 
                     <div className="body">
                         <div className="details-area">
-                            {this.props.isBuilt && this.props.structure.runnable && <RunSlider structure={this.props.structure}/>}
+                            {this.props.isBuilt && this.props.structure.runnable &&
+                                <RunSlider structure={this.props.structure}/>}
 
                             {
                                 this.props.isBuilt && Object.keys(this.props.production).length > 0 &&
@@ -82,6 +87,7 @@ const mapStateToProps = (state, ownProps) => {
         structure: structure,
         numBuilt: structure.count.total,
         isBuilt: structure.count.total > 0,
+        showDroidUI: showDroidUI(state, structure),
 
         production: getStatistic(structure, 'produces'),
         consumption: getStatistic(structure, 'consumes'),
