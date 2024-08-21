@@ -22,7 +22,7 @@ class Upgrades extends React.Component {
                                 {upgrade.name}
                             </span>
                         </button>
-                        <Tooltip id={tipId} place="right">
+                        <Tooltip id={tipId}>
                             <p>
                                 <span className="tooltip-header">{upgrade.name}</span>
                             </p>

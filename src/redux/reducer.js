@@ -113,7 +113,7 @@ export function recalculateSlice(state, sliceKey, calculators) {
 }
 
 export function canResearchUpgrade(state, upgrade) {
-    if (!fromUpgrades.isResearchableState(upgrade)) {
+    if (!fromUpgrades.isResearchable(upgrade)) {
         return false;
     }
     return fromResources.canConsume(state.resources, fromUpgrades.getResearchCost(upgrade));
@@ -129,7 +129,8 @@ export function researchUpgrade(upgradeId) {
 
 export function getStructureUpgrades(state, structure) {
     return structure.upgrades.filter(upgradeId => {
-        return !!fromUpgrades.getUpgrade(state.upgrades, upgradeId);
+        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
+        return upgrade && !fromUpgrades.isResearched(upgrade);
     }).map(upgradeId => {
         const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
 

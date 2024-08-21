@@ -4,7 +4,7 @@ import {assignDroid, canAssignDroid, canRemoveDroid, removeDroid} from "../../re
 import Tooltip from "../ui/tooltip";
 import {droidPerformanceBoost} from "../../database/structures";
 
-class Droids extends React.Component {
+class DroidCount extends React.Component {
 
     render() {
         const tipIdAssign = `assign-droids-${this.props.structure.id}`;
@@ -17,7 +17,7 @@ class Droids extends React.Component {
                     data-tip data-for={tipIdAssign}>
                 <span>+</span>
             </button>
-            <Tooltip id={tipIdAssign}>
+            <Tooltip id={tipIdAssign} place="top">
                 <p><span className="tooltip-header">Assign Droid</span></p>
                 {/*<p>Each droid boosts productivity by {_.round(this.props.boost * 100)}%.</p>*/}
             </Tooltip>
@@ -26,7 +26,7 @@ class Droids extends React.Component {
                     data-tip data-for={tipIdRemove}>
                 <span>-</span>
             </button>
-            <Tooltip id={tipIdRemove}>
+            <Tooltip id={tipIdRemove} place="top">
                 <p><span className="tooltip-header">Remove Droid</span></p>
                 {/*<p>Return the droid to the factory.</p>*/}
             </Tooltip>
@@ -49,4 +49,4 @@ const mapStateToProps = (state, ownProps) => {
 export default connect(
     mapStateToProps,
     { assignDroid, removeDroid }
-)(Droids);
+)(DroidCount);

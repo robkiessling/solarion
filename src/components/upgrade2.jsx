@@ -1,3 +1,5 @@
+// (computer upgrades)
+
 import React from 'react';
 import { connect } from 'react-redux';
 import ResourceAmounts from "./ui/resource_amounts";

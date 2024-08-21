@@ -56,7 +56,6 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 byId: {
                     [payload.id]: {
-                        level: { $apply: function(x) { return x + 1; } },
                         state: { $set: STATES.researched }
                     }
                 }
@@ -153,8 +152,11 @@ export function getResearchCost(upgrade) {
 export function getName(upgrade) {
     return upgrade.state === STATES.silhouetted ? '?' : upgrade.name;
 }
-export function isResearchableState(upgrade) {
-    return upgrade.state === STATES.discovered;
+export function isResearchable(upgrade) {
+    return upgrade && upgrade.state === STATES.discovered;
+}
+export function isResearched(upgrade) {
+    return upgrade && upgrade.state === STATES.researched;
 }
 
 

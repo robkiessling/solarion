@@ -17,7 +17,6 @@ export const STATES = {
 const base = {
     name: 'Unknown',
     description: "",
-    level: 0,
     researchTime: 0, // if 0, research will occur instantly
     state: STATES.hidden
 }

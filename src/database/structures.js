@@ -5,7 +5,7 @@ import {
     isRunning,
     UNKNOWN_IMAGE_KEY
 } from "../redux/modules/structures";
-import {getUpgrade} from "../redux/modules/upgrades";
+import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {daylightPercent, windSpeed} from "../redux/modules/clock";
 import {canConsume, getIcon, getIconSpan} from "../redux/modules/resources";
 import {round} from "lodash";
@@ -167,7 +167,9 @@ export const calculators = {
             let peakEnergy = 5;
 
             const largerPanels = getUpgrade(state.upgrades, 'solarPanel_largerPanels');
-            peakEnergy *= largerPanels && largerPanels.level ? largerPanels.multiplier : 1;
+            if (isResearched(largerPanels)) {
+                peakEnergy *= largerPanels.multiplier;
+            }
 
             peakEnergy *= netDroidPerformanceBoost(state, structure);
 
@@ -227,7 +229,7 @@ export const calculators = {
         },
         description: (state, structure, variables) => {
             return `Produces up to ${variables.ratedPower}${getIconSpan('energy', true)} per second when wind speed is between` +
-                ` ${variables.cutInSpeed} and ${variables.cutOutSpeed} mph`;
+                ` ${variables.cutInSpeed} and ${variables.cutOutSpeed} mph.`;
         },
         variables: (state, structure) => {
             return {
@@ -279,7 +281,9 @@ export const calculators = {
             let capacity = 200;
 
             const largerCapacity = getUpgrade(state.upgrades, 'energyBay_largerCapacity');
-            capacity *= (largerCapacity && largerCapacity.level ? largerCapacity.multiplier : 1);
+            if (isResearched(largerCapacity)) {
+                capacity *= largerCapacity.multiplier;
+            }
 
             capacity *= netDroidPerformanceBoost(state, structure);
 
@@ -325,7 +329,9 @@ export function droidPerformanceBoost(state) {
     let boost = 0.20;
 
     const improvedMaintenance = getUpgrade(state.upgrades, 'droidFactory_improvedMaintenance');
-    boost *= (improvedMaintenance && improvedMaintenance.level ? improvedMaintenance.multiplier : 1);
+    if (isResearched(improvedMaintenance)) {
+        boost *= improvedMaintenance.multiplier;
+    }
 
     return boost;
 }

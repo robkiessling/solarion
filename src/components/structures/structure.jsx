@@ -15,7 +15,7 @@ import RunSlider from "./run_slider";
 import BuildButton from "./build_button";
 import Upgrades from "./upgrades";
 import Abilities from "./abilities";
-import Droids from "./droids";
+import DroidCount from "./droid_count";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -33,7 +33,7 @@ class Structure extends React.Component {
                 <div className="right-side">
                     <div className="header">
                         <span className="structure-name">{this.props.structure.name}</span>
-                        {this.props.isBuilt && this.props.showDroidUI && <Droids structure={this.props.structure} />}
+                        {this.props.isBuilt && this.props.showDroidUI && <DroidCount structure={this.props.structure} />}
                     </div>
                     {/*<div className="description">*/}
                     {/*    {this.props.structure.description}*/}
