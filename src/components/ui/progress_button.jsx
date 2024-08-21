@@ -15,11 +15,12 @@ export default function ProgressButton(props) {
             console.error("ProgressButton: `tooltipId` is required if using `tooltip`.");
         }
         return (
-            <div>
+            <div className='progress-button-container'>
                 <div className={className} onClick={() => props.onClick()}
                      data-tip data-for={props.tooltipId}>
                     {props.children}
-                    <div className="progress-bar" style={ { width: `${props.progress}%` } }/>
+                    <div className={`progress-bar ${props.progress <= 0 ? 'hidden' : ''}`}
+                         style={ { width: `${100 - props.progress}%` } }/>
                 </div>
                 <ReactTooltip id={props.tooltipId} place="right" effect="solid" className="game-tooltip">
                     {props.tooltip}

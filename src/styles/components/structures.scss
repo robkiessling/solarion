@@ -112,6 +112,7 @@
     .description {
       font-size: 0.875rem;
       margin-bottom: 0.5rem;
+      color: $structure-description-color;
     }
 
     .image {
@@ -136,6 +137,11 @@
         width: $structure-image-width;
         font-size: $structure-image-font;
       }
+    }
+
+    .ability-info {
+      display: inline-block;
+      margin-left: 1rem;
     }
   }
 }

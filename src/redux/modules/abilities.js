@@ -57,7 +57,8 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 byId: {
                     [payload.ability.id]: {
-                        state: { $set: STATES.ready }
+                        state: { $set: STATES.ready },
+                        castProgress: { $set: 0 }
                     }
                 }
             });
@@ -109,8 +110,11 @@ export function getAbilityCost(ability) {
 export function getAbilityProduction(ability) {
     return ability.produces;
 }
-export function isCastable(ability) {
+export function isReady(ability) {
     return ability.state === STATES.ready;
+}
+export function isCasting(ability) {
+    return ability.state === STATES.casting;
 }
 
 

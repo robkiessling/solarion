@@ -279,13 +279,14 @@ export default {
             dispatch(fromResources.learn('minerals'));
             dispatch(fromResources.learn('vents'));
             dispatch(fromResources.learn('refinedMinerals'));
+            dispatch(fromResources.learn('maintenanceDroids'));
 
             dispatch(fromStructures.learn('mineralHarvester'));
             dispatch(fromStructures.buildForFree('mineralHarvester', 1));
-            dispatch(fromAbilities.learn('mineralHarvester_manual'));
-            dispatch(fromAbilities.learn('mineralHarvester_power'));
+            // dispatch(fromAbilities.learn('mineralHarvester_manual'));
+            // dispatch(fromAbilities.learn('mineralHarvester_power'));
 
-            dispatch(fromStructures.learn('sensorTower'));
+            // dispatch(fromStructures.learn('sensorTower'));
             dispatch(fromStructures.learn('refinery'));
 
             dispatch(fromStructures.learn('solarPanel'));
@@ -295,9 +296,13 @@ export default {
             dispatch(fromStructures.learn('energyBay'));
             dispatch(fromUpgrades.discover('energyBay_largerCapacity'))
 
+            dispatch(fromStructures.learn('droidFactory'));
+            dispatch(fromAbilities.learn('droidFactory_maintenanceDroid'));
+
             dispatch(fromResources.produce({
                 minerals: 5000,
-                energy: 5000
+                energy: 5000,
+                refinedMinerals: 100,
             }))
         }
     },

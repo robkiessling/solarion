@@ -32,6 +32,9 @@ class Abilities extends React.Component {
                             }>
                             {ability.name}
                         </ProgressButton>
+                        {
+                            ability.displayInfo && <div className='ability-info'>{ ability.displayInfo }</div>
+                        }
                     </div>;
                 })
             }

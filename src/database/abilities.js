@@ -26,7 +26,7 @@ export default {
         produces: {
             minerals: 10
         },
-        castTime: 2
+        castTime: 10
     }),
     mineralHarvester_power: _.merge({}, base, {
         name: 'Power Drill',
@@ -36,8 +36,22 @@ export default {
         produces: {
             minerals: 30
         },
-        castTime: 4
-    })
+        castTime: 20
+    }),
+
+    droidFactory_maintenanceDroid: _.merge({}, base, {
+        name: 'Build Maintenance Droid',
+        description: "Maintenance droids can be assigned to structures, improving the structure's performance.",
+        cost: {
+            minerals: 100,
+            refinedMinerals: 10
+        },
+        produces: {
+            maintenanceDroids: 1
+        },
+        castTime: 10,
+        displayInfo: '0 / 2 droids deployed' // TODO
+    }),
 };
 
 export const calculators = {

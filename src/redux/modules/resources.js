@@ -31,7 +31,9 @@ export default function reducer(state = initialState, action) {
                         $set: _.merge({}, database[payload.id], { id: payload.id, lifetimeTotal: database[payload.id].amount })
                     }
                 },
-                visibleIds: { $push: [payload.id] }
+
+                // Only resources with the visible:true attribute get added to visibleIds
+                visibleIds: { $push: database[payload.id].visible ? [payload.id] : [] }
             });
         case CONSUME:
             return consumeReducer(state, payload.amounts);

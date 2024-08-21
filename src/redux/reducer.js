@@ -38,7 +38,7 @@ export default reduceReducers(
     }
 );
 
-// Many values such as production values or consumption values change over time, such as when upgrades are researched.
+// Many values, such as production values or consumption values, change over time (e.g. when upgrades are researched).
 // Whenever this happens we call recalculateState, which will use the database `calculators` to snapshot the new production
 // or consumption values.
 function recalculateReducer(state) {
@@ -88,16 +88,26 @@ export function withRecalculation(action) {
 /**
  * @param state Refers to the full state
  * @param sliceKey The key for the slice to recalculate (e.g. 'structures')
- * @param calculators Reference to the calculators object to use
+ * @param calculators Reference to the calculators object to use. The calculators object can have a special key 'variables'
+ *                    which will always be calculated first and provided to the rest of the calculators as a third parameter
  * @returns {*} Overrides to update various structure values
  */
 export function recalculateSlice(state, sliceKey, calculators) {
     return mapObject(state[sliceKey].byId, (id, record) => {
         if (!calculators[id]) { return {}; }
 
-        return mapObject(calculators[id], (attr, calculator) => {
-            return { $set: calculator(state, record) };
-        });
+        let result = {};
+
+        // Always calculate `variables` first; other calculated attributes may depend on these
+        if (calculators[id].variables) {
+            result.variables = { $set: calculators[id].variables(state, record) };
+        }
+        for (const [attr, calculator] of Object.entries(calculators[id])) {
+            if (attr === 'variables') { continue; }
+            result[attr] = { $set: calculator(state, record, result.variables ? result.variables.$set : undefined) };
+        }
+
+        return result;
     });
 }
 
@@ -131,7 +141,7 @@ export function getStructureUpgrades(state, structure) {
 }
 
 export function canCastAbility(state, ability) {
-    if (!fromAbilities.isCastable(ability)) {
+    if (!fromAbilities.isReady(ability)) {
         return false;
     }
     return fromResources.canConsume(state.resources, fromAbilities.getAbilityCost(ability));

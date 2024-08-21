@@ -1,5 +1,9 @@
 @import '../variables';
 
+.progress-button-container {
+  display: inline-block;
+}
+
 .progress-button {
   margin: 0.5rem 0;
   padding: 0.5rem;
@@ -11,14 +15,23 @@
   cursor: pointer;
   position: relative;
 
+  &:hover {
+    text-decoration: underline;
+  }
+
   .progress-bar {
     position: absolute;
     top: 0;
-    left: 0;
+    //left: 0;
+    right: 0;
     z-index: 2;
     height: 100%;
     background-color: #ddd;
     opacity: 0.4;
+
+    &.hidden {
+      transition: none;
+    }
 
     transition: width 100ms linear 0s; // transition-duration should match ANIMATION_SPEED in redux/modules/upgrades.js
   }
@@ -26,6 +39,7 @@
   &.disabled {
     cursor: default;
     opacity: 0.7;
+    text-decoration: none;
   }
 
   &.full-width {

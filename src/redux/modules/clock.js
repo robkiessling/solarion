@@ -1,12 +1,13 @@
 import update from 'immutability-helper';
 import {batch} from "react-redux";
 import {recalculateState} from "../reducer";
+import {roundToDecimal} from "../../lib/helpers";
 
 // Actions
 export const TICK = 'clock/TICK';
 
 const WIND_SPEEDS = [17, 18, 22, 33, 25, 20, 15, 22, 12, 3, 10, 15, 25, 35, 60, 40, 33, 25, 20];
-const WIND_STEP_SIZE = 10000; // seconds per step
+const WIND_STEP_SIZE = 2000; // seconds per step
 
 // const WIND_SPEEDS = [0,10,20,30,40,50,60,70]
 // const WIND_STEP_SIZE = 1000;
@@ -78,16 +79,23 @@ export function dayNumber(state) {
     return Math.floor((state.elapsedTime / 1000.0) / state.dayLength) + 1;
 }
 
-// duration, label, % daylight
+// duration (fraction of day), label, % daylight
 const TIME_PERIODS = [
-    [4/24, 'Night', 0],
-    [1/24, 'Dawn', 0.5],
-    [5/24, 'Morning', 0.75],
-    [4/24, 'Midday', 1],
-    [5/24, 'Afternoon', 0.75],
-    [1/24, 'Dusk', 0.5],
-    [4/24, 'Night', 0]
+    [5/24, 'Night', 0],
+    [2/24, 'Dawn', 0.25],
+    [4/24, 'Morning', 0.5],
+    [5/24, 'Midday', 1],
+    [3/24, 'Afternoon', 0.75],
+    [2/24, 'Dusk', 0.25],
+    [3/24, 'Night', 0]
 ];
+
+// Make sure the fractions in the TIME_PERIODS constant add up to 1.0
+const totalTime = TIME_PERIODS.reduce((accumulator, period) => accumulator + period[0], 0);
+if (roundToDecimal(totalTime, 5) !== 1.0) {
+    console.error('The day fractions in the TIME_PERIODS constant do not add up to a full day');
+}
+
 export function timePeriodData(fractionOfDay) {
     let counter = 0;
 

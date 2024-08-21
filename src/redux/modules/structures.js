@@ -117,18 +117,12 @@ export function getNumBuilt(structure) {
 export function getRunningRate(structure) {
     return structure.runnable ? structure.runningRate : 1;
 }
+export function isRunning(structure) {
+    return structure.runnable ? (structure.runningRate > 0) : false;
+}
 export function canRunStructure(state, structure) {
     return structure.runnable && calculators[structure.id].canRun &&
         calculators[structure.id].canRun(state, structure);
-}
-export function getImage(structure) {
-    if (hasInsufficientResources(structure)) {
-        return 'idle';
-    }
-    if (getNumBuilt(structure) === 0) {
-        return UNKNOWN_IMAGE_KEY;
-    }
-    return structure.runnable ? (getRunningRate(structure) > 0 ? 'running' : 'idle') : 'idle'
 }
 export function getStatusMessage(structure) {
     switch(structure.status) {

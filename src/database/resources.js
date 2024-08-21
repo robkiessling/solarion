@@ -5,7 +5,8 @@ const base = {
     name: 'Unknown',
     amount: 0,
     lifetimeTotal: 0,
-    capacity: Infinity
+    capacity: Infinity,
+    visible: true // Whether the resources shows up in top-right display
 }
 
 export default {
@@ -28,6 +29,12 @@ export default {
         name: "Refined Ore",
         amount: 0,
         icon: 'icon-rock2'
+    }),
+    maintenanceDroids: _.merge({}, base, {
+        name: "Maintenance Droid",
+        amount: 0,
+        icon: 'icon-rock2',
+        visible: false
     })
 };
 
