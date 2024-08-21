@@ -6,6 +6,7 @@ import * as fromUpgrades from "../redux/modules/upgrades";
 import {canResearchUpgrade, researchUpgrade} from "../redux/reducer";
 import {STATES} from "../database/upgrades";
 import Tooltip from "./ui/tooltip";
+import {highlightCosts} from "../redux/modules/resources";
 
 class ComputerUpgrade extends React.Component {
 
@@ -60,7 +61,7 @@ const mapStateToProps = (state, ownProps) => {
         state: upgrade.state,
         name: upgrade.name,
         description: upgrade.description,
-        cost: fromUpgrades.getResearchCost(upgrade),
+        cost: highlightCosts(state.resources, fromUpgrades.getResearchCost(upgrade)),
         canResearch: canResearchUpgrade(state, upgrade),
         time: upgrade.researchTime,
         progress: fromUpgrades.getProgress(upgrade, true)

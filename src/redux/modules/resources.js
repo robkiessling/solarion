@@ -128,3 +128,11 @@ export function getIcon(id) {
 export function getIconSpan(id, skinny = false, colorless = true) {
     return `<span class="${getIcon(id)} ${skinny ? 'skinny-icon' : ''} ${colorless ? 'colorless-icon' : ''}"></span>`;
 }
+export function highlightCosts(state, amounts) {
+    return mapObject(amounts, (resourceId, resourceCost) => {
+        return {
+            amount: resourceCost,
+            hasEnough: getQuantity(getResource(state, resourceId)) >= resourceCost
+        }
+    });
+}

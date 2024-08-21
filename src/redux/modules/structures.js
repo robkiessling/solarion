@@ -182,8 +182,8 @@ export function getStatusMessage(structure) {
     switch(structure.status) {
         case STATUSES.normal:
             return '';
-        case STATUSES.insufficient:
-            return 'Insufficient Resources';
+        // case STATUSES.insufficient:
+        //     return 'Insufficient Resources';
         default:
             return '';
     }

@@ -116,9 +116,9 @@ export const calculators = {
             }
         },
         consumptionSuffix: (state, structure, variables) => {
-            // if (hasInsufficientResources(structure)) {
-            //     return '(Insufficient)';
-            // }
+            if (hasInsufficientResources(structure)) {
+                return '<span class="text-red">(Insufficient)</span>';
+            }
             if (variables.efficiency !== undefined && isRunning(structure)) {
                 return `(${round(variables.efficiency * 100)}% efficiency)`;
             }
@@ -225,7 +225,7 @@ export const calculators = {
                 return `(${round(percent * 100)}% of rated speed)`;
             }
 
-            return '(Rated speed)'
+            return '(At rated speed)'
         },
         description: (state, structure, variables) => {
             return `Produces up to ${variables.ratedPower}${getIconSpan('energy', true)} per second when wind speed is between` +
@@ -309,6 +309,14 @@ export const calculators = {
             energy: 50 * getRunningRate(structure),
             minerals: 20 * getRunningRate(structure)
         }),
+        consumptionSuffix: (state, structure, variables) => {
+            if (hasInsufficientResources(structure)) {
+                return '<span class="text-red">(Insufficient)</span>';
+            }
+            // if (variables.efficiency !== undefined && isRunning(structure)) {
+            //     return `(${round(variables.efficiency * 100)}% efficiency)`;
+            // }
+        },
         produces: (state, structure) => {
             const minEfficiency = 0.75;
             const efficiency = 1 - (getRunningRate(structure) * (1 - minEfficiency))

@@ -303,7 +303,7 @@ export default {
 
             dispatch(fromResources.produce({
                 minerals: 5000,
-                energy: 500,
+                energy: 0,
                 refinedMinerals: 100,
             }))
         }

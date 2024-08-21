@@ -2,6 +2,19 @@
 
 .progress-button-container {
   display: inline-block;
+
+  .tooltip-header {
+    display: flex;
+    justify-content: space-between;
+
+
+    .upgrade {
+      color: $progress-button-bg;
+    }
+    .ability {
+      color: $progress-button-ability-bg;
+    }
+  }
 }
 
 .progress-button {
@@ -14,6 +27,11 @@
   color: $progress-button-text;
   cursor: pointer;
   position: relative;
+
+  &.ability {
+    background: $progress-button-ability-bg;
+    border-radius: 0.3rem;
+  }
 
   &:hover {
     text-decoration: underline;

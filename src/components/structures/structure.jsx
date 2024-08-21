@@ -16,6 +16,7 @@ import BuildButton from "./build_button";
 import Upgrades from "./upgrades";
 import Abilities from "./abilities";
 import DroidCount from "./droid_count";
+import {highlightCosts} from "../../redux/modules/resources";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -52,7 +53,7 @@ class Structure extends React.Component {
                                 this.props.isBuilt && Object.keys(this.props.production).length > 0 &&
                                 <div className={this.props.hasInsufficientResources ? 'text-grey' : ''}>
                                     Producing: <ResourceAmounts amounts={this.props.production} asRates={true}/>
-                                    {this.props.structure.productionSuffix}
+                                    <span dangerouslySetInnerHTML={{__html: this.props.structure.productionSuffix}} />
                                 </div>
                             }
                             {
@@ -60,7 +61,7 @@ class Structure extends React.Component {
                                 <div className={this.props.hasInsufficientResources ? 'text-grey' : ''}>
                                     Consuming: <ResourceAmounts amounts={this.props.consumption} asRates={true}
                                                                 invert={true}/>
-                                    {this.props.structure.consumptionSuffix}
+                                    <span dangerouslySetInnerHTML={{__html: this.props.structure.consumptionSuffix}} />
                                 </div>
                             }
                             {
@@ -90,7 +91,7 @@ const mapStateToProps = (state, ownProps) => {
         showDroidUI: showDroidUI(state, structure),
 
         production: getStatistic(structure, 'produces'),
-        consumption: getStatistic(structure, 'consumes'),
+        consumption: highlightCosts(state.resources, getStatistic(structure, 'consumes')),
         capacity: getStatistic(structure, 'capacity'),
 
         hasInsufficientResources: hasInsufficientResources(structure),

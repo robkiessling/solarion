@@ -5,6 +5,7 @@ import * as fromAbilities from "../../redux/modules/abilities";
 import {canCastAbility, castAbility} from "../../redux/reducer";
 import ProgressButton from "../ui/progress_button";
 import _ from "lodash";
+import {highlightCosts} from "../../redux/modules/resources";
 
 class Ability extends React.Component {
 
@@ -15,9 +16,13 @@ class Ability extends React.Component {
                 onClick={() => this.props.castAbility(this.props.id)}
                 disabled={!this.props.canCast}
                 progress={this.props.progress}
+                className='ability'
                 tooltipId={`ability-${this.props.id}-tip`}
                 tooltip={
                     <div>
+                        <p className='tooltip-header'>
+                            <span className='ability'>{this.props.name}</span>
+                        </p>
                         <p>{this.props.description}</p>
                         {!_.isEmpty(this.props.cost) && <p>Cost: <ResourceAmounts amounts={this.props.cost} /></p>}
                         {this.props.castTime > 0 && <p>Time: {_.round(this.props.castTime)}s</p>}
@@ -39,7 +44,7 @@ const mapStateToProps = (state, ownProps) => {
         id: ability.id,
         name: ability.name,
         description: ability.description,
-        cost: fromAbilities.getAbilityCost(ability),
+        cost: highlightCosts(state.resources, fromAbilities.getAbilityCost(ability)),
         castTime: ability.castTime,
         canCast: canCastAbility(state, ability),
         progress: fromAbilities.getProgress(ability, true),

@@ -4,6 +4,7 @@ import ResourceAmounts from "../ui/resource_amounts";
 import {buildStructure, canBuildStructure} from "../../redux/reducer";
 import {getBuildCost} from "../../redux/modules/structures";
 import Tooltip from "../ui/tooltip";
+import {highlightCosts} from "../../redux/modules/resources";
 
 class BuildButton extends React.Component {
 
@@ -36,7 +37,7 @@ const mapStateToProps = (state, ownProps) => {
         name: structure.name,
         numBuilt: structure.count.total,
         canBuild: canBuildStructure(state, structure),
-        cost: getBuildCost(structure)
+        cost: highlightCosts(state.resources, getBuildCost(structure))
     }
 }
 

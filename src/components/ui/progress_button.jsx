@@ -2,7 +2,7 @@ import React from "react";
 import Tooltip from "./tooltip";
 
 export default function ProgressButton(props) {
-    let className = 'progress-button';
+    let className = `progress-button ${props.className}`;
     if (props.fullWidth) {
         className += ' full-width';
     }

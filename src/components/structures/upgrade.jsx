@@ -5,6 +5,7 @@ import * as fromUpgrades from "../../redux/modules/upgrades";
 import {canResearchUpgrade, researchUpgrade} from "../../redux/reducer";
 import ProgressButton from "../ui/progress_button";
 import _ from "lodash";
+import {highlightCosts} from "../../redux/modules/resources";
 
 class Upgrade extends React.Component {
 
@@ -17,7 +18,9 @@ class Upgrade extends React.Component {
             tooltipId={`upgrade-${this.props.id}-tip`}
             tooltip={
                 <div>
-                    <p className="tooltip-header">{this.props.name}</p>
+                    <p className='tooltip-header'>
+                        <span className='upgrade'>{this.props.name}</span>
+                    </p>
                     <p>{this.props.description}</p>
                     {!_.isEmpty(this.props.cost) && <p>Cost: <ResourceAmounts amounts={this.props.cost} /></p>}
                     {this.props.researchTime > 0 && <p>Time: {_.round(this.props.researchTime)}s</p>}
@@ -35,7 +38,7 @@ const mapStateToProps = (state, ownProps) => {
         id: upgrade.id,
         name: fromUpgrades.getName(upgrade),
         description: upgrade.description,
-        cost: fromUpgrades.getResearchCost(upgrade),
+        cost: highlightCosts(state.resources, fromUpgrades.getResearchCost(upgrade)),
         researchTime: upgrade.researchTime,
         canResearch: canResearchUpgrade(state, upgrade),
         progress: fromUpgrades.getProgress(upgrade, true)
