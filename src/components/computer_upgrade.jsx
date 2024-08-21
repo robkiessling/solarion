@@ -1,5 +1,3 @@
-// (computer upgrades)
-
 import React from 'react';
 import { connect } from 'react-redux';
 import ResourceAmounts from "./ui/resource_amounts";
@@ -9,7 +7,7 @@ import {canResearchUpgrade, researchUpgrade} from "../redux/reducer";
 import {STATES} from "../database/upgrades";
 import Tooltip from "./ui/tooltip";
 
-class Upgrade2 extends React.Component {
+class ComputerUpgrade extends React.Component {
 
     _onClick() {
         if (this.props.state === STATES.discovered) {
@@ -72,4 +70,4 @@ const mapStateToProps = (state, ownProps) => {
 export default connect(
     mapStateToProps,
     { researchUpgrade, pause, resume }
-)(Upgrade2);
+)(ComputerUpgrade);

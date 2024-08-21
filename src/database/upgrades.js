@@ -21,43 +21,6 @@ const base = {
     state: STATES.hidden
 }
 
-// Functions can't be stored in the state so storing them in this const
-export const callbacks = {
-    researchSolar: {
-        onFinish: (dispatch) => {
-            dispatch(fromStructures.learn('solarPanel'));
-            dispatch(fromLog.logMessage('researchComplete'))
-        }
-    },
-    researchWind: {
-        onFinish: (dispatch) => {
-            dispatch(fromStructures.learn('windTurbine'));
-            dispatch(fromLog.logMessage('researchComplete'))
-        }
-    },
-    researchGas: {
-        onFinish: (dispatch) => {
-            dispatch(fromResources.learn('vents'));
-            dispatch(fromStructures.learn('thermalVent'));
-            dispatch(fromLog.logMessage('researchComplete'))
-        }
-    },
-    researchEnergyBay: {
-        onFinish: (dispatch) => {
-            dispatch(fromStructures.learn('energyBay'));
-            dispatch(fromLog.logMessage('researchComplete'))
-
-            addTrigger(
-                (state) => state.resources.byId.energy,
-                (slice) => slice.capacity >= 700,
-                () => {
-                    dispatch(fromUpgrades.discover('energyBay_largerCapacity'));
-                }
-            )
-        }
-    }
-}
-
 export default {
     researchSolar: _.merge({}, base, {
         standalone: true,
@@ -104,6 +67,7 @@ export default {
 
         // TODO don't hardcode values into description, e.g. "Increase energy production by {{ multiplier * 100 }}% ..."
         description: "Increase solar panel energy production by 300%.",
+        researchTime: 0,
         cost: {
             minerals: 10
         },
@@ -119,3 +83,40 @@ export default {
     })
 };
 
+
+// Functions can't be stored in the state so storing them in this const
+export const callbacks = {
+    researchSolar: {
+        onFinish: (dispatch) => {
+            dispatch(fromStructures.learn('solarPanel'));
+            dispatch(fromLog.logMessage('researchComplete'))
+        }
+    },
+    researchWind: {
+        onFinish: (dispatch) => {
+            dispatch(fromStructures.learn('windTurbine'));
+            dispatch(fromLog.logMessage('researchComplete'))
+        }
+    },
+    researchGas: {
+        onFinish: (dispatch) => {
+            dispatch(fromResources.learn('vents'));
+            dispatch(fromStructures.learn('thermalVent'));
+            dispatch(fromLog.logMessage('researchComplete'))
+        }
+    },
+    researchEnergyBay: {
+        onFinish: (dispatch) => {
+            dispatch(fromStructures.learn('energyBay'));
+            dispatch(fromLog.logMessage('researchComplete'))
+
+            addTrigger(
+                (state) => state.resources.byId.energy,
+                (slice) => slice.capacity >= 700,
+                () => {
+                    dispatch(fromUpgrades.discover('energyBay_largerCapacity'));
+                }
+            )
+        }
+    }
+}

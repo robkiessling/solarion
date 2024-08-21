@@ -1,8 +1,7 @@
 import React from "react";
 import {connect} from "react-redux";
-import {getStructureUpgrades, researchUpgrade} from "../../redux/reducer";
-import ResourceAmounts from "../ui/resource_amounts";
-import Tooltip from "../ui/tooltip";
+import {getStructureUpgradeIds} from "../../redux/reducer";
+import Upgrade from "./upgrade";
 
 class Upgrades extends React.Component {
     constructor(props) {
@@ -12,28 +11,8 @@ class Upgrades extends React.Component {
 
         return <div className="upgrades-area">
             {
-                this.props.upgrades.map(upgrade => {
-                    const tipId = `upgrade-${upgrade.id}-tip`;
-                    return <div key={upgrade.id}>
-                        <button onClick={() => this.props.researchUpgrade(upgrade.id)}
-                                disabled={!upgrade.canResearch}
-                                className="has-tip">
-                            <span data-tip data-for={tipId}>
-                                {upgrade.name}
-                            </span>
-                        </button>
-                        <Tooltip id={tipId}>
-                            <p>
-                                <span className="tooltip-header">{upgrade.name}</span>
-                            </p>
-                            <p>
-                                {upgrade.description}
-                            </p>
-                            <p>
-                                Cost: <ResourceAmounts amounts={upgrade.cost} />
-                            </p>
-                        </Tooltip>
-                    </div>;
+                this.props.upgradeIds.map(id => {
+                    return <Upgrade key={id} id={id} />
                 })
             }
         </div>
@@ -44,12 +23,11 @@ const mapStateToProps = (state, ownProps) => {
     const structure = ownProps.structure;
 
     return {
-        upgrades: getStructureUpgrades(state, structure)
+        upgradeIds: getStructureUpgradeIds(state, structure)
     }
 };
 
 export default connect(
     mapStateToProps,
-    { researchUpgrade }
+    null
 )(Upgrades);
-

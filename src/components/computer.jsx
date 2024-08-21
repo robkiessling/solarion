@@ -1,8 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import Upgrade from "./upgrade";
 import {getStandaloneIds} from "../redux/modules/upgrades";
-import Upgrade2 from "./upgrade2";
+import ComputerUpgrade from "./computer_upgrade";
 
 class Computer extends React.Component {
     constructor(props) {
@@ -15,7 +14,7 @@ class Computer extends React.Component {
                 <div className="computer">
                     {
                         this.props.visibleUpgradeIds.map((id) => {
-                            return <Upgrade2 id={id} key={id}/>
+                            return <ComputerUpgrade id={id} key={id}/>
                         })
                     }
                 </div>

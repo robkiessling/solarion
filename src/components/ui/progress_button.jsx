@@ -32,7 +32,8 @@ export default function ProgressButton(props) {
         return (
             <div className={className} onClick={() => props.onClick()}>
                 {props.children}
-                <div className="progress-bar" style={ { width: `${props.progress}%` } }/>
+                <div className={`progress-bar ${props.progress <= 0 ? 'hidden' : ''}`}
+                     style={{width: `${100 - props.progress}%`}}/>
             </div>
         );
     }

@@ -112,12 +112,21 @@ export function recalculateSlice(state, sliceKey, calculators) {
     });
 }
 
+
+export function getStructureUpgradeIds(state, structure) {
+    return structure.upgrades.filter(upgradeId => {
+        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId); // check that it has been discovered
+        return upgrade && !fromUpgrades.isResearched(upgrade); // check that it has not been researched already
+    });
+}
+
 export function canResearchUpgrade(state, upgrade) {
     if (!fromUpgrades.isResearchable(upgrade)) {
         return false;
     }
     return fromResources.canConsume(state.resources, fromUpgrades.getResearchCost(upgrade));
 }
+
 export function researchUpgrade(upgradeId) {
     return function(dispatch, getState) {
         const upgrade = fromUpgrades.getUpgrade(getState().upgrades, upgradeId);
@@ -127,19 +136,10 @@ export function researchUpgrade(upgradeId) {
     }
 }
 
-export function getStructureUpgrades(state, structure) {
-    return structure.upgrades.filter(upgradeId => {
-        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
-        return upgrade && !fromUpgrades.isResearched(upgrade);
-    }).map(upgradeId => {
-        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
-
-        return _.merge({}, upgrade, {
-            cost: fromUpgrades.getResearchCost(upgrade),
-            canResearch: canResearchUpgrade(state, upgrade),
-            name: fromUpgrades.getName(upgrade)
-        });
-    })
+export function getStructureAbilityIds(state, structure) {
+    return structure.abilities.filter(abilityId => {
+        return !!fromAbilities.getAbility(state.abilities, abilityId); // check that it has been learned
+    });
 }
 
 export function canCastAbility(state, ability) {
@@ -148,6 +148,7 @@ export function canCastAbility(state, ability) {
     }
     return fromResources.canConsume(state.resources, fromAbilities.getAbilityCost(ability));
 }
+
 export function castAbility(abilityId) {
     return function(dispatch, getState) {
         const ability = fromAbilities.getAbility(getState().abilities, abilityId);
@@ -155,20 +156,6 @@ export function castAbility(abilityId) {
             dispatch(fromAbilities.startCastUnsafe(ability));
         }
     }
-}
-export function getStructureAbilities(state, structure) {
-    return structure.abilities.filter(abilityId => {
-        return !!fromAbilities.getAbility(state.abilities, abilityId);
-    }).map(abilityId => {
-        const ability = fromAbilities.getAbility(state.abilities, abilityId);
-
-        return _.merge({}, ability, {
-            cost: fromAbilities.getAbilityCost(ability),
-            canCast: canCastAbility(state, ability),
-            progress: fromAbilities.getProgress(ability, true)
-        });
-    })
-
 }
 
 export function canBuildStructure(state, structure) {

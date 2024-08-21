@@ -51,7 +51,7 @@ export default {
         produces: {
             maintenanceDroids: 1
         },
-        castTime: 1
+        castTime: 0
     }),
     droidFactory_reconDroid: _.merge({}, base, {
         name: 'Build Recon Droid',
