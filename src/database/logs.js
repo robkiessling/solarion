@@ -226,7 +226,7 @@ export default {
         onFinish: (dispatch) => {
             batch(() => {
                 dispatch(fromResources.learn('energy'));
-                dispatch(fromResources.learn('minerals'));
+                dispatch(fromResources.learn('ore'));
 
                 dispatch(fromGame.updateSetting('showResourceBar', true));
 
@@ -252,7 +252,7 @@ export default {
                 dispatch(fromGame.updateSetting('showResourceBar', true));
 
                 dispatch(fromResources.learn('energy'));
-                dispatch(fromResources.learn('minerals'));
+                dispatch(fromResources.learn('ore'));
 
                 dispatch(fromGame.updateSetting('showResourceBar', true));
 
@@ -276,7 +276,7 @@ export default {
             dispatch(fromGame.updateSetting('showResourceBar', true));
 
             dispatch(fromResources.learn('energy'));
-            dispatch(fromResources.learn('minerals'));
+            dispatch(fromResources.learn('ore'));
             dispatch(fromResources.learn('vents'));
             dispatch(fromResources.learn('refinedMinerals'));
             dispatch(fromResources.learn('maintenanceDroids'));
@@ -302,10 +302,19 @@ export default {
             dispatch(fromAbilities.learn('droidFactory_reconDroid'));
 
             dispatch(fromResources.produce({
-                minerals: 5000,
+                ore: 5000,
                 energy: 0,
                 refinedMinerals: 100,
             }))
+
+            dispatch(fromGame.addNavTab('planet'));
+            dispatch(fromGame.addNavTab('technology'));
+
+            dispatch(fromUpgrades.discover('windTurbine_reduceCutIn'))
+            dispatch(fromUpgrades.discover('windTurbine_increaseCutOut'))
+            dispatch(fromUpgrades.discover('windTurbine_largerBlades'))
+            dispatch(fromUpgrades.discover('windTurbine_yawDrive'))
+
         }
     },
 

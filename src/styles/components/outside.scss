@@ -1,16 +1,12 @@
 @import '../variables';
 
-$window-transition: 15s;
+$shutter-transition: 2s;
+$top-bar-float-padding: 0.875rem;
 
 #outside {
-
-  height: $outside-height;
   position: relative;
-
   flex: 1 0 auto;
-  max-height: $outside-height;
   background: $ui-bg;
-
 
   &.closed {
     .shutters {
@@ -22,7 +18,7 @@ $window-transition: 15s;
   }
 
   .shutters {
-    transition: $window-transition;
+    transition: $shutter-transition;
     bottom: 0;
 
     position: absolute;
@@ -39,7 +35,7 @@ $window-transition: 15s;
   }
 
   .sky-color {
-    transition: $window-transition;
+    transition: $shutter-transition;
 
     position: absolute;
 
@@ -52,7 +48,7 @@ $window-transition: 15s;
   }
 
   .sky-image {
-    transition: $window-transition;
+    transition: $shutter-transition;
 
     position: absolute;
 
@@ -65,17 +61,7 @@ $window-transition: 15s;
 
   }
 
-  .outside-border {
-    position: absolute;
 
-    height: 100%;
-    width: 100%;
-    box-sizing: border-box;
-
-    //border: 4px solid $ui-border;
-    border: 10px ridge #485850;
-
-  }
 }
 
 
@@ -83,8 +69,8 @@ $window-transition: 15s;
   position: absolute;
   //height: calc(100% - 3rem);
   width: 17rem;
-  top: 1.5rem;
-  left: 1.5rem;
+  top: $top-bar-float-padding;
+  left: $top-bar-float-padding;
   background: $ui-bg;
   padding: 0.5rem;
   box-sizing: border-box;
@@ -102,11 +88,44 @@ $window-transition: 15s;
   position: absolute;
   //height: calc(100% - 3rem);
   width: 20rem;
-  top: 1.5rem;
-  right: 1.5rem;
+  top: $top-bar-float-padding;
+  right: $top-bar-float-padding;
 
   background: $ui-bg;
   padding: 0.5rem;
   box-sizing: border-box;
   border: 3px solid $ui-border;
+}
+
+
+.navigation-tabs {
+  position: absolute;
+  left: 50%;
+  -webkit-transform: translateX(-50%);
+  transform: translateX(-50%);
+
+  display: flex;
+  gap: 2rem;
+  padding: 0.5rem 1.5rem;
+
+  background: $ui-bg;
+  box-sizing: border-box;
+  border-left: 3px solid $ui-border;
+  border-bottom: 3px solid $ui-border;
+  border-right: 3px solid $ui-border;
+
+  a {
+    cursor: pointer;
+    letter-spacing: 1px;
+    color: $ui-text-dim;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    &.current-tab {
+      text-decoration: underline;
+      color: $ui-text;
+    }
+  }
 }

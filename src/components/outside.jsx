@@ -70,12 +70,11 @@ class Outside extends React.Component {
         const nightOpacity = -Math.sin(radians) + 0.6;
 
         return (
-            <div id="outside" className={this.props.windowOpen ? 'open' : 'closed'}>
+            <div id="outside" className={`${this.props.windowOpen ? 'open' : 'closed'} ${this.props.visible ? '' : 'hidden'}`}>
                 <pre className="shutters"></pre>
                 <pre className="sky-color" ref={this.skyColor} style={{background: skyColor, opacity: skyOpacity}}/>
                 <pre className="sky-image" ref={this.dayImage}/>
                 <pre className="sky-image" ref={this.nightImage} style={{opacity: nightOpacity}}/>
-                <div className="outside-border"/>
             </div>
         );
     }
@@ -84,6 +83,7 @@ class Outside extends React.Component {
 // Updates to these fields will trigger re-renders
 const mapStateToProps = state => {
     return {
+        visible: state.game.currentNavTab === 'planet',
         fractionOfDay: fractionOfDay(state.clock),
         windowOpen: state.game.windowOpen
     }

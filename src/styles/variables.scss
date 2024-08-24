@@ -1,8 +1,7 @@
-$window-padding: 0.5rem;
+$panel-padding: 0.5rem;
 $font-family: Courier, monospace;
 
-$side-width: 300px;
-$outside-height: 12rem;
+$outside-height: 13rem;
 
 // https://coolors.co/0d0630-18314f-384e77-8bbeb2-e6f9af
 
@@ -45,6 +44,7 @@ $outside-height: 12rem;
 // https://lospec.com/palette-list/galaxy-flame
 $ui-bg: #151d1a;
 $ui-text: #f0e7e7;
+$ui-text-dim: #9a9f87;
 $ui-border: #314e3f;
 
 $button-bg: #efefef;
@@ -63,7 +63,6 @@ $range-slider-color: #b6834c;
 
 $structure-border: #314e3f;
 $structure-image-border: #9a9f87;
-$structure-description-color: #9a9f87;
 $structure-quantity-color: #ede6cb;
 
 $structure-image-height: 80px;

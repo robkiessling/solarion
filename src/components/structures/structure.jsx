@@ -42,8 +42,6 @@ class Structure extends React.Component {
                     <div className="description"
                          dangerouslySetInnerHTML={{__html: this.props.structure.description}}></div>
 
-                    {this.props.isBuilt && <Abilities structure={this.props.structure}/>}
-
                     <div className="body">
                         <div className="details-area">
                             {this.props.isBuilt && this.props.structure.runnable &&
@@ -72,6 +70,8 @@ class Structure extends React.Component {
                             }
                             <span className="text-red">{this.props.statusMessage}</span>
                         </div>
+
+                        {this.props.isBuilt && <Abilities structure={this.props.structure}/>}
 
                         {this.props.isBuilt && <Upgrades structure={this.props.structure}/>}
                     </div>

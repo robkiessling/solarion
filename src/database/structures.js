@@ -32,7 +32,6 @@ const base = {
     cost: {},
     consumes: {},
     produces: {},
-    upgrades: [],
     abilities: [],
     type: TYPES.generator,
     productionSuffix: null,
@@ -53,7 +52,6 @@ export default {
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
-        upgrades: ['solarPanel_largerPanels'],
         usesDroids: true
     }),
     windTurbine: _.merge({}, base, {
@@ -66,7 +64,6 @@ export default {
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
-        upgrades: ['energyBay_largerCapacity'],
         usesDroids: true
     }),
     sensorTower: _.merge({}, base, {
@@ -77,7 +74,7 @@ export default {
         name: "Refinery",
         runnable: true,
         type: TYPES.consumer,
-        description: "Converts ore into refined ore.",
+        description: "Converts ore into minerals.",
         usesDroids: true
     }),
     droidFactory: _.merge({}, base, {
@@ -104,15 +101,36 @@ const baseCalculator = {
 // These are not part of the stored state because they contain functions
 export const calculators = {
     mineralHarvester: _.merge({}, baseCalculator, {
+        variables: (state, structure) => {
+            const variables = {
+                // todo rename?
+                cutoffRate: 0.05, // Running at this rate or lower will result in 100% efficiency
+                minEfficiency: 0.25, // Running at 100% will result in this efficiency
+                efficiency: undefined // resulting efficiency
+            }
+
+            const rate = getRunningRate(structure);
+            if (rate <= variables.cutoffRate) {
+                variables.efficiency = 1.0;
+            }
+            else {
+                // Linear efficiency: efficiency = m(rate) + b
+                const m = (variables.minEfficiency - 1.0) / (1.0 - variables.cutoffRate);
+                const b = variables.minEfficiency - m;
+                variables.efficiency = m * rate + b;
+            }
+
+            return variables;
+        },
         cost: (state, structure) => ({
-            minerals: 150 * (1.4)**(getNumBuilt(structure))
+            ore: 150 * (1.4)**(getNumBuilt(structure))
         }),
-        consumes: (state, structure) => ({
-            energy: 20 * getRunningRate(structure)
+        consumes: (state, structure, variables) => ({
+            energy: 10 * getRunningRate(structure) / variables.efficiency
         }),
         produces: (state, structure, variables) => {
             return {
-                minerals: 10 * getRunningRate(structure) * variables.efficiency * netDroidPerformanceBoost(state, structure)
+                ore: 10 * getRunningRate(structure) * netDroidPerformanceBoost(state, structure)
             }
         },
         consumptionSuffix: (state, structure, variables) => {
@@ -125,34 +143,22 @@ export const calculators = {
         },
         canRun: (state, structure) => {
             return canConsume(state.resources, { energy: 1 });
-        },
-        variables: (state, structure) => {
-            // Efficiency: 100% efficiency at 25% rate, 50% efficiency at 100% rate
-            const rate = getRunningRate(structure);
-            const cutoffRate = 0.05; // Running at this rate or lower will result in 100% efficiency
-            const minEfficiency = 0.25; // Running at 100% will result in this efficiency
-            let efficiency;
-
-            if (rate <= cutoffRate) {
-                efficiency = 1.0;
-            }
-            else {
-                // Linear efficiency: efficiency = m(rate) + b
-                const m = (minEfficiency - 1.0) / (1.0 - cutoffRate);
-                const b = minEfficiency - m;
-                efficiency = m * rate + b;
-            }
-
-            return {
-                // cutoffRate: cutoffRate,
-                // minEfficiency: minEfficiency,
-                efficiency: efficiency
-            }
         }
     }),
     solarPanel: _.merge({}, baseCalculator, {
+        variables: (state, structure) => {
+            const variables = {
+                peakEnergy: 5,
+                actualEnergy: undefined
+            }
+            
+            applyUpgrade(state, variables, 'solarPanel_largerPanels');
+            variables.peakEnergy *= netDroidPerformanceBoost(state, structure);
+            variables.actualEnergy = variables.peakEnergy * daylightPercent(state.clock);
+            return variables;
+        },
         cost: (state, structure) => ({
-            minerals: 10 * (1.5)**(getNumBuilt(structure))
+            ore: 10 * (1.5)**(getNumBuilt(structure))
         }),
         produces: (state, structure, variables) => ({
             energy: variables.actualEnergy
@@ -162,28 +168,29 @@ export const calculators = {
         },
         description: (state, structure, variables) => {
             return `Produces ${variables.peakEnergy}${getIconSpan('energy', true)} per second in peak sunlight.`;
-        },
-        variables: (state, structure) => {
-            let peakEnergy = 5;
-
-            const largerPanels = getUpgrade(state.upgrades, 'solarPanel_largerPanels');
-            if (isResearched(largerPanels)) {
-                peakEnergy *= largerPanels.multiplier;
-            }
-
-            peakEnergy *= netDroidPerformanceBoost(state, structure);
-
-            const actualEnergy = peakEnergy * daylightPercent(state.clock);
-
-            return {
-                peakEnergy: peakEnergy,
-                actualEnergy: actualEnergy
-            }
         }
     }),
     windTurbine: _.merge({}, baseCalculator, {
+        variables: (state, structure) => {
+            const variables = {
+                cutInSpeed: 15,
+                ratedSpeed: 28,
+                cutOutSpeed: 47,
+                cutInPower: 0,
+                ratedPower: 50
+            }
+
+            applyUpgrade(state, variables, 'windTurbine_reduceCutIn');
+            applyUpgrade(state, variables, 'windTurbine_increaseCutOut');
+            applyUpgrade(state, variables, 'windTurbine_largerBlades');
+            applyUpgrade(state, variables, 'windTurbine_yawDrive');
+
+            variables.ratedPower *= netDroidPerformanceBoost(state, structure);
+
+            return variables;
+        },
         cost: (state, structure) => ({
-            minerals: 100 * (1.5)**(getNumBuilt(structure))
+            ore: 100 * (1.5)**(getNumBuilt(structure))
         }),
         produces: (state, structure, variables) => {
             // O < CUT_IN_SPEED < linear < RATED_SPEED < flatline < CUT_OUT_SPEED < 0
@@ -198,12 +205,12 @@ export const calculators = {
                 energy = 0;
             }
             else if (wind < variables.ratedSpeed) {
-                // linear
+                // linear between cutInPower and ratedPower
                 const percent = (wind - variables.cutInSpeed) / (variables.ratedSpeed - variables.cutInSpeed);
-                energy = percent * variables.ratedPower;
+                energy = percent * (variables.ratedPower - variables.cutInPower) + variables.cutInPower;
             }
             else {
-                // flatline
+                // flatline at ratedPower
                 energy = variables.ratedPower;
             }
 
@@ -228,16 +235,8 @@ export const calculators = {
             return '(At rated speed)'
         },
         description: (state, structure, variables) => {
-            return `Produces up to ${variables.ratedPower}${getIconSpan('energy', true)} per second when wind speed is between` +
-                ` ${variables.cutInSpeed} and ${variables.cutOutSpeed} mph.`;
-        },
-        variables: (state, structure) => {
-            return {
-                cutInSpeed: 7,
-                ratedSpeed: 28,
-                cutOutSpeed: 47,
-                ratedPower: 50 * netDroidPerformanceBoost(state, structure)
-            }
+            return `Produces up to ${variables.ratedPower}${getIconSpan('energy', true)} per second ` +
+                `when wind speed is between ${variables.cutInSpeed} and ${variables.cutOutSpeed} mph.`;
         },
         imageKey: (state, structure, variables) => {
             if (getNumBuilt(structure) === 0) {
@@ -249,8 +248,13 @@ export const calculators = {
         }
     }),
     thermalVent: _.merge({}, baseCalculator, {
+        variables: (state, structure) => {
+            return {
+                energy: 20 * netDroidPerformanceBoost(state, structure)
+            }
+        },
         cost: (state, structure) => ({
-            minerals: 50 * (1.5)**(getNumBuilt(structure)),
+            ore: 50 * (1.5)**(getNumBuilt(structure)),
             vents: 1
         }),
         produces: (state, structure, variables) => {
@@ -260,41 +264,32 @@ export const calculators = {
         },
         description: (state, structure, variables) => {
             return `Produces ${variables.energy}${getIconSpan('energy', true)} per second with occasional bursts of energy. `
-        },
-        variables: (state, structure) => {
-            return {
-                energy: 20 * netDroidPerformanceBoost(state, structure)
-            }
         }
     }),
     energyBay: _.merge({}, baseCalculator, {
+        variables: (state, structure) => {
+            const variables = {
+                capacity: 200
+            }
+
+            applyUpgrade(state, variables, 'energyBay_largerCapacity');
+            variables.capacity *= netDroidPerformanceBoost(state, structure);
+
+            return variables;
+        },
         cost: (state, structure) => ({
-            minerals: 100 * (1.4)**(getNumBuilt(structure))
+            ore: 100 * (1.4)**(getNumBuilt(structure))
         }),
         capacity: (state, structure, variables) => {
             return { energy: variables.capacity };
         },
         description: (state, structure, variables) => {
             return `Provides ${variables.capacity}${getIconSpan('energy', true)} storage capacity.`;
-        },
-        variables: (state, structure) => {
-            let capacity = 200;
-
-            const largerCapacity = getUpgrade(state.upgrades, 'energyBay_largerCapacity');
-            if (isResearched(largerCapacity)) {
-                capacity *= largerCapacity.multiplier;
-            }
-
-            capacity *= netDroidPerformanceBoost(state, structure);
-
-            return {
-                capacity: capacity
-            }
         }
     }),
     sensorTower: _.merge({}, baseCalculator, {
         cost: (state, structure) => ({
-            minerals: 1
+            ore: 1
         }),
         description: (state, structure) => {
             return `TODO`;
@@ -302,12 +297,12 @@ export const calculators = {
     }),
     refinery: _.merge({}, baseCalculator, {
         cost: (state, structure) => ({
-            minerals: 1,
+            ore: 1,
             energy: 10
         }),
         consumes: (state, structure) => ({
             energy: 50 * getRunningRate(structure),
-            minerals: 20 * getRunningRate(structure)
+            ore: 20 * getRunningRate(structure)
         }),
         consumptionSuffix: (state, structure, variables) => {
             if (hasInsufficientResources(structure)) {
@@ -325,7 +320,7 @@ export const calculators = {
             }
         },
         canRun: (state, structure) => {
-            return canConsume(state.resources, { energy: 1, minerals: 1 });
+            return canConsume(state.resources, { energy: 1, ore: 1 });
         }
     }),
     droidFactory: _.merge({}, baseCalculator, {
@@ -335,15 +330,45 @@ export const calculators = {
 
 export function droidPerformanceBoost(state) {
     let boost = 0.20;
-
-    const improvedMaintenance = getUpgrade(state.upgrades, 'droidFactory_improvedMaintenance');
-    if (isResearched(improvedMaintenance)) {
-        boost *= improvedMaintenance.multiplier;
-    }
-
+    // boost = applyUpgrade_OLD(state, 'droidFactory_improvedMaintenance', boost); // todo
     return boost;
 }
 
 function netDroidPerformanceBoost(state, structure) {
     return 1 + (droidPerformanceBoost(state) * structure.numDroids);
+}
+
+// function applyUpgrade_OLD(state, upgradeId, inputValue) {
+//     const upgrade = getUpgrade(state.upgrades, upgradeId);
+//     if (isResearched(upgrade)) {
+//         if (upgrade.adder) {
+//             inputValue += upgrade.adder;
+//         }
+//         if (upgrade.multiplier) {
+//             inputValue *= upgrade.multiplier
+//         }
+//     }
+//
+//     return inputValue
+// }
+
+
+function applyUpgrade(state, variables, upgradeId) {
+    const upgrade = getUpgrade(state.upgrades, upgradeId);
+    if (isResearched(upgrade)) {
+        for (const [variable, operations] of Object.entries(upgrade.effect)) {
+            for (const [operation, value] of Object.entries(operations)) {
+                switch(operation) {
+                    case 'add':
+                        variables[variable] += value;
+                        break;
+                    case 'multiply':
+                        variables[variable] *= value;
+                        break;
+                    default:
+                        console.error(`Error applying upgrade ${upgrade} to ${variables}`)
+                }
+            }
+        }
+    }
 }

@@ -26,7 +26,7 @@ export default {
         description: "Manually dig up some ore. Seems slow to do this manually...",
         cost: {},
         produces: {
-            minerals: 10
+            ore: 10
         },
         castTime: 10
     }),
@@ -36,7 +36,7 @@ export default {
             energy: 20
         },
         produces: {
-            minerals: 30
+            ore: 30
         },
         castTime: 20
     }),
@@ -45,7 +45,7 @@ export default {
         name: 'Build Maintenance Droid',
         description: "Maintenance droids can be assigned to structures, improving their performance.",
         cost: {
-            minerals: 100,
+            ore: 100,
             refinedMinerals: 10
         },
         produces: {
@@ -57,7 +57,7 @@ export default {
         name: 'Build Recon Droid',
         description: "Recon droids search the planet's surface for resources.",
         cost: {
-            minerals: 100,
+            ore: 100,
             refinedMinerals: 10
         },
         produces: {
@@ -71,7 +71,7 @@ export default {
 export const calculators = {
     droidFactory_maintenanceDroid: {
         cost: (state, ability) => ({
-            minerals: 100 * (1.4)**(numMaintenanceDroids(state)),
+            ore: 100 * (1.4)**(numMaintenanceDroids(state)),
             refinedMinerals: 10 * (1.4)**(numMaintenanceDroids(state))
         }),
         displayInfo: (state, ability) => {
@@ -86,7 +86,7 @@ export const calculators = {
     },
     droidFactory_reconDroid: {
         cost: (state, ability) => ({
-            minerals: 100 * (1.4)**(numReconDroids(state)),
+            ore: 100 * (1.4)**(numReconDroids(state)),
             refinedMinerals: 10 * (1.4)**(numReconDroids(state))
         }),
         displayInfo: (state, ability) => {

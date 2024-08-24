@@ -11,10 +11,11 @@ class Upgrade extends React.Component {
 
     render() {
         return <ProgressButton
-            fullWidth={true}
+            fullWidth={false}
             onClick={() => this.props.researchUpgrade(this.props.id)}
             disabled={!this.props.canResearch}
             progress={this.props.progress}
+            className='upgrade'
             tooltipId={`upgrade-${this.props.id}-tip`}
             tooltip={
                 <div>
@@ -22,10 +23,11 @@ class Upgrade extends React.Component {
                         <span className='upgrade'>{this.props.name}</span>
                     </p>
                     <p>{this.props.description}</p>
-                    {!_.isEmpty(this.props.cost) && <p>Cost: <ResourceAmounts amounts={this.props.cost} /></p>}
+                    {!_.isEmpty(this.props.cost) && <p>Cost: <ResourceAmounts amounts={this.props.cost}/></p>}
                     {this.props.researchTime > 0 && <p>Time: {_.round(this.props.researchTime)}s</p>}
                 </div>
             }>
+            <span className={'icon-upgrade'}></span>
             {this.props.name}
         </ProgressButton>;
     }

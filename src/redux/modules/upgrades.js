@@ -159,6 +159,12 @@ export function isResearched(upgrade) {
     return upgrade && upgrade.state === STATES.researched;
 }
 
+export function visibleIds(state) {
+    return Object.keys(state.byId).filter(id => {
+        const upgrade = getUpgrade(state, id);
+        return !isResearched(upgrade); // all states before 'researched' are visible
+    });
+}
 
 export function getStandaloneIds(state) {
     return Object.keys(state.byId).filter(id => {

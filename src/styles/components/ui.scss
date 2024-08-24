@@ -9,7 +9,7 @@
 
 
     .upgrade {
-      color: $progress-button-bg;
+      color: lightgreen;
     }
     .ability {
       color: $progress-button-ability-bg;
@@ -31,6 +31,14 @@
   &.ability {
     background: $progress-button-ability-bg;
     border-radius: 0.3rem;
+  }
+
+  &.upgrade {
+    border: none;
+    background: transparent;
+    color: lightgreen;
+    margin: 0.5rem;
+    padding: 0;
   }
 
   &:hover {
@@ -161,7 +169,7 @@ button {
   padding: 0 1rem !important;
 
   .tooltip-header {
-    //color: $structure-description-color;
+    //color: $ui-text-dim;
     font-weight: bold;
   }
 }

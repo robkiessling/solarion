@@ -10,10 +10,10 @@ const base = {
 }
 
 export default {
-    minerals: _.merge({}, base, {
+    ore: _.merge({}, base, {
         name: "Ore",
         amount: 100,
-        icon: 'icon-rock'
+        icon: 'icon-stone-pile'
     }),
     energy: _.merge({}, base, {
         name: "Energy",
@@ -23,23 +23,22 @@ export default {
     vents: _.merge({}, base, {
         name: "Thermal Vent",
         amount: 2,
-        icon: 'icon-caldera'
+        icon: 'icon-caldera',
+        visible: false
     }),
     refinedMinerals: _.merge({}, base, {
-        name: "Refined Ore",
+        name: "Minerals",
         amount: 0,
-        icon: 'icon-rock2'
+        icon: 'icon-crystal-growth'
     }),
     maintenanceDroids: _.merge({}, base, {
         name: "Maintenance Droids",
         amount: 0,
-        icon: 'icon-rock2',
         visible: false
     }),
     reconDroids: _.merge({}, base, {
         name: "Recon Droids",
         amount: 0,
-        icon: 'icon-rock2',
         visible: false
     })
 };

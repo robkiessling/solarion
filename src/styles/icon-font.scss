@@ -5,13 +5,18 @@
  *   background: none
  *   foreground: black
  *   size & preset: 32px
+ *   -> download as SVG
  *
  * Importing as a font using icomoon, following instructions here:
  *  https://mediatemple.net/blog/design-creative/creating-implementing-icon-font-tutorial/
  *  1) Import icons to icomoon.io
+ *       - even if you're just adding 1 icon, you will have to re-upload ALL existing icons :(
+ *       - when uploading, sort folder by "Date Created". After uploading, re-arrange the Set to "reverse current order",
+ *         so oldest is first. This will make it so you don't have to change as many codes later
  *  2) Select imported icons & generate font
- *  3) Download
- *  4) Update this .scss file with new classes, update ./fonts with .eot/.svg/.ttf/.woff files
+ *  3) Download & unzip
+ *  4) Update ./fonts with .eot/.svg/.ttf/.woff files from icomoon download
+ *  5) Update this .scss file with new classes (get content values from icomoon download -> demo.html)
  */
 @font-face {
   font-family: 'icomoon';
@@ -59,36 +64,51 @@
   color: inherit !important;
 }
 
-//----- Add classes here:
-.icon-electric:before {
+//----- Add classes for each icon here:
+.icon-stone-pile:before {
   content: "\e900";
+  color: #f9903c;
+}
+.icon-rock:before {
+  content: "\e901";
+  color: #f9903c;
+}
+.icon-rock2:before {
+  content: "\e901";
+  color: #f95f3c;
+}
+.icon-ore:before {
+  content: "\e902";
+  color: #20d9ff;
+}
+.icon-metal-bar:before {
+  content: "\e903";
+  color: #f95f3c;
+}
+.icon-electric:before {
+  content: "\e904";
   color: #ffeb3b;
 }
 .icon-crystal-growth:before {
-  content: "\e901";
+  content: "\e905";
   color: #20d9ff;
   //color: #87f0cd;
 }
 .icon-caldera:before {
-  content: "\e902";
-}
-.icon-metal-bar:before {
-  content: "\e903";
-}
-.icon-oil-drum:before {
-  content: "\e904";
-}
-.icon-ore:before {
-  content: "\e905";
-}
-.icon-rock:before {
   content: "\e906";
-  color: #f9903c;
 }
-.icon-stone-pile:before {
+.icon-vintage-robot:before {
   content: "\e907";
 }
-.icon-rock2:before {
-  content: "\e906";
-  color: #f95f3c;
+.icon-upgrade:before {
+  content: "\e908";
+}
+.icon-tracked-robot:before {
+  content: "\e909";
+}
+.icon-satellite:before {
+  content: "\e90a";
+}
+.icon-plain-arrow:before {
+  content: "\e90b";
 }

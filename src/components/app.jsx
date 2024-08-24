@@ -6,6 +6,7 @@ import ResourceBar from "./resource_bar";
 import Log from "./log";
 import PlanetStatus from "./planet_status";
 import Computer from "./computer";
+import NavigationTabs from "./navigation_tabs";
 
 export default class App extends React.Component {
     render() {
@@ -15,6 +16,7 @@ export default class App extends React.Component {
                     <Outside/>
                     <PlanetStatus/>
                     <ResourceBar/>
+                    <NavigationTabs/>
                 </div>
                 <div className="bottom-row">
                     <div className="left-column">

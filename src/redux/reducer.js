@@ -114,10 +114,10 @@ export function recalculateSlice(state, sliceKey, calculators) {
 
 
 export function getStructureUpgradeIds(state, structure) {
-    return structure.upgrades.filter(upgradeId => {
-        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId); // check that it has been discovered
-        return upgrade && !fromUpgrades.isResearched(upgrade); // check that it has not been researched already
-    });
+    return fromUpgrades.visibleIds(state.upgrades).filter(upgradeId => {
+        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
+        return upgrade.structure === structure.id;
+    })
 }
 
 export function canResearchUpgrade(state, upgrade) {

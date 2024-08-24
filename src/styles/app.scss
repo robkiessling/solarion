@@ -33,6 +33,11 @@ html {
     display: flex;
     flex-direction: row;
     position: relative;
+
+    height: $outside-height;
+
+    box-sizing: border-box;
+    border: 10px ridge #485850;
   }
 
   .bottom-row {

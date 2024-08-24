@@ -21,6 +21,8 @@ const base = {
     state: STATES.hidden
 }
 
+// TODO don't hardcode values into description, e.g. "Increase energy production by {{ multiplier * 100 }}% ..."
+// 'effect' keys correspond to structure calculated variables
 export default {
     researchSolar: _.merge({}, base, {
         standalone: true,
@@ -28,7 +30,7 @@ export default {
         description: "Find ways to produce energy based on sunlight. Only viable during daylight hours.",
         researchTime: 15,
         cost: {
-            minerals: 50
+            ore: 50
         }
     }),
     researchWind: _.merge({}, base, {
@@ -38,7 +40,7 @@ export default {
         researchTime: 10,
         cost: {
             energy: 50,
-            minerals: 50
+            ore: 50
         }
     }),
     researchGas: _.merge({}, base, {
@@ -48,7 +50,7 @@ export default {
         researchTime: 10,
         cost: {
             energy: 50,
-            minerals: 100
+            ore: 100
         }
     }),
     researchEnergyBay: _.merge({}, base, {
@@ -58,29 +60,79 @@ export default {
         researchTime: 10,
         cost: {
             energy: 100,
-            minerals: 100
+            ore: 100
         }
     }),
 
     solarPanel_largerPanels: _.merge({}, base, {
         name: "Mirrored Panels",
+        structure: 'solarPanel',
 
-        // TODO don't hardcode values into description, e.g. "Increase energy production by {{ multiplier * 100 }}% ..."
         description: "Increase solar panel energy production by 300%.",
         researchTime: 0,
         cost: {
-            minerals: 10
+            ore: 10
         },
-        multiplier: 3
+        effect: {
+            peakEnergy: { multiply: 3 }
+        }
     }),
     energyBay_largerCapacity: _.merge({}, base, {
         name: "Flux Capacitors",
+        structure: 'energyBay',
         description: "Increase energy bay capacity by 300%.",
         cost: {
-            minerals: 1000
+            ore: 1000
         },
-        multiplier: 3
-    })
+        effect: {
+            capacity: { multiply: 3 }
+        }
+    }),
+
+    windTurbine_reduceCutIn: _.merge({}, base, {
+        name: "Advanced Blades",
+        structure: 'windTurbine',
+        description: "Improves the turbine's power output at low wind speeds.",
+        cost: {
+            ore: 1000
+        },
+        effect: {
+            cutInSpeed: { add: -3 }
+        }
+    }),
+    windTurbine_increaseCutOut: _.merge({}, base, {
+        name: "Hyper Motor",
+        structure: 'windTurbine',
+        description: "Increases the turbine's max wind speed tolerance by 25 mph",
+        cost: {
+            ore: 1000
+        },
+        effect: {
+            cutOutSpeed: { add: 25 }
+        }
+    }),
+    windTurbine_largerBlades: _.merge({}, base, {
+        name: "Larger Blades",
+        structure: 'windTurbine',
+        description: "Increase energy production by 25%",
+        cost: {
+            ore: 1000
+        },
+        effect: {
+            ratedPower: { multiply: 1.25 }
+        }
+    }),
+    windTurbine_yawDrive: _.merge({}, base, {
+        name: "Yaw Drive",
+        structure: 'windTurbine',
+        description: "Allows the wind turbine to rotate towards the wind's direction, increasing energy production by 30%",
+        cost: {
+            ore: 1000
+        },
+        effect: {
+            ratedPower: { multiply: 1.3 }
+        }
+    }),
 };
 
 
