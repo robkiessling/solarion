@@ -22,7 +22,7 @@ class Upgrade extends React.Component {
                     <p className='tooltip-header'>
                         <span className='upgrade'>{this.props.name}</span>
                     </p>
-                    <p>{this.props.description}</p>
+                    <p dangerouslySetInnerHTML={{__html: this.props.description}}/>
                     {!_.isEmpty(this.props.cost) && <p>Cost: <ResourceAmounts amounts={this.props.cost}/></p>}
                     {this.props.researchTime > 0 && <p>Time: {_.round(this.props.researchTime)}s</p>}
                 </div>

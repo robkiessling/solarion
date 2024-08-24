@@ -7,8 +7,9 @@ import {
 } from "../redux/modules/structures";
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {daylightPercent, windSpeed} from "../redux/modules/clock";
-import {canConsume, getIcon, getIconSpan} from "../redux/modules/resources";
+import {canConsume, getIconSpan} from "../redux/modules/resources";
 import {round} from "lodash";
+import {getAbility, isCasting} from "../redux/modules/abilities";
 
 export const STATUSES = {
     normal: 0,
@@ -26,7 +27,7 @@ const base = {
     runningRate: 0,
     runningCooldown: 0,
     count: {
-        total: 0
+        total: 0 // todo why is this an object?
     },
     status: STATUSES.normal,
     cost: {},
@@ -100,22 +101,31 @@ export const calculators = {
     harvester: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
-                // todo rename?
-                cutoffRate: 0.05, // Running at this rate or lower will result in 100% efficiency
-                minEfficiency: 0.25, // Running at 100% will result in this efficiency
-                efficiency: undefined // resulting efficiency
+                lowEndRate: 0.05, // Running at this rate or lower will result in 100% efficiency
+                topEndEfficiency: 0.25, // Running at 100% will result in this efficiency
+                efficiency: undefined, // resulting efficiency
+                ore: 10, // how much ore is being produced
+                energy: 10, // how much energy is being consumed
             }
 
             const rate = getRunningRate(structure);
-            if (rate <= variables.cutoffRate) {
+            if (rate <= variables.lowEndRate) {
                 variables.efficiency = 1.0;
             }
             else {
                 // Linear efficiency: efficiency = m(rate) + b
-                const m = (variables.minEfficiency - 1.0) / (1.0 - variables.cutoffRate);
-                const b = variables.minEfficiency - m;
+                const m = (variables.topEndEfficiency - 1.0) / (1.0 - variables.lowEndRate);
+                const b = variables.topEndEfficiency - m;
                 variables.efficiency = m * rate + b;
             }
+
+            variables.energy /= variables.efficiency;
+            variables.energy *= rate;
+
+            variables.ore *= netDroidPerformanceBoost(state, structure);
+            variables.ore *= rate;
+
+            applyAbilityBuff(state, variables, 'harvester_overclock');
 
             return variables;
         },
@@ -123,13 +133,11 @@ export const calculators = {
             ore: 150 * (1.4)**(getNumBuilt(structure))
         }),
         consumes: (state, structure, variables) => ({
-            energy: 10 * getRunningRate(structure) / variables.efficiency
+            energy: variables.energy
         }),
-        produces: (state, structure, variables) => {
-            return {
-                ore: 10 * getRunningRate(structure) * netDroidPerformanceBoost(state, structure)
-            }
-        },
+        produces: (state, structure, variables) => ({
+            ore: variables.ore
+        }),
         consumptionSuffix: (state, structure, variables) => {
             if (hasInsufficientResources(structure)) {
                 return '<span class="text-red">(Insufficient)</span>';
@@ -310,8 +318,8 @@ export const calculators = {
             // }
         },
         produces: (state, structure) => {
-            const minEfficiency = 0.75;
-            const efficiency = 1 - (getRunningRate(structure) * (1 - minEfficiency))
+            const topEndEfficiency = 0.75;
+            const efficiency = 1 - (getRunningRate(structure) * (1 - topEndEfficiency))
             return {
                 refinedMinerals: 1 * getRunningRate(structure) * efficiency * netDroidPerformanceBoost(state, structure)
             }
@@ -353,18 +361,31 @@ function netDroidPerformanceBoost(state, structure) {
 function applyUpgrade(state, variables, upgradeId) {
     const upgrade = getUpgrade(state.upgrades, upgradeId);
     if (isResearched(upgrade)) {
-        for (const [variable, operations] of Object.entries(upgrade.effect)) {
-            for (const [operation, value] of Object.entries(operations)) {
-                switch(operation) {
-                    case 'add':
-                        variables[variable] += value;
-                        break;
-                    case 'multiply':
-                        variables[variable] *= value;
-                        break;
-                    default:
-                        console.error(`Error applying upgrade ${upgrade} to ${variables}`)
-                }
+        applyEffect(upgrade.effect, variables);
+    }
+}
+
+
+// Some abilities have effects while casting
+function applyAbilityBuff(state, variables, abilityId) {
+    const ability = getAbility(state.abilities, abilityId);
+    if (ability && isCasting(ability)) {
+        applyEffect(ability.effect, variables);
+    }
+}
+
+function applyEffect(effect, variables) {
+    for (const [variable, operations] of Object.entries(effect)) {
+        for (const [operation, value] of Object.entries(operations)) {
+            switch(operation) {
+                case 'add':
+                    variables[variable] += value;
+                    break;
+                case 'multiply':
+                    variables[variable] *= value;
+                    break;
+                default:
+                    console.error(`Error applying upgrade ${upgrade} to ${variables}`)
             }
         }
     }

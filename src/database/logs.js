@@ -286,6 +286,7 @@ export default {
             dispatch(fromStructures.buildForFree('harvester', 1));
             // dispatch(fromAbilities.learn('harvester_manual'));
             // dispatch(fromAbilities.learn('harvester_power'));
+            dispatch(fromUpgrades.discover('harvester_overclock'));
 
             // dispatch(fromStructures.learn('sensorTower'));
             dispatch(fromStructures.learn('refinery'));

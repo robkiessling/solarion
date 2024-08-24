@@ -3,6 +3,7 @@ import * as fromResources from "../redux/modules/resources";
 import * as fromStructures from "../redux/modules/structures";
 import * as fromLog from "../redux/modules/log"
 import * as fromUpgrades from "../redux/modules/upgrades";
+import * as fromAbilities from "../redux/modules/abilities";
 import {addTrigger} from "../redux/triggers";
 
 export const STATES = {
@@ -64,12 +65,22 @@ export default {
         }
     }),
 
+    harvester_overclock: _.merge({}, base, {
+        name: "Research: Overclock",
+        structure: 'harvester',
+
+        description: "Learn the <span class='underline'>Overclock</span> ability, allowing you to briefly run the " +
+            "Harvester at a higher rate.",
+        cost: {
+            ore: 10
+        }
+    }),
+
     solarPanel_largerPanels: _.merge({}, base, {
-        name: "Mirrored Panels",
+        name: "Larger Panels",
         structure: 'solarPanel',
 
         description: "Increase solar panel energy production by 300%.",
-        researchTime: 0,
         cost: {
             ore: 10
         },
@@ -77,6 +88,8 @@ export default {
             peakEnergy: { multiply: 3 }
         }
     }),
+
+
     energyBay_largerCapacity: _.merge({}, base, {
         name: "Flux Capacitors",
         structure: 'energyBay',
@@ -169,6 +182,12 @@ export const callbacks = {
                     dispatch(fromUpgrades.discover('energyBay_largerCapacity'));
                 }
             )
+        }
+    },
+
+    harvester_overclock: {
+        onFinish: (dispatch) => {
+            dispatch(fromAbilities.learn('harvester_overclock'));
         }
     }
 }

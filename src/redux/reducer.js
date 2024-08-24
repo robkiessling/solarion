@@ -112,7 +112,7 @@ export function recalculateSlice(state, sliceKey, calculators) {
     });
 }
 
-
+// Returns ids of available upgrades for a structure
 export function getStructureUpgradeIds(state, structure) {
     return fromUpgrades.visibleIds(state.upgrades).filter(upgradeId => {
         const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
@@ -136,6 +136,7 @@ export function researchUpgrade(upgradeId) {
     }
 }
 
+// Returns ids of available abilities for a structure
 export function getStructureAbilityIds(state, structure) {
     return fromAbilities.visibleIds(state.abilities).filter(abilityId => {
         const ability = fromAbilities.getAbility(state.abilities, abilityId);

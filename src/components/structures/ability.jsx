@@ -26,6 +26,7 @@ class Ability extends React.Component {
                         <p>{this.props.description}</p>
                         {!_.isEmpty(this.props.cost) && <p>Cost: <ResourceAmounts amounts={this.props.cost} /></p>}
                         {this.props.castTime > 0 && <p>Time: {_.round(this.props.castTime)}s</p>}
+                        {this.props.cooldown > 0 && <p>Cooldown: {_.round(this.props.cooldown)}s</p>}
                     </div>
                 }>
                 {this.props.name}
@@ -46,6 +47,7 @@ const mapStateToProps = (state, ownProps) => {
         description: ability.description,
         cost: highlightCosts(state.resources, fromAbilities.getAbilityCost(ability)),
         castTime: ability.castTime,
+        cooldown: ability.cooldown,
         canCast: canCastAbility(state, ability),
         progress: fromAbilities.getProgress(ability, true),
         displayInfo: ability.displayInfo

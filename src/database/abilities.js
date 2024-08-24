@@ -3,7 +3,8 @@ import {numMaintenanceDroids, numReconDroids} from "../redux/reducer";
 
 export const STATES = {
     ready: 0,
-    casting: 1
+    casting: 1,
+    cooldown: 2
 }
 
 const base = {
@@ -12,7 +13,9 @@ const base = {
     cost: {},
     produces: {},
     castTime: 5,
-    state: STATES.ready
+    state: STATES.ready,
+    effect: undefined, // Any effects will be applied for the duration of the CAST
+    cooldown: 0 // Note: cooldown starts after cast FINISHES (not at start of cast)
 }
 
 // Functions can't be stored in the state so storing them in this const
@@ -41,6 +44,17 @@ export default {
             ore: 30
         },
         castTime: 20
+    }),
+    harvester_overclock: _.merge({}, base, {
+        name: 'Overclock',
+        structure: 'harvester',
+        description: "Overworks the harvester, increasing production by 100% but also increasing energy consumption by 50%.",
+        castTime: 10,
+        cooldown: 30,
+        effect: {
+            ore: { multiply: 2 },
+            energy: { multiply: 1.5 }
+        }
     }),
 
     droidFactory_maintenanceDroid: _.merge({}, base, {

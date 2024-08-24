@@ -65,7 +65,7 @@ export default function reducer(state = initialState, action) {
     }
 }
 
-export function setUpgradeState(state, upgradeId, upgradeState) {
+function setUpgradeState(state, upgradeId, upgradeState) {
     if (state.byId[upgradeId]) {
         return update(state, {
             byId: {
