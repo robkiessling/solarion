@@ -2,7 +2,7 @@ import React from 'react';
 import Structure from "./structure";
 
 
-export default class MineralHarvester extends React.Component {
+export default class Harvester extends React.Component {
     constructor(props) {
         super(props);
     }
@@ -10,7 +10,7 @@ export default class MineralHarvester extends React.Component {
     render() {
         return (
             <Structure
-                type="mineralHarvester"
+                type="harvester"
 
             />
         );

@@ -1,7 +1,7 @@
 import React from 'react';
 import {connect} from "react-redux";
 import Structure from "./structures/structure";
-import MineralHarvester from "./structures/mineral_harvester";
+import Harvester from "./structures/harvester";
 import {getVisibleIds} from "../redux/modules/structures";
 
 class Structures extends React.Component {
@@ -16,8 +16,8 @@ class Structures extends React.Component {
                     {
                         this.props.consumerStructureIds.map((id) => {
                             switch(id) {
-                                case 'mineralHarvester':
-                                    return <MineralHarvester key={id}/>
+                                case 'harvester':
+                                    return <Harvester key={id}/>
                                 default:
                                     return <Structure type={id} key={id} />
                             }

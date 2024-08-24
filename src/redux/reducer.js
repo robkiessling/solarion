@@ -137,9 +137,10 @@ export function researchUpgrade(upgradeId) {
 }
 
 export function getStructureAbilityIds(state, structure) {
-    return structure.abilities.filter(abilityId => {
-        return !!fromAbilities.getAbility(state.abilities, abilityId); // check that it has been learned
-    });
+    return fromAbilities.visibleIds(state.abilities).filter(abilityId => {
+        const ability = fromAbilities.getAbility(state.abilities, abilityId);
+        return ability.structure === structure.id;
+    })
 }
 
 export function canCastAbility(state, ability) {

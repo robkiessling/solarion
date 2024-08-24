@@ -230,8 +230,8 @@ export default {
 
                 dispatch(fromGame.updateSetting('showResourceBar', true));
 
-                dispatch(fromStructures.learn('mineralHarvester'));
-                dispatch(fromStructures.buildForFree('mineralHarvester', 1));
+                dispatch(fromStructures.learn('harvester'));
+                dispatch(fromStructures.buildForFree('harvester', 1));
             })
 
             gameStartTriggers(dispatch);
@@ -256,8 +256,8 @@ export default {
 
                 dispatch(fromGame.updateSetting('showResourceBar', true));
 
-                dispatch(fromStructures.learn('mineralHarvester'));
-                dispatch(fromStructures.buildForFree('mineralHarvester', 1));
+                dispatch(fromStructures.learn('harvester'));
+                dispatch(fromStructures.buildForFree('harvester', 1));
             })
 
             gameStartTriggers(dispatch);
@@ -282,10 +282,10 @@ export default {
             dispatch(fromResources.learn('maintenanceDroids'));
             dispatch(fromResources.learn('reconDroids'));
 
-            dispatch(fromStructures.learn('mineralHarvester'));
-            dispatch(fromStructures.buildForFree('mineralHarvester', 1));
-            // dispatch(fromAbilities.learn('mineralHarvester_manual'));
-            // dispatch(fromAbilities.learn('mineralHarvester_power'));
+            dispatch(fromStructures.learn('harvester'));
+            dispatch(fromStructures.buildForFree('harvester', 1));
+            // dispatch(fromAbilities.learn('harvester_manual'));
+            // dispatch(fromAbilities.learn('harvester_power'));
 
             // dispatch(fromStructures.learn('sensorTower'));
             dispatch(fromStructures.learn('refinery'));
@@ -386,7 +386,7 @@ function gameStartTriggers(dispatch) {
     )
 
     addTrigger(
-        (state) => state.structures.byId.mineralHarvester,
+        (state) => state.structures.byId.harvester,
         (slice) => slice.count.total >= 5,
         () => {
             batch(() => {

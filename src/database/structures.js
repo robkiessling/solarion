@@ -32,7 +32,6 @@ const base = {
     cost: {},
     consumes: {},
     produces: {},
-    abilities: [],
     type: TYPES.generator,
     productionSuffix: null,
     consumptionSuffix: null,
@@ -41,13 +40,12 @@ const base = {
 }
 
 export default {
-    mineralHarvester: _.merge({}, base, {
-        name: "Mineral Harvester",
+    harvester: _.merge({}, base, {
+        name: "Harvester",
         description: "Drills into the planet's surface to gather minerals." +
             " Less energy efficient at higher harvesting rates.",
         runnable: true,
         type: TYPES.consumer,
-        abilities: ['mineralHarvester_manual', 'mineralHarvester_power'],
         usesDroids: true
     }),
     solarPanel: _.merge({}, base, {
@@ -80,8 +78,7 @@ export default {
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
         description: "Constructs droids to improve production and explore the planet.",
-        type: TYPES.consumer,
-        abilities: ['droidFactory_maintenanceDroid', 'droidFactory_reconDroid']
+        type: TYPES.consumer
     })
 
 };
@@ -100,7 +97,7 @@ const baseCalculator = {
 
 // These are not part of the stored state because they contain functions
 export const calculators = {
-    mineralHarvester: _.merge({}, baseCalculator, {
+    harvester: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
                 // todo rename?

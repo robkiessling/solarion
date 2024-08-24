@@ -21,7 +21,7 @@ export const UNKNOWN_IMAGE = {
 }
 
 export default {
-    mineralHarvester: _.merge({}, base, {
+    harvester: _.merge({}, base, {
         style: {
             bottom: '4px'
         },

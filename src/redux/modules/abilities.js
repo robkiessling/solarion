@@ -2,6 +2,7 @@ import update from 'immutability-helper';
 import database, {STATES, callbacks, calculators} from '../../database/abilities'
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
+import {getUpgrade, isResearched} from "./upgrades";
 
 export { calculators }
 
@@ -115,6 +116,10 @@ export function isReady(ability) {
 }
 export function isCasting(ability) {
     return ability.state === STATES.casting;
+}
+
+export function visibleIds(state) {
+    return Object.keys(state.byId); // every ability that is learned is visible
 }
 
 

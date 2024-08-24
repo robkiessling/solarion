@@ -21,8 +21,9 @@ export const callbacks = {
 }
 
 export default {
-    mineralHarvester_manual: _.merge({}, base, {
+    harvester_manual: _.merge({}, base, {
         name: 'Manual Harvest',
+        structure: 'harvester',
         description: "Manually dig up some ore. Seems slow to do this manually...",
         cost: {},
         produces: {
@@ -30,8 +31,9 @@ export default {
         },
         castTime: 10
     }),
-    mineralHarvester_power: _.merge({}, base, {
+    harvester_power: _.merge({}, base, {
         name: 'Power Drill',
+        structure: 'harvester',
         cost: {
             energy: 20
         },
@@ -43,6 +45,7 @@ export default {
 
     droidFactory_maintenanceDroid: _.merge({}, base, {
         name: 'Build Maintenance Droid',
+        structure: 'droidFactory',
         description: "Maintenance droids can be assigned to structures, improving their performance.",
         cost: {
             ore: 100,
@@ -55,6 +58,7 @@ export default {
     }),
     droidFactory_reconDroid: _.merge({}, base, {
         name: 'Build Recon Droid',
+        structure: 'droidFactory',
         description: "Recon droids search the planet's surface for resources.",
         cost: {
             ore: 100,
