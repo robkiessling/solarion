@@ -1,70 +1,24 @@
-
 /**
- * Getting icons from https://game-icons.net/
- * On game-icons.net, make icons with the following spec:
- *   background: none
- *   foreground: black
- *   size & preset: 32px
- *   -> download as SVG
- *
- * Importing as a font using icomoon, following instructions here:
- *  https://mediatemple.net/blog/design-creative/creating-implementing-icon-font-tutorial/
- *  1) Import icons to icomoon.io
- *       - even if you're just adding 1 icon, you will have to re-upload ALL existing icons :(
- *       - when uploading, sort folder by "Date Created". After uploading, re-arrange the Set to "reverse current order",
- *         so oldest is first. This will make it so you don't have to change as many codes later
- *  2) Select imported icons & generate font
- *  3) Download & unzip
- *  4) Update ./fonts with .eot/.svg/.ttf/.woff files from icomoon download
- *  5) Update this .scss file with new classes (get content values from icomoon download -> demo.html)
+
+This file (along with the fonts in src/styles/fonts) allows icons to be used in-line as a font (similar
+to FontAwesome).
+
+For information on adding new icons or how to use these icons, see the README in the icons folder
+
  */
-@font-face {
-  font-family: 'icomoon';
-  src:  url('fonts/icomoon.eot?my5gjl');
-  src:  url('fonts/icomoon.eot?my5gjl#iefix') format('embedded-opentype'),
-  //url('fonts/icomoon.ttf?my5gjl') format('truetype'),
-  url('fonts/icomoon.woff?my5gjl') format('woff'),
-  url('fonts/icomoon.svg?my5gjl#icomoon') format('svg');
-  font-weight: normal;
-  font-style: normal;
-  font-display: block;
-}
 
-[class^="icon-"], [class*=" icon-"] {
-  //----- icomoon defaults:
-
-  /* use !important to prevent issues with browser extensions that change fonts */
-  font-family: 'icomoon' !important;
-  speak: never;
-  font-style: normal;
-  font-weight: normal;
-  font-variant: normal;
-  text-transform: none;
-  line-height: 1;
-
-  /* Better Font Rendering =========== */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  //----- Custom styling I added:
-  display: inline-block;
-  //font-size: 0.875rem;
-  font-size: 1rem;
-  vertical-align: middle;
-  margin-top: -3px;
-  text-rendering: auto;
-  width: 1.28571em;
-  text-align: center;
-}
+//----------------------------------------------------------------- Common icon styling classes:
 
 .skinny-icon {
   width: 12px;
 }
+
 .colorless-icon:before {
   color: inherit !important;
 }
 
-//----- Add classes for each icon here:
+//----------------------------------------------------------------- Add classes for each icon here:
+
 .icon-stone-pile:before {
   content: "\e900";
   color: #f9903c;
@@ -111,4 +65,50 @@
 }
 .icon-plain-arrow:before {
   content: "\e90b";
+}
+
+
+
+
+
+// --------------------------------------------------------------------------- Loading the font files:
+// (This part does not need to be updated when adding new icons)
+
+@font-face {
+  font-family: 'icomoon';
+  src:  url('fonts/icomoon.eot?my5gjl');
+  src:  url('fonts/icomoon.eot?my5gjl#iefix') format('embedded-opentype'),
+    //url('fonts/icomoon.ttf?my5gjl') format('truetype'),
+  url('fonts/icomoon.woff?my5gjl') format('woff'),
+  url('fonts/icomoon.svg?my5gjl#icomoon') format('svg');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+[class^="icon-"], [class*=" icon-"] {
+  //----- icomoon defaults:
+
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'icomoon' !important;
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  //----- Custom styling I added:
+  display: inline-block;
+  //font-size: 0.875rem;
+  font-size: 1rem;
+  vertical-align: middle;
+  margin-top: -3px;
+  text-rendering: auto;
+  width: 1.28571em;
+  text-align: center;
 }
