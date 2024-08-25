@@ -308,8 +308,9 @@ export default {
                 refinedMinerals: 100,
             }))
 
-            dispatch(fromGame.addNavTab('planet'));
+            dispatch(fromGame.addNavTab('outside'));
             dispatch(fromGame.addNavTab('technology'));
+            dispatch(fromGame.addNavTab('planet'));
 
             dispatch(fromUpgrades.discover('windTurbine_reduceCutIn'))
             dispatch(fromUpgrades.discover('windTurbine_increaseCutOut'))

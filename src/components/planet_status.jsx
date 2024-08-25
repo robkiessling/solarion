@@ -26,7 +26,7 @@ class PlanetStatus extends React.Component {
 // Updates to these fields will trigger re-renders
 const mapStateToProps = state => {
     return {
-        visible: state.game.showPlanetStatus,
+        visible: state.game.showPlanetStatus,// && state.game.currentNavTab === 'outside',
         dayLength: dayLength(state.clock),
         dayNumber: dayNumber(state.clock),
         fractionOfDay: fractionOfDay(state.clock),

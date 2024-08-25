@@ -153,8 +153,8 @@ export const calculators = {
     solarPanel: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
-                peakEnergy: 5,
-                actualEnergy: undefined
+                peakEnergy: 5, // amount of energy generated in peak daylight
+                actualEnergy: undefined // amount of energy actually generated
             }
             
             applyUpgrade(state, variables, 'solarPanel_largerPanels');
@@ -198,13 +198,10 @@ export const calculators = {
             ore: 100 * (1.5)**(getNumBuilt(structure))
         }),
         produces: (state, structure, variables) => {
-            // O < CUT_IN_SPEED < linear < RATED_SPEED < flatline < CUT_OUT_SPEED < 0
-            // console.log(state, structure, variables);
-
             const wind = windSpeed(state.clock);
-
             let energy;
 
+            // O < CUT_IN_SPEED < linear energy < RATED_SPEED < flatline energy < CUT_OUT_SPEED < 0
             if (wind < variables.cutInSpeed || wind > variables.cutOutSpeed) {
                 // cutoff
                 energy = 0;
@@ -237,7 +234,7 @@ export const calculators = {
                 return `(${round(percent * 100)}% of rated speed)`;
             }
 
-            return '(At rated speed)'
+            return '(100% rated speed)';
         },
         description: (state, structure, variables) => {
             return `Produces up to ${variables.ratedPower}${getIconSpan('energy', true)} per second ` +

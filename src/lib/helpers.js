@@ -75,3 +75,17 @@ export const a_minus_b = (a, b) => {
 export const a_intersect_b = (a, b) => {
     return new Set([...a].filter(x => b.has(x)));
 }
+
+
+// @param defaultValue can be a primitive value (like an integer or string) or a function that returns the desired value.
+// Do not pass an object as a default value; otherwise all the elements will be a reference to the same object. You
+// should pass a function that returns a new object.
+export function createArray(size, defaultValue = null) {
+    let array = [];
+
+    for (let i = 0; i < size; i++) {
+        array.push(_.isFunction(defaultValue) ? defaultValue(i) : defaultValue);
+    }
+
+    return array;
+}

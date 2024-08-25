@@ -6,7 +6,7 @@ $top-bar-float-padding: 0.875rem;
 #outside {
   position: relative;
   flex: 1 0 auto;
-  background: $ui-bg;
+  background: $top-bar-background;
 
   &.closed {
     .shutters {
@@ -127,5 +127,36 @@ $top-bar-float-padding: 0.875rem;
       text-decoration: underline;
       color: $ui-text;
     }
+  }
+}
+
+
+
+#planet {
+  background: $top-bar-background;
+  flex: 1 0 auto;
+
+  .planet-image {
+    margin: 3px 0 0 0;
+    margin-left: 16rem;
+
+    font-size: 0.875rem;
+
+    white-space: pre;
+    display: flex;
+    flex-direction: column;
+
+    //.twilight { color: #777; }
+    //.darkness { color: #444; }
+    .twilight { opacity: 0.4; }
+    .darkness { opacity: 0.2; }
+    .home { color: $range-slider-color; }
+    //.land { color: forestgreen; }
+    //.ocean { color: #52d7ff; }
+
+    //.unknown { color: #aaa; }
+    .mountain { color: #cc7171; }
+    .explored { color: #9a653a; }
+    .mined { color: #666; }
   }
 }

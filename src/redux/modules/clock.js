@@ -27,10 +27,14 @@ WIND_SPEEDS.forEach((speed, index) => {
     }
 })
 
+const DAY_LENGTH = 120; // How long (in real time seconds) a day should last
+const STARTING_TOD_FRACTION = 0.25; // Start first day at 6am, should match planet_manager.js HOME_BAE relative to sunlight
+const STARTING_TOD_SECONDS = DAY_LENGTH * STARTING_TOD_FRACTION;
+
 // Initial State
 const initialState = {
     elapsedTime: 0, // in milliseconds
-    dayLength: 60 * 1, // in seconds
+    dayLength: DAY_LENGTH, // in seconds
 }
 
 // Reducer
@@ -72,7 +76,7 @@ export function dayLength(state) {
     return state.dayLength;
 }
 export function fractionOfDay(state) {
-    const secondsIntoDay = (state.elapsedTime / 1000.0) % state.dayLength;
+    const secondsIntoDay = (state.elapsedTime / 1000.0 + STARTING_TOD_SECONDS) % state.dayLength;
     return secondsIntoDay / state.dayLength;
 }
 export function dayNumber(state) {

@@ -40,12 +40,18 @@ $outside-height: 13rem;
 //$structure-border: #bbb;
 //$structure-image-border: $white;
 
+$black: #010409;
+$black-inset: #0d1117;
+$black-muted: #161b22;
+
 
 // https://lospec.com/palette-list/galaxy-flame
-$ui-bg: #151d1a;
+$ui-bg: $black-muted;
 $ui-text: #f0e7e7;
 $ui-text-dim: #9a9f87;
 $ui-border: #314e3f;
+
+$top-bar-background: $black-inset;
 
 $button-bg: #efefef;
 $button-bg-disabled: #888;

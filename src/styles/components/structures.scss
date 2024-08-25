@@ -29,6 +29,8 @@
     flex-direction: row;
     position: relative;
 
+    min-height: 7rem;
+
     .left-side, .right-side {
       display: flex;
       flex-direction: column;

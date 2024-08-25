@@ -14,7 +14,7 @@ export default class Animation extends React.Component {
     }
 
     componentDidMount() {
-        this.changeImage(this.props.imageKey);
+        this.changeAnimation(this.props.imageKey);
     }
 
     /**
@@ -23,7 +23,7 @@ export default class Animation extends React.Component {
      */
     componentDidUpdate(prevProps, prevState) {
         if (prevProps.imageKey !== this.props.imageKey) {
-            this.changeImage(this.props.imageKey);
+            this.changeAnimation(this.props.imageKey);
         }
     }
 
@@ -35,7 +35,7 @@ export default class Animation extends React.Component {
         return `${this.props.id}-animation`;
     }
 
-    changeImage(newKey) {
+    changeAnimation(newKey) {
         if (!this.animation) {
             return null;
         }

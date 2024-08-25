@@ -83,7 +83,7 @@ class Outside extends React.Component {
 // Updates to these fields will trigger re-renders
 const mapStateToProps = state => {
     return {
-        visible: state.game.currentNavTab === 'planet',
+        visible: state.game.currentNavTab === 'outside',
         fractionOfDay: fractionOfDay(state.clock),
         windowOpen: state.game.windowOpen
     }
