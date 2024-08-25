@@ -309,8 +309,8 @@ export default {
             }))
 
             dispatch(fromGame.addNavTab('outside'));
-            dispatch(fromGame.addNavTab('technology'));
             dispatch(fromGame.addNavTab('planet'));
+            // dispatch(fromGame.addNavTab('solarion'));
 
             dispatch(fromUpgrades.discover('windTurbine_reduceCutIn'))
             dispatch(fromUpgrades.discover('windTurbine_increaseCutOut'))

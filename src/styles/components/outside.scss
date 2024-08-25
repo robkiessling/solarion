@@ -100,31 +100,30 @@ $top-bar-float-padding: 0.875rem;
 
 .navigation-tabs {
   position: absolute;
-  left: 50%;
-  -webkit-transform: translateX(-50%);
-  transform: translateX(-50%);
+  left: $top-bar-float-padding;
+  bottom: $top-bar-float-padding;
 
   display: flex;
-  gap: 2rem;
-  padding: 0.5rem 1.5rem;
+  padding: 0.5rem 0;
+  width: 17rem;
 
   background: $ui-bg;
+  border: 3px solid $ui-border;
   box-sizing: border-box;
-  border-left: 3px solid $ui-border;
-  border-bottom: 3px solid $ui-border;
-  border-right: 3px solid $ui-border;
 
   a {
     cursor: pointer;
     letter-spacing: 1px;
     color: $ui-text-dim;
+    flex: 1;
+    text-align: center;
 
     &:hover {
-      text-decoration: underline;
+      //text-decoration: underline;
     }
 
     &.current-tab {
-      text-decoration: underline;
+      //text-decoration: underline;
       color: $ui-text;
     }
   }
@@ -135,10 +134,13 @@ $top-bar-float-padding: 0.875rem;
 #planet {
   background: $top-bar-background;
   flex: 1 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 
   .planet-image {
-    margin: 3px 0 0 0;
-    margin-left: 16rem;
+    //margin: 3px 0 0 0;
+    //margin-left: 16rem;
 
     font-size: 0.875rem;
 

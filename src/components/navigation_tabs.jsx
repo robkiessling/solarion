@@ -1,6 +1,6 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import {NAV_TAB_TITLES, updateSetting} from "../redux/modules/game";
+import { NAV_TAB_TITLES, updateSetting } from "../redux/modules/game";
 
 class NavigationTabs extends React.Component {
     constructor(props) {
@@ -13,7 +13,9 @@ class NavigationTabs extends React.Component {
                 {this.props.visibleNavTabs.map(tab =>
                     <a key={tab} onClick={() => this.props.updateSetting('currentNavTab', tab)}
                        className={`tab ${tab === this.props.currentNavTab ? 'current-tab' : ''}`}>
+                        {tab === this.props.currentNavTab ? '[[' : ''}
                         {NAV_TAB_TITLES[tab]}
+                        {tab === this.props.currentNavTab ? ']]' : ''}
                     </a>
                 )}
             </div>

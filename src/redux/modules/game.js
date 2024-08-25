@@ -1,7 +1,4 @@
 import update from 'immutability-helper';
-import {recalculateState, withRecalculation} from "../reducer";
-import {batch} from "react-redux";
-import database from "../../database/upgrades";
 
 // Actions
 export const UPDATE_SETTING = 'game/UPDATE_SETTING';
@@ -35,8 +32,7 @@ export default function reducer(state = initialState, action) {
             });
         case ADD_NAV_TAB:
             return update(state, {
-                visibleNavTabs: { $push: [payload.tab] },
-                // currentNavTab: { $apply: tab => tab === null ? payload.tab : tab }
+                visibleNavTabs: { $push: [payload.tab] }
             });
         default:
             return state;

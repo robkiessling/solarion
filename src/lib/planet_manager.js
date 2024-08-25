@@ -59,15 +59,15 @@ const MINED = '*';
 
 
 
-const PLANET_SIZE = PLANET_LAYOUT.map(row => row.length);
-const DISPLAY_SIZE = PLANET_SIZE.map(size => Math.round(size / 2)); // only half the planet is visible at once
+const PLANET_ROW_LENGTHS = PLANET_LAYOUT.map(row => row.length);
+const DISPLAY_ROW_LENGTHS = PLANET_ROW_LENGTHS.map(size => Math.round(size / 2)); // only half the planet is visible at once
 
-// const DISPLAY_SIZE = [7, 13, 17, 19, 21, 21, 21, 19, 17, 13, 7];
-// const DISPLAY_SIZE = [7, 17, 23, 29, 33, 35, 37, 39, 39, 39, 39, 39, 39, 39, 37, 35, 33, 29, 23, 17, 7];
-// const PLANET_SIZE = DISPLAY_SIZE.map(length => length * 2);
+// const DISPLAY_ROW_LENGTHS = [7, 13, 17, 19, 21, 21, 21, 19, 17, 13, 7];
+// const DISPLAY_ROW_LENGTHS = [7, 17, 23, 29, 33, 35, 37, 39, 39, 39, 39, 39, 39, 39, 37, 35, 33, 29, 23, 17, 7];
+// const PLANET_ROW_LENGTHS = DISPLAY_ROW_LENGTHS.map(length => length * 2);
 
-const WIDEST_DISPLAY_ROW = Math.max(...DISPLAY_SIZE);
-export const WIDEST_PLANET_ROW = Math.max(...PLANET_SIZE);
+export const WIDEST_PLANET_ROW = Math.max(...PLANET_ROW_LENGTHS);
+const WIDEST_DISPLAY_ROW = Math.max(...DISPLAY_ROW_LENGTHS);
 
 // If true, each rotation step will occur an equal amount of time apart. Only some rows will move though because some
 //   rows have farther to move than others.
@@ -89,7 +89,7 @@ export default class PlanetManager {
     generateMap() {
         this.map = [];
 
-        // PLANET_SIZE.forEach(rowLength => {
+        // PLANET_ROW_LENGTHS.forEach(rowLength => {
         //     this.map.push(createArray(rowLength, UNKNOWN));
         // });
 
@@ -109,7 +109,7 @@ export default class PlanetManager {
 
     // (For testing) Will draw meridians on the planet
     _generateDebugMeridians(numMeridians = 4) {
-        PLANET_SIZE.forEach(rowLength => {
+        PLANET_ROW_LENGTHS.forEach(rowLength => {
             let row = [];
             let meridians = [];
             for (let i = 0; i < numMeridians; i++) {
@@ -137,8 +137,8 @@ export default class PlanetManager {
         }
 
         return this.map.map((planetRow, rowIndex) => {
-            const planetRowLength = PLANET_SIZE[rowIndex];
-            const displayRowLength = DISPLAY_SIZE[rowIndex]
+            const planetRowLength = PLANET_ROW_LENGTHS[rowIndex];
+            const displayRowLength = DISPLAY_ROW_LENGTHS[rowIndex]
 
             const startIndex = Math.floor(percentRotated * planetRowLength);
             const endIndex = (startIndex + displayRowLength) % planetRowLength;
@@ -151,7 +151,7 @@ export default class PlanetManager {
                 displayRow = planetRow.slice(startIndex, planetRowLength).concat(planetRow.slice(0, endIndex));
             }
 
-            const missingSpaces = WIDEST_DISPLAY_ROW - displayRowLength / 2;
+            const missingSpaces = (WIDEST_DISPLAY_ROW - displayRowLength) / 2;
             return displayRow.join('').padStart(displayRowLength + missingSpaces, ' ').split('').map((char, charIndex) => {
                 charIndex -= missingSpaces;
 
