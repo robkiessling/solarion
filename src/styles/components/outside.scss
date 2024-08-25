@@ -79,7 +79,7 @@ $top-bar-float-padding: 0.875rem;
   .planet-name {
     font-size: 1rem;
     font-weight: bold;
-    color: #fdf67f;
+    color: #20d9ff;
   }
 }
 
@@ -147,18 +147,35 @@ $top-bar-float-padding: 0.875rem;
     white-space: pre;
     display: flex;
     flex-direction: column;
-
-    //.twilight { color: #777; }
-    //.darkness { color: #444; }
-    .twilight { opacity: 0.4; }
-    .darkness { opacity: 0.2; }
-    .home { color: $range-slider-color; }
-    //.land { color: forestgreen; }
-    //.ocean { color: #52d7ff; }
-
-    //.unknown { color: #aaa; }
-    .mountain { color: #cc7171; }
-    .explored { color: #9a653a; }
-    .mined { color: #666; }
   }
+
+  .twilight { opacity: 0.4; }
+  .darkness { opacity: 0.2; }
+  .home { color: #20d9ff; }
+  .mountain { color: #cc7171; }
+  .flatland { color: #666; }
+  .developed { color: #9a653a; }
+
+  .planet-legend, .exploration-status {
+    position: absolute;
+    -webkit-transform: translateX(-50%);
+    transform: translateX(-50%);
+    width: 13rem;
+    //height: 100%;
+    //margin: $top-bar-float-padding;
+    top: $top-bar-float-padding;
+
+    display: flex;
+    flex-direction: column;
+  }
+
+  .planet-legend {
+    left: calc(50% + 14rem);
+    //background: red;
+  }
+  .exploration-status {
+    left: calc(50% - 14rem);
+    //background: blue;
+  }
+
 }

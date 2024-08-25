@@ -11,7 +11,7 @@ class PlanetStatus extends React.Component {
     render() {
         return (
             <div className={`planet-status ${this.props.visible ? '' : 'hidden'}`}>
-                <span className="planet-name">Planet: XLJ-800</span><br/>
+                <span className="planet-name">Command Center: XLJ-800</span><br/>
                 <Clock dayLength={this.props.dayLength}
                        dayNumber={this.props.dayNumber}
                        fractionOfDay={this.props.fractionOfDay} />

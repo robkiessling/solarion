@@ -67,6 +67,25 @@ export const round = (num) => {
     return roundToDecimal(num, 0);
 };
 
+// The maximum is inclusive and the minimum is inclusive
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random#getting_a_random_integer_between_two_values_inclusive
+export function getRandomIntInclusive(min, max) {
+    const minCeiled = Math.ceil(min);
+    const maxFloored = Math.floor(max);
+    return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
+}
+
+export function getRandomFromArray(array) {
+    return array[Math.floor(Math.random() * array.length)];
+}
+
+
+// Need to use this (instead of num % mod) if the starting num can be negative
+// https://stackoverflow.com/a/17323608/4904996
+export function mod(num, mod) {
+    return ((num % mod) + mod) % mod;
+}
+
 
 // Set functions
 export const a_minus_b = (a, b) => {

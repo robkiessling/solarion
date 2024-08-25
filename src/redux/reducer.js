@@ -4,14 +4,16 @@ import reduceReducers from "reduce-reducers";
 import update from 'immutability-helper';
 
 import game from './modules/game';
-import clock from './modules/clock';
+import clock, * as fromClock from './modules/clock';
 import log, * as fromLog from './modules/log';
 import resources, * as fromResources from './modules/resources';
 import structures, * as fromStructures from "./modules/structures";
 import upgrades, * as fromUpgrades from "./modules/upgrades";
 import abilities, * as fromAbilities from "./modules/abilities";
+import planet, * as fromPlanet from "./modules/planet";
 import {mapObject} from "../lib/helpers";
 import {STATUSES} from "../database/structures";
+import {generateImage} from "../lib/planet_map";
 
 // Actions
 export const RECALCULATE = 'reducer/RECALCULATE';
@@ -25,7 +27,8 @@ export default reduceReducers(
         resources,
         structures,
         upgrades,
-        abilities
+        abilities,
+        planet
     }),
 
     // cross-cutting entire state
@@ -260,4 +263,8 @@ export function getNetResourceRates(state) {
         }
     });
     return result;
+}
+
+export function planetMapImage(state) {
+    return generateImage(state.planet.map, fromClock.fractionOfDay(state.clock));
 }
