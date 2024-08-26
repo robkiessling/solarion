@@ -5,7 +5,7 @@ import {NUM_SECTORS, TERRAINS, STATUSES} from "../lib/planet_map";
 import {roundToDecimal} from "../lib/helpers";
 import {numReconDroids, planetMapImage} from "../redux/reducer";
 import Slider from "rc-slider";
-import {setRotation, setSunTracking} from "../redux/modules/planet";
+import {percentExplored, setRotation, setSunTracking} from "../redux/modules/planet";
 import ReactSwitch from "react-switch";
 
 class Planet extends React.Component {
@@ -32,32 +32,48 @@ class Planet extends React.Component {
                         this.props.planetImage.map((imageRow, rowIndex) => {
                             return <span key={rowIndex}>
                                 {imageRow.map((sector, colIndex) => {
-                                    const {char, className} = sector;
-                                    return <span key={colIndex} className={className}>{char}</span>
+                                    const {char, className, style} = sector;
+                                    if (style) {
+                                        return <span key={colIndex} className={className} style={style}>{char}</span>
+                                    }
+                                    else {
+                                        return <span key={colIndex} className={className}>{char}</span>
+                                    }
                                 })}
                             </span>
                         })
                     }
                 </div>
                 <div className="exploration-status">
-                    <span>~~ Exploration ~~</span>
-                    <span>
-                        Planet: {roundToDecimal(this.props.numExplored / NUM_SECTORS * 100, 1)}% explored
+                    <span className='justify-center'>~~ Exploration ~~</span>
+                    <span className="key-value-pair">
+                        <span>Explored:</span>
+                        <span>{roundToDecimal(this.props.percentExplored, 2).toFixed(2)}%</span>
                     </span>
-                    <span>Recon Droids: {this.props.numReconDroids}</span>
-                    <span>Status: {this.props.overallStatus}</span>
-                    <span>prog: {this.props.coordsInProgress.join(', ')}</span>
-                    {/*<label className={'on-off-switch'}>*/}
-                    {/*    <ReactSwitch checked={this.props.sunTracking} onChange={this.props.setSunTracking}*/}
-                    {/*                 checkedIcon={false} uncheckedIcon={false} height={12} width={24}*/}
-                    {/*    />*/}
-                    {/*    Track sun*/}
-                    {/*</label>*/}
+                    <span className="key-value-pair">
+                        <span>Recon Droids:</span>
+                        <span>{this.props.numReconDroids}</span>
+                    </span>
+                    <span className="key-value-pair">
+                        <span>Available Flatland:</span>
+                        <span>{this.props.numExploredFlatland}</span>
+                    </span>
+
+                    <br/>
+                    <span>Longitude:</span>
                     <Slider className={'range-slider'}
-                            disabled={false}
+                            disabled={this.props.sunTracking}
                             min={0} max={1} step={0.01} marks={sliderMarks}
                             onChange={(value) => this.props.setRotation(value)}
                             value={this.props.rotation}/>
+                    <div className={'justify-center'}>
+                        <label className={'on-off-switch text-center'}>
+                            <ReactSwitch checked={this.props.sunTracking} onChange={this.props.setSunTracking}
+                                         checkedIcon={false} uncheckedIcon={false} height={12} width={24}
+                            />
+                            Track Daytime
+                        </label>
+                    </div>
                 </div>
                 <div className="planet-legend">
                     {
@@ -85,11 +101,11 @@ const mapStateToProps = state => {
         fractionOfDay: fractionOfDay(state.clock),
         planetImage: planetMapImage(state),
         overallStatus: state.planet.overallStatus,
-        coordsInProgress: state.planet.coordsInProgress,
-        numExplored: state.planet.numExplored,
+        percentExplored: percentExplored(state.planet),
+        numExploredFlatland: state.planet.numExploredFlatland,
         numReconDroids: numReconDroids(state),
         rotation: state.planet.rotation,
-        // sunTracking: state.planet.sunTracking
+        sunTracking: state.planet.sunTracking
     }
 };
 

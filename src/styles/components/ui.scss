@@ -78,7 +78,6 @@
 }
 
 .on-off-switch {
-  margin: 0.5rem 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -177,4 +176,15 @@ button {
 
 .underline {
   text-decoration: underline;
+}
+
+
+.justify-center {
+  display: flex;
+  justify-content: center;
+}
+
+.key-value-pair {
+  display: flex;
+  justify-content: space-between;
 }

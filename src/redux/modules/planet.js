@@ -3,11 +3,12 @@ import {canStartSector, recalculateState, withRecalculation} from "../reducer";
 import {
     generateRandomMap,
     getNextExplorableSector,
-    mapIsFullyExplored,
-    numCoordsWithStatus,
-    STATUSES
+    mapIsFullyExplored, NUM_SECTORS,
+    numSectorsMatching,
+    STATUSES, TERRAINS
 } from "../../lib/planet_map";
 import {batch} from "react-redux";
+import {roundToDecimal} from "../../lib/helpers";
 
 // Actions
 export const GENERATE_MAP = 'planet/GENERATE_MAP';
@@ -34,7 +35,8 @@ const initialState = {
     // The following caches store references/counts of various sectors within the map. They could be calculated at run-time
     // from the map variable, but to improve performance we cache the values here.
     coordsInProgress: [], // Coordinates of sectors that are in progress
-    numExplored: 0 // Number of explored sectors
+    numExplored: 0, // Number of explored sectors
+    numExploredFlatland: 0
 }
 
 // Reducer
@@ -47,7 +49,8 @@ export default function reducer(state = initialState, action) {
 
             return update(state, {
                 map: { $set: map },
-                numExplored: { $set: numCoordsWithStatus(map, STATUSES.explored.enum) }
+                numExplored: { $set: numSectorsMatching(map, STATUSES.explored.enum) },
+                numExploredFlatland: { $set: numSectorsMatching(map, STATUSES.explored.enum, TERRAINS.flatland.enum) }
             })
         case START_SECTOR:
             return update(state, {
@@ -63,6 +66,8 @@ export default function reducer(state = initialState, action) {
                 coordsInProgress: { $push: [[payload.rowIndex, payload.colIndex]] }
             });
         case FINISH_SECTOR:
+            const sectorIsFlatland = state.map[payload.rowIndex][payload.colIndex].terrain === TERRAINS.flatland.enum
+
             return update(state, {
                 map: {
                     [payload.rowIndex]: {
@@ -76,7 +81,8 @@ export default function reducer(state = initialState, action) {
                     // Remove the coord from coordsInProgress
                     $apply: (coords) => coords.filter(coord => coord[0] !== payload.rowIndex || coord[1] !== payload.colIndex)
                 },
-                numExplored: { $apply: (x) => x + 1 }
+                numExplored: { $apply: (x) => x + 1 },
+                numExploredFlatland: { $apply: (x) => sectorIsFlatland ? x + 1 : x }
             });
         case PROGRESS:
             if (state.overallStatus !== OVERALL_MAP_STATUS.inProgress) {
@@ -190,3 +196,15 @@ export function planetTick(timeDelta) {
 
 
 // Standard functions
+
+// Count the number of explored sectors, plus the partial exploration of all sectors currently being explored
+export function percentExplored(state){
+    let numExplored = state.numExplored;
+
+    state.coordsInProgress.forEach(coord => {
+        const sector = state.map[coord[0]][coord[1]]
+        numExplored += sector.exploreProgress / (sector.exploreLength * 1000)
+    })
+
+    return numExplored / NUM_SECTORS * 100
+}

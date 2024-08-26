@@ -1,5 +1,8 @@
 import {createArray, getRandomFromArray, getRandomIntInclusive, mod} from "./helpers";
 
+
+// TODO The planet layout currently is like a football. This causes things to get stretched weirdly, we need to
+//      implement something like a globe split into slices if we want to reduce the amount of distortion
 // const PLANET_LAYOUT = [
 //               '··············',
 //         '··························',
@@ -38,26 +41,28 @@ const NIGHT_START = mod(HOME_FRACTION - NIGHT_WIDTH / 2, 1); // Fraction start o
 const NIGHT_END = mod(HOME_FRACTION + NIGHT_WIDTH / 2, 1); // Fraction end of night window
 
 const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-const HOME_STARTING_ROW_RANGE = [3, 7];
-// const HOME_STARTING_ROW_RANGE = [5, 5]; // Leaving dead center otherwise first 3x3 explored area gets stretched poorly
+// const HOME_STARTING_ROW_RANGE = [3, 7];
+const HOME_STARTING_ROW_RANGE = [5, 5]; // TODO Leaving dead center otherwise first 3x3 explored area gets stretched poorly
 const NUM_MOUNTAIN_RANGES_RANGE = [8, 10];
 const MOUNTAIN_RANGE_SIZE_RANGE = [1, 10];
 
-const SHOW_DEBUG_MERIDIANS = true;
+const SHOW_DEBUG_MERIDIANS = false;
+
+const EXPLORATION_TIME_FACTOR = 10; // The fastest area takes this amount of time to explore
 
 export const TERRAINS = {
     home: { key: 'home', enum: 0, display: '@', className: 'home', label: 'Command Center' },
-    flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland', exploreLength: 1 }, // Can be developed for mining
+    flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland', exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
     developed: { key: 'developed', enum: 2, display: '+', className: 'developed', label: 'Developed' },
-    mountain: { key: 'mountain', enum: 3, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
+    mountain: { key: 'mountain', enum: 3, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
 }
 
 if (SHOW_DEBUG_MERIDIANS) {
     _.merge(TERRAINS, {
-        m0: { key: 'm0', enum: 100, display: '0', exploreLength: 1 },
-        m1: { key: 'm1', enum: 101, display: '1', exploreLength: 1 },
-        m2: { key: 'm2', enum: 102, display: '2', exploreLength: 1 },
-        m3: { key: 'm3', enum: 103, display: '3', exploreLength: 1 },
+        m0: { key: 'm0', enum: 100, display: '0', exploreLength: EXPLORATION_TIME_FACTOR },
+        m1: { key: 'm1', enum: 101, display: '1', exploreLength: EXPLORATION_TIME_FACTOR },
+        m2: { key: 'm2', enum: 102, display: '2', exploreLength: EXPLORATION_TIME_FACTOR },
+        m3: { key: 'm3', enum: 103, display: '3', exploreLength: EXPLORATION_TIME_FACTOR },
     })
 }
 
@@ -168,8 +173,7 @@ function addMountainRange(map, size, startingRow, startingCol) {
 
 function addHomeBase(map) {
     const homeRow = getRandomIntInclusive(...HOME_STARTING_ROW_RANGE);
-    // const homeCol = Math.round((TWILIGHT_PCT - 0.1) * PLANET_ROW_LENGTHS[homeRow]); // So home leaves twilight at ~6am
-    const homeCol = Math.floor(0.75 * PLANET_ROW_LENGTHS[homeRow]);
+    const homeCol = Math.floor(HOME_FRACTION * PLANET_ROW_LENGTHS[homeRow]);
 
     // Always have a mountain near to base (so matches scenery)
     addMountainRange(map, 5, homeRow, homeCol);
@@ -288,12 +292,12 @@ export function mapIsFullyExplored(map) {
     })
 }
 
-export function numCoordsWithStatus(map, status) {
+export function numSectorsMatching(map, status, terrain) {
     let count = 0;
 
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
-            if (sector.status === status) {
+            if ((status === undefined || sector.status === status) && (terrain === undefined || sector.terrain === terrain)) {
                 count += 1;
             }
         })
@@ -329,7 +333,7 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
 
     // Flicker tiles that are being explored by showing/hiding a border around it
     // todo this is not actually thousandths, and it needs to be proportional to DAY_LENGTH
-    let thousandths = Math.floor(fractionOfDay * 1000 % 20);
+    // let thousandths = Math.floor(fractionOfDay * 1000 % 20);
     // const flicker = (thousandths >= 0 && thousandths < 5) || (thousandths >= 10 && thousandths < 15)
     const flicker = true;
 
@@ -348,7 +352,7 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
             planetRow.slice(displayStart, planetRowLength).concat(planetRow.slice(0, displayEnd));
 
         displayRow = displayRow.map((sector, displayColIndex) => {
-            let char, className;
+            let char, className, style;
 
             if (sector.status === STATUSES.unknown.enum) {
                 char = STATUSES.unknown.display;
@@ -362,6 +366,8 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
             if (sector.status === STATUSES.exploring.enum && flicker) {
             // if (sector.status === STATUSES.exploring.enum) {
                 className += ' exploring'
+                const pct = `${sector.exploreProgress / (sector.exploreLength * 1000) * 100}%`
+                style = { background: `linear-gradient(90deg, rgba(0,0,0,0) ${pct}, rgba(255,255,255,0.2) ${pct})` }
             }
 
             // How far into the planet length the sector is
@@ -373,7 +379,8 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
 
             return {
                 char: char,
-                className: className
+                className: className,
+                style: style
             }
         });
 
@@ -393,7 +400,6 @@ function getTwilightClass(planetFraction, nightStart, nightEnd) {
      *   `-----`
      * If we are within range to the left, we shade it lighter. If within range to the right, shade it darker:
      */
-    console.log(nightStart - TWILIGHT_LENGTH, nightStart)
     if (isWithinRange(planetFraction, [nightStart - TWILIGHT_LENGTH, nightStart])) {
         return 'twilight-day';
     }
