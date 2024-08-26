@@ -16,12 +16,6 @@ import {createArray, getRandomFromArray, getRandomIntInclusive, mod} from "./hel
 // const PLANET_ROW_LENGTHS = PLANET_LAYOUT.map(row => row.length);
 // const DISPLAY_ROW_LENGTHS = PLANET_ROW_LENGTHS.map(size => Math.round(size / 2)); // only half the planet is visible at once
 
-export const HOME_BASE = '@';
-export const UNKNOWN = '·';
-export const MOUNTAIN = 'Λ'; // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
-export const FLATLAND = '*'; // Can be developed for mining
-export const DEVELOPED = '+';
-
 const DISPLAY_ROW_LENGTHS = [7, 13, 17, 19, 21, 21, 21, 19, 17, 13, 7];
 const PLANET_ROW_LENGTHS = DISPLAY_ROW_LENGTHS.map(length => length * 2); // Display only shows half of real planet
 const NUM_PLANET_ROWS = PLANET_ROW_LENGTHS.length;
@@ -43,18 +37,46 @@ const HOME_STARTING_ROW_RANGE = [3, 7];
 const NUM_MOUNTAIN_RANGES_RANGE = [8, 10];
 const MOUNTAIN_RANGE_SIZE_RANGE = [1, 10];
 
+export const TERRAINS = {
+    home: { key: 'home', enum: 0, display: '@', className: 'home', label: 'Command Center' },
+    flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland' }, // Can be developed for mining
+    developed: { key: 'developed', enum: 2, display: '+', className: 'developed', label: 'Developed' },
+    mountain: { key: 'mountain', enum: 3, display: 'Λ', className: 'mountain', label: 'Mountain' }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
+}
+const TERRAINS_BY_ENUM = {};
+for (const [key, attributes] of Object.entries(TERRAINS)) {
+    TERRAINS_BY_ENUM[attributes.enum] = attributes;
+}
+
+export const STATUSES = {
+    unknown: { key: 'unknown', enum: 0, display: '·', className: 'unknown', label: 'Unknown' },
+    exploring: { key: 'exploring', enum: 1, label: 'Exploring' },
+    explored: { key: 'explored', enum: 2, label: 'Explored' }
+}
+const STATUSES_BY_ENUM = {};
+for (const [key, attributes] of Object.entries(STATUSES)) {
+    STATUSES_BY_ENUM[attributes.enum] = attributes;
+}
+
 export function generateRandomMap() {
     const map = [];
 
     // Start by initializing entire map as flatland
     PLANET_ROW_LENGTHS.forEach(rowLength => {
-        map.push(createArray(rowLength, FLATLAND));
+        map.push(createArray(rowLength, () => createSector(TERRAINS.flatland, STATUSES.unknown)));
     });
 
     addMountainRanges(map);
     addHomeBase(map);
     
     return map;
+}
+
+function createSector(terrain, status) {
+    return {
+        terrain: terrain.enum,
+        status: status.enum,
+    }
 }
 
 function addMountainRanges(map) {
@@ -79,7 +101,7 @@ function addMountainRange(map, size, startingRow, startingCol) {
     let currentCoord = [startingRow, startingCol];
 
     for (let step = 0; step < size; step++) {
-        map[currentCoord[0]][currentCoord[1]] = MOUNTAIN;
+        map[currentCoord[0]][currentCoord[1]] = createSector(TERRAINS.mountain, STATUSES.unknown);
 
         // Choose next direction
         let direction;
@@ -108,7 +130,7 @@ function addHomeBase(map) {
 
     addMountainRange(map, 5, homeRow, homeCol); // Always have a mountain near to base (so matches scenery)
 
-    map[homeRow][homeCol] = HOME_BASE;
+    map[homeRow][homeCol] = createSector(TERRAINS.home, STATUSES.explored);
 }
 
 function getCoordAtOffset(startingCoord, rowOffset, colOffset) {
@@ -154,37 +176,30 @@ export function generateImage(map, fractionOfDay) {
             displayRow = planetRow.slice(startIndex, planetRowLength).concat(planetRow.slice(0, endIndex));
         }
 
-        const missingSpaces = (WIDEST_DISPLAY_ROW - displayRowLength) / 2;
-        return displayRow.join('').padStart(displayRowLength + missingSpaces, ' ').split('').map((char, charIndex) => {
-            charIndex -= missingSpaces;
+        displayRow = displayRow.map((sector, colIndex) => {
+            let char, className;
 
-            let color = '';
-            switch(char) {
-                case HOME_BASE:
-                    color += 'home';
-                    break;
-                case UNKNOWN:
-                    color += 'unknown';
-                    break;
-                case MOUNTAIN:
-                    color += 'mountain';
-                    break;
-                case FLATLAND:
-                    color += 'flatland';
-                    break;
-                case DEVELOPED:
-                    color += 'developed';
-                    break;
+            if (sector.status === STATUSES.unknown.enum) {
+                char = STATUSES.unknown.display;
+                className = STATUSES.unknown.className;
+            }
+            else {
+                char = TERRAINS_BY_ENUM[sector.terrain].display;
+                className = TERRAINS_BY_ENUM[sector.terrain].className;
             }
 
-            if (charIndex >= TWILIGHT_PCT * displayRowLength) { color += ' twilight'; }
-            if (charIndex >= DARKNESS_PCT * displayRowLength) { color += ' darkness'; }
+            if (colIndex >= TWILIGHT_PCT * displayRowLength) { className += ' twilight'; }
+            if (colIndex >= DARKNESS_PCT * displayRowLength) { className += ' darkness'; }
 
             return {
                 char: char,
-                color: color
+                className: className
             }
-        })
+        });
+
+        const numMissingSpaces = (WIDEST_DISPLAY_ROW - displayRowLength) / 2;
+        displayRow.unshift(...createArray(numMissingSpaces, () => ({ char: ' ' })))
+        return displayRow;
     });
 }
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import {fractionOfDay} from "../redux/modules/clock";
 import {connect} from "react-redux";
-import {FLATLAND, HOME_BASE, DEVELOPED, MOUNTAIN, NUM_SECTORS, UNKNOWN} from "../lib/planet_map";
+import {NUM_SECTORS, TERRAINS, STATUSES} from "../lib/planet_map";
 import {roundToDecimal} from "../lib/helpers";
 import {planetMapImage} from "../redux/reducer";
 
@@ -13,16 +13,17 @@ class Planet extends React.Component {
     }
 
     render() {
-        console.log('rerender')
+        const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.developed, TERRAINS.mountain];
+
         return (
             <div id="planet" className={`${this.props.visible ? '' : 'hidden'}`}>
                 <div className="planet-image">
                     {
                         this.props.planetImage.map((imageRow, rowIndex) => {
                             return <span key={rowIndex}>
-                                {imageRow.map((glyph, glyphIndex) => {
-                                    const {char, color} = glyph;
-                                    return <span key={glyphIndex} className={color}>{char}</span>
+                                {imageRow.map((sector, colIndex) => {
+                                    const {char, className} = sector;
+                                    return <span key={colIndex} className={className}>{char}</span>
                                 })}
                             </span>
                         })
@@ -35,16 +36,15 @@ class Planet extends React.Component {
                     <span>Droids: 3</span>
                 </div>
                 <div className="planet-legend">
-                    {/*<span><span className={'home'}>{HOME_BASE}</span> Command Center</span>*/}
-                    {/*<span><span className={'unknown'}>{UNKNOWN}</span> Unknown</span>*/}
-                    {/*<span><span className={'flatland'}>{FLATLAND}</span> Flatland</span>*/}
-                    {/*<span><span className={'developed'}>{DEVELOPED}</span> Developed</span>*/}
-                    {/*<span><span className={'mountain'}>{MOUNTAIN}</span> Mountain</span>*/}
-                    <span><span className={'home'}>{HOME_BASE} Command Center</span></span>
-                    <span><span className={'unknown'}>{UNKNOWN} Unknown</span></span>
-                    <span><span className={'flatland'}>{FLATLAND} Flatland</span></span>
-                    <span><span className={'developed'}>{DEVELOPED} Developed</span></span>
-                    <span><span className={'mountain'}>{MOUNTAIN} Mountain</span></span>
+                    {
+                        legend.map((attributes) => {
+                            return <span key={attributes.key}>
+                                <span className={attributes.className}>
+                                    {attributes.display} {attributes.label}
+                                </span>
+                            </span>
+                        })
+                    }
                 </div>
             </div>
         );
