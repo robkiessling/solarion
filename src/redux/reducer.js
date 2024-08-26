@@ -176,6 +176,10 @@ export function buildStructure(id, amount) {
     }
 }
 
+export function canStartSector(state) {
+    return fromResources.canConsume(state.resources, { reconDroids: 1 });
+}
+
 export function canAssignDroid(state, structure) {
     return fromResources.canConsume(state.resources, { maintenanceDroids: 1 });
 }
@@ -221,8 +225,12 @@ export function numMaintenanceDroids(state) {
 
     return total;
 }
+
+// The recon droid resource amount goes up/down when droids are sent to explore sectors. To get the total
+// we sum the resource amount plus all exploring sectors
 export function numReconDroids(state) {
-    return fromResources.getQuantity(fromResources.getResource(state.resources, 'reconDroids'));
+    return fromResources.getQuantity(fromResources.getResource(state.resources, 'reconDroids')) +
+        state.planet.coordsInProgress.length;
 }
 
 

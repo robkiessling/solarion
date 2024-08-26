@@ -3,6 +3,7 @@ import * as fromResources from '../redux/modules/resources';
 import * as fromUpgrades from '../redux/modules/upgrades';
 import * as fromAbilities from '../redux/modules/abilities';
 import * as fromGame from '../redux/modules/game';
+import * as fromPlanet from '../redux/modules/planet';
 import * as fromReducer from '../redux/reducer';
 import {addTrigger} from "../redux/triggers";
 import * as fromLog from "../redux/modules/log";
@@ -317,6 +318,13 @@ export default {
             dispatch(fromUpgrades.discover('windTurbine_largerBlades'))
             dispatch(fromUpgrades.discover('windTurbine_yawDrive'))
 
+            addTrigger(
+                (state) => state.resources.byId.reconDroids,
+                (slice) => slice.amount > 0,
+                () => {
+                    dispatch(fromPlanet.startMap());
+                }
+            )
         }
     },
 

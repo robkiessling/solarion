@@ -3,7 +3,7 @@ import {fractionOfDay} from "../redux/modules/clock";
 import {connect} from "react-redux";
 import {NUM_SECTORS, TERRAINS, STATUSES} from "../lib/planet_map";
 import {roundToDecimal} from "../lib/helpers";
-import {planetMapImage} from "../redux/reducer";
+import {numReconDroids, planetMapImage} from "../redux/reducer";
 
 class Planet extends React.Component {
     constructor(props) {
@@ -31,9 +31,13 @@ class Planet extends React.Component {
                 </div>
                 <div className="exploration-status">
                     <span>~~ Exploration ~~</span>
-                    <span>Sectors: 1 / {NUM_SECTORS} ({roundToDecimal(1 / NUM_SECTORS * 100, 1)}%)</span>
-                    <span>Current Sector: 35%</span>
-                    <span>Droids: 3</span>
+                    <span>
+                        Sectors: {this.props.numExplored} / {NUM_SECTORS}
+                        ({roundToDecimal(this.props.numExplored / NUM_SECTORS * 100, 1)}%)
+                    </span>
+                    <span>Recon Droids: {this.props.numReconDroids}</span>
+                    <span>Status: {this.props.overallStatus}</span>
+                    <span>prog: {this.props.coordsInProgress.join(', ')}</span>
                 </div>
                 <div className="planet-legend">
                     {
@@ -45,6 +49,9 @@ class Planet extends React.Component {
                             </span>
                         })
                     }
+                    <span style={{marginTop: '2px'}}>
+                        <span className={'exploring'}>&nbsp;</span> Exploring
+                    </span>
                 </div>
             </div>
         );
@@ -56,7 +63,11 @@ const mapStateToProps = state => {
     return {
         visible: state.game.currentNavTab === 'planet',
         fractionOfDay: fractionOfDay(state.clock),
-        planetImage: planetMapImage(state)
+        planetImage: planetMapImage(state),
+        overallStatus: state.planet.overallStatus,
+        coordsInProgress: state.planet.coordsInProgress,
+        numExplored: state.planet.numExplored,
+        numReconDroids: numReconDroids(state)
     }
 };
 

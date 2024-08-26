@@ -4,6 +4,7 @@ import database, {calculators} from '../../database/resources';
 import * as fromStructures from "./structures";
 import * as fromUpgrades from "./upgrades";
 import * as fromAbilities from "./abilities";
+import * as fromPlanet from "./planet";
 import {withRecalculation} from "../reducer";
 
 export { calculators };
@@ -51,7 +52,10 @@ export default function reducer(state = initialState, action) {
             return consumeReducer(state, { maintenanceDroids: 1 })
         case fromStructures.REMOVE_DROID:
             return produceReducer(state, { maintenanceDroids: 1 })
-
+        case fromPlanet.START_SECTOR:
+            return consumeReducer(state, { reconDroids: 1 })
+        case fromPlanet.FINISH_SECTOR:
+            return produceReducer(state, { reconDroids: 1 })
         default:
             return state;
     }

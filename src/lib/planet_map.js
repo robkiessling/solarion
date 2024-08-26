@@ -39,9 +39,9 @@ const MOUNTAIN_RANGE_SIZE_RANGE = [1, 10];
 
 export const TERRAINS = {
     home: { key: 'home', enum: 0, display: '@', className: 'home', label: 'Command Center' },
-    flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland' }, // Can be developed for mining
+    flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland', exploreLength: 1 }, // Can be developed for mining
     developed: { key: 'developed', enum: 2, display: '+', className: 'developed', label: 'Developed' },
-    mountain: { key: 'mountain', enum: 3, display: 'Λ', className: 'mountain', label: 'Mountain' }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
+    mountain: { key: 'mountain', enum: 3, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
 }
 const TERRAINS_BY_ENUM = {};
 for (const [key, attributes] of Object.entries(TERRAINS)) {
@@ -76,6 +76,7 @@ function createSector(terrain, status) {
     return {
         terrain: terrain.enum,
         status: status.enum,
+        exploreLength: terrain.exploreLength
     }
 }
 
@@ -149,6 +150,43 @@ function getCoordAtOffset(startingCoord, rowOffset, colOffset) {
     return [newRow, newCol];
 }
 
+// Find an unknown sector adjacent to current explored area
+export function getNextExplorableSector(map) {
+    let sectorRowIndex, sectorColIndex;
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            if (sectorRowIndex === undefined && sector.status === STATUSES.unknown.enum) {
+                sectorRowIndex = rowIndex;
+                sectorColIndex = colIndex;
+            }
+        });
+    });
+
+    return [sectorRowIndex, sectorColIndex];
+}
+
+export function mapIsFullyExplored(map) {
+    return map.every(row => {
+        return row.every(sector => {
+            return sector.status === STATUSES.explored.enum;
+        })
+    })
+}
+
+export function numCoordsWithStatus(map, status) {
+    let count = 0;
+
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            if (sector.status === status) {
+                count += 1;
+            }
+        })
+    })
+
+    return count;
+}
+
 export function generateImage(map, fractionOfDay) {
     let percentRotated;
 
@@ -160,6 +198,12 @@ export function generateImage(map, fractionOfDay) {
     else {
         percentRotated = fractionOfDay;
     }
+
+    // Flicker tiles that are being explored by showing/hiding a border around it
+    // todo this is not actually thousandths, and it needs to be proportional to DAY_LENGTH
+    let thousandths = Math.floor(fractionOfDay * 1000 % 20);
+    // const flicker = (thousandths >= 0 && thousandths < 5) || (thousandths >= 10 && thousandths < 15)
+    const flicker = true;
 
     return map.map((planetRow, rowIndex) => {
         const planetRowLength = PLANET_ROW_LENGTHS[rowIndex];
@@ -186,6 +230,11 @@ export function generateImage(map, fractionOfDay) {
             else {
                 char = TERRAINS_BY_ENUM[sector.terrain].display;
                 className = TERRAINS_BY_ENUM[sector.terrain].className;
+            }
+
+            if (sector.status === STATUSES.exploring.enum && flicker) {
+            // if (sector.status === STATUSES.exploring.enum) {
+                className += ' exploring'
             }
 
             if (colIndex >= TWILIGHT_PCT * displayRowLength) { className += ' twilight'; }

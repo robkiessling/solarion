@@ -3,6 +3,8 @@ import {batch} from "react-redux";
 import {recalculateState} from "../reducer";
 import {roundToDecimal} from "../../lib/helpers";
 
+// todo rename this class planet_clock? or consolidate with planet.js?
+
 // Actions
 export const TICK = 'clock/TICK';
 

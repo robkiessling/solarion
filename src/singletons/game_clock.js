@@ -6,6 +6,7 @@ import {resourcesTick} from "../redux/reducer";
 import {upgradesTick} from "../redux/modules/upgrades";
 import {abilitiesTick} from "../redux/modules/abilities";
 import {structuresTick} from "../redux/modules/structures";
+import {planetTick} from "../redux/modules/planet";
 
 const GAME_SPEED = 1.0; // Overall game speed (can increase/decrease for testing purposes)
 
@@ -32,12 +33,26 @@ class GameClock {
             // TODO if iterations is large, can batch updates into groups of 5, 10, etc.
             batch(() => {
                 while (iterations > 0) {
-                    store.dispatch(resourcesTick(seconds));
-                    store.dispatch(structuresTick(iterations * period)); // Cannot be batched since runningCooldown can affect resourcesTick
+                    store.dispatch(resourcesTick(seconds)); // todo why does this tick deal with 'seconds'
+                    store.dispatch(structuresTick(period)); // Cannot be batched since runningCooldown can affect resourcesTick
                     iterations--;
                 }
             });
         }, 1000 / 10);
+
+        // Ticks in this block must be done iteratively (one by one in order), but it is iterated less frequently
+        // since it updates slowly
+        this.setInterval('IterativeSlow', (iterations, period) => {
+            const seconds = period / 1000;
+
+            // TODO if iterations is large, can batch updates into groups of 5, 10, etc.
+            batch(() => {
+                while (iterations > 0) {
+                    store.dispatch(planetTick(period));
+                    iterations--;
+                }
+            });
+        }, 1000 / 10) // todo reduce
 
         // Ticks in this block can be batched into a single update for the entire time period
         // TODO Do these have to be iterative as well? What if an upgrade that boosts production finishes while offline?
