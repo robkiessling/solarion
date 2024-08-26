@@ -15,6 +15,8 @@ export const PROGRESS = 'planet/PROGRESS';
 export const START_SECTOR = 'planet/START_SECTOR';
 export const FINISH_SECTOR = 'planet/FINISH_SECTOR';
 export const FINISH_MAP = 'planet/FINISH_MAP';
+export const SET_ROTATION = 'planet/SET_ROTATION';
+export const SET_SUN_TRACKING = 'planet/SET_SUN_TRACKING';
 
 const OVERALL_MAP_STATUS = {
     unstarted: 'unstarted',
@@ -26,6 +28,8 @@ const OVERALL_MAP_STATUS = {
 const initialState = {
     map: [],
     overallStatus: OVERALL_MAP_STATUS.unstarted,
+    rotation: 0.5,
+    sunTracking: false, // TODO need to fix twilight shading if going to use this
 
     // The following caches store references/counts of various sectors within the map. They could be calculated at run-time
     // from the map variable, but to improve performance we cache the values here.
@@ -105,6 +109,14 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 overallStatus: { $set: OVERALL_MAP_STATUS.finished },
             })
+        case SET_ROTATION:
+            return update(state, {
+                rotation: { $set: payload.value }
+            })
+        case SET_SUN_TRACKING:
+            return update(state, {
+                sunTracking: { $set: payload.value }
+            })
         default:
             return state;
     }
@@ -112,6 +124,13 @@ export default function reducer(state = initialState, action) {
 
 
 // Action Creators
+export function setRotation(value) {
+    return { type: SET_ROTATION, payload: { value } }
+}
+export function setSunTracking(value) {
+    return { type: SET_SUN_TRACKING, payload: { value } }
+}
+
 export function generateMap() {
     return { type: GENERATE_MAP };
 }

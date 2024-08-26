@@ -4,6 +4,9 @@ import {connect} from "react-redux";
 import {NUM_SECTORS, TERRAINS, STATUSES} from "../lib/planet_map";
 import {roundToDecimal} from "../lib/helpers";
 import {numReconDroids, planetMapImage} from "../redux/reducer";
+import Slider from "rc-slider";
+import {setRotation, setSunTracking} from "../redux/modules/planet";
+import ReactSwitch from "react-switch";
 
 class Planet extends React.Component {
     constructor(props) {
@@ -14,6 +17,13 @@ class Planet extends React.Component {
 
     render() {
         const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.developed, TERRAINS.mountain];
+        const sliderMarks = {
+            0: '0°',
+            0.25: '90°',
+            0.5: '180°',
+            0.75: '270°',
+            1: '360°'
+        }
 
         return (
             <div id="planet" className={`${this.props.visible ? '' : 'hidden'}`}>
@@ -37,6 +47,17 @@ class Planet extends React.Component {
                     <span>Recon Droids: {this.props.numReconDroids}</span>
                     <span>Status: {this.props.overallStatus}</span>
                     <span>prog: {this.props.coordsInProgress.join(', ')}</span>
+                    {/*<label className={'on-off-switch'}>*/}
+                    {/*    <ReactSwitch checked={this.props.sunTracking} onChange={this.props.setSunTracking}*/}
+                    {/*                 checkedIcon={false} uncheckedIcon={false} height={12} width={24}*/}
+                    {/*    />*/}
+                    {/*    Track sun*/}
+                    {/*</label>*/}
+                    <Slider className={'range-slider'}
+                            disabled={false}
+                            min={0} max={1} step={0.01} marks={sliderMarks}
+                            onChange={(value) => this.props.setRotation(value)}
+                            value={this.props.rotation}/>
                 </div>
                 <div className="planet-legend">
                     {
@@ -66,11 +87,13 @@ const mapStateToProps = state => {
         overallStatus: state.planet.overallStatus,
         coordsInProgress: state.planet.coordsInProgress,
         numExplored: state.planet.numExplored,
-        numReconDroids: numReconDroids(state)
+        numReconDroids: numReconDroids(state),
+        rotation: state.planet.rotation,
+        // sunTracking: state.planet.sunTracking
     }
 };
 
 export default connect(
     mapStateToProps,
-    {}
+    { setRotation, setSunTracking }
 )(Planet);

@@ -274,5 +274,9 @@ export function getNetResourceRates(state) {
 }
 
 export function planetMapImage(state) {
-    return generateImage(state.planet.map, fromClock.fractionOfDay(state.clock));
+    return generateImage(
+        state.planet.map,
+        fromClock.fractionOfDay(state.clock),
+        state.planet.sunTracking ? undefined : state.planet.rotation
+    );
 }

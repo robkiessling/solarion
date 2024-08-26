@@ -29,8 +29,8 @@ WIND_SPEEDS.forEach((speed, index) => {
     }
 })
 
-const DAY_LENGTH = 30; // How long (in real time seconds) a day should last
-const STARTING_TOD_FRACTION = 0.25; // Start first day at 6am
+const DAY_LENGTH = 120; // How long (in real time seconds) a day should last
+const STARTING_TOD_FRACTION = 0.25;
 const STARTING_TOD_SECONDS = DAY_LENGTH * STARTING_TOD_FRACTION;
 
 // Initial State

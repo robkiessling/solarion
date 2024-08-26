@@ -149,8 +149,10 @@ $top-bar-float-padding: 0.875rem;
     flex-direction: column;
   }
 
-  .twilight { opacity: 0.4; }
-  .darkness { opacity: 0.2; }
+  .twilight-day { opacity: 0.6; }
+  .twilight-night { opacity: 0.4; }
+  .night { opacity: 0.2; }
+
   .home { color: #20d9ff; }
   .mountain { color: #6b2b2b; }
   .flatland { color: #cc7171; }

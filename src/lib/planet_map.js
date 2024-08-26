@@ -29,8 +29,13 @@ export const NUM_SECTORS = PLANET_ROW_LENGTHS.reduce((a, b) => a + b, 0);
 // If false, rows can move independently (looks better at high rotation rates, but at low rates it can be jarring)
 const DISCRETE_ROTATION = true;
 
-const TWILIGHT_PCT = 0.7; // Section of planet to shade as twilight
-const DARKNESS_PCT = 0.85; // Section of planet to shade as darkness
+const HOME_FRACTION = 0.75; // Defining home to be 75% of the way into planet, this way it lines up with 50% on slider
+const NIGHT_WIDTH = 0.4; // How much of the planet night should occupy
+const SUN_TRACKING_INSET = 0.15; // How much to offset rotation when sunTracking is enabled, so that you can see a little twilight
+const TWILIGHT_LENGTH = 0.03; // How much each twilight region should take up
+
+const NIGHT_START = mod(HOME_FRACTION - NIGHT_WIDTH / 2, 1); // Fraction start of night window
+const NIGHT_END = mod(HOME_FRACTION + NIGHT_WIDTH / 2, 1); // Fraction end of night window
 
 const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const HOME_STARTING_ROW_RANGE = [3, 7];
@@ -38,12 +43,24 @@ const HOME_STARTING_ROW_RANGE = [3, 7];
 const NUM_MOUNTAIN_RANGES_RANGE = [8, 10];
 const MOUNTAIN_RANGE_SIZE_RANGE = [1, 10];
 
+const SHOW_DEBUG_MERIDIANS = true;
+
 export const TERRAINS = {
     home: { key: 'home', enum: 0, display: '@', className: 'home', label: 'Command Center' },
     flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland', exploreLength: 1 }, // Can be developed for mining
     developed: { key: 'developed', enum: 2, display: '+', className: 'developed', label: 'Developed' },
     mountain: { key: 'mountain', enum: 3, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
 }
+
+if (SHOW_DEBUG_MERIDIANS) {
+    _.merge(TERRAINS, {
+        m0: { key: 'm0', enum: 100, display: '0', exploreLength: 1 },
+        m1: { key: 'm1', enum: 101, display: '1', exploreLength: 1 },
+        m2: { key: 'm2', enum: 102, display: '2', exploreLength: 1 },
+        m3: { key: 'm3', enum: 103, display: '3', exploreLength: 1 },
+    })
+}
+
 const TERRAINS_BY_ENUM = {};
 for (const [key, attributes] of Object.entries(TERRAINS)) {
     TERRAINS_BY_ENUM[attributes.enum] = attributes;
@@ -68,11 +85,32 @@ export function generateRandomMap() {
     });
 
     addMountainRanges(map);
+
+    if (SHOW_DEBUG_MERIDIANS) {
+        generateDebugMeridians(map);
+    }
+
     const homeCoord = addHomeBase(map);
 
     cacheDistancesToHome(map, homeCoord);
     
     return map;
+}
+
+function generateDebugMeridians(map, numMeridians = 4) {
+    PLANET_ROW_LENGTHS.forEach((rowLength, rowIndex) => {
+        let meridians = [];
+        for (let colIndex = 0; colIndex < numMeridians; colIndex++) {
+            meridians.push(Math.floor(rowLength * colIndex / numMeridians));
+        }
+
+        for (let colIndex = 0; colIndex < rowLength; colIndex++) {
+            let meridianIndex = meridians.indexOf(colIndex);
+            if (meridianIndex !== -1) {
+                map[rowIndex][colIndex] = createSector(TERRAINS[`m${meridianIndex}`], STATUSES.explored);
+            }
+        }
+    });
 }
 
 function createSector(terrain, status) {
@@ -130,7 +168,8 @@ function addMountainRange(map, size, startingRow, startingCol) {
 
 function addHomeBase(map) {
     const homeRow = getRandomIntInclusive(...HOME_STARTING_ROW_RANGE);
-    const homeCol = Math.round((TWILIGHT_PCT - 0.1) * PLANET_ROW_LENGTHS[homeRow]); // So home leaves twilight at ~6am
+    // const homeCol = Math.round((TWILIGHT_PCT - 0.1) * PLANET_ROW_LENGTHS[homeRow]); // So home leaves twilight at ~6am
+    const homeCol = Math.floor(0.75 * PLANET_ROW_LENGTHS[homeRow]);
 
     // Always have a mountain near to base (so matches scenery)
     addMountainRange(map, 5, homeRow, homeCol);
@@ -263,18 +302,29 @@ export function numCoordsWithStatus(map, status) {
     return count;
 }
 
-export function generateImage(map, fractionOfDay) {
-    // fractionOfDay = 0.4 // For debugging (center on command center)
-
+export function generateImage(map, fractionOfDay, cameraRotation) {
+    let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
+    let nightEnd = (fractionOfDay + NIGHT_END) % 1;
     let percentRotated;
 
-    if (DISCRETE_ROTATION) {
-        // where the prime meridian currently is (value of 0 means it is on the left-most side of planet)
-        const primeMeridianIndex = Math.floor(fractionOfDay * WIDEST_PLANET_ROW);
-        percentRotated = primeMeridianIndex / WIDEST_PLANET_ROW;
+    if (cameraRotation === undefined) {
+        // sunTracking is enabled
+
+        if (DISCRETE_ROTATION) {
+            // primeMeridianIndex is where the prime meridian currently is (value of 0 means it is on the left-most side of planet)
+            const primeMeridianIndex = Math.floor(fractionOfDay * WIDEST_PLANET_ROW);
+            percentRotated = primeMeridianIndex / WIDEST_PLANET_ROW;
+        }
+        else {
+            percentRotated = fractionOfDay;
+        }
+
+        percentRotated = mod(percentRotated + SUN_TRACKING_INSET, 1);
+        // console.log(percentRotated);
     }
     else {
-        percentRotated = fractionOfDay;
+        // No sunTracking; rotate according to user input
+        percentRotated = cameraRotation;
     }
 
     // Flicker tiles that are being explored by showing/hiding a border around it
@@ -285,20 +335,19 @@ export function generateImage(map, fractionOfDay) {
 
     return map.map((planetRow, rowIndex) => {
         const planetRowLength = PLANET_ROW_LENGTHS[rowIndex];
-        const displayRowLength = DISPLAY_ROW_LENGTHS[rowIndex]
+        const displayRowLength = DISPLAY_ROW_LENGTHS[rowIndex];
 
-        const startIndex = Math.floor(percentRotated * planetRowLength);
-        const endIndex = (startIndex + displayRowLength) % planetRowLength;
+        // Cache what index of the planet the sector is at (once we slice it later into a displayRow we can't get this anymore)
+        planetRow = planetRow.map((sector, planetColIndex) => {
+            return Object.assign({}, sector, { planetColIndex: planetColIndex })
+        });
 
-        let displayRow;
-        if (startIndex < endIndex) {
-            displayRow = planetRow.slice(startIndex, endIndex);
-        }
-        else {
-            displayRow = planetRow.slice(startIndex, planetRowLength).concat(planetRow.slice(0, endIndex));
-        }
+        const displayStart = Math.floor(percentRotated * planetRowLength);
+        const displayEnd = (displayStart + displayRowLength) % planetRowLength;
+        let displayRow = displayStart < displayEnd ? planetRow.slice(displayStart, displayEnd) :
+            planetRow.slice(displayStart, planetRowLength).concat(planetRow.slice(0, displayEnd));
 
-        displayRow = displayRow.map((sector, colIndex) => {
+        displayRow = displayRow.map((sector, displayColIndex) => {
             let char, className;
 
             if (sector.status === STATUSES.unknown.enum) {
@@ -315,8 +364,12 @@ export function generateImage(map, fractionOfDay) {
                 className += ' exploring'
             }
 
-            if (colIndex >= TWILIGHT_PCT * displayRowLength) { className += ' twilight'; }
-            if (colIndex >= DARKNESS_PCT * displayRowLength) { className += ' darkness'; }
+            // How far into the planet length the sector is
+            const planetFraction = sector.planetColIndex / planetRowLength;
+            const lightClass =
+                getTwilightClass(planetFraction, nightStart, nightEnd) ||
+                getNightClass(planetFraction, nightStart, nightEnd);
+            className += ` ${lightClass}`;
 
             return {
                 char: char,
@@ -330,3 +383,75 @@ export function generateImage(map, fractionOfDay) {
     });
 }
 
+// There are 2 levels of twilight: a darker section is shaded towards night and a lighter section is shaded towards day.
+function getTwilightClass(planetFraction, nightStart, nightEnd) {
+    /**
+     * nightStart is the meridian at the boundary between day and night, when night is to the right:
+     *   .-----.
+     *  /   |XXX\       The | line in the middle is nightStart, where X represents nighttime
+     *  \   |XXX/
+     *   `-----`
+     * If we are within range to the left, we shade it lighter. If within range to the right, shade it darker:
+     */
+    console.log(nightStart - TWILIGHT_LENGTH, nightStart)
+    if (isWithinRange(planetFraction, [nightStart - TWILIGHT_LENGTH, nightStart])) {
+        return 'twilight-day';
+    }
+    if (isWithinRange(planetFraction, [nightStart, nightStart + TWILIGHT_LENGTH])) {
+        return 'twilight-night';
+    }
+
+    /**
+     * nightEnd is the meridian at the boundary between day and night, when night is to the left:
+     *   .-----.
+     *  /XXX|   \       The | line in the middle is nightEnd, where X represents nighttime
+     *  \XXX|   /
+     *   `-----`
+     * If we are within range to the left, we shade it darker. If within range to the right, shade it lighter:
+     */
+    if (isWithinRange(planetFraction, [nightEnd - TWILIGHT_LENGTH, nightEnd])) {
+        return 'twilight-night';
+    }
+    if (isWithinRange(planetFraction, [nightEnd, nightEnd + TWILIGHT_LENGTH])) {
+        return 'twilight-day';
+    }
+
+    return ''
+}
+
+
+function getNightClass(planetFraction, nightStart, nightEnd) {
+    if (nightStart <= nightEnd) {
+        if (planetFraction >= nightStart && planetFraction < nightEnd) {
+            return 'night';
+        }
+    }
+    else {
+        if (planetFraction >= nightStart || planetFraction < nightEnd) {
+            return 'night';
+        }
+    }
+
+    return '';
+}
+
+function isWithinRange(planetFraction, range) {
+    let [rangeStart, rangeEnd] = range;
+    
+    if (rangeStart < 0 || rangeEnd > 1) {
+        // range wraps around planet endpoints; have to use modulo
+        rangeStart = mod(rangeStart, 1);
+        rangeEnd = mod(rangeEnd, 1);
+
+        if (planetFraction >= rangeStart || planetFraction <= rangeEnd) {
+            return true;
+        }
+    }
+    else {
+        if (planetFraction >= rangeStart && planetFraction <= rangeEnd) {
+            return true;
+        }
+    }
+
+    return false;
+}
