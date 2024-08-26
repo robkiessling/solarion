@@ -32,8 +32,7 @@ class Planet extends React.Component {
                 <div className="exploration-status">
                     <span>~~ Exploration ~~</span>
                     <span>
-                        Sectors: {this.props.numExplored} / {NUM_SECTORS}
-                        ({roundToDecimal(this.props.numExplored / NUM_SECTORS * 100, 1)}%)
+                        Planet: {roundToDecimal(this.props.numExplored / NUM_SECTORS * 100, 1)}% explored
                     </span>
                     <span>Recon Droids: {this.props.numReconDroids}</span>
                     <span>Status: {this.props.overallStatus}</span>

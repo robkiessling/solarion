@@ -34,6 +34,7 @@ const DARKNESS_PCT = 0.85; // Section of planet to shade as darkness
 
 const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const HOME_STARTING_ROW_RANGE = [3, 7];
+// const HOME_STARTING_ROW_RANGE = [5, 5]; // Leaving dead center otherwise first 3x3 explored area gets stretched poorly
 const NUM_MOUNTAIN_RANGES_RANGE = [8, 10];
 const MOUNTAIN_RANGE_SIZE_RANGE = [1, 10];
 
@@ -67,7 +68,9 @@ export function generateRandomMap() {
     });
 
     addMountainRanges(map);
-    addHomeBase(map);
+    const homeCoord = addHomeBase(map);
+
+    cacheDistancesToHome(map, homeCoord);
     
     return map;
 }
@@ -113,14 +116,14 @@ function addMountainRange(map, size, startingRow, startingCol) {
 
         // Move towards the randomly chosen direction
         switch(direction) {
-            case 'N': currentCoord = getCoordAtOffset(currentCoord, -1, 0); break;
-            case 'NE': currentCoord = getCoordAtOffset(currentCoord, -1, 1); break;
-            case 'E': currentCoord = getCoordAtOffset(currentCoord, 0, 1); break;
-            case 'SE': currentCoord = getCoordAtOffset(currentCoord, 1, 1); break;
-            case 'S': currentCoord = getCoordAtOffset(currentCoord, 1, 0); break;
-            case 'SW': currentCoord = getCoordAtOffset(currentCoord, 1, -1); break;
-            case 'W': currentCoord = getCoordAtOffset(currentCoord, 0, -1); break;
-            case 'NW': currentCoord = getCoordAtOffset(currentCoord, -1, -1); break;
+            case 'N': currentCoord = getCoordAtOffset(currentCoord, -1, 0) || currentCoord; break;
+            case 'NE': currentCoord = getCoordAtOffset(currentCoord, -1, 1) || currentCoord; break;
+            case 'E': currentCoord = getCoordAtOffset(currentCoord, 0, 1) || currentCoord; break;
+            case 'SE': currentCoord = getCoordAtOffset(currentCoord, 1, 1) || currentCoord; break;
+            case 'S': currentCoord = getCoordAtOffset(currentCoord, 1, 0) || currentCoord; break;
+            case 'SW': currentCoord = getCoordAtOffset(currentCoord, 1, -1) || currentCoord; break;
+            case 'W': currentCoord = getCoordAtOffset(currentCoord, 0, -1) || currentCoord; break;
+            case 'NW': currentCoord = getCoordAtOffset(currentCoord, -1, -1) || currentCoord; break;
         }
     }
 }
@@ -129,20 +132,55 @@ function addHomeBase(map) {
     const homeRow = getRandomIntInclusive(...HOME_STARTING_ROW_RANGE);
     const homeCol = Math.round((TWILIGHT_PCT - 0.1) * PLANET_ROW_LENGTHS[homeRow]); // So home leaves twilight at ~6am
 
-    addMountainRange(map, 5, homeRow, homeCol); // Always have a mountain near to base (so matches scenery)
+    // Always have a mountain near to base (so matches scenery)
+    addMountainRange(map, 5, homeRow, homeCol);
 
+    // Add home
     map[homeRow][homeCol] = createSector(TERRAINS.home, STATUSES.explored);
+
+    // Explore adjacent sectors to base
+    getAdjacentCoords([homeRow, homeCol]).forEach(([row, col]) => {
+        map[row][col].status = STATUSES.explored.enum
+    });
+
+    return [homeRow, homeCol]
+}
+
+function getAdjacentCoords(coord) {
+    return [
+        [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1]
+    ].map(([row, col]) => getCoordAtOffset(coord, row, col)).filter(coord => coord !== null)
+}
+
+// Returns an array of all unknown coordinates adjacent to an explored coord
+function getAdjacentUnknownCoords(map) {
+    const adjCoords = [];
+
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            if (sector.status === STATUSES.explored.enum) {
+                getAdjacentCoords([rowIndex, colIndex]).forEach(coord => {
+                    if (map[coord[0]][coord[1]].status === STATUSES.unknown.enum) {
+                        adjCoords.push(coord);
+                    }
+                })
+            }
+        });
+    });
+
+    return _.uniqWith(adjCoords, _.isEqual);
 }
 
 function getCoordAtOffset(startingCoord, rowOffset, colOffset) {
     let newRow = startingCoord[0] + rowOffset;
-    newRow = Math.max(newRow, 0); // Do not pass north edge
-    newRow = Math.min(newRow, NUM_PLANET_ROWS - 1); // Do not pass south edge
+    if (newRow < 0 || newRow >= NUM_PLANET_ROWS) {
+        return null; // Cannot pass north/south edge
+    }
 
     // Because planet is rounded, each row can have a different number of columns. So when moving north/south,
     // have to take into account this planet curvature
-    let startingColWithOffset = startingCoord[1] + (WIDEST_PLANET_ROW - PLANET_ROW_LENGTHS[startingCoord[0]]) / 2;
-    let newCol = startingColWithOffset - (WIDEST_PLANET_ROW - PLANET_ROW_LENGTHS[newRow]) / 2;
+    let startingColAdjusted = startingCoord[1] + (WIDEST_PLANET_ROW - PLANET_ROW_LENGTHS[startingCoord[0]]) / 2;
+    let newCol = startingColAdjusted - (WIDEST_PLANET_ROW - PLANET_ROW_LENGTHS[newRow]) / 2;
 
     // Column can wrap around from last index to first
     newCol = mod(newCol + colOffset, PLANET_ROW_LENGTHS[newRow]);
@@ -150,19 +188,57 @@ function getCoordAtOffset(startingCoord, rowOffset, colOffset) {
     return [newRow, newCol];
 }
 
-// Find an unknown sector adjacent to current explored area
-export function getNextExplorableSector(map) {
-    let sectorRowIndex, sectorColIndex;
+function getDistanceBetweenCoords(coord1, coord2) {
+    const coord1Row = coord1[0];
+    const coord2Row = coord2[0];
+    const rowOffset = Math.abs(coord2Row - coord1Row);
+
+    const coord1Col = coord1[1] + (WIDEST_PLANET_ROW - PLANET_ROW_LENGTHS[coord1Row]) / 2;
+    const coord2Col = coord2[1] + (WIDEST_PLANET_ROW - PLANET_ROW_LENGTHS[coord2Row]) / 2;
+    const standardColOffset = Math.abs(coord2Col - coord1Col);
+
+    const longerRowLength = Math.max(PLANET_ROW_LENGTHS[coord1Row], PLANET_ROW_LENGTHS[coord2Row]);
+    const altColOffset = longerRowLength - standardColOffset;
+    const colOffset = Math.min(standardColOffset, altColOffset);
+
+    // This is not the same as triangular distance (sqrt(a^2 + b^2)); we have to weigh the row distance more heavily
+    // because text characters are taller than they are wide. No need to sqrt because we just care about distance ratios
+    return rowOffset**(1.5) + colOffset;
+}
+
+function cacheDistancesToHome(map, homeCoord) {
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
-            if (sectorRowIndex === undefined && sector.status === STATUSES.unknown.enum) {
-                sectorRowIndex = rowIndex;
-                sectorColIndex = colIndex;
+            sector.distanceHome = getDistanceBetweenCoords(homeCoord, [rowIndex, colIndex]);
+        });
+    });
+}
+
+// Find an unknown sector adjacent to current explored area
+export function getNextExplorableSector(map) {
+    // --- Finds any adjacent unexplored space (purely random searching)
+    // const coord = getRandomFromArray(getAdjacentUnknownCoords(map))
+    // return coord === undefined ? [undefined, undefined] : coord;
+
+    // --- Finds closest unexplored space to home
+    let minDistance;
+    let closestCoords = [];
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            if (sector.status === STATUSES.unknown.enum) {
+                const distance = sector.distanceHome;
+                if (minDistance === undefined || distance < minDistance) {
+                    minDistance = distance;
+                    closestCoords = [[rowIndex, colIndex]];
+                }
+                else if (distance === minDistance) {
+                    closestCoords.push([rowIndex, colIndex]);
+                }
             }
         });
     });
-
-    return [sectorRowIndex, sectorColIndex];
+    const coord = getRandomFromArray(closestCoords);
+    return coord === undefined ? [undefined, undefined] : coord;
 }
 
 export function mapIsFullyExplored(map) {
@@ -188,6 +264,8 @@ export function numCoordsWithStatus(map, status) {
 }
 
 export function generateImage(map, fractionOfDay) {
+    // fractionOfDay = 0.4 // For debugging (center on command center)
+
     let percentRotated;
 
     if (DISCRETE_ROTATION) {
