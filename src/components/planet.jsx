@@ -45,7 +45,7 @@ class Planet extends React.Component {
                     }
                 </div>
                 <div className="exploration-status">
-                    <span className='justify-center'>~~ Exploration ~~</span>
+                    <span className='justify-center'>~~ Planet ~~</span>
                     <span className="key-value-pair">
                         <span>Explored:</span>
                         <span>{roundToDecimal(this.props.percentExplored, 2).toFixed(2)}%</span>

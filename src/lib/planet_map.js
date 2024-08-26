@@ -33,7 +33,7 @@ export const NUM_SECTORS = PLANET_ROW_LENGTHS.reduce((a, b) => a + b, 0);
 const DISCRETE_ROTATION = true;
 
 const HOME_FRACTION = 0.75; // Defining home to be 75% of the way into planet, this way it lines up with 50% on slider
-const NIGHT_WIDTH = 0.4; // How much of the planet night should occupy
+const NIGHT_WIDTH = 0.45; // How much of the planet night should occupy
 const SUN_TRACKING_INSET = 0.15; // How much to offset rotation when sunTracking is enabled, so that you can see a little twilight
 const TWILIGHT_LENGTH = 0.03; // How much each twilight region should take up
 
@@ -49,6 +49,7 @@ const MOUNTAIN_RANGE_SIZE_RANGE = [1, 10];
 const SHOW_DEBUG_MERIDIANS = false;
 
 const EXPLORATION_TIME_FACTOR = 10; // The fastest area takes this amount of time to explore
+const START_WITH_ADJ_EXPLORED = false;
 
 export const TERRAINS = {
     home: { key: 'home', enum: 0, display: '@', className: 'home', label: 'Command Center' },
@@ -182,9 +183,11 @@ function addHomeBase(map) {
     map[homeRow][homeCol] = createSector(TERRAINS.home, STATUSES.explored);
 
     // Explore adjacent sectors to base
-    getAdjacentCoords([homeRow, homeCol]).forEach(([row, col]) => {
-        map[row][col].status = STATUSES.explored.enum
-    });
+    if (START_WITH_ADJ_EXPLORED) {
+        getAdjacentCoords([homeRow, homeCol]).forEach(([row, col]) => {
+            map[row][col].status = STATUSES.explored.enum
+        });
+    }
 
     return [homeRow, homeCol]
 }

@@ -29,7 +29,7 @@ WIND_SPEEDS.forEach((speed, index) => {
     }
 })
 
-const DAY_LENGTH = 120; // How long (in real time seconds) a day should last
+const DAY_LENGTH = 30; // How long (in real time seconds) a day should last
 const STARTING_TOD_FRACTION = 0.25;
 const STARTING_TOD_SECONDS = DAY_LENGTH * STARTING_TOD_FRACTION;
 
@@ -88,12 +88,12 @@ export function dayNumber(state) {
 // duration (fraction of day), label, % daylight
 const TIME_PERIODS = [
     [5/24, 'Night', 0],
-    [2/24, 'Dawn', 0.25],
-    [4/24, 'Morning', 0.5],
-    [5/24, 'Midday', 1],
-    [3/24, 'Afternoon', 0.75],
-    [2/24, 'Dusk', 0.25],
-    [3/24, 'Night', 0]
+    [1/24, 'Dawn', 0.25], // 5 - 6
+    [4/24, 'Morning', 0.5], // 6 - 10
+    [4/24, 'Midday', 1], // 10 - 2
+    [4/24, 'Afternoon', 0.75], // 2 - 6
+    [1/24, 'Dusk', 0.25], // 6 - 7
+    [5/24, 'Night', 0]
 ];
 
 // Make sure the fractions in the TIME_PERIODS constant add up to 1.0
