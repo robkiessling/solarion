@@ -176,61 +176,75 @@ export function buildStructure(id, amount) {
     }
 }
 
-export function canStartSector(state) {
+export function canStartExploringSector(state) {
     return fromResources.canConsume(state.resources, { reconDroids: 1 });
 }
 
-export function canAssignDroid(state, structure) {
-    return fromResources.canConsume(state.resources, { maintenanceDroids: 1 });
+// target is polymorphic: e.g. might be a structure or planet (for exploration)
+export function canAssignDroid(state, droidData) {
+    return fromResources.canConsume(state.resources, { standardDroids: 1 });
 }
-export function canRemoveDroid(state, structure) {
-    return structure.numDroids > 0;
+export function canRemoveDroid(state, droidData) {
+    return droidData.numDroidsAssigned > 0;
 }
 
-export function assignDroid(structureId) {
+export function assignDroid(droidData, targetId) {
     return function(dispatch, getState) {
-        const structure = fromStructures.getStructure(getState().structures, structureId);
-        if (canAssignDroid(getState(), structure)) {
-            dispatch(fromStructures.assignDroidUnsafe(structure));
+        if (canAssignDroid(getState(), droidData)) {
+            switch(droidData.droidAssignmentType) {
+                case 'structure':
+                    dispatch(fromStructures.assignDroidUnsafe(targetId));
+                    break;
+                case 'planet':
+                    dispatch(fromPlanet.assignDroidUnsafe());
+                    break;
+                default:
+                    console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
+            }
         }
     }
 }
-export function removeDroid(structureId) {
+
+export function removeDroid(droidData, targetId) {
     return function(dispatch, getState) {
-        const structure = fromStructures.getStructure(getState().structures, structureId);
-        if (canRemoveDroid(getState(), structure)) {
-            dispatch(fromStructures.removeDroidUnsafe(structure));
+        if (canRemoveDroid(getState(), droidData)) {
+            switch(droidData.droidAssignmentType) {
+                case 'structure':
+                    dispatch(fromStructures.removeDroidUnsafe(targetId));
+                    break;
+                case 'planet':
+                    dispatch(fromPlanet.removeDroidUnsafe());
+                    break;
+                default:
+                    console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
+            }
         }
     }
 }
 
-export function showDroidUI(state, structure) {
-    if (fromResources.getLifetimeQuantity(fromResources.getResource(state.resources, 'maintenanceDroids')) === 0) {
-        return false;
-    }
-
-    return structure.usesDroids;
+export function showDroidsUI(state) {
+    return fromResources.getLifetimeQuantity(fromResources.getResource(state.resources, 'standardDroids')) > 0;
 }
 
-// The maintenance droid resource amount goes up/down when droids are assigned to structures. To get the total
-// (deployed & undeployed) we sum the resource amount plus all the structure counts.
-export function numMaintenanceDroids(state) {
+export function showDroidsForStructure(state, structure) {
+    return showDroidsUI(state) && structure.droidData.usesDroids;
+}
+
+export function numStandardDroids(state) {
     let total = 0;
 
+    // Add in all droids assigned to structures
     fromStructures.iterateVisible(state.structures, structure => {
-        total += structure.numDroids;
+        total += structure.droidData.numDroidsAssigned;
     });
 
-    total += fromResources.getQuantity(fromResources.getResource(state.resources, 'maintenanceDroids'));
+    // Add in all droids assigned to planet (exploration)
+    total += state.planet.droidData.numDroidsAssigned;
+
+    // Add in unused droids
+    total += fromResources.getQuantity(fromResources.getResource(state.resources, 'standardDroids'));
 
     return total;
-}
-
-// The recon droid resource amount goes up/down when droids are sent to explore sectors. To get the total
-// we sum the resource amount plus all exploring sectors
-export function numReconDroids(state) {
-    return fromResources.getQuantity(fromResources.getResource(state.resources, 'reconDroids')) +
-        state.planet.coordsInProgress.length;
 }
 
 

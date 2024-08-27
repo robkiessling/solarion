@@ -6,7 +6,7 @@ import {
     hasInsufficientResources
 } from "../../redux/modules/structures";
 import { getStructure } from "../../redux/modules/structures";
-import {buildStructure, researchUpgrade, showDroidUI} from "../../redux/reducer";
+import {buildStructure, researchUpgrade, showDroidsForStructure} from "../../redux/reducer";
 
 import 'rc-slider/assets/index.css';
 import ResourceAmounts from "../ui/resource_amounts";
@@ -34,7 +34,8 @@ class Structure extends React.Component {
                 <div className="right-side">
                     <div className="header">
                         <span className="structure-name">{this.props.structure.name}</span>
-                        {this.props.isBuilt && this.props.showDroidUI && <DroidCount structure={this.props.structure} />}
+                        {this.props.isBuilt && this.props.showDroidsForStructure &&
+                            <DroidCount droidData={this.props.droidData} targetId={this.props.structure.id} />}
                     </div>
                     {/*<div className="description">*/}
                     {/*    {this.props.structure.description}*/}
@@ -88,7 +89,9 @@ const mapStateToProps = (state, ownProps) => {
         structure: structure,
         numBuilt: structure.count.total,
         isBuilt: structure.count.total > 0,
-        showDroidUI: showDroidUI(state, structure),
+
+        showDroidsForStructure: showDroidsForStructure(state, structure),
+        droidData: structure.droidData,
 
         production: getStatistic(structure, 'produces'),
         consumption: highlightCosts(state.resources, getStatistic(structure, 'consumes')),

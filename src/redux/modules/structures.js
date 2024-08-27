@@ -78,16 +78,20 @@ export default function reducer(state = initialState, action) {
         case ASSIGN_DROID:
             return update(state, {
                 byId: {
-                    [payload.structure.id]: {
-                        numDroids: { $apply: (x) => x + 1 }
+                    [payload.id]: {
+                        droidData: {
+                            numDroidsAssigned: { $apply: (x) => x + 1 }
+                        }
                     }
                 }
             });
         case REMOVE_DROID:
             return update(state, {
                 byId: {
-                    [payload.structure.id]: {
-                        numDroids: { $apply: (x) => x - 1 }
+                    [payload.id]: {
+                        droidData: {
+                            numDroidsAssigned: { $apply: (x) => x - 1 }
+                        }
                     }
                 }
             });
@@ -125,11 +129,11 @@ export function buildForFree(id, amount) {
     return withRecalculation({ type: BUILD_FOR_FREE, payload: { id, amount } });
 }
 
-export function assignDroidUnsafe(structure) {
-    return withRecalculation({ type: ASSIGN_DROID, payload: { structure } });
+export function assignDroidUnsafe(id) {
+    return withRecalculation({ type: ASSIGN_DROID, payload: { id } });
 }
-export function removeDroidUnsafe(structure) {
-    return withRecalculation({ type: REMOVE_DROID, payload: { structure } });
+export function removeDroidUnsafe(id) {
+    return withRecalculation({ type: REMOVE_DROID, payload: { id } });
 }
 
 export function turnOff(id) {

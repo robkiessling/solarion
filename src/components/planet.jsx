@@ -3,10 +3,11 @@ import {fractionOfDay} from "../redux/modules/clock";
 import {connect} from "react-redux";
 import {NUM_SECTORS, TERRAINS, STATUSES} from "../lib/planet_map";
 import {roundToDecimal} from "../lib/helpers";
-import {numReconDroids, planetMapImage} from "../redux/reducer";
+import {planetMapImage, showDroidsUI} from "../redux/reducer";
 import Slider from "rc-slider";
 import {percentExplored, setRotation, setSunTracking} from "../redux/modules/planet";
 import ReactSwitch from "react-switch";
+import DroidCount from "./structures/droid_count";
 
 class Planet extends React.Component {
     constructor(props) {
@@ -50,16 +51,18 @@ class Planet extends React.Component {
                         <span>Explored:</span>
                         <span>{roundToDecimal(this.props.percentExplored, 2).toFixed(2)}%</span>
                     </span>
-                    <span className="key-value-pair">
-                        <span>Recon Droids:</span>
-                        <span>{this.props.numReconDroids}</span>
-                    </span>
-                    <span className="key-value-pair">
-                        <span>Available Flatland:</span>
-                        <span>{this.props.numExploredFlatland}</span>
-                    </span>
 
-                    <br/>
+                    {/*<span className="key-value-pair">*/}
+                    {/*    <span>Available Flatland:</span>*/}
+                    {/*    <span>{this.props.numExploredFlatland}</span>*/}
+                    {/*</span>*/}
+
+                    <div className={'half-br'}></div>
+
+                    {this.props.showDroidsUI && <DroidCount droidData={this.props.droidData}/>}
+
+                    <div className={'half-br'}></div>
+
                     <span>Longitude:</span>
                     <Slider className={'range-slider'}
                             disabled={this.props.sunTracking}
@@ -76,6 +79,7 @@ class Planet extends React.Component {
                     </div>
                 </div>
                 <div className="planet-legend">
+                    <span className='justify-center'>~~ Legend ~~</span>
                     {
                         legend.map((attributes) => {
                             return <span key={attributes.key}>
@@ -103,7 +107,8 @@ const mapStateToProps = state => {
         overallStatus: state.planet.overallStatus,
         percentExplored: percentExplored(state.planet),
         numExploredFlatland: state.planet.numExploredFlatland,
-        numReconDroids: numReconDroids(state),
+        showDroidsUI: showDroidsUI(state),
+        droidData: state.planet.droidData,
         rotation: state.planet.rotation,
         sunTracking: state.planet.sunTracking
     }

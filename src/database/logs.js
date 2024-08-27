@@ -280,8 +280,8 @@ export default {
             dispatch(fromResources.learn('ore'));
             dispatch(fromResources.learn('vents'));
             dispatch(fromResources.learn('refinedMinerals'));
-            dispatch(fromResources.learn('maintenanceDroids'));
-            dispatch(fromResources.learn('reconDroids'));
+            dispatch(fromResources.learn('standardDroids'));
+
 
             dispatch(fromStructures.learn('harvester'));
             dispatch(fromStructures.buildForFree('harvester', 1));
@@ -300,8 +300,7 @@ export default {
             dispatch(fromUpgrades.discover('energyBay_largerCapacity'))
 
             dispatch(fromStructures.learn('droidFactory'));
-            dispatch(fromAbilities.learn('droidFactory_maintenanceDroid'));
-            dispatch(fromAbilities.learn('droidFactory_reconDroid'));
+            dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
 
             dispatch(fromResources.produce({
                 ore: 5000,
@@ -322,7 +321,7 @@ export default {
                 (state) => state.resources.byId.reconDroids,
                 (slice) => slice.amount > 0,
                 () => {
-                    dispatch(fromPlanet.startMap());
+                    dispatch(fromPlanet.startExploringMap());
                 }
             )
         }

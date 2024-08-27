@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import {canStartSector, recalculateState, withRecalculation} from "../reducer";
+import {canStartExploringSector, recalculateState, withRecalculation} from "../reducer";
 import {
     generateRandomMap,
     getNextExplorableSector,
@@ -13,11 +13,13 @@ import {roundToDecimal} from "../../lib/helpers";
 // Actions
 export const GENERATE_MAP = 'planet/GENERATE_MAP';
 export const PROGRESS = 'planet/PROGRESS';
-export const START_SECTOR = 'planet/START_SECTOR';
-export const FINISH_SECTOR = 'planet/FINISH_SECTOR';
-export const FINISH_MAP = 'planet/FINISH_MAP';
+export const START_EXPLORING_SECTOR = 'planet/START_EXPLORING_SECTOR';
+export const FINISH_EXPLORING_SECTOR = 'planet/FINISH_EXPLORING_SECTOR';
+export const FINISH_EXPLORING_MAP = 'planet/FINISH_EXPLORING_MAP';
 export const SET_ROTATION = 'planet/SET_ROTATION';
 export const SET_SUN_TRACKING = 'planet/SET_SUN_TRACKING';
+export const ASSIGN_DROID = 'planet/ASSIGN_DROID';
+export const REMOVE_DROID = 'planet/REMOVE_DROID';
 
 const OVERALL_MAP_STATUS = {
     unstarted: 'unstarted',
@@ -31,6 +33,10 @@ const initialState = {
     overallStatus: OVERALL_MAP_STATUS.unstarted,
     rotation: 0.5,
     sunTracking: false, // TODO need to fix twilight shading if going to use this
+    droidData: { // This object mirrors 'structure' format so they can be polymorphic
+        numDroidsAssigned: 0,
+        droidAssignmentType: 'planet'
+    },
 
     // The following caches store references/counts of various sectors within the map. They could be calculated at run-time
     // from the map variable, but to improve performance we cache the values here.
@@ -52,7 +58,7 @@ export default function reducer(state = initialState, action) {
                 numExplored: { $set: numSectorsMatching(map, STATUSES.explored.enum) },
                 numExploredFlatland: { $set: numSectorsMatching(map, STATUSES.explored.enum, TERRAINS.flatland.enum) }
             })
-        case START_SECTOR:
+        case START_EXPLORING_SECTOR:
             return update(state, {
                 overallStatus: { $set: OVERALL_MAP_STATUS.inProgress },
                 map: {
@@ -65,7 +71,7 @@ export default function reducer(state = initialState, action) {
                 },
                 coordsInProgress: { $push: [[payload.rowIndex, payload.colIndex]] }
             });
-        case FINISH_SECTOR:
+        case FINISH_EXPLORING_SECTOR:
             const sectorIsFlatland = state.map[payload.rowIndex][payload.colIndex].terrain === TERRAINS.flatland.enum
 
             return update(state, {
@@ -111,7 +117,7 @@ export default function reducer(state = initialState, action) {
                 }
             });
             return Object.assign({}, state, { map: newMap });
-        case FINISH_MAP:
+        case FINISH_EXPLORING_MAP:
             return update(state, {
                 overallStatus: { $set: OVERALL_MAP_STATUS.finished },
             })
@@ -123,6 +129,18 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 sunTracking: { $set: payload.value }
             })
+        case ASSIGN_DROID:
+            return update(state, {
+                droidData: {
+                    numDroidsAssigned: { $apply: (x) => x + 1 }
+                }
+            });
+        case REMOVE_DROID:
+            return update(state, {
+                droidData: {
+                    numDroidsAssigned: { $apply: (x) => x - 1 }
+                }
+            });
         default:
             return state;
     }
@@ -141,24 +159,31 @@ export function generateMap() {
     return { type: GENERATE_MAP };
 }
 
-export function startMap() {
+export function assignDroidUnsafe() {
+    return withRecalculation({ type: ASSIGN_DROID });
+}
+export function removeDroidUnsafe() {
+    return withRecalculation({ type: REMOVE_DROID });
+}
+
+export function startExploringMap() {
     return (dispatch, getState) => {
         const [rowIndex, colIndex] = getNextExplorableSector(getState().planet.map);
-        startSectorUnsafe(dispatch, rowIndex, colIndex);
+        startExploringSectorUnsafe(dispatch, rowIndex, colIndex);
     }
 }
 
-function finishMap() {
-    return { type: FINISH_MAP, payload: {} };
+function finishExploringMap() {
+    return { type: FINISH_EXPLORING_MAP, payload: {} };
 }
 
-function startSectorUnsafe(dispatch, rowIndex, colIndex) {
-    dispatch({ type: START_SECTOR, payload: { rowIndex, colIndex } })
+function startExploringSectorUnsafe(dispatch, rowIndex, colIndex) {
+    dispatch({ type: START_EXPLORING_SECTOR, payload: { rowIndex, colIndex } })
     dispatch(recalculateState());
 }
 
-function finishSector(dispatch, rowIndex, colIndex) {
-    dispatch({ type: FINISH_SECTOR, payload: { rowIndex, colIndex } })
+function finishExploringSector(dispatch, rowIndex, colIndex) {
+    dispatch({ type: FINISH_EXPLORING_SECTOR, payload: { rowIndex, colIndex } })
     dispatch(recalculateState());
 }
 
@@ -175,19 +200,19 @@ export function planetTick(timeDelta) {
                 row.forEach((sector, colIndex) => {
                     if (sector.status === STATUSES.exploring.enum) {
                         if (sector.exploreProgress >= sector.exploreLength * 1000) {
-                            finishSector(dispatch, rowIndex, colIndex);
+                            finishExploringSector(dispatch, rowIndex, colIndex);
                         }
                     }
                 })
             });
 
             if (mapIsFullyExplored(getState().planet.map)) {
-                dispatch(finishMap());
+                dispatch(finishExploringMap());
             }
-            else if (canStartSector(getState())) {
+            else if (canStartExploringSector(getState())) {
                 const [nextRowIndex, nextColIndex] = getNextExplorableSector(getState().planet.map);
                 if (nextRowIndex !== undefined) {
-                    startSectorUnsafe(dispatch, nextRowIndex, nextColIndex)
+                    startExploringSectorUnsafe(dispatch, nextRowIndex, nextColIndex)
                 }
             }
         });

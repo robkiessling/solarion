@@ -31,15 +31,11 @@ export default {
         amount: 0,
         icon: 'icon-crystal-growth'
     }),
-    maintenanceDroids: _.merge({}, base, {
-        name: "Maintenance Droids",
+    standardDroids: _.merge({}, base, {
+        name: "Droids",
         amount: 0,
-        visible: false
-    }),
-    reconDroids: _.merge({}, base, {
-        name: "Recon Droids",
-        amount: 0,
-        visible: false
+        icon: 'icon-vintage-robot',
+        visible: true
     })
 };
 

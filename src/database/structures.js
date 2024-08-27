@@ -36,8 +36,12 @@ const base = {
     type: TYPES.generator,
     productionSuffix: null,
     consumptionSuffix: null,
-    usesDroids: false,
-    numDroids: 0
+
+    droidData: {
+        usesDroids: true,
+        numDroidsAssigned: 0,
+        droidAssignmentType: 'structure'
+    },
 }
 
 export default {
@@ -47,39 +51,39 @@ export default {
             " Less energy efficient at higher harvesting rates.",
         runnable: true,
         type: TYPES.consumer,
-        usesDroids: true
     }),
     solarPanel: _.merge({}, base, {
         name: "Solar Panel",
-        usesDroids: true
     }),
     windTurbine: _.merge({}, base, {
         name: "Wind Turbine",
-        usesDroids: true
     }),
     thermalVent: _.merge({}, base, {
         name: "Geothermal Vent",
-        usesDroids: true
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
-        usesDroids: true
     }),
     sensorTower: _.merge({}, base, {
         name: "Sensor Tower",
-        type: TYPES.consumer
+        type: TYPES.consumer,
+        droidData: {
+            usesDroids: false
+        }
     }),
     refinery: _.merge({}, base, {
         name: "Refinery",
         runnable: true,
         type: TYPES.consumer,
         description: "Converts ore into minerals.",
-        usesDroids: true
     }),
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
         description: "Constructs droids to improve production and explore the planet.",
-        type: TYPES.consumer
+        type: TYPES.consumer,
+        droidData: {
+            usesDroids: false
+        }
     })
 
 };
@@ -337,7 +341,7 @@ export function droidPerformanceBoost(state) {
 }
 
 function netDroidPerformanceBoost(state, structure) {
-    return 1 + (droidPerformanceBoost(state) * structure.numDroids);
+    return 1 + (droidPerformanceBoost(state) * structure.droidData.numDroidsAssigned);
 }
 
 // function applyUpgrade_OLD(state, upgradeId, inputValue) {

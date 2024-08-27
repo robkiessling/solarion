@@ -49,13 +49,15 @@ export default function reducer(state = initialState, action) {
         case fromAbilities.END_CAST:
             return produceReducer(state, fromAbilities.getAbilityProduction(payload.ability));
         case fromStructures.ASSIGN_DROID:
-            return consumeReducer(state, { maintenanceDroids: 1 })
+        case fromPlanet.ASSIGN_DROID:
+            return consumeReducer(state, { standardDroids: 1 })
         case fromStructures.REMOVE_DROID:
-            return produceReducer(state, { maintenanceDroids: 1 })
-        case fromPlanet.START_SECTOR:
-            return consumeReducer(state, { reconDroids: 1 })
-        case fromPlanet.FINISH_SECTOR:
-            return produceReducer(state, { reconDroids: 1 })
+        case fromPlanet.REMOVE_DROID:
+            return produceReducer(state, { standardDroids: 1 })
+        // case fromPlanet.START_EXPLORING_SECTOR: // todo
+        //     return consumeReducer(state, { reconDroids: 1 })
+        // case fromPlanet.FINISH_EXPLORING_SECTOR:
+        //     return produceReducer(state, { reconDroids: 1 })
         default:
             return state;
     }

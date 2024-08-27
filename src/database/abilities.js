@@ -1,5 +1,5 @@
 import {getResource} from "../redux/modules/resources";
-import {numMaintenanceDroids, numReconDroids} from "../redux/reducer";
+import {numStandardDroids} from "../redux/reducer";
 
 export const STATES = {
     ready: 0,
@@ -57,59 +57,36 @@ export default {
         }
     }),
 
-    droidFactory_maintenanceDroid: _.merge({}, base, {
-        name: 'Build Maintenance Droid',
+    droidFactory_buildStandardDroid: _.merge({}, base, {
+        name: 'Build Droid',
         structure: 'droidFactory',
-        description: "Maintenance droids can be assigned to structures, improving their performance.",
+        description: "Droids can be assigned to structures, improving their performance.",
         cost: {
             ore: 100,
             refinedMinerals: 10
         },
         produces: {
-            maintenanceDroids: 1
+            standardDroids: 1
         },
-        castTime: 0
-    }),
-    droidFactory_reconDroid: _.merge({}, base, {
-        name: 'Build Recon Droid',
-        structure: 'droidFactory',
-        description: "Recon droids search the planet's surface for resources.",
-        cost: {
-            ore: 100,
-            refinedMinerals: 10
-        },
-        produces: {
-            reconDroids: 1
-        },
-        castTime: 1,
+        castTime: 1
     }),
 };
 
 // These are not part of the stored state because they contain functions
 export const calculators = {
-    droidFactory_maintenanceDroid: {
+    droidFactory_buildStandardDroid: {
         cost: (state, ability) => ({
-            ore: 100 * (1.4)**(numMaintenanceDroids(state)),
-            refinedMinerals: 10 * (1.4)**(numMaintenanceDroids(state))
+            ore: 100 * (1.4)**(numStandardDroids(state)),
+            refinedMinerals: 10 * (1.4)**(numStandardDroids(state))
         }),
         displayInfo: (state, ability) => {
-            const total = numMaintenanceDroids(state);
-            const remaining = getResource(state.resources, 'maintenanceDroids').amount;
+            const total = numStandardDroids(state);
+            const remaining = getResource(state.resources, 'standardDroids').amount;
 
             if (total === 0) {
                 return `0 droid(s)`;
             }
-            return `${total - remaining} / ${total} droid(s) deployed`;
+            return `${total - remaining} / ${total} deployed`;
         }
     },
-    droidFactory_reconDroid: {
-        cost: (state, ability) => ({
-            ore: 100 * (1.4)**(numReconDroids(state)),
-            refinedMinerals: 10 * (1.4)**(numReconDroids(state))
-        }),
-        displayInfo: (state, ability) => {
-            const droids = numReconDroids(state);
-            return `${droids} droid(s)`;
-        }
-    }
 }
