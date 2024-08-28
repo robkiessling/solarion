@@ -47,8 +47,9 @@ const NUM_MOUNTAIN_RANGES_RANGE = [8, 10];
 const MOUNTAIN_RANGE_SIZE_RANGE = [1, 10];
 
 const SHOW_DEBUG_MERIDIANS = false;
+const ADD_MOUNTAINS = true;
 
-const EXPLORATION_TIME_FACTOR = 1; // The fastest area takes this amount of time to explore
+const EXPLORATION_TIME_FACTOR = 30; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = false;
 
 export const TERRAINS = {
@@ -90,7 +91,9 @@ export function generateRandomMap() {
         map.push(createArray(rowLength, () => createSector(TERRAINS.flatland, STATUSES.unknown)));
     });
 
-    addMountainRanges(map);
+    if (ADD_MOUNTAINS) {
+        addMountainRanges(map);
+    }
 
     if (SHOW_DEBUG_MERIDIANS) {
         generateDebugMeridians(map);
@@ -176,8 +179,10 @@ function addHomeBase(map) {
     const homeRow = getRandomIntInclusive(...HOME_STARTING_ROW_RANGE);
     const homeCol = Math.floor(HOME_FRACTION * PLANET_ROW_LENGTHS[homeRow]);
 
-    // Always have a mountain near to base (so matches scenery)
-    addMountainRange(map, 5, homeRow, homeCol);
+    if (ADD_MOUNTAINS) {
+        // Create a mountain range near to home (so it somewhat matches the scenery)
+        addMountainRange(map, 5, homeRow, homeCol);
+    }
 
     // Add home
     map[homeRow][homeCol] = createSector(TERRAINS.home, STATUSES.explored);

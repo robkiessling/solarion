@@ -176,11 +176,6 @@ export function buildStructure(id, amount) {
     }
 }
 
-export function canStartExploringSector(state) {
-    return fromResources.canConsume(state.resources, { reconDroids: 1 });
-}
-
-// target is polymorphic: e.g. might be a structure or planet (for exploration)
 export function canAssignDroid(state, droidData) {
     return fromResources.canConsume(state.resources, { standardDroids: 1 });
 }

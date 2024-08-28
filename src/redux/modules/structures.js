@@ -121,6 +121,7 @@ export function learn(id) {
 
 // "Unsafe" means this will build the structure regardless of whether we have enough resources; you should always
 // call canBuildStructure beforehand.
+// TODO Maybe we should remove all "unsafe" methods and build them straight into their normal methods?
 export function buildUnsafe(structure, amount) {
     return withRecalculation({ type: BUILD, payload: { structure, amount } });
 }

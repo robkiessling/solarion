@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import {canStartExploringSector, recalculateState, withRecalculation} from "../reducer";
+import {recalculateState, withRecalculation} from "../reducer";
 import {
     generateRandomMap,
     getNextExplorableSector,
@@ -27,6 +27,8 @@ const OVERALL_MAP_STATUS = {
     finished: 'finished',
 }
 
+const MAX_DROIDS_PER_SECTOR = 5;
+
 // Initial State
 const initialState = {
     map: [],
@@ -40,6 +42,7 @@ const initialState = {
 
     // The following caches store references/counts of various sectors within the map. They could be calculated at run-time
     // from the map variable, but to improve performance we cache the values here.
+    // TODO use https://github.com/reduxjs/reselect instead?
     coordsInProgress: [], // Coordinates of sectors that are in progress
     numExplored: 0, // Number of explored sectors
     numExploredFlatland: 0
@@ -91,32 +94,29 @@ export default function reducer(state = initialState, action) {
                 numExploredFlatland: { $apply: (x) => sectorIsFlatland ? x + 1 : x }
             });
         case PROGRESS:
-            if (state.overallStatus !== OVERALL_MAP_STATUS.inProgress) {
-                return state;
+            const updateParams = {
+                map: {}
             }
 
-            // Figure out which rows have a sector in progress. If a row does not have a sector in progress, it will
-            // simply be returned as is (avoids re-mapping the row into a new array))
-            const rowsIndexesInProgress = _.uniq(state.coordsInProgress.map(coord => coord[0]));
+            // Assign available droids to various sectors. E.g. if MAX_DROIDS_PER_SECTOR is 5, and there are 12 droids:
+            // - sector #1 gets 5 droids
+            // - sector #2 gets 5 droids
+            // - sector #3 gets 2 droids
+            let availableDroids = state.droidData.numDroidsAssigned;
+            const progressRate = payload.timeDelta * 1; // todo multiply by upgrades
+            state.coordsInProgress.forEach(coord => {
+                const numDroidsForSector = Math.min(availableDroids, MAX_DROIDS_PER_SECTOR);
+                availableDroids -= numDroidsForSector;
 
-            let newMap = state.map.map((row, rowIndex) => {
-                if (rowsIndexesInProgress.includes(rowIndex)) {
-                    return row.map(sector => {
-                        if (sector.status === STATUSES.exploring.enum) {
-                            return Object.assign({}, sector, {
-                                exploreProgress: sector.exploreProgress + payload.timeDelta
-                            });
-                        }
-                        else {
-                            return sector;
-                        }
-                    });
+                if (updateParams.map[coord[0]] === undefined) {
+                    updateParams.map[coord[0]] = {}
                 }
-                else {
-                    return row; // Do not need to re-map the row to a new array
+                updateParams.map[coord[0]][coord[1]] = {
+                    exploreProgress: { $apply: x => x + progressRate * numDroidsForSector }
                 }
             });
-            return Object.assign({}, state, { map: newMap });
+
+            return update(state, updateParams);
         case FINISH_EXPLORING_MAP:
             return update(state, {
                 overallStatus: { $set: OVERALL_MAP_STATUS.finished },
@@ -190,29 +190,32 @@ function finishExploringSector(dispatch, rowIndex, colIndex) {
 export function planetTick(timeDelta) {
     return (dispatch, getState) => {
         batch(() => {
-            dispatch({ type: PROGRESS, payload: { timeDelta } });
-
             if (getState().planet.overallStatus !== OVERALL_MAP_STATUS.inProgress) {
                 return;
             }
 
-            getState().planet.map.forEach((row, rowIndex) => {
-                row.forEach((sector, colIndex) => {
-                    if (sector.status === STATUSES.exploring.enum) {
-                        if (sector.exploreProgress >= sector.exploreLength * 1000) {
-                            finishExploringSector(dispatch, rowIndex, colIndex);
-                        }
-                    }
-                })
+            dispatch({ type: PROGRESS, payload: { timeDelta } });
+
+            getState().planet.coordsInProgress.forEach(coord => {
+                const sector = getState().planet.map[coord[0]][coord[1]];
+                if (sector.exploreProgress >= sector.exploreLength * 1000) {
+                    finishExploringSector(dispatch, coord[0], coord[1]);
+                }
             });
 
             if (mapIsFullyExplored(getState().planet.map)) {
                 dispatch(finishExploringMap());
             }
-            else if (canStartExploringSector(getState())) {
-                const [nextRowIndex, nextColIndex] = getNextExplorableSector(getState().planet.map);
-                if (nextRowIndex !== undefined) {
-                    startExploringSectorUnsafe(dispatch, nextRowIndex, nextColIndex)
+            else {
+                const numDroids = getState().planet.droidData.numDroidsAssigned;
+                const droidCapacity = getState().planet.coordsInProgress.length * MAX_DROIDS_PER_SECTOR;
+
+                if (numDroids > droidCapacity) {
+                    // If we're over capacity we're ready to start exploring a new sector
+                    const [nextRowIndex, nextColIndex] = getNextExplorableSector(getState().planet.map);
+                    if (nextRowIndex !== undefined) {
+                        startExploringSectorUnsafe(dispatch, nextRowIndex, nextColIndex)
+                    }
                 }
             }
         });

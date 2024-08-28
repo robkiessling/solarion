@@ -306,6 +306,7 @@ export default {
                 ore: 5000,
                 energy: 0,
                 refinedMinerals: 100,
+                standardDroids: 100
             }))
 
             dispatch(fromGame.addNavTab('outside'));
@@ -318,8 +319,8 @@ export default {
             dispatch(fromUpgrades.discover('windTurbine_yawDrive'))
 
             addTrigger(
-                (state) => state.resources.byId.reconDroids,
-                (slice) => slice.amount > 0,
+                (state) => state.planet.droidData,
+                (slice) => slice.numDroidsAssigned > 0,
                 () => {
                     dispatch(fromPlanet.startExploringMap());
                 }

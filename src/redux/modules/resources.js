@@ -54,10 +54,6 @@ export default function reducer(state = initialState, action) {
         case fromStructures.REMOVE_DROID:
         case fromPlanet.REMOVE_DROID:
             return produceReducer(state, { standardDroids: 1 })
-        // case fromPlanet.START_EXPLORING_SECTOR: // todo
-        //     return consumeReducer(state, { reconDroids: 1 })
-        // case fromPlanet.FINISH_EXPLORING_SECTOR:
-        //     return produceReducer(state, { reconDroids: 1 })
         default:
             return state;
     }

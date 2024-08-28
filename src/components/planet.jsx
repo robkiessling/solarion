@@ -57,6 +57,11 @@ class Planet extends React.Component {
                     {/*    <span>{this.props.numExploredFlatland}</span>*/}
                     {/*</span>*/}
 
+                    {/*<span className="key-value-pair">*/}
+                    {/*    <span>Overall:</span>*/}
+                    {/*    <span>{this.props.overallStatus}</span>*/}
+                    {/*</span>*/}
+
                     <div className={'half-br'}></div>
 
                     {this.props.showDroidsUI && <DroidCount droidData={this.props.droidData}/>}
