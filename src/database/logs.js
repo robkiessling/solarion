@@ -281,6 +281,7 @@ export default {
             dispatch(fromResources.learn('vents'));
             dispatch(fromResources.learn('refinedMinerals'));
             dispatch(fromResources.learn('standardDroids'));
+            dispatch(fromResources.learn('probes'));
 
 
             dispatch(fromStructures.learn('harvester'));
@@ -302,11 +303,13 @@ export default {
             dispatch(fromStructures.learn('droidFactory'));
             dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
 
+            dispatch(fromStructures.learn('probeFactory'));
+
             dispatch(fromResources.produce({
                 ore: 5000,
                 energy: 0,
                 refinedMinerals: 100,
-                standardDroids: 100
+                standardDroids: 5
             }))
 
             dispatch(fromGame.addNavTab('outside'));

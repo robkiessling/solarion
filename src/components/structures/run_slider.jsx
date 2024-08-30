@@ -1,6 +1,6 @@
 import React from "react";
 import Slider from "rc-slider";
-import {canRunStructure, getRunningRate, setRunningRate} from "../../redux/modules/structures";
+import {getRunningRate, setRunningRate} from "../../redux/modules/structures";
 import {connect} from "react-redux";
 
 class RunSlider extends React.Component {
@@ -17,7 +17,6 @@ class RunSlider extends React.Component {
         }
 
         return <Slider className={'range-slider'}
-                       disabled={!this.props.canRun}
                        min={0} max={1} step={0.01} marks={sliderMarks}
                        onChange={(value) => this.props.setRunningRate(this.props.structure.id, value)}
                        value={this.props.runningRate}/>;
@@ -30,7 +29,6 @@ const mapStateToProps = (state, ownProps) => {
     return {
         numBuilt: structure.count.total,
         runningRate: getRunningRate(structure),
-        canRun: true//canRunStructure(state, structure) // TODO Remove canRun code?
     }
 };
 

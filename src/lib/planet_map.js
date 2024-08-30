@@ -53,7 +53,7 @@ const EXPLORATION_TIME_FACTOR = 30; // The fastest area takes this amount of tim
 const START_WITH_ADJ_EXPLORED = false;
 
 export const TERRAINS = {
-    home: { key: 'home', enum: 0, display: 'T', className: 'home', label: 'Command Center' },
+    home: { key: 'home', enum: 0, display: '#', className: 'home', label: 'Command Center' },
     flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland', exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
     developed: { key: 'developed', enum: 2, display: '+', className: 'developed', label: 'Developed' },
     mountain: { key: 'mountain', enum: 3, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.

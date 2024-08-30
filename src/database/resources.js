@@ -36,7 +36,12 @@ export default {
         amount: 0,
         icon: 'icon-vintage-robot',
         visible: true
-    })
+    }),
+    probes: _.merge({}, base, {
+        name: "Probes",
+        amount: 0,
+        icon: 'icon-satellite',
+    }),
 };
 
 // These are not part of the stored state because they contain functions

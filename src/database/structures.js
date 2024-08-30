@@ -60,6 +60,9 @@ export default {
     }),
     thermalVent: _.merge({}, base, {
         name: "Geothermal Vent",
+        count: {
+            total: 10
+        }
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
@@ -80,11 +83,17 @@ export default {
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
         description: "Constructs droids to improve production and explore the planet.",
-        type: TYPES.consumer,
+        type: TYPES.generator,
         droidData: {
             usesDroids: false
         }
-    })
+    }),
+    probeFactory: _.merge({}, base, {
+        name: "Orbital Command Center",
+        description: "Manufactures and launches probes towards Solarion V.",
+        runnable: true,
+        type: TYPES.consumer,
+    }),
 
 };
 
@@ -150,9 +159,6 @@ export const calculators = {
                 return `(${round(variables.efficiency * 100)}% efficiency)`;
             }
         },
-        canRun: (state, structure) => {
-            return canConsume(state.resources, { energy: 1 });
-        }
     }),
     solarPanel: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
@@ -307,8 +313,8 @@ export const calculators = {
             energy: 10
         }),
         consumes: (state, structure) => ({
-            energy: 50 * getRunningRate(structure),
-            ore: 20 * getRunningRate(structure)
+            energy: 5 * getRunningRate(structure),
+            ore: 2 * getRunningRate(structure)
         }),
         consumptionSuffix: (state, structure, variables) => {
             if (hasInsufficientResources(structure)) {
@@ -322,16 +328,34 @@ export const calculators = {
             const topEndEfficiency = 0.75;
             const efficiency = 1 - (getRunningRate(structure) * (1 - topEndEfficiency))
             return {
-                refinedMinerals: 1 * getRunningRate(structure) * efficiency * netDroidPerformanceBoost(state, structure)
+                refinedMinerals: 2 * getRunningRate(structure) * efficiency * netDroidPerformanceBoost(state, structure)
             }
         },
-        canRun: (state, structure) => {
-            return canConsume(state.resources, { energy: 1, ore: 1 });
-        }
     }),
     droidFactory: _.merge({}, baseCalculator, {
 
     }),
+    probeFactory: _.merge({}, baseCalculator, {
+        cost: (state, structure) => ({
+            ore: 1,
+            energy: 10
+        }),
+        consumes: (state, structure) => ({
+            energy: 5 * getRunningRate(structure),
+            refinedMinerals: 1 * getRunningRate(structure)
+        }),
+        consumptionSuffix: (state, structure, variables) => {
+            if (hasInsufficientResources(structure)) {
+                return '<span class="text-red">(Insufficient)</span>';
+            }
+        },
+        produces: (state, structure) => {
+            return {
+                probes: 1 * getRunningRate(structure) * netDroidPerformanceBoost(state, structure)
+            }
+        },
+    })
+
 }
 
 export function droidPerformanceBoost(state) {

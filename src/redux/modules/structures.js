@@ -179,10 +179,6 @@ export function getRunningRate(structure) {
 export function isRunning(structure) {
     return structure.runnable ? (structure.runningRate > 0) : false;
 }
-export function canRunStructure(state, structure) {
-    return structure.runnable && calculators[structure.id].canRun &&
-        calculators[structure.id].canRun(state, structure);
-}
 export function getStatusMessage(structure) {
     switch(structure.status) {
         case STATUSES.normal:
