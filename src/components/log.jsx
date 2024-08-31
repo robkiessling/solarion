@@ -19,8 +19,9 @@ class Log extends React.Component {
     render() {
         return (
             <div className="log-container">
+                <div className="component-header">Terminal</div>
                 <div className="log" ref={this.logRef}>
-                    {
+                {
                         this.props.visibleSequenceIds.map((sequenceId, index) => {
                             return <LogSection sequenceId={sequenceId}
                                                key={sequenceId}

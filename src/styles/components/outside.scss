@@ -65,43 +65,11 @@ $top-bar-float-padding: 0.875rem;
 }
 
 
-.planet-status {
-  position: absolute;
-  //height: calc(100% - 3rem);
-  width: 17rem;
-  top: $top-bar-float-padding;
-  left: $top-bar-float-padding;
-  background: $ui-bg;
-  padding: 0.5rem;
-  box-sizing: border-box;
-  border: 3px solid $ui-border;
-
-  .planet-name {
-    font-size: 1rem;
-    font-weight: bold;
-    color: #20d9ff;
-  }
-}
-
-
-.resource-bar {
-  position: absolute;
-  //height: calc(100% - 3rem);
-  width: 20rem;
-  top: $top-bar-float-padding;
-  right: $top-bar-float-padding;
-
-  background: $ui-bg;
-  padding: 0.5rem;
-  box-sizing: border-box;
-  border: 3px solid $ui-border;
-}
-
-
 .navigation-tabs {
   position: absolute;
-  left: $top-bar-float-padding;
-  bottom: $top-bar-float-padding;
+  left: 50%;
+  transform: translateX(-50%);
+  top: $top-bar-float-padding;
 
   display: flex;
   padding: 0.5rem 0;

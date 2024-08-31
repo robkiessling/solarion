@@ -1,9 +1,9 @@
 import React from 'react';
 import { connect } from 'react-redux';
 
-import Resource from "./resource"
 import {getNetResourceRates} from "../redux/reducer";
 import {getCapacity, getQuantity} from "../redux/modules/resources";
+import ResourceRate from "./ui/resource_rate";
 
 class ResourceBar extends React.Component {
     constructor(props) {
@@ -12,20 +12,29 @@ class ResourceBar extends React.Component {
 
     render() {
         return (
-            <div className={`resource-bar ${this.props.visible ? '' : 'hidden'}`}>
-                {
-                    this.props.visibleIds.map((id) => {
-                        const resource = this.props.resources[id];
-                        return <Resource type={id} key={id}
-                                         rate={this.props.netResourceRates[id]}
-                                         name={resource.name}
-                                         icon={resource.icon}
-                                         colorRate={true}
-                                         quantity={getQuantity(resource)}
-                                         capacity={getCapacity(resource)}
-                        />
-                    })
-                }
+            <div className={`resource-bar ${this.props.visible ? '' : 'invisible'}`}>
+                <div className="component-header">Resources</div>
+                <table>
+                    <tbody>
+                    {
+                        this.props.visibleIds.map(id => {
+                            const resource = this.props.resources[id];
+                            const capacityText = getCapacity(resource) < Infinity ? `/${getCapacity(resource)}` : null;
+                            return <tr key={id}>
+                                <td width={'30%'}>
+                                    {resource.name}
+                                </td>
+                                <td width={'35%'}>
+                                    {Math.floor(getQuantity(resource))}{capacityText}<span className={resource.icon}/>
+                                </td>
+                                <td width={'35%'}>
+                                    <ResourceRate rate={this.props.netResourceRates[id]} colorRate={true} parenthesis={true}/>
+                                </td>
+                            </tr>
+                        })
+                    }
+                    </tbody>
+                </table>
             </div>
         );
     }

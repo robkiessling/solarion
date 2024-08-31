@@ -4,6 +4,7 @@
 @import 'components/computer';
 @import 'components/log';
 @import 'components/outside';
+@import 'components/planet_status';
 @import 'components/resources';
 @import 'components/structures';
 @import 'components/title';
@@ -11,13 +12,14 @@
 
 html, body, #app {
   height: 100%;
+  background: $ui-bg;
 }
 
 html {
   font-size: 16px;
 }
 
-.app {
+#app-container {
   background: $ui-bg;
   height: 100%;
   font-family: $font-family;
@@ -25,45 +27,24 @@ html {
   color: $ui-text;
 
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 
-  .top-row {
-    flex: 0 0 auto;
-
+  .left-column {
+    flex: 0 0 20rem;
+    display: flex;
+    flex-direction: column;
+  }
+  .right-column {
+    flex: 0 0 20rem;
+    display: flex;
+    flex-direction: column;
+  }
+  .center-column {
+    flex: 1 1 auto;
     display: flex;
     flex-direction: row;
     position: relative;
-
-    height: $outside-height;
-
-    box-sizing: border-box;
-    border: 10px ridge #485850;
   }
-
-  .bottom-row {
-    flex: 1 1 auto;
-
-    display: flex;
-    flex-direction: row;
-    overflow-y: hidden;
-
-    .left-column {
-      flex: 0 0 20rem;
-
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid $ui-border;
-    }
-    .right-column {
-      flex: 1 1 auto;
-
-      display: flex;
-      flex-direction: column;
-
-      overflow-y: auto;
-    }
-  }
-
 }
 
 .hidden {

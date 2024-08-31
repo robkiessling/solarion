@@ -199,7 +199,7 @@ export function getVisibleIds(state, type) {
     }
 
     return state.visibleIds.filter(id => {
-        return getStructure(state, id).type === TYPES[type];
+        return getStructure(state, id).type === type;
     });
 }
 

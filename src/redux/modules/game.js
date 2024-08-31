@@ -4,7 +4,6 @@ import {mod} from "../../lib/helpers";
 // Actions
 export const UPDATE_SETTING = 'game/UPDATE_SETTING';
 export const ADD_NAV_TAB = 'game/ADD_NAV_TAB';
-export const CHANGE_TAB = 'game/CHANGE_TAB';
 
 // Constants
 export const NAV_TAB_TITLES = {
@@ -20,7 +19,10 @@ const initialState = {
     showPlanetStatus: false,
     showResourceBar: false,
     visibleNavTabs: [],
-    currentNavTab: 'planet'
+    currentNavTab: 'outside',
+
+    showStructureTabs: false,
+    currentStructureTab: 'all',
 }
 
 // Reducers
@@ -36,10 +38,6 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 visibleNavTabs: { $push: [payload.tab] }
             });
-        case CHANGE_TAB:
-            return update(state, {
-                currentNavTab: { $set: getTabAtOffset(state, payload.offset) }
-            })
         default:
             return state;
     }
@@ -51,27 +49,4 @@ export function updateSetting(key, value) {
 
 export function addNavTab(tab) {
     return { type: ADD_NAV_TAB, payload: { tab } }
-}
-
-export function prevTabId(state) {
-    return getTabAtOffset(state, -1);
-}
-
-export function nextTabId(state) {
-    return getTabAtOffset(state, 1);
-}
-
-export function goToPrevTab() {
-    return { type: CHANGE_TAB, payload: { offset: -1 } }
-}
-export function goToNextTab() {
-    return { type: CHANGE_TAB, payload: { offset: 1 } }
-}
-
-function getTabAtOffset(state, offset) {
-    const currentTabIndex = state.visibleNavTabs.indexOf(state.currentNavTab);
-    const numTabs = state.visibleNavTabs.length;
-    const newIndex = mod(currentTabIndex + offset, numTabs);
-
-    return state.visibleNavTabs[newIndex];
 }

@@ -46,7 +46,7 @@ class Planet extends React.Component {
                     }
                 </div>
                 <div className="exploration-status">
-                    <span className='justify-center'>~~ Planet ~~</span>
+                    <span className='d-flex justify-center'>~~ Planet ~~</span>
                     <span className="key-value-pair">
                         <span>Explored:</span>
                         <span>{roundToDecimal(this.props.percentExplored, 2).toFixed(2)}%</span>
@@ -74,7 +74,7 @@ class Planet extends React.Component {
                             min={0} max={1} step={0.01} marks={sliderMarks}
                             onChange={(value) => this.props.setRotation(value)}
                             value={this.props.rotation}/>
-                    <div className={'justify-center'}>
+                    <div className={'d-flex justify-center'}>
                         <label className={'on-off-switch text-center'}>
                             <ReactSwitch checked={this.props.sunTracking} onChange={this.props.setSunTracking}
                                          checkedIcon={false} uncheckedIcon={false} height={12} width={24}
@@ -84,7 +84,7 @@ class Planet extends React.Component {
                     </div>
                 </div>
                 <div className="planet-legend">
-                    <span className='justify-center'>~~ Legend ~~</span>
+                    <span className='d-flex justify-center'>~~ Legend ~~</span>
                     {
                         legend.map((attributes) => {
                             return <span key={attributes.key}>

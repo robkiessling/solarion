@@ -3,6 +3,8 @@ import { connect } from 'react-redux';
 import Clock from "./clock";
 import {dayLength, dayNumber, fractionOfDay, surfaceTemperature, windSpeed} from "../redux/modules/clock";
 
+// TODO rename to CommandCenter?
+
 class PlanetStatus extends React.Component {
     constructor(props) {
         super(props);
@@ -10,13 +12,15 @@ class PlanetStatus extends React.Component {
 
     render() {
         return (
-            <div className={`planet-status ${this.props.visible ? '' : 'hidden'}`}>
-                <span className="planet-name">Command Center: XLJ-800</span><br/>
-                <Clock dayLength={this.props.dayLength}
-                       dayNumber={this.props.dayNumber}
-                       fractionOfDay={this.props.fractionOfDay} />
-                Temperature: {_.round(this.props.temperature)}°C<br/>
-                Wind: {_.round(this.props.windSpeed)} mph
+            <div className={`planet-status ${this.props.visible ? '' : 'invisible'}`}>
+                <div className="component-header">Command Center: XLJ-800</div>
+                <div>
+                    <Clock dayLength={this.props.dayLength}
+                           dayNumber={this.props.dayNumber}
+                           fractionOfDay={this.props.fractionOfDay} />
+                    Temperature: {_.round(this.props.temperature)}°C<br/>
+                    Wind: {_.round(this.props.windSpeed)} mph
+                </div>
             </div>
 
         );

@@ -3,6 +3,8 @@ import {batch, connect} from 'react-redux';
 import database from '../database/logs';
 import {endLogSequence, getLogData} from "../redux/modules/log";
 
+const DEBUG = true;
+
 class LogSection extends React.Component {
     constructor(props) {
         super(props);
@@ -83,6 +85,7 @@ class LogSection extends React.Component {
                 logSection.appendChild(node);
                 this.props.onUpdate();
                 let nextDelay = text[i][1];
+                if (DEBUG) { nextDelay /= 10; } // makes the log go 10x faster
 
                 i++;
                 if (i < len) {

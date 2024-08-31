@@ -12,23 +12,37 @@ import Planet from "./planet";
 export default class App extends React.Component {
     render() {
         return (
-            <div className="app">
-                <div className="top-row">
-                    <Outside/>
+            <div id="app-container">
+                <div className="left-column">
                     <PlanetStatus/>
                     <ResourceBar/>
-                    <NavigationTabs/>
+                    <Log/>
+                </div>
+                <div className="center-column">
+                    <Outside/>
                     <Planet/>
+                    <NavigationTabs/>
                 </div>
-                <div className="bottom-row">
-                    <div className="left-column">
-                        <Log/>
-                        <Computer/>
-                    </div>
-                    <div className="right-column">
-                        <Structures/>
-                    </div>
+                <div className="right-column">
+                    <Structures/>
                 </div>
+
+                {/*<div className="top-row">*/}
+                {/*    <Outside/>*/}
+                {/*    <PlanetStatus/>*/}
+                {/*    <ResourceBar/>*/}
+                {/*    <NavigationTabs/>*/}
+                {/*    <Planet/>*/}
+                {/*</div>*/}
+                {/*<div className="bottom-row">*/}
+                {/*    <div className="left-column">*/}
+                {/*        <Log/>*/}
+                {/*        <Computer/>*/}
+                {/*    </div>*/}
+                {/*    <div className="right-column">*/}
+                {/*        <Structures/>*/}
+                {/*    </div>*/}
+                {/*</div>*/}
             </div>
         );
     }

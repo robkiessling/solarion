@@ -1,56 +1,21 @@
 @import '../variables';
 
 .structures {
-  flex: 1 1 0;
+  flex: 1 1 auto; // so structure list can scroll when too long for page
+  overflow-y: auto;
 
   display: flex;
-  flex-direction: row;
-
-  .consumers, .generators {
-    flex: 1 1 0; // 2 equal width columns
-
-    display: flex;
-    flex-direction: column;
-
-    padding: $panel-padding;
-  }
-
-  .consumers {
-    border-right: 1px solid $ui-border;
-  }
-
+  flex-direction: column;
+  padding: $component-padding;
 
   .structure {
-    padding-bottom: $panel-padding;
-    margin-bottom: $panel-padding;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
     border-bottom: 1px solid $structure-border;
 
     display: flex;
-    flex-direction: row;
-    position: relative;
-
-    min-height: 7rem;
-
-    .left-side, .right-side {
-      display: flex;
-      flex-direction: column;
-    }
-    .left-side {
-      margin-right: 0.5rem;
-      flex-shrink: 0;
-
-      position: relative;
-      .build-count {
-        position: absolute;
-        top: 3px;
-        right: 4px;
-        font-size: 1rem;
-        color: #3ec0da;
-      }
-    }
-    .right-side {
-      flex: auto;
-    }
+    flex-direction: column;
+    //min-height: 5rem;
 
     .header {
       display: flex;
@@ -59,11 +24,24 @@
       font-size: 1rem;
 
       justify-content: space-between;
-
-      height: 1.5rem; // so height doesn't change when droid buttons are added
+      align-items: center;
+      margin-bottom: 0.5rem;
 
       .structure-name {
-        //color: #3ec0da;
+        color: $blue;
+
+        .build-count {
+          color: white;
+        }
+      }
+
+      .build-area {
+        display: flex;
+        align-items: center;
+
+        .build-button {
+          margin-left: 0.5rem;
+        }
       }
     }
 
@@ -92,22 +70,12 @@
           }
         }
       }
-    }
 
-    .build-area {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      font-size: 0.75rem;
-
-      //.build-count {
-      //  font-size: 1.5rem;
-      //}
-
-      button {
-        width: 100%;
+      .droid-count {
+        margin-top: 0.5rem;
       }
     }
+
 
     .range-slider {
       max-width: 15rem;
