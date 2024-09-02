@@ -7,6 +7,7 @@ $top-bar-float-padding: 0.875rem;
   position: relative;
   flex: 1 0 auto;
   background: $top-bar-background;
+  overflow: hidden;
 
   &.closed {
     .shutters {
@@ -38,9 +39,11 @@ $top-bar-float-padding: 0.875rem;
     transition: $shutter-transition;
 
     position: absolute;
+    left: 50%;
+    transform: translate(-50%, 0);
 
-    height: 100%;
-    width: 100%;
+    //height: 100%;
+    //width: 100%;
 
     overflow: hidden;
 
@@ -51,9 +54,11 @@ $top-bar-float-padding: 0.875rem;
     transition: $shutter-transition;
 
     position: absolute;
+    left: 50%;
+    transform: translate(-50%, 0);
 
-    height: 100%;
-    width: 100%;
+    //height: 100%;
+    //width: 100%;
 
     overflow: hidden;
 
@@ -69,7 +74,7 @@ $top-bar-float-padding: 0.875rem;
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  top: $top-bar-float-padding;
+  bottom: $top-bar-float-padding;
 
   display: flex;
   padding: 0.5rem 0;
@@ -152,4 +157,25 @@ $top-bar-float-padding: 0.875rem;
     //background: blue;
   }
 
+}
+
+#outside-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden; // sides (left/right) can get truncated based on screen size
+  background: $black;
+
+  canvas {
+
+
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+
+#outside-canvas {
+  //background: red;
+  //background: $black;
 }

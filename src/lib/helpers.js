@@ -108,3 +108,7 @@ export function createArray(size, defaultValue = null) {
 
     return array;
 }
+
+export function getDynamicValue(value, functionParams) {
+    return typeof value === 'function' ? value(...functionParams) : value;
+}

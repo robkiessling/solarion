@@ -1,6 +1,7 @@
 import React from 'react';
 
-import Outside from "./outside";
+// import Outside from "./outside";
+import Outside from "./outside__CANVAS";
 import Structures from "./structures";
 import ResourceBar from "./resource_bar";
 import Log from "./log";

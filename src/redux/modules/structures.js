@@ -203,6 +203,14 @@ export function getVisibleIds(state, type) {
     });
 }
 
+export function structureCounts(state) {
+    const result = {};
+    state.visibleIds.forEach(id => {
+        result[id] = getNumBuilt(getStructure(state, id));
+    });
+    return result;
+}
+
 // Gets statistics based on how many of the structures are built. Statistics can be any keys on the structure record.
 export function getStatistic(structure, statistic, forCount) {
     if (structure[statistic] === undefined) {

@@ -153,6 +153,11 @@ button {
     padding: 2px 4px;
     font-size: 0.875rem;
     border-radius: 2px;
+    //background: none;
+    //border: none;
+    //:before {
+    //  color: white;
+    //}
   }
 
   // If a button has a tip, we move the button text to an inner span (and that span will have the tip).
