@@ -203,10 +203,14 @@ export function getVisibleIds(state, type) {
     });
 }
 
-export function structureCounts(state) {
+export function animationData(state) {
     const result = {};
     state.visibleIds.forEach(id => {
-        result[id] = getNumBuilt(getStructure(state, id));
+        const structure = getStructure(state, id)
+        result[id] = {
+            numBuilt: getNumBuilt(structure),
+            imageKey: structure.imageKey
+        };
     });
     return result;
 }

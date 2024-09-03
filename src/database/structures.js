@@ -27,7 +27,7 @@ const base = {
     runningRate: 0,
     runningCooldown: 0,
     count: {
-        total: 0 // todo why is this an object?
+        total: 5 // todo why is this an object?
     },
     status: STATUSES.normal,
     cost: {},
@@ -36,6 +36,7 @@ const base = {
     type: TYPES.generator,
     productionSuffix: null,
     consumptionSuffix: null,
+    animationDelays: [],
 
     droidData: {
         usesDroids: true,
@@ -60,9 +61,9 @@ export default {
     }),
     thermalVent: _.merge({}, base, {
         name: "Geothermal Vent",
-        count: {
-            total: 10
-        }
+        // count: {
+        //     total: 10
+        // },
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
@@ -72,7 +73,7 @@ export default {
         type: TYPES.consumer,
         droidData: {
             usesDroids: false
-        }
+        },
     }),
     refinery: _.merge({}, base, {
         name: "Refinery",
@@ -98,7 +99,7 @@ export default {
 };
 
 const baseCalculator = {
-    imageKey: (state, structure) => {
+    imageKey: (state, structure) => { // todo rename animationKey?
         if (getNumBuilt(structure) === 0) {
             return UNKNOWN_IMAGE_KEY;
         }

@@ -8,7 +8,7 @@ import gameClock from "../singletons/game_clock";
 import {fractionOfDay} from "../redux/modules/clock";
 import {connect} from "react-redux";
 import {generateImage, NUM_COLS, NUM_ROWS} from "../lib/outside";
-import {structureCounts} from "../redux/modules/structures";
+import {animationData} from "../redux/modules/structures";
 import {mod} from "../lib/helpers";
 
 const INTERVAL_ID = 'main-display';
@@ -48,7 +48,7 @@ class Outside extends React.Component {
     }
 
     componentDidUpdate(/* prevProps, prevState */) {
-        const image = generateImage(this.props.structureCounts, this.props.elapsedTime, this.props.fractionOfDay);
+        const image = generateImage(this.props.structureAnimationData, this.props.elapsedTime / 1000, this.props.fractionOfDay);
         this.canvasManager.clearAll();
         this.canvasManager.drawImage(image, 0, 0);
     }
@@ -92,7 +92,7 @@ const mapStateToProps = state => {
         visible: state.game.currentNavTab === 'surface', // todo
         fractionOfDay: fractionOfDay(state.clock),
         elapsedTime: state.clock.elapsedTime,
-        structureCounts: structureCounts(state.structures)
+        structureAnimationData: animationData(state.structures)
     }
 };
 
