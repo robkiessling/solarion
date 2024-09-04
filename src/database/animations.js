@@ -1,3 +1,4 @@
+import {mod} from "../lib/helpers";
 
 const base = {
     style: {},
@@ -20,293 +21,582 @@ const base = {
 //     ]
 // }
 
-export const doodads = {
-    vent: {
-        idle: {
-            frames: [
-                [
-                    '      __ __..__,_    ',
-                    '   ,.¯  V        `,  ',
-                    '  |`-___.___.--v.-:\\ ',
-                    ' :     ·     \\     \\\\',
-                    '/     /       :     \\',
-                ]
-            ]
-        }
-    },
-    rock1: {
-        idle: {
-            frames: [
-                [
-                    '              _      ',
-                    '             / \\     ',
-                    '      _|\\ .-\'\\  \\_   ',
-                    '     :   V    -   :  ',
-                    '  _./  :  ~    =   \\ ',
-                    './    /    \\        |',
-                ]
-            ]
-        }
-    },
-    rock2: {
-        idle: {
-            frames: [
-                [
-                    '     _          ',
-                    '   _·\\¯\\    _   ',
-                    '../   ¯\\¯-=/ ¯\\_',
-                ]
-            ]
-        }
-    },
-    rock3: {
-        idle: {
-            frames: [
-                [
-                    '      __ _     ',
-                    ' ,-..-    \\__. ',
-                    '.             \\',
-                ]
-            ]
-        }
-    },
-    rock4: {
-        idle: {
-            frames: [
-                [
-                    '       _   ',
-                    '__,.-`` \\__',
-                ]
-            ]
-        }
+
+class Frame {
+    constructor(charArray, color = '#fff', cycles = 1) {
+        this.charArray = charArray;
+        this.color = color;
+        this.cycles = cycles;
+    }
+
+    getFrame() {
+        return this;
+    }
+
+    toDisplay() {
+        return this.charArray;
     }
 }
+
+class Animation {
+    constructor(options, frames) {
+        // this.fps = fps;
+        this.fps = options.fps;
+        this.randomFps = options.randomFps;
+        this.identical = options.identical;
+
+        this.frames = this._unfoldFrames(frames);
+    }
+
+    _unfoldFrames(frames) {
+        const result = [];
+        frames.forEach(frame => {
+            for (let i = 0; i < frame.cycles; i++) {
+                result.push(frame);
+            }
+        })
+        return result;
+    }
+
+    getFrame(elapsedTime, animationDelay) {
+        if (this.identical) { animationDelay = 0; }
+
+        const fps = this.fps || this.randomFps[Math.floor(animationDelay * this.randomFps.length)]
+        if (!fps) { return this.frames[0]; }
+
+        const frameDuration = 1 / fps;
+        const animationDuration = this.frames.length * frameDuration;
+        const randomOffset = animationDelay * animationDuration;
+        const timeIntoAnimation = mod(elapsedTime + randomOffset, animationDuration);
+        return this.frames[Math.floor(timeIntoAnimation / frameDuration)];
+    }
+}
+
+class RandomAnimation extends Animation {
+    getFrame(elapsedTime, animationDelay) {
+        return this.frames[Math.floor(animationDelay * this.frames.length)];
+    }
+}
+
+export const doodads = {
+    vent: {
+        idle: new Frame([
+            '      __ __..__,_    ',
+            '   ,.¯  V        `,  ',
+            '  |`-___.___.--v.-:\\ ',
+            ' :     ·     \\     \\\\',
+            '/     /       :     \\',
+        ], '#f9903c')
+    },
+    rock1: {
+        idle: new Frame([
+            '              _      ',
+            '             / \\     ',
+            '      _|\\ .-\'\\  \\_   ',
+            '     :   V    -   :  ',
+            '  _./  :  ~    =   \\ ',
+            './    /    \\        |',
+        ], '#f9903c')
+    },
+    rock2: {
+        idle: new Frame([
+            '     _          ',
+            '   _·\\¯\\    _   ',
+            '../   ¯\\¯-=/ ¯\\_',
+        ], '#f9903c')
+    },
+    rock3: {
+        idle: new Frame([
+            '      __ _     ',
+            ' ,-..-    \\__. ',
+            '.             \\',
+        ], '#f9903c')
+    },
+    rock4: {
+        idle: new Frame([
+            '       _   ',
+            '__,.-`` \\__',
+        ], '#f9903c')
+    }
+}
+
+
+const WIND_TURBINE_FRAMES = [
+    new Frame([
+        '     / ',
+        '    /  ',
+        '---OD  ',
+        '    \\  ',
+        '    ║\\ ',
+        '    ║  ',
+        '    ║  ',
+    ]),
+    new Frame([
+        '   |   ',
+        '   |   ',
+        '   O---',
+        '  / ║  ',
+        ' /  ║  ',
+        '    ║  ',
+        '    ║  ',
+    ]),
+    new Frame([
+        ' \\   / ',
+        '  \\ /  ',
+        '   OD  ',
+        '   |║  ',
+        '   |║  ',
+        '    ║  ',
+        '    ║  ',
+    ]),
+    new Frame([
+        '   |   ',
+        '   |   ',
+        '---OD  ',
+        '    \\  ',
+        '    ║\\ ',
+        '    ║  ',
+        '    ║  ',
+    ]),
+    new Frame([
+        ' \\     ',
+        '  \\    ',
+        '   O---',
+        '  / ║  ',
+        ' /  ║  ',
+        '    ║  ',
+        '    ║  ',
+    ]),
+    new Frame([
+        '     / ',
+        '    /  ',
+        '---OD  ',
+        '   |║  ',
+        '   |║  ',
+        '    ║  ',
+        '    ║  ',
+    ]),
+    new Frame([
+        '   |   ',
+        '   |   ',
+        '   OD  ',
+        '  / \\  ',
+        ' /  ║\\ ',
+        '    ║  ',
+        '    ║  ',
+    ]),
+    new Frame([
+        ' \\     ',
+        '  \\    ',
+        '   O---',
+        '   |║  ',
+        '   |║  ',
+        '    ║  ',
+        '    ║  ',
+    ])
+]
+
 
 /**
  * Format:
  *
  * animationId: {
- *     imageKey: IMAGE or FRAMES
+ *     animationTag: Frame/Animation
  * }
  *
- * IMAGE is a 2d array such as:
- *
- *   [
- *       '          | ',
- *       ' TTT8>//==║ ',
- *       '/____|_|  ║ ',
- *       'oo oo oo  V ',
- *   ]
- *
- * FRAMES is an object such as:
- *
- *   {
- *       frames: Array of IMAGEs
- *   }
- *
  */
-
-// class Frame {
-//     constructor(charArray, colorArray) {
-//         this.
-//     }
-// }
-//
-// class Animation {
-//     constructor(frames, fps) {
-//
-//     }
-// }
-//
-// class RandomFrame {
-//     constructor(animationId) {
-//
-//     }
-// }
-
 export const structures = {
     harvester: {
-        idle: {
-            frames: [
-                [
-                    '          | ',
-                    ' TTT8>//==║ ',
-                    '/____|_|  ║ ',
-                    'oo oo oo  V ',
-                ]
-            ]
-        },
-        running: {
-            fps: 4,
-            frames: [
-                [
-                    '          | ',
-                    ' TTT8>//==║ ',
-                    '/____|_|  ║ ',
-                    'oo oo oo `║,',
-                ],
-                [
-                    '          | ',
-                    ' TTT8>//==║ ',
-                    '/____|_|  ║ ',
-                    'oo oo oo .║\'',
-                ],
-                [
-                    '          | ',
-                    ' TTT8>//==║ ',
-                    '/____|_|  ║ ',
-                    'oo oo oo \\║,',
-                ],
-                [
-                    '          | ',
-                    ' TTT8>//==║ ',
-                    '/____|_|  ║ ',
-                    'oo oo oo .║;',
-                ],
-            ]
-        }
+        idle: new Frame([
+            '          | ',
+            ' TTT8>//==║ ',
+            '/____|_|  ║ ',
+            'oo oo oo  V ',
+        ]),
+        running: new Animation({fps: 4}, [
+            new Frame([
+                '          | ',
+                ' TTT8>//==║ ',
+                '/____|_|  ║ ',
+                'oo oo oo `║,',
+            ]),
+            new Frame([
+                '          | ',
+                ' TTT8>//==║ ',
+                '/____|_|  ║ ',
+                'oo oo oo .║\'',
+            ]),
+            new Frame([
+                '          | ',
+                ' TTT8>//==║ ',
+                '/____|_|  ║ ',
+                'oo oo oo \\║,',
+            ]),
+            new Frame([
+                '          | ',
+                ' TTT8>//==║ ',
+                '/____|_|  ║ ',
+                'oo oo oo .║;',
+            ])
+        ])
+    },
+    harvester2: {
+        idle: new Frame([
+            ' |          ',
+            ' ║==\\\\<8TTT ',
+            ' ║  |_|____\\',
+            ' V  oo oo oo',
+        ]),
+        running: new Animation({fps: 4}, [
+            new Frame([
+                ' |          ',
+                ' ║==\\\\<8TTT ',
+                ' ║  |_|____\\',
+                '\\║\' oo oo oo',
+            ]),
+            new Frame([
+                ' |          ',
+                ' ║==\\\\<8TTT ',
+                ' ║  |_|____\\',
+                '`║. oo oo oo',
+            ]),
+            new Frame([
+                ' |          ',
+                ' ║==\\\\<8TTT ',
+                ' ║  |_|____\\',
+                '.║/ oo oo oo',
+            ]),
+            new Frame([
+                ' |          ',
+                ' ║==\\\\<8TTT ',
+                ' ║  |_|____\\',
+                '`║, oo oo oo',
+            ])
+        ])
     },
     solarPanel: {
-        idle: {
-            frames: [
-                [
-                    ' _ _ _ _    ',
-                    ' \\_\\_\\_\\_\\  ',
-                    ' /\\_\\_\\_\\_\\ ',
-                    '/I¯\\_\\_\\_\\_\\',
-                ]
-            ]
-        }
+        idle: new Frame([
+            // ' _ _ _ _    ',
+            // ' \\_\\_\\_\\_\\  ',
+            // ' /\\_\\_\\_\\_\\ ',
+            // '/I¯\\_\\_\\_\\_\\',
+            '_ _ _ _ _',
+            '\\_\\_\\_\\_\\_\\',
+            '/\\_\\_\\_\\_\\_\\',
+        ])
     },
     windTurbine: {
-        idle: {
-            random: 'running' // choose 1 of the running frames randomly
-        },
-        running: {
-            fps: [1, 0.8, 1.2, 0.75, 0.5, 1.3], // fps is randomly determined from this array
-            frames: [
-                [
-                    '     / ',
-                    '    /  ',
-                    '---OD  ',
-                    '    \\  ',
-                    '    ║\\ ',
-                    '    ║  ',
-                    '    ║  ',
-                ],
-                [
-                    '   |   ',
-                    '   |   ',
-                    '   O---',
-                    '  / ║  ',
-                    ' /  ║  ',
-                    '    ║  ',
-                    '    ║  ',
-                ],
-                [
-                    ' \\   / ',
-                    '  \\ /  ',
-                    '   OD  ',
-                    '   |║  ',
-                    '   |║  ',
-                    '    ║  ',
-                    '    ║  ',
-                ],
-                [
-                    '   |   ',
-                    '   |   ',
-                    '---OD  ',
-                    '    \\  ',
-                    '    ║\\ ',
-                    '    ║  ',
-                    '    ║  ',
-                ],
-                [
-                    ' \\     ',
-                    '  \\    ',
-                    '   O---',
-                    '  / ║  ',
-                    ' /  ║  ',
-                    '    ║  ',
-                    '    ║  ',
-                ],
-                [
-                    '     / ',
-                    '    /  ',
-                    '---OD  ',
-                    '   |║  ',
-                    '   |║  ',
-                    '    ║  ',
-                    '    ║  ',
-                ],
-                [
-                    '   |   ',
-                    '   |   ',
-                    '   OD  ',
-                    '  / \\  ',
-                    ' /  ║\\ ',
-                    '    ║  ',
-                    '    ║  ',
-                ],
-                [
-                    ' \\     ',
-                    '  \\    ',
-                    '   O---',
-                    '   |║  ',
-                    '   |║  ',
-                    '    ║  ',
-                    '    ║  ',
-                ]
-            ]
-        }
+        idle: new RandomAnimation({},
+            WIND_TURBINE_FRAMES
+        ),
+        running: new Animation({randomFps: [1, 0.8, 1.2, 0.75, 0.5, 1.3]},
+            WIND_TURBINE_FRAMES
+        )
     },
-    // TODO thermalVent
-    // energyBay: {
-    //     idle: {
-    //         fps: 10,
-    //         frames: [
-    //             {
-    //                 image: [
-    //                     '  ______  ',
-    //                     ' ||-|-|-| ',
-    //                     ' ||_____| ',
-    //                     '/__\\ ___ \\',
-    //                 ],
-    //                 repeat: 20
-    //             },
-    //             [
-    //                 '  ______  ',
-    //                 ' ||=|-|-| ',
-    //                 ' ||_____| ',
-    //                 '/__\\ ___ \\',
-    //             ],
-    //             [
-    //                 '  ______  ',
-    //                 ' ||-|=|-| ',
-    //                 ' ||_____| ',
-    //                 '/__\\ ___ \\',
-    //             ],
-    //             [
-    //                 '  ______  ',
-    //                 ' ||-|-|=| ',
-    //                 ' ||_____| ',
-    //                 '/__\\ ___ \\',
-    //             ],
-    //             [
-    //                 '  ______  ',
-    //                 ' ||-|=|-| ',
-    //                 ' ||_____| ',
-    //                 '/__\\ ___ \\',
-    //             ],
-    //             [
-    //                 '  ______  ',
-    //                 ' ||=|-|-| ',
-    //                 ' ||_____| ',
-    //                 '/__\\ ___ \\',
-    //             ]
-    //         ]
-    //     }
-    // }
+
+    // todo thermal vent
+
+    energyBay: {
+        idle: new Animation({fps: 8, identical: true}, [
+            new Frame([
+                '  ______  ',
+                ' ||-|-|-| ',
+                ' ||_____| ',
+                '/__\\ ___ \\',
+            ], '#fff', 20),
+            new Frame([
+                '  ______  ',
+                ' ||=|-|-| ',
+                ' ||_____| ',
+                '/__\\ ___ \\',
+            ]),
+            new Frame([
+                '  ______  ',
+                ' ||-|=|-| ',
+                ' ||_____| ',
+                '/__\\ ___ \\',
+            ]),
+            new Frame([
+                '  ______  ',
+                ' ||-|-|=| ',
+                ' ||_____| ',
+                '/__\\ ___ \\',
+            ]),
+            new Frame([
+                '  ______  ',
+                ' ||-|=|-| ',
+                ' ||_____| ',
+                '/__\\ ___ \\',
+            ]),
+            new Frame([
+                '  ______  ',
+                ' ||=|-|-| ',
+                ' ||_____| ',
+                '/__\\ ___ \\',
+            ]),
+            new Frame([
+                '  ______  ',
+                ' ||-|=|-| ',
+                ' ||_____| ',
+                '/__\\ ___ \\',
+            ]),
+            new Frame([
+                '  ______  ',
+                ' ||-|-|=| ',
+                ' ||_____| ',
+                '/__\\ ___ \\',
+            ]),
+        ])
+    },
+
+    refinery: {
+        idle: new Frame([
+            '             ',
+            '             ',
+            '             ',
+            '             ',
+            '             ',
+            ' .         TT',
+            ' |   _     ║║',
+            ' ║===|====]║║[',
+            ' ║===|====]║║[',
+            '/    /   /____\\',
+        ]),
+        running: new Animation({ fps: 4 }, [
+            new Frame([
+                '             ',
+                '             ',
+                '             ',
+                '             ',
+                '             ',
+                ' .         TT',
+                ' |   _     ║║',
+                ' ║===|====]║║[',
+                ' ║===|====]║║[',
+                '/    /   /____\\',
+            ]),
+            // new Frame([
+            //     '             ',
+            //     '             ',
+            //     '             ',
+            //     '             ',
+            //     '           -=',
+            //     ' .         TT',
+            //     ' |   _     ║║',
+            //     ' ║===|====]║║[',
+            //     ' ║===|====]║║[',
+            //     '/    /   /____\\',
+            // ]),
+            // new Frame([
+            //     '             ',
+            //     '             ',
+            //     '             ',
+            //     '            =≡',
+            //     '           =-',
+            //     ' .         TT',
+            //     ' |   _     ║║',
+            //     ' ║===|====]║║[',
+            //     ' ║===|====]║║[',
+            //     '/    /   /____\\',
+            // ]),
+            // new Frame([
+            //     '             ',
+            //     '             ',
+            //     '             _=-',
+            //     '            -= ',
+            //     '           -=',
+            //     ' .         TT',
+            //     ' |   _     ║║',
+            //     ' ║===|====]║║[',
+            //     ' ║===|====]║║[',
+            //     '/    /   /____\\',
+            // ]),
+            // new Frame([
+            //     '             ',
+            //     '              =-≡¯',
+            //     '             ¯-=',
+            //     '            -¯',
+            //     '            -',
+            //     ' .         TT',
+            //     ' |   _     ║║',
+            //     ' ║===|====]║║[',
+            //     ' ║===|====]║║[',
+            //     '/    /   /____\\',
+            // ]),
+            // new Frame([
+            //     '                   _',
+            //     '               ¯=¯=',
+            //     '              =¯',
+            //     '             -',
+            //     '             ',
+            //     ' .         TT',
+            //     ' |   _     ║║',
+            //     ' ║===|====]║║[',
+            //     ' ║===|====]║║[',
+            //     '/    /   /____\\',
+            // ]),
+            // new Frame([
+            //     '                  -',
+            //     '               _≡¯',
+            //     '              -¯',
+            //     '             ',
+            //     '             ',
+            //     ' .         TT',
+            //     ' |   _     ║║',
+            //     ' ║===|====]║║[',
+            //     ' ║===|====]║║[',
+            //     '/    /   /____\\',
+            // ]),
+            // new Frame([
+            //     '                 _=¯',
+            //     '                ¯',
+            //     '             ',
+            //     '             ',
+            //     '             ',
+            //     ' .         TT',
+            //     ' |   _     ║║',
+            //     ' ║===|====]║║[',
+            //     ' ║===|====]║║[',
+            //     '/    /   /____\\',
+            // ]),
+            // new Frame([
+            //     '                  ¯',
+            //     '             ',
+            //     '             ',
+            //     '             ',
+            //     '             ',
+            //     ' .         TT',
+            //     ' |   _     ║║',
+            //     ' ║===|====]║║[',
+            //     ' ║===|====]║║[',
+            //     '/    /   /____\\',
+            // ]),
+
+
+            new Frame([
+                '             ',
+                '             ',
+                '             ',
+                '             ',
+                '           =-',
+                ' .         TT',
+                ' |   _     ║║',
+                ' ║===|====]║║[',
+                ' ║===|====]║║[',
+                '/    /   /____\\',
+            ]),
+            new Frame([
+                '             ',
+                '             ',
+                '             ',
+                '          ≡= ',
+                '           -=',
+                ' .         TT',
+                ' |   _     ║║',
+                ' ║===|====]║║[',
+                ' ║===|====]║║[',
+                '/    /   /____\\',
+            ]),
+            new Frame([
+                '             ',
+                '             ',
+                '        -=_  ',
+                '          =- ',
+                '           =-',
+                ' .         TT',
+                ' |   _     ║║',
+                ' ║===|====]║║[',
+                ' ║===|====]║║[',
+                '/    /   /____\\',
+            ]),
+            new Frame([
+                '             ',
+                '      ¯≡-=   ',
+                '        =-¯  ',
+                '          ¯- ',
+                '           -_',
+                ' .         TT',
+                ' |   _     ║║',
+                ' ║===|====]║║[',
+                ' ║===|====]║║[',
+                '/    /   /____\\',
+            ]),
+            new Frame([
+                '     _      ',
+                '      =¯=¯   ',
+                '        ¯=   ',
+                '          -  ',
+                '             ',
+                ' .         TT',
+                ' |   _     ║║',
+                ' ║===|====]║║[',
+                ' ║===|====]║║[',
+                '/    /   /____\\',
+            ]),
+            new Frame([
+                '     -      ',
+                '      ¯≡_   ',
+                '        ¯-   ',
+                '             ',
+                '             ',
+                ' .         TT',
+                ' |   _     ║║',
+                ' ║===|====]║║[',
+                ' ║===|====]║║[',
+                '/    /   /____\\',
+            ]),
+            new Frame([
+                '    ¯=_      ',
+                '       ¯     ',
+                '             ',
+                '             ',
+                '             ',
+                ' .         TT',
+                ' |   _     ║║',
+                ' ║===|====]║║[',
+                ' ║===|====]║║[',
+                '/    /   /____\\',
+            ]),
+            new Frame([
+                '     ¯       ',
+                '             ',
+                '             ',
+                '             ',
+                '             ',
+                ' .         TT',
+                ' |   _     ║║',
+                ' ║===|====]║║[',
+                ' ║===|====]║║[',
+                '/    /   /____\\',
+            ]),
+            new Frame([
+                '             ',
+                '             ',
+                '             ',
+                '             ',
+                '             ',
+                ' .         TT',
+                ' |   _     ║║',
+                ' ║===|====]║║[',
+                ' ║===|====]║║[',
+                '/    /   /____\\',
+            ], [], 10),
+        ])
+    },
+
+    droidFactory: {
+        idle: new Animation({ fps: 1 }, [
+            new Frame([
+                '         ___',
+                '        _|;|__',
+                '  _____/ \\\\\\\\ \\\\',
+                ' /__\\ \\==|  |==\\\\',
+                '//  \\\\ \\_|__|__||',
+                '[]__[] ] |  |   \\\\',
+                '[///[] ]/ \\/ \\ ...]',
+            ])
+        ])
+    }
 }
 
 const old = {

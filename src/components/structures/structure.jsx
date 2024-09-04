@@ -10,7 +10,6 @@ import {buildStructure, researchUpgrade, showDroidsForStructure} from "../../red
 
 import 'rc-slider/assets/index.css';
 import ResourceAmounts from "../ui/resource_amounts";
-import Animation from "../animation";
 import RunSlider from "./run_slider";
 import BuildButton from "./build_button";
 import Upgrades from "./upgrades";
@@ -95,7 +94,6 @@ const mapStateToProps = (state, ownProps) => {
         capacity: getStatistic(structure, 'capacity'),
 
         hasInsufficientResources: hasInsufficientResources(structure),
-        imageKey: structure.imageKey,
         statusMessage: getStatusMessage(structure)
     }
 };

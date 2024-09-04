@@ -27,7 +27,7 @@ const base = {
     runningRate: 0,
     runningCooldown: 0,
     count: {
-        total: 5 // todo why is this an object?
+        total: 15 // todo why is this an object?
     },
     status: STATUSES.normal,
     cost: {},
@@ -54,7 +54,7 @@ export default {
         type: TYPES.consumer,
     }),
     solarPanel: _.merge({}, base, {
-        name: "Solar Panel",
+        name: "Solar Farm",
     }),
     windTurbine: _.merge({}, base, {
         name: "Wind Turbine",
@@ -99,7 +99,7 @@ export default {
 };
 
 const baseCalculator = {
-    imageKey: (state, structure) => { // todo rename animationKey?
+    animationTag: (state, structure) => { // todo rename animationKey?
         if (getNumBuilt(structure) === 0) {
             return UNKNOWN_IMAGE_KEY;
         }
@@ -251,7 +251,7 @@ export const calculators = {
             return `Produces up to ${variables.ratedPower}${getIconSpan('energy', true)} per second ` +
                 `when wind speed is between ${variables.cutInSpeed} and ${variables.cutOutSpeed} mph.`;
         },
-        imageKey: (state, structure, variables) => {
+        animationTag: (state, structure, variables) => {
             if (getNumBuilt(structure) === 0) {
                 return UNKNOWN_IMAGE_KEY;
             }

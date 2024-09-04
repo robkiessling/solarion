@@ -209,7 +209,7 @@ export function animationData(state) {
         const structure = getStructure(state, id)
         result[id] = {
             numBuilt: getNumBuilt(structure),
-            imageKey: structure.imageKey
+            animationTag: structure.animationTag
         };
     });
     return result;

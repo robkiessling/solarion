@@ -14,34 +14,76 @@ export const NUM_COLS = 120; // proportional would be (5/3) * NUM_ROWS
 // TODO specify model (e.g. harvester2)
 const STRUCTURE_POSITIONS = {
     harvester: [
-        { row: 0, col: 0 },
-        { row: 24, col: 10 }
+        { row: 50, col: 10, animationId: 'harvester2' },
+        { row: 45, col: -10 },
+        { row: 52, col: -55 },
+        { row: 54, col: -5, animationId: 'harvester2' },
+        { row: 50, col: -30, animationId: 'harvester' },
+        { row: 37, col: 5, animationId: 'harvester2' },
+        { row: 53, col: 43, animationId: 'harvester' },
+        { row: 47, col: 50, animationId: 'harvester2' },
     ],
     solarPanel: [
-        { row: 35, col: -25 },
-        { row: 40, col: -32 },
-        { row: 35, col: -39 },
+        { row: 36, col: -25 },
+        { row: 36, col: -39 },
+        { row: 37, col: -53 },
+        { row: 37, col: -67 },
+
+        { row: 39, col: -18 },
+        { row: 39, col: -32 },
         { row: 40, col: -46 },
-        { row: 50, col: -5 },
+        { row: 40, col: -60 },
+
+        { row: 42, col: -24 },
+        { row: 43, col: -38 },
+        { row: 43, col: -52 },
+        { row: 43, col: -66 },
     ],
     windTurbine: [
-        { row: 20, col: 10 },
-        { row: 21, col: 17 },
-        { row: 22, col: 24 },
-        { row: 23, col: 31 },
-        { row: 24, col: 38 },
+        { row: 18, col: 10 },
+        { row: 18, col: 17 },
+        { row: 19, col: 24 },
+        { row: 19, col: 31 },
+        { row: 20, col: 38 },
+        { row: 21, col: 45 },
+        { row: 22, col: 52 },
     ],
     energyBay: [
-        { row: 50, col: 10 },
+        { row: 28, col: 5 },
+        { row: 28, col: 16 },
+        { row: 29, col: 28 },
+        { row: 29, col: 40 },
+        { row: 30, col: 53 },
+
+        { row: 32, col: 8 },
+        { row: 32, col: 19 },
+        { row: 33, col: 31 },
+        { row: 33, col: 43 },
+        { row: 34, col: 55 },
+
+    ],
+    refinery: [
+        { row: 17, col: -30 },
+        { row: 20, col: -43 },
+        { row: 16, col: -50 },
+        { row: 21, col: -60 },
+    ],
+    droidFactory: [
+        { row: 37, col: 20 },
+        { row: 38, col: 35 },
     ]
 }
 const DOODAD_POSITIONS = {
     vent: [
-        { row: 50, col: -40 }
+        { row: 52, col: -40 }
     ],
     rocks: [
-        { row: 40, col: -35, animationId: 'rock1' },
-        { row: 40, col: 35, animationId: 'rock1' }
+        { row: 53, col: 30, animationId: 'rock1' },
+        { row: 43, col: -70, animationId: 'rock1' },
+        { row: 42, col: -10, animationId: 'rock2' },
+        { row: 46, col: 25, animationId: 'rock3' },
+        { row: 33, col: -45, animationId: 'rock4' },
+        { row: 30, col: 45, animationId: 'rock4' },
     ]
 }
 
@@ -98,9 +140,9 @@ export function generateImage(structureAnimationData, elapsedTime, fractionOfDay
         queueDoodad(renderingQueue, doodadId, clockParams)
     }
 
-    // Sort the queue (according to the BOTTOM of the image; i.e. the image row + image height) and then render everything
-    _.sortBy(renderingQueue, [(rendering) => rendering.row + rendering.image.length]).forEach(rendering => {
-        renderImage(result, rendering.image, rendering.row, rendering.col, rendering.color)
+    // Sort the queue (according to the BOTTOM of the frame; i.e. the frame row + frame height) and then render everything
+    _.sortBy(renderingQueue, [(rendering) => rendering.row + rendering.frame.charArray.length]).forEach(rendering => {
+        renderImage(result, rendering.row, rendering.col, rendering.frame.charArray, rendering.frame.color)
     })
 
     return result;
@@ -112,26 +154,20 @@ function renderBackground(result, background, rowOffset, colOffset, clockParams)
     colOffset += Math.floor(NUM_COLS / 2) - Math.floor(backgroundWidth / 2); // centers background horizontally
     const color = getDynamicValue(background.color, clockParams)
 
-    renderImage(result, background.background, rowOffset, colOffset, color);
+    renderImage(result, rowOffset, colOffset, background.background, color);
 }
 
 function queueStructure(renderingQueue, structureId, animationData, clockParams) {
-    const { numBuilt, imageKey } = animationData;
-    if (numBuilt < 1) { return; }
-
+    const { numBuilt, animationTag } = animationData;
     const [elapsedTime, fractionOfDay] = clockParams;
-    
+
     (STRUCTURE_POSITIONS[structureId] || []).forEach((position, index) => {
         if (numBuilt > index) {
-            const animation = _.get(structures, `${structureId}.${imageKey}`); // TODO This can be based off of modelId
-            const animationDelay = ANIMATION_DELAYS[index];
+            const animationId = position.animationId || structureId;
+            const animation = _.get(structures, `${animationId}.${animationTag}`);
             if (!animation) { return; }
-
-            const image = animation.random ?
-                getRandomAnimationFrame(structures[structureId][animation.random], animationDelay) :
-                getAnimationFrame(animation, elapsedTime, animationDelay);
-
-            renderingQueue.push({ image: image, row: position.row, col: position.col + Math.floor(NUM_COLS / 2), color: '#fff' })
+            const frame = animation.getFrame(elapsedTime, ANIMATION_DELAYS[index]);
+            renderingQueue.push({ frame: frame, row: position.row, col: position.col + Math.floor(NUM_COLS / 2) })
         }
     })
 }
@@ -142,45 +178,15 @@ function queueDoodad(renderingQueue, doodadId, clockParams) {
     (DOODAD_POSITIONS[doodadId] || []).forEach((position, index) => {
         const animationId = position.animationId || doodadId
         const animation = _.get(doodads, `${animationId}.idle`);
-        const animationDelay = ANIMATION_DELAYS[index];
         if (!animation) { return; }
-
-        const image = getAnimationFrame(animation, elapsedTime, animationDelay)
-        renderingQueue.push({ image: image, row: position.row, col: position.col + Math.floor(NUM_COLS / 2), color: '#fff' })
+        const frame = animation.getFrame(elapsedTime, ANIMATION_DELAYS[index]);
+        renderingQueue.push({ frame: frame, row: position.row, col: position.col + Math.floor(NUM_COLS / 2) })
     })
 }
 
-/**
- * @param animation An object with format { fps: x, frames: [] } that 
- * @param elapsedTime How much time has passed
- * @param animationDelay Random number that makes each structure have a different animation frame
- * @returns An image (array of ascii strings) to show at this moment
- */
-function getAnimationFrame(animation, elapsedTime, animationDelay) {
-    let { fps, frames } = animation;
-
-    if (frames.length === 1 || fps === 0) {
-        return frames[0];
-    }
-
-    if (Array.isArray(fps)) {
-        fps = fps[Math.floor(animationDelay * fps.length)]
-    }
-
-    const frameDuration = 1 / fps;
-    const animationDuration = frames.length * frameDuration;
-    elapsedTime += animationDelay * animationDuration;
-    const timeIntoAnimation = mod(elapsedTime, animationDuration);
-    return frames[Math.floor(timeIntoAnimation / frameDuration)];
-}
-
-function getRandomAnimationFrame(animation, animationDelay) {
-    return animation.frames[Math.floor(animationDelay * animation.frames.length)];
-}
-
-// Adds an image (array of ascii strings) to the result
-function renderImage(result, image, rowOffset, colOffset, color) {
-    image.forEach((row, rowIndex) => {
+// Adds a frame (array of ascii strings) to the result
+function renderImage(result, rowOffset, colOffset, charArray, color) {
+    charArray.forEach((row, rowIndex) => {
         row.split('').forEach((char, colIndex) => {
             const row = rowIndex + rowOffset;
             const col = colIndex + colOffset;

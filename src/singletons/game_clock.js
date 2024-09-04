@@ -24,7 +24,7 @@ class GameClock {
         // Can be relatively slow since we only show seconds on the clock anyway.
         this.setInterval('GameClock', (iterations, period) => {
             store.dispatch(clockTick(iterations * period));
-        }, 1000 / 10);
+        }, 1000 / 15);
 
         // Ticks in this block must be done iteratively (one by one in order)
         this.setInterval('Iterative', (iterations, period) => {

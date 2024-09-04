@@ -74,7 +74,7 @@ $top-bar-float-padding: 0.875rem;
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: $top-bar-float-padding;
+  top: $top-bar-float-padding;
 
   display: flex;
   padding: 0.5rem 0;
