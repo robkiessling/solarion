@@ -33,7 +33,7 @@ export default {
     }),
     standardDroids: _.merge({}, base, {
         name: "Droids",
-        amount: 0,
+        amount: 30,
         icon: 'icon-vintage-robot',
         visible: true
     }),

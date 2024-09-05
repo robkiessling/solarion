@@ -19,9 +19,9 @@ const initialState = {
     showPlanetStatus: false,
     showResourceBar: false,
     visibleNavTabs: [],
-    currentNavTab: 'outside',
+    currentNavTab: 'planet',
 
-    showStructureTabs: false,
+    showStructureTabs: true,
     currentStructureTab: 'all',
 }
 

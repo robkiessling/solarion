@@ -90,6 +90,7 @@ export default class Canvas {
         // TODO Have to immediately redraw the current frame
     }
 
+    // todo have to trigger resize after nav tab change (if resized while tab is hidden, canvas will end up blank)
     _setupResize() {
         window.addEventListener("resize", debounce(() => this._resize()));
     }

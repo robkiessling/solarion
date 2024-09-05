@@ -36,7 +36,6 @@ const base = {
     type: TYPES.generator,
     productionSuffix: null,
     consumptionSuffix: null,
-    animationDelays: [],
 
     droidData: {
         usesDroids: true,

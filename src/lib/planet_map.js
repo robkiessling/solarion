@@ -19,7 +19,8 @@ import {createArray, getRandomFromArray, getRandomIntInclusive, mod} from "./hel
 // const PLANET_ROW_LENGTHS = PLANET_LAYOUT.map(row => row.length);
 // const DISPLAY_ROW_LENGTHS = PLANET_ROW_LENGTHS.map(size => Math.round(size / 2)); // only half the planet is visible at once
 
-const DISPLAY_ROW_LENGTHS = [7, 13, 17, 19, 21, 21, 21, 19, 17, 13, 7];
+// const DISPLAY_ROW_LENGTHS = [7, 13, 17, 19, 21, 21, 21, 19, 17, 13, 7];
+const DISPLAY_ROW_LENGTHS = [7, 17, 23, 29, 33, 35, 37, 39, 41, 41, 41, 41, 41, 39, 37, 35, 33, 29, 23, 17, 7];
 const PLANET_ROW_LENGTHS = DISPLAY_ROW_LENGTHS.map(length => length * 2); // Display only shows half of real planet
 const NUM_PLANET_ROWS = PLANET_ROW_LENGTHS.length;
 
@@ -34,22 +35,27 @@ const DISCRETE_ROTATION = true;
 
 const HOME_FRACTION = 0.75; // Defining home to be 75% of the way into planet, this way it lines up with 50% on slider
 const NIGHT_WIDTH = 0.45; // How much of the planet night should occupy
-const SUN_TRACKING_INSET = 0.15; // How much to offset rotation when sunTracking is enabled, so that you can see a little twilight
+const SUN_TRACKING_INSET = 0.05; // How much to offset rotation when sunTracking is enabled, so that you can see a little twilight
 const TWILIGHT_LENGTH = 0.03; // How much each twilight region should take up
 
 const NIGHT_START = mod(HOME_FRACTION - NIGHT_WIDTH / 2, 1); // Fraction start of night window
 const NIGHT_END = mod(HOME_FRACTION + NIGHT_WIDTH / 2, 1); // Fraction end of night window
+const TWILIGHT_LENGTH_DISPLAY = TWILIGHT_LENGTH * 2; // When dealing with display lengths, double the twilight length
+const SUN_TRACKING_NIGHT_CUTOFF = 1 - SUN_TRACKING_INSET;
+const SUN_TRACKING_TWI_NIGHT_CUTOFF = SUN_TRACKING_NIGHT_CUTOFF - TWILIGHT_LENGTH_DISPLAY;
+const SUN_TRACKING_TWI_DAY_CUTOFF = SUN_TRACKING_TWI_NIGHT_CUTOFF - TWILIGHT_LENGTH_DISPLAY;
 
 const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 // const HOME_STARTING_ROW_RANGE = [3, 7];
 const HOME_STARTING_ROW_RANGE = [5, 5]; // TODO Leaving dead center otherwise first 3x3 explored area gets stretched poorly
-const NUM_MOUNTAIN_RANGES_RANGE = [8, 10];
-const MOUNTAIN_RANGE_SIZE_RANGE = [1, 10];
+const NUM_MOUNTAIN_RANGES_RANGE = [20, 30];
+const MOUNTAIN_RANGE_SIZE_RANGE = [1, 20];
 
 const SHOW_DEBUG_MERIDIANS = false;
 const ADD_MOUNTAINS = true;
+const EXPLORE_EVERYTHING = true;
 
-const EXPLORATION_TIME_FACTOR = 30; // The fastest area takes this amount of time to explore
+const EXPLORATION_TIME_FACTOR = 1; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = false;
 
 export const TERRAINS = {
@@ -194,6 +200,14 @@ function addHomeBase(map) {
         });
     }
 
+    if (EXPLORE_EVERYTHING) {
+        map.forEach((row, rowIndex) => {
+            row.forEach((sector, colIndex) => {
+                sector.status = STATUSES.explored.enum
+            });
+        });
+    }
+
     return [homeRow, homeCol]
 }
 
@@ -320,7 +334,7 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
     let percentRotated;
 
     if (cameraRotation === undefined) {
-        // sunTracking is enabled
+        // sunTracking is enabled: the camera is always from the sun's POV; the planet rotates in place
 
         if (DISCRETE_ROTATION) {
             // primeMeridianIndex is where the prime meridian currently is (value of 0 means it is on the left-most side of planet)
@@ -332,10 +346,9 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
         }
 
         percentRotated = mod(percentRotated + SUN_TRACKING_INSET, 1);
-        // console.log(percentRotated);
     }
     else {
-        // No sunTracking; rotate according to user input
+        // sunTracking is disabled: the camera is always centered according to user input (default is centered on home base)
         percentRotated = cameraRotation;
     }
 
@@ -359,7 +372,7 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
         let displayRow = displayStart < displayEnd ? planetRow.slice(displayStart, displayEnd) :
             planetRow.slice(displayStart, planetRowLength).concat(planetRow.slice(0, displayEnd));
 
-        displayRow = displayRow.map((sector, displayColIndex) => {
+        displayRow = displayRow.map((sector, displayColIndex) => { // todo replace sector with coord?
             let char, className, style;
 
             if (sector.status === STATUSES.unknown.enum) {
@@ -378,12 +391,29 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
                 style = { background: `linear-gradient(90deg, rgba(0,0,0,0) ${pct}, rgba(255,255,255,0.2) ${pct})` }
             }
 
-            // How far into the planet length the sector is
-            const planetFraction = sector.planetColIndex / planetRowLength;
-            const lightClass =
-                getTwilightClass(planetFraction, nightStart, nightEnd) ||
-                getNightClass(planetFraction, nightStart, nightEnd);
-            className += ` ${lightClass}`;
+            if (cameraRotation === undefined) {
+                // sunTracking is enabled: shading the far-right side of the planet accordingly
+                // (Ideally, the sunTracking:disabled shading would work for this use case too, but I couldn't get it to
+                //  work without stuttering. So I have to make this special case for sunTracking:enabled)
+                const displayFraction = displayColIndex / displayRowLength; // How far into the display length the sector is
+                if (displayFraction >= SUN_TRACKING_NIGHT_CUTOFF) {
+                    className += ' night';
+                }
+                else if (displayFraction >= SUN_TRACKING_TWI_NIGHT_CUTOFF) {
+                    className += ' twilight-night';
+                }
+                else if (displayFraction >= SUN_TRACKING_TWI_DAY_CUTOFF) {
+                    className += ' twilight-day';
+                }
+            }
+            else {
+                // sunTracking is disabled: shading the night side of the planet
+                const planetFraction = sector.planetColIndex / planetRowLength; // How far into the planet length the sector is
+                const lightClass =
+                    getTwilightClass(planetFraction, nightStart, nightEnd) ||
+                    getNightClass(planetFraction, nightStart, nightEnd);
+                className += ` ${lightClass}`;
+            }
 
             return {
                 char: char,
@@ -457,12 +487,12 @@ function isWithinRange(planetFraction, range) {
         rangeStart = mod(rangeStart, 1);
         rangeEnd = mod(rangeEnd, 1);
 
-        if (planetFraction >= rangeStart || planetFraction <= rangeEnd) {
+        if (planetFraction >= rangeStart || planetFraction < rangeEnd) {
             return true;
         }
     }
     else {
-        if (planetFraction >= rangeStart && planetFraction <= rangeEnd) {
+        if (planetFraction >= rangeStart && planetFraction < rangeEnd) {
             return true;
         }
     }

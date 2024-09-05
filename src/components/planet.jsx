@@ -79,7 +79,7 @@ class Planet extends React.Component {
                             <ReactSwitch checked={this.props.sunTracking} onChange={this.props.setSunTracking}
                                          checkedIcon={false} uncheckedIcon={false} height={12} width={24}
                             />
-                            Track Daytime
+                            Lock to Day-Side
                         </label>
                     </div>
                 </div>

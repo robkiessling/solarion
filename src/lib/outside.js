@@ -166,7 +166,7 @@ function queueStructure(renderingQueue, structureId, animationData, clockParams)
             const animationId = position.animationId || structureId;
             const animation = _.get(structures, `${animationId}.${animationTag}`);
             if (!animation) { return; }
-            const frame = animation.getFrame(elapsedTime, ANIMATION_DELAYS[index]);
+            const frame = animation.getFrame(elapsedTime, ANIMATION_DELAYS[index % ANIMATION_DELAYS.length]);
             renderingQueue.push({ frame: frame, row: position.row, col: position.col + Math.floor(NUM_COLS / 2) })
         }
     })
@@ -179,7 +179,7 @@ function queueDoodad(renderingQueue, doodadId, clockParams) {
         const animationId = position.animationId || doodadId
         const animation = _.get(doodads, `${animationId}.idle`);
         if (!animation) { return; }
-        const frame = animation.getFrame(elapsedTime, ANIMATION_DELAYS[index]);
+        const frame = animation.getFrame(elapsedTime, ANIMATION_DELAYS[index % ANIMATION_DELAYS.length]);
         renderingQueue.push({ frame: frame, row: position.row, col: position.col + Math.floor(NUM_COLS / 2) })
     })
 }

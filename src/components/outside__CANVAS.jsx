@@ -77,7 +77,7 @@ class Outside extends React.Component {
         const skyOpacity = CHANGE_SKY_OPACITY ? Math.sin(radians) + 0.35 : 1;
 
         return (
-            <div id="outside-container" ref={this.canvasContainer}>
+            <div id="outside-container" ref={this.canvasContainer} className={`${this.props.visible ? '' : 'hidden'}`}>
                 <canvas id="sky-color" ref={this.skyCanvas} style={{background: skyColor, opacity: skyOpacity}}/>
                 <canvas id="outside-canvas" ref={this.canvas}></canvas>
             </div>
@@ -89,7 +89,7 @@ class Outside extends React.Component {
 // Updates to these fields will trigger re-renders
 const mapStateToProps = state => {
     return {
-        visible: state.game.currentNavTab === 'surface', // todo
+        visible: state.game.currentNavTab === 'outside',
         fractionOfDay: fractionOfDay(state.clock),
         elapsedTime: state.clock.elapsedTime,
         structureAnimationData: animationData(state.structures)

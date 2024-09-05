@@ -40,7 +40,6 @@ class Frame {
 
 class Animation {
     constructor(options, frames) {
-        // this.fps = fps;
         this.fps = options.fps;
         this.randomFps = options.randomFps;
         this.identical = options.identical;
@@ -297,7 +296,7 @@ export const structures = {
     // todo thermal vent
 
     energyBay: {
-        idle: new Animation({fps: 8, identical: true}, [
+        idle: new Animation({fps: 8, identical: false}, [
             new Frame([
                 '  ______  ',
                 ' ||-|-|-| ',
@@ -580,7 +579,7 @@ export const structures = {
                 ' ║===|====]║║[',
                 ' ║===|====]║║[',
                 '/    /   /____\\',
-            ], [], 10),
+            ], '#fff', 10),
         ])
     },
 
