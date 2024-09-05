@@ -47,7 +47,18 @@ class Outside extends React.Component {
         gameClock.clearInterval(INTERVAL_ID)
     }
 
-    componentDidUpdate(/* prevProps, prevState */) {
+    shouldComponentUpdate(nextProps, nextState) {
+        // Checking both this props and next props to ensure we update on visibility changes
+        return this.props.visible || nextProps.visible;
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if (!prevProps.visible && this.props.visible) {
+            // Whenever this tab gets switched to we need to resize canvases
+            this.canvasManager.resize();
+            this.skyCanvasManager.resize();
+        }
+
         const image = generateImage(this.props.structureAnimationData, this.props.elapsedTime / 1000, this.props.fractionOfDay);
         this.canvasManager.clearAll();
         this.canvasManager.drawImage(image, 0, 0);

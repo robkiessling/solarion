@@ -14,7 +14,7 @@ export default class Canvas {
 
         this._setupResize();
 
-        this._resize();
+        this.resize();
     }
 
     clearAll() {
@@ -83,16 +83,15 @@ export default class Canvas {
         // }
     }
 
-    _resize() {
+    resize() {
         this.setDimensions();
         this._convertCanvasToHiDPI();
         this.context.font = this.fontHeight + 'px monospace';
         // TODO Have to immediately redraw the current frame
     }
 
-    // todo have to trigger resize after nav tab change (if resized while tab is hidden, canvas will end up blank)
     _setupResize() {
-        window.addEventListener("resize", debounce(() => this._resize()));
+        window.addEventListener("resize", debounce(() => this.resize()));
     }
 
     _convertCanvasToHiDPI(ratio) {

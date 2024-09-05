@@ -16,6 +16,11 @@ class Planet extends React.Component {
         // this.manager = new PlanetManager();
     }
 
+    shouldComponentUpdate(nextProps, nextState) {
+        // Checking both this props and next props to ensure we update on visibility changes
+        return this.props.visible || nextProps.visible;
+    }
+
     render() {
         const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.developed, TERRAINS.mountain];
         const sliderMarks = {
