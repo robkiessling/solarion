@@ -1,12 +1,11 @@
 import React from 'react';
 import {connect} from "react-redux";
 import {
-    getStatistic,
     getStatusMessage,
     hasInsufficientResources
 } from "../../redux/modules/structures";
 import { getStructure } from "../../redux/modules/structures";
-import {buildStructure, researchUpgrade, showDroidsForStructure} from "../../redux/reducer";
+import {buildStructure, getStructureStatistic, researchUpgrade, showDroidsForStructure} from "../../redux/reducer";
 
 import 'rc-slider/assets/index.css';
 import ResourceAmounts from "../ui/resource_amounts";
@@ -89,9 +88,9 @@ const mapStateToProps = (state, ownProps) => {
         showDroidsForStructure: showDroidsForStructure(state, structure),
         droidData: structure.droidData,
 
-        production: getStatistic(structure, 'produces'),
-        consumption: highlightCosts(state.resources, getStatistic(structure, 'consumes')),
-        capacity: getStatistic(structure, 'capacity'),
+        production: getStructureStatistic(state, structure, 'produces'),
+        consumption: highlightCosts(state.resources, getStructureStatistic(state, structure, 'consumes')),
+        capacity: getStructureStatistic(state, structure, 'capacity'),
 
         hasInsufficientResources: hasInsufficientResources(structure),
         statusMessage: getStatusMessage(structure)

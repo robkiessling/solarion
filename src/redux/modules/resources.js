@@ -6,6 +6,7 @@ import * as fromUpgrades from "./upgrades";
 import * as fromAbilities from "./abilities";
 import * as fromPlanet from "./planet";
 import {withRecalculation} from "../reducer";
+import {numSectorsMatching, STATUSES, TERRAINS} from "../../lib/planet_map";
 
 export { calculators };
 
@@ -54,6 +55,11 @@ export default function reducer(state = initialState, action) {
         case fromStructures.REMOVE_DROID:
         case fromPlanet.REMOVE_DROID:
             return produceReducer(state, { standardDroids: 1 })
+        case fromPlanet.GENERATE_MAP:
+            return produceReducer(state, { buildableLand: numSectorsMatching(payload.map, STATUSES.explored.enum, TERRAINS.flatland.enum) })
+        case fromPlanet.FINISH_EXPLORING_SECTOR:
+            const sectorIsFlatland = payload.sector.terrain === TERRAINS.flatland.enum;
+            return sectorIsFlatland ? produceReducer(state, { buildableLand: 1 }) : state;
         default:
             return state;
     }

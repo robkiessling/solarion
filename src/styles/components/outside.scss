@@ -115,7 +115,7 @@ $top-bar-float-padding: 0.875rem;
     //margin: 3px 0 0 0;
     //margin-left: 16rem;
 
-    font-size: 0.875rem;
+    font-size: 1rem;
 
     white-space: pre;
     display: flex;
@@ -132,30 +132,35 @@ $top-bar-float-padding: 0.875rem;
   //.developed { color: #9a653a; }
   .mountain { color: #6b2b2b; }
   .flatland { color: #cc7171; }
-  .developed { color: #b6834c; }
+  .developing { color: #d1eeff; }
+  .developed { color: #20d9ff; }
   .exploring { outline: 1px dotted white; }
 
-  .planet-legend, .exploration-status {
+  .planet-legend {
     position: absolute;
-    -webkit-transform: translateX(-50%);
-    transform: translateX(-50%);
-    width: 13rem;
-    //height: 100%;
-    //margin: $top-bar-float-padding;
-    top: $top-bar-float-padding;
+    //-webkit-transform: translateY(-50%);
+    //transform: translateY(-50%);
+    width: 9rem;
+    right: $top-bar-float-padding;
+    bottom: $top-bar-float-padding;
 
     display: flex;
     flex-direction: column;
   }
+}
 
-  .planet-legend {
-    left: calc(50% + 15rem);
-    //background: red;
-  }
-  .exploration-status {
-    left: calc(50% - 15rem);
-    //background: blue;
-  }
+.planet-tools {
+}
+
+.exploration-status {
+  display: flex;
+  flex-direction: column;
+  padding: $component-padding;
+}
+.replication-status {
+  display: flex;
+  flex-direction: column;
+  padding: $component-padding;
 
 }
 

@@ -1,12 +1,13 @@
 
-import {getStructure, getStatistic} from "../redux/modules/structures";
+import {getStructure} from "../redux/modules/structures";
+import {getStructureStatistic} from "../redux/reducer";
 
 const base = {
     name: 'Unknown',
     amount: 0,
     lifetimeTotal: 0,
     capacity: Infinity,
-    visible: true // Whether the resources shows up in top-right display
+    visible: true // Whether the resources shows up in display
 }
 
 export default {
@@ -37,6 +38,17 @@ export default {
         icon: 'icon-vintage-robot',
         visible: true
     }),
+    buildableLand: _.merge({}, base, {
+        name: "Avail Land",
+        amount: 0,
+        icon: 'icon-globe',
+        visible: true
+    }),
+    developedLand: _.merge({}, base, {
+        name: "Dev Land",
+        amount: 1, // starts at 1 for home base
+        visible: false
+    }),
     probes: _.merge({}, base, {
         name: "Probes",
         amount: 0,
@@ -52,7 +64,7 @@ export const calculators = {
 
             const energyBay = getStructure(state.structures, 'energyBay');
             if (energyBay) {
-                capacity += getStatistic(energyBay, 'capacity').energy;
+                capacity += getStructureStatistic(state, energyBay, 'capacity').energy;
             }
 
             return capacity;

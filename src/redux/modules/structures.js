@@ -4,7 +4,6 @@ import {mapObject} from "../../lib/helpers";
 import {withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 
-export const UNKNOWN_IMAGE_KEY = 'unknown';
 export { calculators };
 const RUNNING_COOLDOWN = 5; // After running out of resources, wait this number of seconds before running again
 
@@ -214,18 +213,6 @@ export function animationData(state) {
     });
     return result;
 }
-
-// Gets statistics based on how many of the structures are built. Statistics can be any keys on the structure record.
-export function getStatistic(structure, statistic, forCount) {
-    if (structure[statistic] === undefined) {
-        return {};
-    }
-    if (forCount === undefined) {
-        forCount = getNumBuilt(structure);
-    }
-    return mapObject(structure[statistic], (key, value) => value * forCount);
-}
-
 
 // Helpers
 export function iterateVisible(state, callback) {

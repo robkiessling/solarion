@@ -1,13 +1,7 @@
 import React from 'react';
-import {fractionOfDay} from "../redux/modules/clock";
 import {connect} from "react-redux";
-import {NUM_SECTORS, TERRAINS, STATUSES} from "../lib/planet_map";
-import {roundToDecimal} from "../lib/helpers";
-import {planetMapImage, showDroidsUI} from "../redux/reducer";
-import Slider from "rc-slider";
-import {percentExplored, setRotation, setSunTracking} from "../redux/modules/planet";
-import ReactSwitch from "react-switch";
-import DroidCount from "./structures/droid_count";
+import {TERRAINS, STATUSES} from "../lib/planet_map";
+import {planetMapImage} from "../redux/reducer";
 
 class Planet extends React.Component {
     constructor(props) {
@@ -23,13 +17,6 @@ class Planet extends React.Component {
 
     render() {
         const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.developed, TERRAINS.mountain];
-        const sliderMarks = {
-            0: '0°',
-            0.25: '90°',
-            0.5: '180°',
-            0.75: '270°',
-            1: '360°'
-        }
 
         return (
             <div id="planet" className={`${this.props.visible ? '' : 'hidden'}`}>
@@ -50,46 +37,8 @@ class Planet extends React.Component {
                         })
                     }
                 </div>
-                <div className="exploration-status">
-                    <span className='d-flex justify-center'>~~ Planet ~~</span>
-                    <span className="key-value-pair">
-                        <span>Explored:</span>
-                        <span>{roundToDecimal(this.props.percentExplored, 2).toFixed(2)}%</span>
-                    </span>
-
-                    {/*<span className="key-value-pair">*/}
-                    {/*    <span>Available Flatland:</span>*/}
-                    {/*    <span>{this.props.numExploredFlatland}</span>*/}
-                    {/*</span>*/}
-
-                    {/*<span className="key-value-pair">*/}
-                    {/*    <span>Overall:</span>*/}
-                    {/*    <span>{this.props.overallStatus}</span>*/}
-                    {/*</span>*/}
-
-                    <div className={'half-br'}></div>
-
-                    {this.props.showDroidsUI && <DroidCount droidData={this.props.droidData}/>}
-
-                    <div className={'half-br'}></div>
-
-                    <span>Longitude:</span>
-                    <Slider className={'range-slider'}
-                            disabled={this.props.sunTracking}
-                            min={0} max={1} step={0.01} marks={sliderMarks}
-                            onChange={(value) => this.props.setRotation(value)}
-                            value={this.props.rotation}/>
-                    <div className={'d-flex justify-center'}>
-                        <label className={'on-off-switch text-center'}>
-                            <ReactSwitch checked={this.props.sunTracking} onChange={this.props.setSunTracking}
-                                         checkedIcon={false} uncheckedIcon={false} height={12} width={24}
-                            />
-                            Lock to Day-Side
-                        </label>
-                    </div>
-                </div>
                 <div className="planet-legend">
-                    <span className='d-flex justify-center'>~~ Legend ~~</span>
+                    <span className='d-flex justify-center underline'>Legend</span>
                     {
                         legend.map((attributes) => {
                             return <span key={attributes.key}>
@@ -99,9 +48,9 @@ class Planet extends React.Component {
                             </span>
                         })
                     }
-                    <span style={{marginTop: '2px'}}>
-                        <span className={'exploring'}>&nbsp;</span> Exploring
-                    </span>
+                    {/*<span style={{marginTop: '2px'}}>*/}
+                    {/*    <span className={'exploring'}>&nbsp;</span> Exploring*/}
+                    {/*</span>*/}
                 </div>
             </div>
         );
@@ -112,19 +61,11 @@ class Planet extends React.Component {
 const mapStateToProps = state => {
     return {
         visible: state.game.currentNavTab === 'planet',
-        fractionOfDay: fractionOfDay(state.clock),
         planetImage: planetMapImage(state),
-        overallStatus: state.planet.overallStatus,
-        percentExplored: percentExplored(state.planet),
-        numExploredFlatland: state.planet.numExploredFlatland,
-        showDroidsUI: showDroidsUI(state),
-        droidData: state.planet.droidData,
-        rotation: state.planet.rotation,
-        sunTracking: state.planet.sunTracking
     }
 };
 
 export default connect(
     mapStateToProps,
-    { setRotation, setSunTracking }
+    {}
 )(Planet);

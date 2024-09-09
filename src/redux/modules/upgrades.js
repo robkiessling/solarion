@@ -2,6 +2,7 @@ import update from 'immutability-helper';
 import database, {STATES, callbacks} from '../../database/upgrades'
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
+import {LEARN} from "./abilities";
 
 // Actions
 export const SILHOUETTE = 'upgrades/SILHOUETTE';
@@ -93,7 +94,7 @@ export function silhouette(id) {
     return { type: SILHOUETTE, payload: { id } };
 }
 export function discover(id) {
-    return { type: DISCOVER, payload: { id } };
+    return withRecalculation({ type: DISCOVER, payload: { id } }); // recalculate so we immediately calculate costs
 }
 
 export function researchUnsafe(upgrade) {

@@ -9,6 +9,7 @@ import PlanetStatus from "./planet_status";
 import Computer from "./computer";
 import NavigationTabs from "./navigation_tabs";
 import Planet from "./planet";
+import PlanetTools from "./planet_tools";
 
 export default class App extends React.Component {
     render() {
@@ -26,6 +27,7 @@ export default class App extends React.Component {
                 </div>
                 <div className="right-column">
                     <Structures/>
+                    <PlanetTools/>
                 </div>
 
                 {/*<div className="top-row">*/}

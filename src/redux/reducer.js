@@ -14,6 +14,7 @@ import planet, * as fromPlanet from "./modules/planet";
 import {mapObject} from "../lib/helpers";
 import {STATUSES} from "../database/structures";
 import {generateImage} from "../lib/planet_map";
+import {getQuantity, getResource} from "./modules/resources";
 
 // Actions
 export const RECALCULATE = 'reducer/RECALCULATE';
@@ -176,6 +177,24 @@ export function buildStructure(id, amount) {
     }
 }
 
+export function getReplicatedStructureCount(structure, state) {
+    const developedLand = fromResources.getResource(state.resources, 'developedLand')
+    const replicationMultiplier = developedLand ? fromResources.getQuantity(developedLand) : 1;
+    return fromStructures.getNumBuilt(structure) * replicationMultiplier;
+}
+
+// Gets structure statistic based on how many of the structures are built. Statistics can be any keys on the structure record.
+export function getStructureStatistic(state, structure, statistic, forCount) {
+    if (structure[statistic] === undefined) {
+        return {};
+    }
+    if (forCount === undefined) {
+        forCount = getReplicatedStructureCount(structure, state);
+    }
+    return mapObject(structure[statistic], (key, value) => value * forCount);
+}
+
+
 export function canAssignDroid(state, droidData) {
     return fromResources.canConsume(state.resources, { standardDroids: 1 });
 }
@@ -252,10 +271,10 @@ export function resourcesTick(time) {
         fromStructures.iterateVisible(getState().structures, structure => {
             if (structure.runningCooldown && structure.runningCooldown > 0) { return; }
 
-            const consumption = mapObject(fromStructures.getStatistic(structure, 'consumes'), (resourceId, amount) => amount * time);
+            const consumption = mapObject(getStructureStatistic(getState(), structure, 'consumes'), (resourceId, amount) => amount * time);
             if (fromResources.canConsume(getState().resources, consumption)) {
                 dispatch(fromResources.consumeUnsafe(consumption));
-                dispatch(fromResources.produce(mapObject(fromStructures.getStatistic(structure, 'produces'), (resourceId, amount) => amount * time)));
+                dispatch(fromResources.produce(mapObject(getStructureStatistic(getState(), structure, 'produces'), (resourceId, amount) => amount * time)));
                 fromStructures.setStatus(dispatch, structure, STATUSES.normal);
             }
             else {
@@ -271,10 +290,10 @@ export function getNetResourceRates(state) {
 
     fromStructures.iterateVisible(state.structures, structure => {
         if (!fromStructures.hasInsufficientResources(structure)) {
-            for (const [key, value] of Object.entries(fromStructures.getStatistic(structure, 'consumes'))) {
+            for (const [key, value] of Object.entries(getStructureStatistic(state, structure, 'consumes'))) {
                 result[key] -= value;
             }
-            for (const [key, value] of Object.entries(fromStructures.getStatistic(structure, 'produces'))) {
+            for (const [key, value] of Object.entries(getStructureStatistic(state, structure, 'produces'))) {
                 result[key] += value;
             }
         }

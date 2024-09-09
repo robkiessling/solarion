@@ -1,5 +1,7 @@
-import {getResource} from "../redux/modules/resources";
+import {getQuantity, getResource} from "../redux/modules/resources";
 import {numStandardDroids} from "../redux/reducer";
+import * as fromAbilities from "../redux/modules/abilities";
+import * as fromPlanet from "../redux/modules/planet";
 
 export const STATES = {
     ready: 0,
@@ -16,11 +18,6 @@ const base = {
     state: STATES.ready,
     effect: undefined, // Any effects will be applied for the duration of the CAST
     cooldown: 0 // Note: cooldown starts after cast FINISHES (not at start of cast)
-}
-
-// Functions can't be stored in the state so storing them in this const
-export const callbacks = {
-
 }
 
 export default {
@@ -70,6 +67,12 @@ export default {
         },
         castTime: 1
     }),
+
+    replicate: _.merge({}, base, {
+        name: 'Replicate',
+        description: "Replicates your entire base onto new land, permanently increasing all production and consumption rates by 200%.",
+        castTime: 2
+    })
 };
 
 // These are not part of the stored state because they contain functions
@@ -89,4 +92,39 @@ export const calculators = {
             return `${total - remaining} / ${total} deployed`;
         }
     },
+    replicate: {
+        variables: (state, ability) => {
+            const developedLand = getQuantity(getResource(state.resources, 'developedLand'))
+            const remainingDevelopments = state.planet.maxDevelopedLand - developedLand;
+            const nextDevelopmentSize = Math.min(developedLand, remainingDevelopments)
+            return {
+                nextDevelopmentSize: nextDevelopmentSize
+            }
+        },
+        cost: (state, ability, variables) => {
+            return {
+                ore: 1,
+                buildableLand: variables.nextDevelopmentSize
+            }
+        },
+        produces: (state, ability, variables) => {
+            return {
+                developedLand: variables.nextDevelopmentSize
+            }
+        }
+    }
+}
+
+
+// Functions can't be stored in the state so storing them in this const
+// TODO Should all callbacks be in reducers??
+export const callbacks = {
+    replicate: {
+        onStart: (dispatch, getState, ability) => {
+            fromPlanet.startDevelopment(dispatch, getState, ability.produces.developedLand)
+        },
+        onFinish: (dispatch, getState) => {
+            fromPlanet.finishDevelopment(dispatch, getState);
+        }
+    }
 }

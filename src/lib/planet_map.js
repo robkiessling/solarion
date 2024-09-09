@@ -53,7 +53,7 @@ const MOUNTAIN_RANGE_SIZE_RANGE = [1, 20];
 
 const SHOW_DEBUG_MERIDIANS = false;
 const ADD_MOUNTAINS = true;
-const EXPLORE_EVERYTHING = true;
+const EXPLORE_EVERYTHING = false;
 
 const EXPLORATION_TIME_FACTOR = 1; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = false;
@@ -61,8 +61,9 @@ const START_WITH_ADJ_EXPLORED = false;
 export const TERRAINS = {
     home: { key: 'home', enum: 0, display: '#', className: 'home', label: 'Command Center' },
     flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland', exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
-    developed: { key: 'developed', enum: 2, display: '+', className: 'developed', label: 'Developed' },
-    mountain: { key: 'mountain', enum: 3, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
+    developing: { key: 'developing', enum: 2, display: '+', className: 'developing', label: 'Developing' },
+    developed: { key: 'developed', enum: 3, display: '+', className: 'developed', label: 'Developed' },
+    mountain: { key: 'mountain', enum: 4, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
 }
 
 if (SHOW_DEBUG_MERIDIANS) {
@@ -108,6 +109,7 @@ export function generateRandomMap() {
     const homeCoord = addHomeBase(map);
 
     cacheDistancesToHome(map, homeCoord);
+    updateBorders(map);
     
     return map;
 }
@@ -132,8 +134,13 @@ function createSector(terrain, status) {
     return {
         terrain: terrain.enum,
         status: status.enum,
-        exploreLength: terrain.exploreLength
+        exploreLength: terrain.exploreLength,
+        border: false,
     }
+}
+
+function updateBorders(map) {
+
 }
 
 function addMountainRanges(map) {
@@ -280,6 +287,8 @@ function cacheDistancesToHome(map, homeCoord) {
 }
 
 // Find an unknown sector adjacent to current explored area
+// todo travel towards nearest unexplored coord (that no one else is going to?)
+//      if multiple, has a bearing that it tends towards (not completely random)?
 export function getNextExplorableSector(map) {
     // --- Finds any adjacent unexplored space (purely random searching)
     // const coord = getRandomFromArray(getAdjacentUnknownCoords(map))
@@ -305,6 +314,38 @@ export function getNextExplorableSector(map) {
     const coord = getRandomFromArray(closestCoords);
     return coord === undefined ? [undefined, undefined] : coord;
 }
+
+// returns array of coords to develop
+export function getNextDevelopmentArea(map, size) {
+    let closestCoords = [];
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            if (sector.terrain === TERRAINS.flatland.enum) {
+                closestCoords.push({
+                    coord: [rowIndex, colIndex],
+                    distanceHome: sector.distanceHome
+                })
+            }
+        });
+    });
+
+    return _.sortBy(closestCoords, [coordWithDistance => coordWithDistance.distanceHome])
+        .slice(0, size)
+        .map(coordWithDistance => coordWithDistance.coord)
+}
+
+export function getCurrentDevelopmentArea(map) {
+    const coords = []
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            if (sector.terrain === TERRAINS.developing.enum) {
+                coords.push([rowIndex, colIndex])
+            }
+        });
+    });
+    return coords;
+}
+
 
 export function mapIsFullyExplored(map) {
     return map.every(row => {
@@ -384,11 +425,22 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
                 className = TERRAINS_BY_ENUM[sector.terrain].className;
             }
 
-            if (sector.status === STATUSES.exploring.enum && flicker) {
-            // if (sector.status === STATUSES.exploring.enum) {
-                className += ' exploring'
-                const pct = `${sector.exploreProgress / (sector.exploreLength * 1000) * 100}%`
-                style = { background: `linear-gradient(90deg, rgba(0,0,0,0) ${pct}, rgba(255,255,255,0.2) ${pct})` }
+            // if (sector.status === STATUSES.exploring.enum && flicker) {
+            //     className += ' exploring'
+            //     const pct = `${sector.exploreProgress / (sector.exploreLength * 1000) * 100}%`
+            //     style = { background: `linear-gradient(90deg, rgba(0,0,0,0) ${pct}, rgba(255,255,255,0.2) ${pct})` }
+            // }
+
+            // if (sector.status !== STATUSES.unknown.enum && getAdjacentCoords([rowIndex, sector.planetColIndex]).some(other => {
+            //     return map[other[0]][other[1]].status === STATUSES.unknown.enum
+            // })) {
+            //     className += ' exploring'
+            // }
+
+            if (sector.status === STATUSES.exploring.enum) {
+                // since we are not showing dotted exploring rect, we cannot show tile until finished (otherwise the
+                // number of explored flatlands won't match up)
+                char = STATUSES.unknown.display;
             }
 
             if (cameraRotation === undefined) {

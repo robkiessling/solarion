@@ -1,7 +1,7 @@
 import update from 'immutability-helper';
 import {recalculateState, withRecalculation} from "../reducer";
 import {
-    generateRandomMap,
+    generateRandomMap, getCurrentDevelopmentArea, getNextDevelopmentArea,
     getNextExplorableSector,
     mapIsFullyExplored, NUM_SECTORS,
     numSectorsMatching,
@@ -20,6 +20,8 @@ export const SET_ROTATION = 'planet/SET_ROTATION';
 export const SET_SUN_TRACKING = 'planet/SET_SUN_TRACKING';
 export const ASSIGN_DROID = 'planet/ASSIGN_DROID';
 export const REMOVE_DROID = 'planet/REMOVE_DROID';
+export const START_DEVELOPMENT = 'planet/START_DEVELOPMENT';
+export const FINISH_DEVELOPMENT = 'planet/FINISH_DEVELOPMENT';
 
 const OVERALL_MAP_STATUS = {
     unstarted: 'unstarted',
@@ -45,21 +47,20 @@ const initialState = {
     // TODO use https://github.com/reduxjs/reselect instead?
     coordsInProgress: [], // Coordinates of sectors that are in progress
     numExplored: 0, // Number of explored sectors
-    numExploredFlatland: 0
+    maxDevelopedLand: 0,
 }
 
 // Reducer
 export default function reducer(state = initialState, action) {
     const payload = action.payload;
+    let updates;
 
     switch (action.type) {
         case GENERATE_MAP:
-            const map = generateRandomMap();
-
             return update(state, {
-                map: { $set: map },
-                numExplored: { $set: numSectorsMatching(map, STATUSES.explored.enum) },
-                numExploredFlatland: { $set: numSectorsMatching(map, STATUSES.explored.enum, TERRAINS.flatland.enum) }
+                map: { $set: payload.map },
+                numExplored: { $set: numSectorsMatching(payload.map, STATUSES.explored.enum) },
+                maxDevelopedLand: { $set: numSectorsMatching(payload.map, undefined, TERRAINS.flatland.enum) + 1 } // add 1 for home base
             })
         case START_EXPLORING_SECTOR:
             return update(state, {
@@ -75,8 +76,6 @@ export default function reducer(state = initialState, action) {
                 coordsInProgress: { $push: [[payload.rowIndex, payload.colIndex]] }
             });
         case FINISH_EXPLORING_SECTOR:
-            const sectorIsFlatland = state.map[payload.rowIndex][payload.colIndex].terrain === TERRAINS.flatland.enum
-
             return update(state, {
                 map: {
                     [payload.rowIndex]: {
@@ -90,11 +89,10 @@ export default function reducer(state = initialState, action) {
                     // Remove the coord from coordsInProgress
                     $apply: (coords) => coords.filter(coord => coord[0] !== payload.rowIndex || coord[1] !== payload.colIndex)
                 },
-                numExplored: { $apply: (x) => x + 1 },
-                numExploredFlatland: { $apply: (x) => sectorIsFlatland ? x + 1 : x }
+                numExplored: { $apply: (x) => x + 1 }
             });
         case PROGRESS:
-            const updateParams = {
+            updates = {
                 map: {}
             }
 
@@ -108,15 +106,15 @@ export default function reducer(state = initialState, action) {
                 const numDroidsForSector = Math.min(availableDroids, MAX_DROIDS_PER_SECTOR);
                 availableDroids -= numDroidsForSector;
 
-                if (updateParams.map[coord[0]] === undefined) {
-                    updateParams.map[coord[0]] = {}
+                if (updates.map[coord[0]] === undefined) {
+                    updates.map[coord[0]] = {}
                 }
-                updateParams.map[coord[0]][coord[1]] = {
+                updates.map[coord[0]][coord[1]] = {
                     exploreProgress: { $apply: x => x + progressRate * numDroidsForSector }
                 }
             });
 
-            return update(state, updateParams);
+            return update(state, updates);
         case FINISH_EXPLORING_MAP:
             return update(state, {
                 overallStatus: { $set: OVERALL_MAP_STATUS.finished },
@@ -141,6 +139,24 @@ export default function reducer(state = initialState, action) {
                     numDroidsAssigned: { $apply: (x) => x - 1 }
                 }
             });
+        case START_DEVELOPMENT:
+            updates = { map: {} }
+            payload.coords.forEach(coord => {
+                if (updates.map[coord[0]] === undefined) { updates.map[coord[0]] = {} }
+                updates.map[coord[0]][coord[1]] = {
+                    terrain: { $set: TERRAINS.developing.enum }
+                }
+            })
+            return update(state, updates);
+        case FINISH_DEVELOPMENT:
+            updates = { map: {} }
+            payload.coords.forEach(coord => {
+                if (updates.map[coord[0]] === undefined) { updates.map[coord[0]] = {} }
+                updates.map[coord[0]][coord[1]] = {
+                    terrain: { $set: TERRAINS.developed.enum }
+                }
+            })
+            return update(state, updates);
         default:
             return state;
     }
@@ -156,7 +172,8 @@ export function setSunTracking(value) {
 }
 
 export function generateMap() {
-    return { type: GENERATE_MAP };
+    const map = generateRandomMap();
+    return { type: GENERATE_MAP, payload: { map } };
 }
 
 export function assignDroidUnsafe() {
@@ -182,8 +199,19 @@ function startExploringSectorUnsafe(dispatch, rowIndex, colIndex) {
     dispatch(recalculateState());
 }
 
-function finishExploringSector(dispatch, rowIndex, colIndex) {
-    dispatch({ type: FINISH_EXPLORING_SECTOR, payload: { rowIndex, colIndex } })
+function finishExploringSector(dispatch, rowIndex, colIndex, sector) {
+    dispatch({ type: FINISH_EXPLORING_SECTOR, payload: { rowIndex, colIndex, sector } })
+    dispatch(recalculateState());
+}
+
+export function startDevelopment(dispatch, getState, size) {
+    const coords = getNextDevelopmentArea(getState().planet.map, size);
+    dispatch({ type: START_DEVELOPMENT, payload: { coords } })
+    dispatch(recalculateState());
+}
+export function finishDevelopment(dispatch, getState) {
+    const coords = getCurrentDevelopmentArea(getState().planet.map);
+    dispatch({ type: FINISH_DEVELOPMENT, payload: { coords } });
     dispatch(recalculateState());
 }
 
@@ -199,7 +227,7 @@ export function planetTick(timeDelta) {
             getState().planet.coordsInProgress.forEach(coord => {
                 const sector = getState().planet.map[coord[0]][coord[1]];
                 if (sector.exploreProgress >= sector.exploreLength * 1000) {
-                    finishExploringSector(dispatch, coord[0], coord[1]);
+                    finishExploringSector(dispatch, coord[0], coord[1], sector);
                 }
             });
 

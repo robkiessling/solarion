@@ -9,6 +9,7 @@ import {addTrigger} from "../redux/triggers";
 import * as fromLog from "../redux/modules/log";
 import {batch} from "react-redux";
 import {mapObject} from "../lib/helpers";
+import {generateMap} from "../redux/modules/planet";
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard crash log sequence
 const SKIP_BOOTUP = 'skipBootup'; // Skip crash log, normal story playthrough
@@ -282,7 +283,10 @@ export default {
             dispatch(fromResources.learn('refinedMinerals'));
             dispatch(fromResources.learn('standardDroids'));
             dispatch(fromResources.learn('probes'));
+            dispatch(fromResources.learn('buildableLand'));
+            dispatch(fromResources.learn('developedLand'));
 
+            dispatch(generateMap());
 
             dispatch(fromStructures.learn('harvester'));
             dispatch(fromStructures.buildForFree('harvester', 1));
@@ -320,6 +324,8 @@ export default {
             dispatch(fromUpgrades.discover('windTurbine_increaseCutOut'))
             dispatch(fromUpgrades.discover('windTurbine_largerBlades'))
             dispatch(fromUpgrades.discover('windTurbine_yawDrive'))
+
+            dispatch(fromAbilities.learn('replicate'));
 
             addTrigger(
                 (state) => state.planet.droidData,

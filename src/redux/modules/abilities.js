@@ -99,11 +99,20 @@ export default function reducer(state = initialState, action) {
 
 // Action Creators
 export function learn(id) {
-    return { type: LEARN, payload: { id } };
+    return withRecalculation({ type: LEARN, payload: { id } }); // recalculate so we immediately calculate costs
 }
 export function startCastUnsafe(ability) {
-    // Need to recalculate because some abilities have buffs that need to be applied right at cast start
-    return withRecalculation({ type: START_CAST, payload: { ability } });
+    return function(dispatch, getState) {
+        batch(() => {
+            dispatch({ type: START_CAST, payload: { ability } });
+            if (callbacks[ability.id] && callbacks[ability.id].onStart) {
+                callbacks[ability.id].onStart(dispatch, getState, ability);
+            }
+
+            // Need to recalculate because some abilities have buffs that need to be applied right at cast start
+            dispatch(recalculateState())
+        });
+    }
 }
 
 export function abilitiesTick(timeDelta) {
@@ -113,27 +122,27 @@ export function abilitiesTick(timeDelta) {
 
             for (const [key, value] of Object.entries(getState().abilities.byId)) {
                 if (value.state === STATES.casting && value.castProgress >= value.castTime * 1000) {
-                    endCast(dispatch, value);
+                    endCast(dispatch, getState, value);
                 }
                 if (value.state === STATES.cooldown && value.cooldownProgress >= value.cooldown * 1000) {
-                    endCooldown(dispatch, value);
+                    endCooldown(dispatch, getState, value);
                 }
             }
         });
     }
 }
 
-function endCast(dispatch, ability) {
+function endCast(dispatch, getState, ability) {
     dispatch({ type: END_CAST, payload: { ability } });
 
     if (callbacks[ability.id] && callbacks[ability.id].onFinish) {
-        callbacks[ability.id].onFinish(dispatch);
+        callbacks[ability.id].onFinish(dispatch, getState);
     }
 
     dispatch(recalculateState());
 }
 
-function endCooldown(dispatch, ability) {
+function endCooldown(dispatch, getState, ability) {
     dispatch({ type: END_COOLDOWN, payload: { ability } });
     dispatch(recalculateState());
 }

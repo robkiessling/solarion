@@ -2,12 +2,11 @@ import {
     getNumBuilt,
     getRunningRate,
     hasInsufficientResources,
-    isRunning,
-    UNKNOWN_IMAGE_KEY
+    isRunning
 } from "../redux/modules/structures";
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {daylightPercent, windSpeed} from "../redux/modules/clock";
-import {canConsume, getIconSpan} from "../redux/modules/resources";
+import {canConsume, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
 import {round} from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
 
@@ -27,7 +26,7 @@ const base = {
     runningRate: 0,
     runningCooldown: 0,
     count: {
-        total: 15 // todo why is this an object?
+        total: 0 // todo why is this an object?
     },
     status: STATUSES.normal,
     cost: {},
@@ -99,9 +98,6 @@ export default {
 
 const baseCalculator = {
     animationTag: (state, structure) => { // todo rename animationKey?
-        if (getNumBuilt(structure) === 0) {
-            return UNKNOWN_IMAGE_KEY;
-        }
         if (hasInsufficientResources(structure)) {
             return 'idle';
         }
@@ -251,10 +247,6 @@ export const calculators = {
                 `when wind speed is between ${variables.cutInSpeed} and ${variables.cutOutSpeed} mph.`;
         },
         animationTag: (state, structure, variables) => {
-            if (getNumBuilt(structure) === 0) {
-                return UNKNOWN_IMAGE_KEY;
-            }
-
             const wind = windSpeed(state.clock);
             return wind < variables.cutInSpeed || wind > variables.cutOutSpeed ? 'idle' : 'running';
         }

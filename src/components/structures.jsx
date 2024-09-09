@@ -12,6 +12,11 @@ class Structures extends React.Component {
         super(props);
     }
 
+    shouldComponentUpdate(nextProps, nextState) {
+        // Checking both this props and next props to ensure we update on visibility changes
+        return this.props.visible || nextProps.visible;
+    }
+
     render() {
         const tabs = [
             { id: 'all', label: 'All' },
@@ -21,7 +26,7 @@ class Structures extends React.Component {
         const onTabClick = (tabId) => { this.props.updateSetting('currentStructureTab', tabId) }
 
         return (
-            <div className="structures">
+            <div className={`structures ${this.props.visible ? '' : 'hidden'}`}>
                 {
                     this.props.structureIds.length ?
                         (
@@ -67,6 +72,7 @@ const mapStateToProps = (state, ownProps) => {
     }
 
     return {
+        visible: state.game.currentNavTab === 'outside',
         showStructureTabs: state.game.showStructureTabs,
         currentStructureTab: state.game.currentStructureTab,
         structureIds: getVisibleIds(state.structures, structureType)

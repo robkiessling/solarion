@@ -16,7 +16,6 @@ import {generateMap} from "./redux/modules/planet";
 
 
 
-store.dispatch(generateMap());
 store.dispatch(fromLog.startLogSequence('startup'));
 
 ReactDOM.render(
