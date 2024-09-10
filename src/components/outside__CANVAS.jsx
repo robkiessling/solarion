@@ -3,15 +3,13 @@
  */
 
 import React from 'react';
-import Canvas from "../lib/canvas";
+import AsciiCanvas from "../lib/ascii_canvas";
 import gameClock from "../singletons/game_clock";
 import {fractionOfDay} from "../redux/modules/clock";
 import {connect} from "react-redux";
 import {generateImage, NUM_COLS, NUM_ROWS} from "../lib/outside";
 import {animationData} from "../redux/modules/structures";
 import {mod} from "../lib/helpers";
-
-const INTERVAL_ID = 'main-display';
 
 const CHANGE_SKY_OPACITY = true; // can turn off for sun orbit testing
 
@@ -39,12 +37,8 @@ class Outside extends React.Component {
     }
 
     componentDidMount() {
-        this.canvasManager = new Canvas(this.canvasContainer.current, this.canvas.current, NUM_ROWS, NUM_COLS);
-        this.skyCanvasManager = new Canvas(this.canvasContainer.current, this.skyCanvas.current, NUM_ROWS, NUM_COLS);
-    }
-
-    componentWillUnmount() {
-        gameClock.clearInterval(INTERVAL_ID)
+        this.canvasManager = new AsciiCanvas(this.canvasContainer.current, this.canvas.current, NUM_ROWS, NUM_COLS);
+        this.skyCanvasManager = new AsciiCanvas(this.canvasContainer.current, this.skyCanvas.current, NUM_ROWS, NUM_COLS);
     }
 
     shouldComponentUpdate(nextProps, nextState) {

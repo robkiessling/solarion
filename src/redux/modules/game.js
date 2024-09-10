@@ -9,7 +9,7 @@ export const ADD_NAV_TAB = 'game/ADD_NAV_TAB';
 export const NAV_TAB_TITLES = {
     outside: 'Surface',
     planet: 'Planet',
-    solarion: 'Solarion',
+    star: 'Solarion',
 }
 
 // Initial State
@@ -18,7 +18,7 @@ const initialState = {
     showPlanetStatus: false,
     showResourceBar: false,
     visibleNavTabs: [],
-    currentNavTab: 'planet',
+    currentNavTab: 'star',
 
     showStructureTabs: true,
     currentStructureTab: 'all',

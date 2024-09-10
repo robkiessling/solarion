@@ -71,6 +71,9 @@ const STRUCTURE_POSITIONS = {
     droidFactory: [
         { row: 37, col: 20 },
         { row: 38, col: 35 },
+    ],
+    probeFactory: [
+        { row: 5, col: -30 }
     ]
 }
 const DOODAD_POSITIONS = {

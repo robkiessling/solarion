@@ -1,9 +1,11 @@
-import {debounce} from "./helpers";
+import {debounce, mod} from "./helpers";
+
+// TODO rename this to AsciiCanvas
 
 const FONT_RATIO = 3/5;
 const FONT_COLOR = '#fff';
 
-export default class Canvas {
+export default class AsciiCanvas {
     constructor(container, canvas, numRows, numCols) {
         this.container = container;
         this.canvas = canvas;
@@ -50,6 +52,64 @@ export default class Canvas {
             this.fontHeight = this.fontWidth / FONT_RATIO;
             this.height = this.fontHeight * this.numRows
         }
+    }
+
+    center() {
+        return [this.width / 2, this.height / 2]
+    }
+
+    /**
+     * Draws an ellipse shape out of characters.
+     *
+     * @param char {String} The character to repeat
+     * @param numPoints {Number} The number of points (chars) that make up the ellipse
+     * @param ellipseVars {Object} Ellipse variables used to shape the ellipse, according to the following equation:
+     * @param color {String} CSS color (hex string, or color name)
+     *
+     * Parametric equations for an ellipse WITH ROTATION:
+     *   x = h + (a * cos(t)) * cos(r) + (b * sin(t)) * -sin(r)
+     *   y = k + (a * cos(t)) * sin(r) + (b * sin(t)) * cos(r)
+     *
+     * where:
+     *   h = center of ellipse on x axis (relative to center of canvas)
+     *   k = center of ellipse on y axis (relative to center of canvas)
+     *   a = radius of ellipse on x axis
+     *   b = radius of ellipse on y axis
+     *   r = rotation angle of ellipse (in degrees)
+     *   t = theta (angle of x,y coordinate -- independent variable)
+     *
+     */
+    drawEllipse(char, numPoints, ellipseVars, thetaOffset = 0, color = '#fff') {
+        const [canvasCenterX, canvasCenterY] = this.center();
+
+        const a = ellipseVars.a === undefined ? 10 : ellipseVars.a;
+        const b = ellipseVars.b === undefined ? 10 : ellipseVars.b;
+        const h = canvasCenterX + (ellipseVars.h === undefined ? 0 : ellipseVars.h);
+        const k = canvasCenterY + (ellipseVars.k === undefined ? 0 : ellipseVars.k);
+        const r = ellipseVars.r === undefined ? 0 : ellipseVars.r * Math.PI / 180;
+
+        const maxTheta = 2 * Math.PI;
+        const thetaStepSize = maxTheta / numPoints;
+
+        this.context.fillStyle = color;
+
+        for (let i = 0; i < numPoints; i++) {
+            const t = mod(i * thetaStepSize + thetaOffset, maxTheta);
+            const x = h + (a * Math.cos(t)) * Math.cos(r) + (b * Math.sin(t)) * -1 * Math.sin(r);
+            const y = k + (a * Math.cos(t)) * Math.sin(r) + (b * Math.sin(t)) * Math.cos(r);
+            this.context.fillText(char, x, y);
+        }
+    }
+
+    drawFilledCircle(char, density, radius) {
+
+    }
+
+    drawCenteredImage(charArray) {
+        const imageWidth = Math.max(...charArray.map(row => row.length))
+        const imageHeight = charArray.length;
+        const [canvasCenterX, canvasCenterY] = this.center();
+        this.drawImage(charArray, canvasCenterX - imageWidth / 2, canvasCenterY - imageHeight / 2)
     }
 
     drawImage(charArray, x, y) {

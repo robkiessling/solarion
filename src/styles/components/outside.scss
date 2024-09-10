@@ -78,7 +78,7 @@ $top-bar-float-padding: 0.875rem;
 
   display: flex;
   padding: 0.5rem 0;
-  width: 17rem;
+  width: 25rem;
 
   background: $ui-bg;
   border: 3px solid $ui-border;
@@ -183,4 +183,20 @@ $top-bar-float-padding: 0.875rem;
 #outside-canvas {
   //background: red;
   //background: $black;
+}
+
+#star-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden; // sides (left/right) can get truncated based on screen size
+  background: $black;
+
+  canvas {
+
+
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
 }

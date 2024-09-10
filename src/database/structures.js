@@ -26,7 +26,7 @@ const base = {
     runningRate: 0,
     runningCooldown: 0,
     count: {
-        total: 0 // todo why is this an object?
+        total: 15 // todo why is this an object? maybe for total/broken/etc.?
     },
     status: STATUSES.normal,
     cost: {},
@@ -82,13 +82,13 @@ export default {
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
         description: "Constructs droids to improve production and explore the planet.",
-        type: TYPES.generator,
+        type: TYPES.consumer,
         droidData: {
             usesDroids: false
         }
     }),
     probeFactory: _.merge({}, base, {
-        name: "Orbital Command Center",
+        name: "Orbital Launcher",
         description: "Manufactures and launches probes towards Solarion V.",
         runnable: true,
         type: TYPES.consumer,

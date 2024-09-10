@@ -39,10 +39,10 @@ export default {
         visible: true
     }),
     buildableLand: _.merge({}, base, {
-        name: "Avail Land",
+        name: "Land",
         amount: 0,
         icon: 'icon-globe',
-        visible: true
+        visible: false
     }),
     developedLand: _.merge({}, base, {
         name: "Dev Land",

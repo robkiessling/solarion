@@ -318,7 +318,7 @@ export default {
 
             dispatch(fromGame.addNavTab('outside'));
             dispatch(fromGame.addNavTab('planet'));
-            // dispatch(fromGame.addNavTab('solarion'));
+            dispatch(fromGame.addNavTab('star'));
 
             dispatch(fromUpgrades.discover('windTurbine_reduceCutIn'))
             dispatch(fromUpgrades.discover('windTurbine_increaseCutOut'))

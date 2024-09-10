@@ -10,6 +10,7 @@ import Computer from "./computer";
 import NavigationTabs from "./navigation_tabs";
 import Planet from "./planet";
 import PlanetTools from "./planet_tools";
+import Star from "./star";
 
 export default class App extends React.Component {
     render() {
@@ -23,6 +24,7 @@ export default class App extends React.Component {
                 <div className="center-column">
                     <Outside/>
                     <Planet/>
+                    <Star/>
                     <NavigationTabs/>
                 </div>
                 <div className="right-column">
