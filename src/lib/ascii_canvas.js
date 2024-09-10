@@ -11,6 +11,7 @@ export default class AsciiCanvas {
         this.context.fillStyle = FONT_COLOR;
         this.numRows = numRows;
         this.numCols = numCols;
+        this.queue = []
 
         this._setupResize();
 
@@ -58,46 +59,26 @@ export default class AsciiCanvas {
 
     /**
      * Draws an ellipse shape out of characters.
-     *
-     * @param char {String} The character to repeat
+     * @param ellipse {Ellipse} Ellipse object used to shape the ellipse
+     * @param char {String} The character to repeat over the ellipse's arc
      * @param numPoints {Number} The number of points (chars) that make up the ellipse
-     * @param ellipseVars {Object} Ellipse variables used to shape the ellipse, according to the following equation:
-     * @param color {String} CSS color (hex string, or color name)
-     *
-     * Parametric equations for an ellipse WITH ROTATION:
-     *   x = h + (a * cos(t)) * cos(r) + (b * sin(t)) * -sin(r)
-     *   y = k + (a * cos(t)) * sin(r) + (b * sin(t)) * cos(r)
-     *
-     * where:
-     *   h = center of ellipse on x axis (relative to center of canvas)
-     *   k = center of ellipse on y axis (relative to center of canvas)
-     *   a = radius of ellipse on x axis
-     *   b = radius of ellipse on y axis
-     *   r = rotation angle of ellipse (in degrees)
-     *   t = theta (angle of x,y coordinate -- independent variable)
-     *
+     * @param thetaOffset {Number} How much to offset the ring of characters
      */
-    drawCharEllipse(char, numPoints, ellipseVars, thetaOffset = 0, color = '#fff') {
+    drawEllipse(ellipse, char, numPoints, thetaOffset = 0) {
         const [canvasCenterX, canvasCenterY] = this.center();
 
-        const a = ellipseVars.a === undefined ? 10 : ellipseVars.a;
-        const b = ellipseVars.b === undefined ? 10 : ellipseVars.b;
-        const h = canvasCenterX + (ellipseVars.h === undefined ? 0 : ellipseVars.h);
-        const k = canvasCenterY + (ellipseVars.k === undefined ? 0 : ellipseVars.k)// + this.fontHeight - 2; // Move down one row. Move up a tiny bit.
+        ellipse.xyPoints(numPoints, thetaOffset, (x, y) => {
+            this.fillText(char, x + canvasCenterX, y + canvasCenterY)
+        });
+    }
 
-        const r = ellipseVars.r === undefined ? 0 : ellipseVars.r * Math.PI / 180;
+    // Draws a single char of an ellipse
+    drawEllipseChar(ellipse, char, numPoints, thetaOffset, i) {
+        const [canvasCenterX, canvasCenterY] = this.center();
 
-        const maxTheta = 2 * Math.PI;
-        const thetaStepSize = maxTheta / numPoints;
-
-        this.context.fillStyle = color;
-
-        for (let i = 0; i < numPoints; i++) {
-            const t = mod(i * thetaStepSize + thetaOffset, maxTheta);
-            const x = h + (a * Math.cos(t)) * Math.cos(r) + (b * Math.sin(t)) * -1 * Math.sin(r);
-            const y = k + (a * Math.cos(t)) * Math.sin(r) + (b * Math.sin(t)) * Math.cos(r);
-            this.context.fillText(char, x, y);
-        }
+        ellipse.xyPoint(numPoints, thetaOffset, i, (x, y) => {
+            this.fillText(char, x + canvasCenterX, y + canvasCenterY);
+        })
     }
 
     drawFilledCircle(radius, color = '#000', xOffset = 0, yOffset = 0) {
@@ -109,7 +90,7 @@ export default class AsciiCanvas {
         this.context.fill();
     }
 
-    drawCharImage(charArray, x, y) {
+    drawImage(charArray, x, y) {
         const startingX = x * this.fontWidth;
         let startingY = y * this.fontHeight;
         startingY += (this.fontHeight - 2); // Move down one row. Move up a tiny bit.
@@ -120,11 +101,7 @@ export default class AsciiCanvas {
                const [char, color] = charArray[row][col];
                if (char !== undefined) {
                    this.context.fillStyle = color;
-                   this.context.fillText(
-                       char,
-                       startingX + col * this.fontWidth,
-                       startingY + row * this.fontHeight
-                   );
+                   this.fillText(char, startingX + col * this.fontWidth, startingY + row * this.fontHeight)
                }
            }
         }
@@ -139,6 +116,47 @@ export default class AsciiCanvas {
         //     );
         // }
     }
+
+    setFillStyle(color) {
+        this.context.fillStyle = color;
+    }
+
+
+    /**
+     * --- Queueing Updates ---
+     * 
+     * The following methods provide a way to queue updates if they match a certain criteria. Once addQueueFilter is
+     * called, all fillText calls will be first passed through the provided filter. If the x/y coordinates of the 
+     * fillText call match the filter, the fill will be queued for later. If the coordinates do not match the filter, 
+     * the fillText will be called as normal.
+     * 
+     * At a later time, you can call processQueue to draw all the queued fillText items.
+     */
+    addQueueFilter(filter) {
+        this.queueFilter = filter;
+    }
+    
+    removeQueueFilter() {
+        this.queueFilter = undefined;
+    }
+    
+    processQueue() {
+        this.queue.forEach(item => {
+            this.context.fillText(item.text, item.x, item.y);
+        });
+        this.queue = [];
+    }
+    
+    fillText(text, x, y) {
+        if (this.queueFilter && this.queueFilter(x, y)) {
+            this.queue.push({ x: x, y: y, text: text })
+            return;
+        }
+        this.context.fillText(text, x, y);
+    }
+
+
+
 
     resize() {
         this.setDimensions();

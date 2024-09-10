@@ -11,6 +11,7 @@ import structures, * as fromStructures from "./modules/structures";
 import upgrades, * as fromUpgrades from "./modules/upgrades";
 import abilities, * as fromAbilities from "./modules/abilities";
 import planet, * as fromPlanet from "./modules/planet";
+import star, * as fromStar from "./modules/star";
 import {mapObject} from "../lib/helpers";
 import {STATUSES} from "../database/structures";
 import {generateImage} from "../lib/planet_map";
@@ -29,7 +30,8 @@ export default reduceReducers(
         structures,
         upgrades,
         abilities,
-        planet
+        planet,
+        star
     }),
 
     // cross-cutting entire state

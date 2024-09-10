@@ -109,6 +109,14 @@ export function createArray(size, defaultValue = null) {
     return array;
 }
 
+// https://stackoverflow.com/a/12646864/4904996
+export function shuffleArray(array) {
+    for (let i = array.length - 1; i >= 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
 export function getDynamicValue(value, functionParams) {
     return typeof value === 'function' ? value(...functionParams) : value;
 }

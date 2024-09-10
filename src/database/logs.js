@@ -10,6 +10,7 @@ import * as fromLog from "../redux/modules/log";
 import {batch} from "react-redux";
 import {mapObject} from "../lib/helpers";
 import {generateMap} from "../redux/modules/planet";
+import {generateProbeDist} from "../redux/modules/star";
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard crash log sequence
 const SKIP_BOOTUP = 'skipBootup'; // Skip crash log, normal story playthrough
@@ -287,6 +288,7 @@ export default {
             dispatch(fromResources.learn('developedLand'));
 
             dispatch(generateMap());
+            dispatch(generateProbeDist());
 
             dispatch(fromStructures.learn('harvester'));
             dispatch(fromStructures.buildForFree('harvester', 1));

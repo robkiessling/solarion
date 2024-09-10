@@ -6,7 +6,8 @@ import React from 'react';
 import AsciiCanvas from "../lib/ascii_canvas";
 import {connect} from "react-redux";
 import {NUM_COLS, NUM_ROWS} from "../lib/outside";
-import {drawStarAndSwarm} from "../lib/star";
+import {drawStarAndProbes} from "../lib/star";
+import {getQuantity, getResource} from "../redux/modules/resources";
 
 class Star extends React.Component {
     constructor(props) {
@@ -32,7 +33,7 @@ class Star extends React.Component {
         }
 
         this.canvasManager.clearAll();
-        drawStarAndSwarm(this.canvasManager, this.props.elapsedTime);
+        drawStarAndProbes(this.canvasManager, this.props.elapsedTime, this.props.probeDistribution, this.props.numProbes);
     }
 
     render() {
@@ -50,6 +51,8 @@ const mapStateToProps = state => {
     return {
         visible: state.game.currentNavTab === 'star',
         elapsedTime: state.clock.elapsedTime,
+        probeDistribution: state.star.distribution,
+        numProbes: getQuantity(getResource(state.resources, 'probes'))
     }
 };
 

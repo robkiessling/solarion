@@ -29,7 +29,7 @@ export default {
     }),
     refinedMinerals: _.merge({}, base, {
         name: "Minerals",
-        amount: 0,
+        amount: 99999,
         icon: 'icon-crystal-growth'
     }),
     standardDroids: _.merge({}, base, {

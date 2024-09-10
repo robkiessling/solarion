@@ -55,7 +55,7 @@ class Outside extends React.Component {
 
         const image = generateImage(this.props.structureAnimationData, this.props.elapsedTime / 1000, this.props.fractionOfDay);
         this.canvasManager.clearAll();
-        this.canvasManager.drawCharImage(image, 0, 0);
+        this.canvasManager.drawImage(image, 0, 0);
     }
 
     sunPosition() {
