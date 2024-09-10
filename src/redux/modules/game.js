@@ -8,7 +8,7 @@ export const ADD_NAV_TAB = 'game/ADD_NAV_TAB';
 // Constants
 export const NAV_TAB_TITLES = {
     outside: 'Surface',
-    planet: 'Planet',
+    planet: 'Globe',
     star: 'Solarion',
 }
 

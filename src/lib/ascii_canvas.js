@@ -1,7 +1,5 @@
 import {debounce, mod} from "./helpers";
 
-// TODO rename this to AsciiCanvas
-
 const FONT_RATIO = 3/5;
 const FONT_COLOR = '#fff';
 
@@ -79,13 +77,14 @@ export default class AsciiCanvas {
      *   t = theta (angle of x,y coordinate -- independent variable)
      *
      */
-    drawEllipse(char, numPoints, ellipseVars, thetaOffset = 0, color = '#fff') {
+    drawCharEllipse(char, numPoints, ellipseVars, thetaOffset = 0, color = '#fff') {
         const [canvasCenterX, canvasCenterY] = this.center();
 
         const a = ellipseVars.a === undefined ? 10 : ellipseVars.a;
         const b = ellipseVars.b === undefined ? 10 : ellipseVars.b;
         const h = canvasCenterX + (ellipseVars.h === undefined ? 0 : ellipseVars.h);
-        const k = canvasCenterY + (ellipseVars.k === undefined ? 0 : ellipseVars.k);
+        const k = canvasCenterY + (ellipseVars.k === undefined ? 0 : ellipseVars.k)// + this.fontHeight - 2; // Move down one row. Move up a tiny bit.
+
         const r = ellipseVars.r === undefined ? 0 : ellipseVars.r * Math.PI / 180;
 
         const maxTheta = 2 * Math.PI;
@@ -101,18 +100,16 @@ export default class AsciiCanvas {
         }
     }
 
-    drawFilledCircle(char, density, radius) {
-
-    }
-
-    drawCenteredImage(charArray) {
-        const imageWidth = Math.max(...charArray.map(row => row.length))
-        const imageHeight = charArray.length;
+    drawFilledCircle(radius, color = '#000', xOffset = 0, yOffset = 0) {
         const [canvasCenterX, canvasCenterY] = this.center();
-        this.drawImage(charArray, canvasCenterX - imageWidth / 2, canvasCenterY - imageHeight / 2)
+
+        this.context.beginPath();
+        this.context.arc(canvasCenterX + xOffset, canvasCenterY + yOffset, radius, 0, 2 * Math.PI);
+        this.context.fillStyle = color;
+        this.context.fill();
     }
 
-    drawImage(charArray, x, y) {
+    drawCharImage(charArray, x, y) {
         const startingX = x * this.fontWidth;
         let startingY = y * this.fontHeight;
         startingY += (this.fontHeight - 2); // Move down one row. Move up a tiny bit.

@@ -72,7 +72,7 @@ const mapStateToProps = (state, ownProps) => {
     }
 
     return {
-        visible: state.game.currentNavTab === 'outside',
+        visible: state.game.currentNavTab === 'outside' || state.game.currentNavTab === 'star',
         showStructureTabs: state.game.showStructureTabs,
         currentStructureTab: state.game.currentStructureTab,
         structureIds: getVisibleIds(state.structures, structureType)
