@@ -52,7 +52,7 @@ const mapStateToProps = state => {
         visible: state.game.currentNavTab === 'star',
         elapsedTime: state.clock.elapsedTime,
         probeDistribution: state.star.distribution,
-        numProbes: getQuantity(getResource(state.resources, 'probes'))
+        numProbes: Math.floor(getQuantity(getResource(state.resources, 'probes')))
     }
 };
 

@@ -3,6 +3,11 @@ import {debounce, mod} from "./helpers";
 const FONT_RATIO = 3/5;
 const FONT_COLOR = '#fff';
 
+export const QUEUE_TYPES = {
+    fillText: 0,
+    stroke: 1
+}
+
 export default class AsciiCanvas {
     constructor(container, canvas, numRows, numCols) {
         this.container = container;
@@ -72,15 +77,6 @@ export default class AsciiCanvas {
         });
     }
 
-    // Draws a single char of an ellipse
-    drawEllipseChar(ellipse, char, numPoints, thetaOffset, i) {
-        const [canvasCenterX, canvasCenterY] = this.center();
-
-        ellipse.xyPoint(numPoints, thetaOffset, i, (x, y) => {
-            this.fillText(char, x + canvasCenterX, y + canvasCenterY);
-        })
-    }
-
     drawFilledCircle(radius, color = '#000', xOffset = 0, yOffset = 0) {
         const [canvasCenterX, canvasCenterY] = this.center();
 
@@ -117,8 +113,27 @@ export default class AsciiCanvas {
         // }
     }
 
+    drawLine(start, end) {
+        if (this.queueFilter) {
+            const filterArgs = { startX: start.x, startY: start.y, endX: end.x, endY: end.y }
+            if (this.queueFilter(QUEUE_TYPES.stroke, filterArgs)) {
+                this.queue.push({ type: QUEUE_TYPES.stroke, args: filterArgs })
+                return;
+            }
+        }
+
+        this.context.beginPath();
+        this.context.moveTo(start.x, start.y);
+        this.context.lineTo(end.x, end.y);
+        this.context.stroke();
+    }
+
     setFillStyle(color) {
         this.context.fillStyle = color;
+    }
+
+    setStrokeStyle(color) {
+        this.context.strokeStyle = color;
     }
 
 
@@ -142,15 +157,29 @@ export default class AsciiCanvas {
     
     processQueue() {
         this.queue.forEach(item => {
-            this.context.fillText(item.text, item.x, item.y);
+            const args = item.args;
+            switch(item.type) {
+                case QUEUE_TYPES.fillText:
+                    this.context.fillText(args.text, args.x, args.y);
+                    break;
+                case QUEUE_TYPES.stroke:
+                    this.context.beginPath();
+                    this.context.moveTo(args.startX, args.startY);
+                    this.context.lineTo(args.endX, args.endY);
+                    this.context.stroke();
+                    break;
+            }
         });
         this.queue = [];
     }
     
     fillText(text, x, y) {
-        if (this.queueFilter && this.queueFilter(x, y)) {
-            this.queue.push({ x: x, y: y, text: text })
-            return;
+        if (this.queueFilter) {
+            const filterArgs = { x, y, text };
+            if (this.queueFilter(QUEUE_TYPES.fillText, filterArgs)) {
+                this.queue.push({ type: QUEUE_TYPES.fillText, args: filterArgs })
+                return;
+            }
         }
         this.context.fillText(text, x, y);
     }

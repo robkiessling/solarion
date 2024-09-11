@@ -1,11 +1,13 @@
 import {shuffleArray} from "./helpers";
 import Ellipse from "./ellipse";
+import {QUEUE_TYPES} from "./ascii_canvas";
 
 
 const SUN_SIZE = 75;
 const SUN_ELLIPSE_COUNT = 5;
 const SUN_CHARS_PER_ELLIPSE = 50;
-const SUN_COLOR = 'yellow';
+const SUN_FOREGROUND = 'yellow';
+const SUN_BACKGROUND = '#343400';
 const SUN_CHAR_A = '('; // We use two different characters when drawing the sun's body
 const SUN_CHAR_B = ')';
 
@@ -38,7 +40,7 @@ const PROBE_ELLIPSES = [
     generateProbeEllipse(1.65, 1.30, 35),
     generateProbeEllipse(1.73, 1.20,  0), // Outer-most ellipse
 
-    /*   Bottom half of donut:  */
+    /*   Bottom half of donut (same as top half, but using negative offsets):  */
     // generateProbeEllipse(0.00, 2.00,  0), // Duplicated inner-most ellipse
     generateProbeEllipse(0.05, 1.90, -20),
     generateProbeEllipse(0.25, 1.70, -35),
@@ -52,6 +54,17 @@ const PROBE_ELLIPSES = [
 ]
 
 
+const PLANET_POSITION = [5, 0.9]; // percent of canvas to draw lines to
+
+// "Zaps" are the line flashes that appear when a probe is created (showing where the probe was sent from)
+const ZAP_ENABLED = true;
+const ZAP_DURATION = 200;
+const ZAP_STARTING_OPACITY = 0.7;
+const ZAP_ENDING_OPACITY = 0.1;
+const ZAP_HIDE_AT_NUM_PROBES = 1800;
+
+const MAX_MIRRORS = 50;
+const MIRROR_COLOR = 'rgba(255,255,0,0.2)'
 
 /**
  * Creates an ellipse to represent a ring of probes orbiting the star
@@ -76,8 +89,9 @@ function generateProbeEllipse(sizeFactor, bFactor = 2, offset = 0) {
  * what index on the ellipse they are at).
  *
  * Returns an array like: [
- *     [3, 15], // represents ellipse #3 and index #15
- *     [7, 83], // represents ellipse #7 and index #83
+ *     [3, 15, undefined], // represents ellipse #3 and index #15, the final undefined will be populated with the
+ *                            elapsedTime when that probe is created
+ *     [7, 83, undefined], // represents ellipse #7 and index #83
  *     ...
  * ]
  */
@@ -113,30 +127,67 @@ export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numPro
     const [centerX, centerY] = canvas.center();
     const m = centerY / centerX;
     const b = -1 * centerY - m * centerX;
-    canvas.addQueueFilter((x, y) => {
+    canvas.addQueueFilter((type, args) => {
         // Queue update if point is below our imaginary line from bottom-left to top-right corner.
         // We multiply y by -1 because for a canvas a positive y means go DOWN.
-        return -1 * y < m * x + b;
+        switch(type) {
+            case QUEUE_TYPES.fillText:
+                return -1 * args.y < m * args.x + b;
+            case QUEUE_TYPES.stroke:
+                return -1 * args.startY < m * args.startX + b;
+        }
     })
 
-    canvas.setFillStyle('#fff');
-    probeDistribution.slice(0, numProbes).forEach(probeCoord => {
-        canvas.drawEllipseChar(PROBE_ELLIPSES[probeCoord[0]], PROBE_CHAR, PROBES_PER_ELLIPSE, orbitTheta, probeCoord[1]);
-    })
+    drawMirrors(canvas, probeDistribution, numProbes, orbitTheta);
+    drawProbes(canvas, probeDistribution, numProbes, orbitTheta);
+
     canvas.removeQueueFilter();
 
     drawSun(canvas, orbitTheta);
 
+    // Set styles accordingly so we can process the queued mirrors/probes
     canvas.setFillStyle('#fff');
+    canvas.setStrokeStyle(MIRROR_COLOR);
     canvas.processQueue();
+
+    if (ZAP_ENABLED && numProbes > 0) {
+        drawZaps(numProbes, elapsedTime, canvas, probeDistribution, orbitTheta)
+    }
+}
+
+function drawMirrors(canvas, probeDistribution, numProbes, thetaOffset) {
+    const [centerX, centerY] = canvas.center();
+
+    canvas.setStrokeStyle(MIRROR_COLOR);
+    const endPoint = { x: canvas.width * PLANET_POSITION[0], y: canvas.height * PLANET_POSITION[1] }
+
+    // Draw mirror reflection lines first
+    probeDistribution.slice(0, Math.min(numProbes, MAX_MIRRORS)).forEach(probeCoord => {
+        const [x, y] = PROBE_ELLIPSES[probeCoord[0]].xyPoint(PROBES_PER_ELLIPSE, thetaOffset, probeCoord[1]);
+        canvas.drawLine(
+            { x: x + centerX + canvas.fontWidth / 2, y: y + centerY - canvas.fontHeight / 2 },
+            endPoint
+        )
+    })
+}
+
+function drawProbes(canvas, probeDistribution, numProbes, thetaOffset) {
+    const [centerX, centerY] = canvas.center();
+
+    canvas.setFillStyle('#fff');
+
+    probeDistribution.slice(0, numProbes).forEach(probeCoord => {
+        const [x, y] = PROBE_ELLIPSES[probeCoord[0]].xyPoint(PROBES_PER_ELLIPSE, thetaOffset, probeCoord[1]);
+        canvas.fillText(PROBE_CHAR, x + centerX, y + centerY);
+    })
 }
 
 function drawSun(canvas, orbitTheta) {
     // Draw a black circle background behind the sun to help create the illusion that the sun is inside of the probe donut
-    canvas.drawFilledCircle(SUN_SIZE + 2, '#000', 4, -4); // small x/y offsets due to char padding
+    canvas.drawFilledCircle(SUN_SIZE + 2, SUN_BACKGROUND, 4, -4); // small x/y offsets due to char padding
 
     const stepSize = 1 / (SUN_ELLIPSE_COUNT - 1);
-    canvas.setFillStyle(SUN_COLOR);
+    canvas.setFillStyle(SUN_FOREGROUND);
 
     for (let i = 0; i < SUN_ELLIPSE_COUNT; i++) {
         const offset = i === 0 ? 0.1 : stepSize * i;
@@ -157,4 +208,50 @@ function drawSun(canvas, orbitTheta) {
             orbitTheta
         );
     }
+}
+
+
+
+
+const zaps = []; // Records when every probe's zap started
+const visibleZaps = {}; // Records zaps that are currently visible
+
+function drawZaps(numProbes, elapsedTime, canvas, probeDistribution, orbitTheta) {
+    const opacityRange = ZAP_STARTING_OPACITY - ZAP_ENDING_OPACITY
+    const fadeAmount = Math.min(numProbes / ZAP_HIDE_AT_NUM_PROBES, 1); // percent of range to fade
+    const opacity = ZAP_STARTING_OPACITY - fadeAmount * opacityRange;
+
+    if (opacity > 0) {
+        const latestProbeIndex = numProbes - 1;
+        if (zaps[latestProbeIndex] === undefined) {
+            zaps[latestProbeIndex] = elapsedTime;
+            visibleZaps[latestProbeIndex] = elapsedTime;
+        }
+
+        // remove expired zaps
+        for (const [probeIndex, startTime] of Object.entries(visibleZaps)) {
+            if (elapsedTime > startTime + ZAP_DURATION) {
+                delete visibleZaps[probeIndex];
+            }
+        }
+
+        // show zaps
+        for (const [probeIndex, startTime] of Object.entries(visibleZaps)) {
+            drawZapLine(canvas, probeDistribution[probeIndex], orbitTheta, opacity);
+        }
+    }
+}
+
+function drawZapLine(canvas, probeCoord, thetaOffset, opacity) {
+    const [ellipseIndex, probeIndex] = probeCoord;
+    const ellipse = PROBE_ELLIPSES[ellipseIndex];
+    const [canvasCenterX, canvasCenterY] = canvas.center();
+
+    const [x, y] = ellipse.xyPoint(PROBES_PER_ELLIPSE, thetaOffset, probeIndex);
+
+    canvas.setStrokeStyle(`rgba(255,255,255,${opacity})`)
+    canvas.drawLine(
+        { x: canvas.width * PLANET_POSITION[0], y: canvas.height * PLANET_POSITION[1] },
+        { x: x + canvasCenterX + canvas.fontWidth / 2, y: y + canvasCenterY - canvas.fontHeight / 2 }
+    )
 }

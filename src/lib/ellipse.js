@@ -43,14 +43,15 @@ export default class Ellipse {
     // Generates a list of xy coordinates following the ellipse's arc
     xyPoints(numPoints, thetaOffset, callback) {
         for (let i = 0; i < numPoints; i++) {
-            this.xyPoint(numPoints, thetaOffset, i, callback);
+            const t = mod(i / numPoints * MAX_THETA + thetaOffset, MAX_THETA);
+            callback(this.x(t), this.y(t));
         }
     }
 
     // Generates a single xy coordinates on the ellipse's arc
-    xyPoint(numPoints, thetaOffset, i, callback) {
+    xyPoint(numPoints, thetaOffset, i) {
         const t = mod(i / numPoints * MAX_THETA + thetaOffset, MAX_THETA);
-        callback(this.x(t), this.y(t));
+        return [this.x(t), this.y(t)];
     }
 }
 
