@@ -1,9 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {
-    getStatusMessage,
-    hasInsufficientResources
-} from "../../redux/modules/structures";
+import {hasInsufficientResources} from "../../redux/modules/structures";
 import { getStructure } from "../../redux/modules/structures";
 import {buildStructure, getStructureStatistic, researchUpgrade, showDroidsForStructure} from "../../redux/reducer";
 
@@ -44,28 +41,33 @@ class Structure extends React.Component {
                                 this.props.isBuilt && Object.keys(this.props.production).length > 0 &&
                                 <div className={`d-flex space-between ${this.props.hasInsufficientResources ? 'text-grey' : ''}`}>
                                     <div>Producing:</div>
-                                    <div><ResourceAmounts amounts={this.props.production} asRates={true}/></div>
-                                    {/*<span dangerouslySetInnerHTML={{__html: this.props.structure.productionSuffix}} />*/}
+                                    <div><ResourceAmounts amounts={this.props.production} asRate={true}/></div>
                                 </div>
                             }
                             {
                                 this.props.isBuilt && Object.keys(this.props.consumption).length > 0 &&
                                 <div className={`d-flex space-between ${this.props.hasInsufficientResources ? 'text-grey' : ''}`}>
-                                    <div>Consuming: </div>
-                                    <div><ResourceAmounts amounts={this.props.consumption} asRates={true} invert={true}/></div>
-                                    {/*<span dangerouslySetInnerHTML={{__html: this.props.structure.consumptionSuffix}} />*/}
+                                    <div>Consuming:</div>
+                                    <div><ResourceAmounts amounts={this.props.consumption} asRate={true} invert={true}/></div>
                                 </div>
                             }
                             {
                                 this.props.isBuilt && Object.keys(this.props.capacity).length > 0 &&
                                 <div className={`d-flex space-between`}>
                                     <div>Capacity:</div>
-                                    <div><ResourceAmounts amounts={this.props.capacity}/></div>
+                                    <div><ResourceAmounts amounts={this.props.capacity} /></div>
+                                </div>
+                            }
+                            {
+                                this.props.isBuilt && this.props.statusMessage &&
+                                <div className={`d-flex space-between`}>
+                                    <div>Status:</div>
+                                    <div className={'d-flex justify-end'}
+                                          dangerouslySetInnerHTML={{__html: this.props.statusMessage}}></div>
                                 </div>
                             }
                             {this.props.isBuilt && this.props.showDroidsForStructure &&
                                 <DroidCount droidData={this.props.droidData} targetId={this.props.structure.id} />}
-                            <span className="text-red">{this.props.statusMessage}</span>
                         </div>
 
                         {this.props.isBuilt && <Abilities structure={this.props.structure}/>}
@@ -93,7 +95,7 @@ const mapStateToProps = (state, ownProps) => {
         capacity: getStructureStatistic(state, structure, 'capacity'),
 
         hasInsufficientResources: hasInsufficientResources(structure),
-        statusMessage: getStatusMessage(structure)
+        statusMessage: structure.statusMessage
     }
 };
 

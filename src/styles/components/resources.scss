@@ -15,10 +15,20 @@
       td:not(:first-child) {
         text-align: right;
       }
+
+      td {
+        vertical-align: top;
+      }
     }
   }
 }
 
-.resource-cost, .resource-rate {
+.resource-amount:not(:first-child), .resource-rate:not(:first-child) {
   margin-left: 1rem;
+}
+
+.resource-rate {
+  [class^="icon-"], [class*=" icon-"] {
+    margin-right: -3px;
+  }
 }

@@ -1,8 +1,15 @@
 import React from 'react';
-import ResourceRate from "./resource_rate";
+import ResourceAmount from "./resource_amount";
 import {getIcon} from "../../redux/modules/resources";
-import {isObject} from "lodash";
 
+/**
+ *
+ * @param props
+ *   - amounts (required) An object where keys are resourceIds and values are resource amounts
+ *   - invert (optional) If true, amount will be made negative
+ *   - asRate (optional) If true, resource will be shown with +/- sign and /s suffix
+ *   - colorRate (optional) If true (and asRate is also true), the rates will be colored red/green based on +/-
+ */
 export default function ResourceAmounts(props) {
 
     if (Object.keys(props.amounts).length === 0) {
@@ -12,28 +19,10 @@ export default function ResourceAmounts(props) {
     return (
         <span>
             {
-                Object.entries(props.amounts).map(([resourceId,amount]) => {
-                    let notEnough = false;
-                    if (isObject(amount)) {
-                        // Amount has been converted using `highlightCosts` -> need to deconstruct it
-                        notEnough = !amount.hasEnough;
-                        amount = amount.amount;
-                    }
-
-                    amount = _.round(amount, 1);
-                    if (props.invert) { amount = amount * -1; }
-                    const icon = getIcon(resourceId);
-
-                    if (props.asRates) {
-                        // Todo ResourceRate does not support hasEnough property
-                        return <ResourceRate rate={amount} icon={icon} key={resourceId} />
-                    }
-                    else {
-                        return <span key={resourceId} className={`resource-cost ${notEnough ? 'text-red' : ''}`}>
-                            {amount}
-                            <span className={icon}/>
-                        </span>
-                    }
+                Object.entries(props.amounts).map(([resourceId, amount]) => {
+                    return <ResourceAmount key={resourceId} icon={getIcon(resourceId)} amount={amount}
+                                           invert={props.invert} asRate={props.asRate} colorRate={props.colorRate}
+                    />
                 })
             }
         </span>

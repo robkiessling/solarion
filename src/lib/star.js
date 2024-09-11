@@ -4,7 +4,7 @@ import {QUEUE_TYPES} from "./ascii_canvas";
 
 
 const SUN_SIZE = 75;
-const SUN_ELLIPSE_COUNT = 5;
+const SUN_ELLIPSE_COUNT = 4;
 const SUN_CHARS_PER_ELLIPSE = 50;
 const SUN_FOREGROUND = 'yellow';
 const SUN_BACKGROUND = '#343400';
@@ -53,6 +53,8 @@ const PROBE_ELLIPSES = [
     // generateProbeEllipse(1.73, 1.20,  0), // Duplicated outer-most ellipse
 ]
 
+const PROBES_MAX_VISIBLE = PROBE_ELLIPSES.length * PROBES_PER_ELLIPSE;
+
 
 const PLANET_POSITION = [5, 0.9]; // percent of canvas to draw lines to
 
@@ -63,7 +65,7 @@ const ZAP_STARTING_OPACITY = 0.7;
 const ZAP_ENDING_OPACITY = 0.1;
 const ZAP_HIDE_AT_NUM_PROBES = 1800;
 
-const MAX_MIRRORS = 50;
+const MAX_MIRRORS = 100;
 const MIRROR_COLOR = 'rgba(255,255,0,0.2)'
 
 /**
@@ -217,28 +219,35 @@ const zaps = []; // Records when every probe's zap started
 const visibleZaps = {}; // Records zaps that are currently visible
 
 function drawZaps(numProbes, elapsedTime, canvas, probeDistribution, orbitTheta) {
+    if (numProbes > PROBES_MAX_VISIBLE) {
+        return;
+    }
+
     const opacityRange = ZAP_STARTING_OPACITY - ZAP_ENDING_OPACITY
     const fadeAmount = Math.min(numProbes / ZAP_HIDE_AT_NUM_PROBES, 1); // percent of range to fade
     const opacity = ZAP_STARTING_OPACITY - fadeAmount * opacityRange;
 
-    if (opacity > 0) {
-        const latestProbeIndex = numProbes - 1;
-        if (zaps[latestProbeIndex] === undefined) {
-            zaps[latestProbeIndex] = elapsedTime;
-            visibleZaps[latestProbeIndex] = elapsedTime;
-        }
+    if (opacity <= 0) {
+        return;
+    }
 
-        // remove expired zaps
-        for (const [probeIndex, startTime] of Object.entries(visibleZaps)) {
-            if (elapsedTime > startTime + ZAP_DURATION) {
-                delete visibleZaps[probeIndex];
-            }
-        }
+    const latestProbeIndex = numProbes - 1;
 
-        // show zaps
-        for (const [probeIndex, startTime] of Object.entries(visibleZaps)) {
-            drawZapLine(canvas, probeDistribution[probeIndex], orbitTheta, opacity);
+    if (zaps[latestProbeIndex] === undefined) {
+        zaps[latestProbeIndex] = elapsedTime;
+        visibleZaps[latestProbeIndex] = elapsedTime;
+    }
+
+    // remove expired zaps
+    for (const [probeIndex, startTime] of Object.entries(visibleZaps)) {
+        if (elapsedTime > startTime + ZAP_DURATION) {
+            delete visibleZaps[probeIndex];
         }
+    }
+
+    // show zaps
+    for (const [probeIndex, startTime] of Object.entries(visibleZaps)) {
+        drawZapLine(canvas, probeDistribution[probeIndex], orbitTheta, opacity);
     }
 }
 

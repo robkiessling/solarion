@@ -3,7 +3,7 @@ import { connect } from 'react-redux';
 
 import {getNetResourceRates} from "../redux/reducer";
 import {getCapacity, getQuantity} from "../redux/modules/resources";
-import ResourceRate from "./ui/resource_rate";
+import ResourceAmount from "./ui/resource_amount";
 
 class ResourceBar extends React.Component {
     constructor(props) {
@@ -19,16 +19,15 @@ class ResourceBar extends React.Component {
                     {
                         this.props.visibleIds.map(id => {
                             const resource = this.props.resources[id];
-                            const capacityText = getCapacity(resource) < Infinity ? `/${getCapacity(resource)}` : null;
                             return <tr key={id}>
-                                <td width={'30%'}>
+                                <td width={'25%'}>
                                     {resource.name}
                                 </td>
-                                <td width={'35%'}>
-                                    {Math.floor(getQuantity(resource))}{capacityText}<span className={resource.icon}/>
+                                <td width={'45%'}>
+                                    <ResourceAmount amount={getQuantity(resource)} icon={resource.icon} capacity={getCapacity(resource)}/>
                                 </td>
-                                <td width={'35%'}>
-                                    <ResourceRate rate={this.props.netResourceRates[id]} colorRate={true} parenthesis={true}/>
+                                <td width={'30%'}>
+                                    {resource.showRate && <ResourceAmount amount={this.props.netResourceRates[id]} asRate={true} colorRate={true} />}
                                 </td>
                             </tr>
                         })

@@ -7,7 +7,8 @@ const base = {
     amount: 0,
     lifetimeTotal: 0,
     capacity: Infinity,
-    visible: true // Whether the resources shows up in display
+    visible: true, // Whether the resources shows up in display
+    showRate: true // Whether the resource shows a rate in the display (only relevant if visible:true)
 }
 
 export default {
@@ -36,7 +37,8 @@ export default {
         name: "Droids",
         amount: 30,
         icon: 'icon-vintage-robot',
-        visible: true
+        visible: true,
+        showRate: false
     }),
     buildableLand: _.merge({}, base, {
         name: "Land",

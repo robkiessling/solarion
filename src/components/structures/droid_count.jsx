@@ -11,10 +11,10 @@ class DroidCount extends React.Component {
         const tipIdRemove = `remove-droids-${this.props.tipId}`;
 
         return <div className="droid-count">
-            {/*<span className={'icon-vintage-robot'}></span>*/}
             <div>Droids:</div>
             <div>
                 <span className="num-droids">{this.props.droidData.numDroidsAssigned}</span>
+                <span className={'icon-vintage-robot'}></span>
                 <button onClick={() => this.props.assignDroid(this.props.droidData, this.props.targetId)}
                         disabled={!this.props.canAssign} className="has-tip"
                         data-tip data-for={tipIdAssign}>

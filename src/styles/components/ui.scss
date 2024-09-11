@@ -162,7 +162,7 @@ button {
 
   // If a button has a tip, we move the button text to an inner span (and that span will have the tip).
   // We can't have the tip on the button itself because the tip will stop working if the button gets disabled.
-  // https://stackoverflow.com/a/60571469/4904996
+  // https://stackoverflow.com/a/60571469
   &.has-tip {
     //padding: 0;
 
@@ -203,6 +203,9 @@ button {
 .d-flex {
   display: flex;
 }
+.flex-column {
+  flex-direction: column;
+}
 .justify-center {
   justify-content: center;
 }
@@ -211,6 +214,9 @@ button {
 }
 .align-center {
   align-items: center;
+}
+.justify-end {
+  justify-content: end;
 }
 
 .key-value-pair {

@@ -16,7 +16,10 @@ class BuildButton extends React.Component {
             <button onClick={() => this.props.buildStructure(this.props.structure.id, 1)}
                     disabled={!this.props.canBuild} className="action-button has-tip">
                 {/*<span data-tip data-for={tipId} className={'icon-flat-hammer'}></span>*/}
-                <span data-tip data-for={tipId}>Build</span>
+                <span data-tip data-for={tipId}>
+                    <span className={'icon-flat-hammer'}></span>
+                    Build
+                </span>
             </button>
             <Tooltip id={tipId}>
                 <p>

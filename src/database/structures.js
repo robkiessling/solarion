@@ -9,6 +9,7 @@ import {daylightPercent, windSpeed} from "../redux/modules/clock";
 import {canConsume, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
 import {round} from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
+import {redText} from "../lib/helpers";
 
 export const STATUSES = {
     normal: 0,
@@ -18,6 +19,8 @@ export const TYPES = {
     generator: 0,
     consumer: 1
 }
+
+const INSUFFICIENT_RESOURCES = redText('Insufficient Resources')
 
 const base = {
     name: 'Unknown',
@@ -29,12 +32,11 @@ const base = {
         total: 15 // todo why is this an object? maybe for total/broken/etc.?
     },
     status: STATUSES.normal,
+    statusMessage: '',
     cost: {},
     consumes: {},
     produces: {},
     type: TYPES.generator,
-    productionSuffix: null,
-    consumptionSuffix: null,
 
     droidData: {
         usesDroids: true,
@@ -147,12 +149,15 @@ export const calculators = {
         produces: (state, structure, variables) => ({
             ore: variables.ore
         }),
-        consumptionSuffix: (state, structure, variables) => {
-            if (hasInsufficientResources(structure)) {
-                return '<span class="text-red">(Insufficient)</span>';
+        statusMessage: (state, structure, variables) => {
+            if (!isRunning(structure)) {
+                return 'Idle'
             }
-            if (variables.efficiency !== undefined && isRunning(structure)) {
-                return `(${round(variables.efficiency * 100)}% efficiency)`;
+            else {
+                if (hasInsufficientResources(structure)) {
+                    return INSUFFICIENT_RESOURCES;
+                }
+                return `${round(variables.efficiency * 100)}% efficiency`
             }
         },
     }),
@@ -174,12 +179,12 @@ export const calculators = {
         produces: (state, structure, variables) => ({
             energy: variables.actualEnergy
         }),
-        productionSuffix: (state, structure, variables) => {
-            return `(${daylightPercent(state.clock) * 100}% daylight)`
+        statusMessage: (state, structure, variables) => {
+            return `${daylightPercent(state.clock) * 100}% daylight`
         },
         description: (state, structure, variables) => {
             return `Produces ${variables.peakEnergy}${getIconSpan('energy', true)} per second in peak sunlight.`;
-        }
+        },
     }),
     windTurbine: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
@@ -224,23 +229,22 @@ export const calculators = {
 
             return { energy: energy };
         },
-        productionSuffix: (state, structure, variables) => {
-            // return `(${daylightPercent(state.clock) * 100}% daylight)`
+        statusMessage: (state, structure, variables) => {
             const wind = windSpeed(state.clock);
 
             if (wind < variables.cutInSpeed) {
-                return '(Not enough wind)';
+                return redText('Not enough wind');
             }
             if (wind > variables.cutOutSpeed) {
-                return '(Dangerous winds)';
+                return redText('Dangerous winds');
             }
 
             if (wind < variables.ratedSpeed) {
                 const percent = (wind - variables.cutInSpeed) / (variables.ratedSpeed - variables.cutInSpeed);
-                return `(${round(percent * 100)}% of rated speed)`;
+                return `${round(percent * 100)}% of rated speed`;
             }
 
-            return '(100% rated speed)';
+            return '100% rated speed';
         },
         description: (state, structure, variables) => {
             return `Produces up to ${variables.ratedPower}${getIconSpan('energy', true)} per second ` +
@@ -305,16 +309,19 @@ export const calculators = {
             energy: 10
         }),
         consumes: (state, structure) => ({
-            energy: 5 * getRunningRate(structure),
-            ore: 2 * getRunningRate(structure)
+            energy: 21000000 * getRunningRate(structure),
+            ore: 21000000 * getRunningRate(structure)
         }),
-        consumptionSuffix: (state, structure, variables) => {
-            if (hasInsufficientResources(structure)) {
-                return '<span class="text-red">(Insufficient)</span>';
+        statusMessage: (state, structure, variables) => {
+            if (!isRunning(structure)) {
+                return 'Idle'
             }
-            // if (variables.efficiency !== undefined && isRunning(structure)) {
-            //     return `(${round(variables.efficiency * 100)}% efficiency)`;
-            // }
+            else {
+                if (hasInsufficientResources(structure)) {
+                    return INSUFFICIENT_RESOURCES;
+                }
+                return 'Running'
+            }
         },
         produces: (state, structure) => {
             const topEndEfficiency = 0.75;
@@ -336,9 +343,15 @@ export const calculators = {
             energy: 5 * getRunningRate(structure),
             refinedMinerals: 1 * getRunningRate(structure)
         }),
-        consumptionSuffix: (state, structure, variables) => {
-            if (hasInsufficientResources(structure)) {
-                return '<span class="text-red">(Insufficient)</span>';
+        statusMessage: (state, structure, variables) => {
+            if (!isRunning(structure)) {
+                return 'Idle'
+            }
+            else {
+                if (hasInsufficientResources(structure)) {
+                    return INSUFFICIENT_RESOURCES;
+                }
+                return 'Running'
             }
         },
         produces: (state, structure) => {
@@ -402,7 +415,7 @@ function applyEffect(effect, variables) {
                     variables[variable] *= value;
                     break;
                 default:
-                    console.error(`Error applying upgrade ${upgrade} to ${variables}`)
+                    console.error(`Error applying effect ${effect} to ${variables}`)
             }
         }
     }

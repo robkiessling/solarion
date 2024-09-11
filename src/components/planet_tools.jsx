@@ -7,9 +7,6 @@ import ReactSwitch from "react-switch";
 import {percentExplored, setRotation, setSunTracking} from "../redux/modules/planet";
 import {showDroidsUI} from "../redux/reducer";
 import {fractionOfDay} from "../redux/modules/clock";
-import ProgressButton from "./ui/progress_button";
-import _ from "lodash";
-import ResourceAmounts from "./ui/resource_amounts";
 import Replication from "./replication";
 
 class PlanetTools extends React.Component {

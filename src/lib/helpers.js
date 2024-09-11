@@ -36,7 +36,7 @@ export function emptyElement(element) {
     }
 }
 
-// Maps an object to a new object https://stackoverflow.com/a/14810722/4904996
+// Maps an object to a new object https://stackoverflow.com/a/14810722
 // TODO just use lodash map values?
 export const mapObject = (obj, fn) => {
     return Object.fromEntries(
@@ -67,6 +67,33 @@ export const round = (num) => {
     return roundToDecimal(num, 0);
 };
 
+const NUMBER_FORMAT_LOOKUP = [
+    { value: 1, symbol: "" },
+    { value: 1e3, symbol: "k" },
+    { value: 1e6, symbol: "M" },
+    { value: 1e9, symbol: "G" },
+    { value: 1e12, symbol: "T" },
+    { value: 1e15, symbol: "P" },
+    { value: 1e18, symbol: "E" },
+    { value: 1e21, symbol: "Z" }
+];
+
+// https://stackoverflow.com/a/9462382
+export function formatNumber(num, decimalDigits = 1) {
+    let isNegative = false;
+    if (num < 0) {
+        isNegative = true;
+        num *= -1;
+    }
+    const item = NUMBER_FORMAT_LOOKUP.findLast(item => num >= item.value);
+    return item ? `${isNegative ? '-' : ''}${(num / item.value).toFixed(decimalDigits).concat(item.symbol)}` : "0";
+}
+
+// Only show decimal place when number is greater than 1000 (i.e. it starts showing a symbol like "k" or "M")
+export function formatInteger(num) {
+    return (Math.abs(num) < 1e3) ? formatNumber(num, 0) : formatNumber(num, 1);
+}
+
 // The maximum is inclusive and the minimum is inclusive
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random#getting_a_random_integer_between_two_values_inclusive
 export function getRandomIntInclusive(min, max) {
@@ -81,7 +108,7 @@ export function getRandomFromArray(array) {
 
 
 // Need to use this (instead of num % mod) if the starting num can be negative
-// https://stackoverflow.com/a/17323608/4904996
+// https://stackoverflow.com/a/17323608
 export function mod(num, mod) {
     return ((num % mod) + mod) % mod;
 }
@@ -109,7 +136,7 @@ export function createArray(size, defaultValue = null) {
     return array;
 }
 
-// https://stackoverflow.com/a/12646864/4904996
+// https://stackoverflow.com/a/12646864
 export function shuffleArray(array) {
     for (let i = array.length - 1; i >= 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -119,4 +146,9 @@ export function shuffleArray(array) {
 
 export function getDynamicValue(value, functionParams) {
     return typeof value === 'function' ? value(...functionParams) : value;
+}
+
+
+export function redText(text) {
+    return `<span class="text-red">${text}</span>`
 }

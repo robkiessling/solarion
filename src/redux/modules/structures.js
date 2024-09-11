@@ -178,16 +178,6 @@ export function getRunningRate(structure) {
 export function isRunning(structure) {
     return structure.runnable ? (structure.runningRate > 0) : false;
 }
-export function getStatusMessage(structure) {
-    switch(structure.status) {
-        case STATUSES.normal:
-            return '';
-        // case STATUSES.insufficient:
-        //     return 'Insufficient Resources';
-        default:
-            return '';
-    }
-}
 export function hasInsufficientResources(structure) {
     return structure.status === STATUSES.insufficient;
 }
