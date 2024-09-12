@@ -54,7 +54,8 @@ export default function reducer(state = initialState, action) {
             return consumeReducer(state, { standardDroids: 1 })
         case fromStructures.REMOVE_DROID:
         case fromPlanet.REMOVE_DROID:
-            return produceReducer(state, { standardDroids: 1 })
+            // Do not want assigning/removing droids to affect lifetimeTotal
+            return produceReducer(state, { standardDroids: 1 }, false)
         case fromPlanet.GENERATE_MAP:
             return produceReducer(state, { buildableLand: numSectorsMatching(payload.map, STATUSES.explored.enum, TERRAINS.flatland.enum) })
         case fromPlanet.FINISH_EXPLORING_SECTOR:
@@ -71,7 +72,7 @@ function consumeReducer(state, amounts) {
         ))
     });
 }
-function produceReducer(state, amounts) {
+function produceReducer(state, amounts, incrementLifetimeTotal = true) {
     return update(state, {
         byId: mapObject(amounts, (resourceId, amount) => {
             const resource = getResource(state, resourceId);
@@ -81,7 +82,7 @@ function produceReducer(state, amounts) {
             const gain = capacity === Infinity ? amount : (newAmount - oldAmount);
             return {
                 amount: { $set: newAmount },
-                lifetimeTotal: { $apply: function(x) { return x + gain; } }
+                lifetimeTotal: { $apply: function(x) { return incrementLifetimeTotal ? x + gain : x; } }
             }
         })
     });
@@ -114,6 +115,9 @@ export function getResource(state, id) {
 }
 export function canConsume(state, amounts) {
     return Object.entries(amounts).every(([k,v]) => getQuantity(getResource(state, k)) >= v);
+}
+export function hasLifetimeQuantities(state, amounts) {
+    return Object.entries(amounts).every(([k,v]) => getLifetimeQuantity(getResource(state, k)) >= v);
 }
 export function getQuantity(resource) {
     if (!resource) {

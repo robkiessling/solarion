@@ -5,10 +5,11 @@ import * as fromLog from "../redux/modules/log"
 import * as fromUpgrades from "../redux/modules/upgrades";
 import * as fromAbilities from "../redux/modules/abilities";
 import {addTrigger} from "../redux/triggers";
+import {EFFECT_TARGETS} from "../lib/effect";
 
 export const STATES = {
     hidden: 0,
-    silhouetted: 1,
+    // silhouetted: 1,
     discovered: 2,
     researching: 3,
     paused: 4,
@@ -19,12 +20,19 @@ const base = {
     name: 'Unknown',
     description: "",
     researchTime: 0, // if 0, research will occur instantly
-    state: STATES.hidden
+    state: STATES.hidden,
+    discoverWhen: undefined, // If defined, the upgrade will be discovered once lifetime resource totals pass these values
+    
+    effect: undefined,
+    affects: {
+        type: EFFECT_TARGETS.structure
+        // No default id necessary; if blank it is assumed to be the upgrade's structure
+    }
 }
 
 // TODO don't hardcode values into description, e.g. "Increase energy production by {{ multiplier * 100 }}% ..."
 // 'effect' keys correspond to structure calculated variables
-export default {
+const database = {
     researchSolar: _.merge({}, base, {
         standalone: true,
         name: "Research Solar Power",
@@ -65,6 +73,24 @@ export default {
         }
     }),
 
+    harvester_drill1: _.merge({}, base, {
+        name: "Drill 1",
+        structure: 'harvester',
+        description: "Increases ore gathering by 20%",
+        discoverWhen: {
+            resources: {
+                ore: 200
+            }
+        },
+        cost: {
+            ore: 500
+        },
+        effect: {
+            ore: { multiply: 1.2 },
+        }
+    }),
+
+
     harvester_overclock: _.merge({}, base, {
         name: "Research: Overclock",
         structure: 'harvester',
@@ -86,6 +112,12 @@ export default {
         },
         effect: {
             peakEnergy: { multiply: 3 }
+        },
+        discoverWhen: {
+            resources: {
+                standardDroids: 8
+            },
+            upgrades: ['windTurbine_reduceCutIn']
         }
     }),
 
@@ -146,7 +178,48 @@ export default {
             ratedPower: { multiply: 1.3 }
         }
     }),
+    droidFactory_improvedMaintenance: _.merge({}, base, {
+        name: "Improved Maintenance",
+        structure: 'droidFactory',
+        description: 'Doubles the effectiveness of droids assigned to structures',
+        discoverWhen: {
+            resources: {
+                standardDroids: 5
+            }
+        },
+        cost: {
+            ore: 1
+        },
+        affects: {
+            type: EFFECT_TARGETS.misc
+        },
+        effect: {
+            boost: { multiply: 2 }
+        }
+    }),
+    droidFactory_fasterBuild: _.merge({}, base, {
+        name: "Faster Builds",
+        structure: 'droidFactory',
+        description: 'Reduces build time by 5s',
+        discoverWhen: {
+            resources: {
+                standardDroids: 5
+            }
+        },
+        cost: {
+            ore: 1
+        },
+        affects: {
+            type: EFFECT_TARGETS.ability,
+            id: 'droidFactory_buildStandardDroid'
+        },
+        effect: {
+            castTime: { add: -5 }
+        }
+    })
 };
+
+export default database;
 
 
 // Functions can't be stored in the state so storing them in this const
@@ -189,5 +262,34 @@ export const callbacks = {
         onFinish: (dispatch) => {
             dispatch(fromAbilities.learn('harvester_overclock'));
         }
+    }
+}
+
+
+// A lookup of upgrades that AFFECT a structure
+// Format: { structureId => [upgrade1, upgrade2, ...], ... }
+export const upgradesAffectingStructure = {}
+
+// A lookup of upgrades that AFFECT an ability
+// Format: { abilityId => [upgrade1, upgrade2, ...], ... }
+export const upgradesAffectingAbility = {}
+
+for (const [upgradeId, upgradeDbRecord] of Object.entries(database)) {
+    switch(upgradeDbRecord.affects.type) {
+        case EFFECT_TARGETS.structure:
+            // If `affects` obj has no id we default to affecting the upgrade's structure
+            const structureId = upgradeDbRecord.affects.id || upgradeDbRecord.structure;
+            if (upgradesAffectingStructure[structureId] === undefined) {
+                upgradesAffectingStructure[structureId] = []
+            }
+            upgradesAffectingStructure[structureId].push(upgradeId);
+            break;
+        case EFFECT_TARGETS.ability:
+            const abilityId = upgradeDbRecord.affects.id;
+            if (upgradesAffectingAbility[abilityId] === undefined) {
+                upgradesAffectingAbility[abilityId] = []
+            }
+            upgradesAffectingAbility[abilityId].push(upgradeId);
+            break;
     }
 }

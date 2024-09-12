@@ -15,7 +15,6 @@ class BuildButton extends React.Component {
             {/*<span className="build-count">{this.props.numBuilt}</span>*/}
             <button onClick={() => this.props.buildStructure(this.props.structure.id, 1)}
                     disabled={!this.props.canBuild} className="action-button has-tip">
-                {/*<span data-tip data-for={tipId} className={'icon-flat-hammer'}></span>*/}
                 <span data-tip data-for={tipId}>
                     <span className={'icon-flat-hammer'}></span>
                     Build
@@ -41,7 +40,7 @@ const mapStateToProps = (state, ownProps) => {
         name: structure.name,
         numBuilt: structure.count.total,
         canBuild: canBuildStructure(state, structure),
-        cost: highlightCosts(state.resources, getBuildCost(structure))
+        cost: highlightCosts(state.resources, getBuildCost(structure)),
     }
 }
 

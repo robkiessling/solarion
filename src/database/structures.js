@@ -10,6 +10,9 @@ import {canConsume, getIconSpan, getQuantity, getResource} from "../redux/module
 import {round} from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
 import {redText} from "../lib/helpers";
+import {upgradesAffectingStructure} from "./upgrades";
+import {abilitiesAffectingStructure} from "./abilities";
+import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 
 export const STATUSES = {
     normal: 0,
@@ -29,7 +32,7 @@ const base = {
     runningRate: 0,
     runningCooldown: 0,
     count: {
-        total: 15 // todo why is this an object? maybe for total/broken/etc.?
+        total: 0 // todo why is this an object? maybe for total/broken/etc.?
     },
     status: STATUSES.normal,
     statusMessage: '',
@@ -119,6 +122,8 @@ export const calculators = {
                 energy: 10, // how much energy is being consumed
             }
 
+            applyAllEffects(state, variables, structure);
+
             const rate = getRunningRate(structure);
             if (rate <= variables.lowEndRate) {
                 variables.efficiency = 1.0;
@@ -135,8 +140,6 @@ export const calculators = {
 
             variables.ore *= netDroidPerformanceBoost(state, structure);
             variables.ore *= rate;
-
-            applyAbilityBuff(state, variables, 'harvester_overclock');
 
             return variables;
         },
@@ -168,8 +171,9 @@ export const calculators = {
                 peakEnergy: 5, // amount of energy generated in peak daylight
                 actualEnergy: undefined // amount of energy actually generated
             }
-            
-            applyUpgrade(state, variables, 'solarPanel_largerPanels');
+
+            applyAllEffects(state, variables, structure);
+
             variables.peakEnergy *= netDroidPerformanceBoost(state, structure);
             variables.actualEnergy = variables.peakEnergy * variables.daylight;
             return variables;
@@ -200,10 +204,7 @@ export const calculators = {
                 ratedPower: 50
             }
 
-            applyUpgrade(state, variables, 'windTurbine_reduceCutIn');
-            applyUpgrade(state, variables, 'windTurbine_increaseCutOut');
-            applyUpgrade(state, variables, 'windTurbine_largerBlades');
-            applyUpgrade(state, variables, 'windTurbine_yawDrive');
+            applyAllEffects(state, variables, structure);
 
             variables.ratedPower *= netDroidPerformanceBoost(state, structure);
 
@@ -284,7 +285,8 @@ export const calculators = {
                 capacity: 200
             }
 
-            applyUpgrade(state, variables, 'energyBay_largerCapacity');
+            applyAllEffects(state, variables, structure);
+
             variables.capacity *= netDroidPerformanceBoost(state, structure);
 
             return variables;
@@ -368,59 +370,48 @@ export const calculators = {
 }
 
 export function droidPerformanceBoost(state) {
-    let boost = 0.20;
-    // boost = applyUpgrade_OLD(state, 'droidFactory_improvedMaintenance', boost); // todo
-    return boost;
+    const variables = {
+        boost: 0.2
+    }
+
+    const improvedMaintenance = getUpgrade(state.upgrades, 'droidFactory_improvedMaintenance');
+    if (isResearched(improvedMaintenance)) {
+        applySingleEffect(improvedMaintenance.effect, variables);
+    }
+
+    return variables.boost;
 }
 
 function netDroidPerformanceBoost(state, structure) {
     return 1 + (droidPerformanceBoost(state) * structure.droidData.numDroidsAssigned);
 }
 
-// function applyUpgrade_OLD(state, upgradeId, inputValue) {
-//     const upgrade = getUpgrade(state.upgrades, upgradeId);
-//     if (isResearched(upgrade)) {
-//         if (upgrade.adder) {
-//             inputValue += upgrade.adder;
-//         }
-//         if (upgrade.multiplier) {
-//             inputValue *= upgrade.multiplier
-//         }
-//     }
-//
-//     return inputValue
-// }
+// Applies all applicable upgrades and abilities for a structure
+// Note: order of application matters (we always add before multiplying).
+// Therefore this should always be called before applying droid bonus (which is a multiplication)
+// Probably best to always call this right after instantiating variables
+function applyAllEffects(state, variables, structure) {
+    const operations = initOperations();
 
-
-function applyUpgrade(state, variables, upgradeId) {
-    const upgrade = getUpgrade(state.upgrades, upgradeId);
-    if (isResearched(upgrade)) {
-        applyEffect(upgrade.effect, variables);
-    }
-}
-
-
-// Some abilities have effects while casting
-function applyAbilityBuff(state, variables, abilityId) {
-    const ability = getAbility(state.abilities, abilityId);
-    if (ability && isCasting(ability)) {
-        applyEffect(ability.effect, variables);
-    }
-}
-
-function applyEffect(effect, variables) {
-    for (const [variable, operations] of Object.entries(effect)) {
-        for (const [operation, value] of Object.entries(operations)) {
-            switch(operation) {
-                case 'add':
-                    variables[variable] += value;
-                    break;
-                case 'multiply':
-                    variables[variable] *= value;
-                    break;
-                default:
-                    console.error(`Error applying effect ${effect} to ${variables}`)
+    const upgradeIds = upgradesAffectingStructure[structure.id];
+    if (upgradeIds) {
+        upgradeIds.forEach(upgradeId => {
+            const upgrade = getUpgrade(state.upgrades, upgradeId);
+            if (isResearched(upgrade) && upgrade.effect) {
+                mergeEffectIntoOperations(upgrade.effect, operations);
             }
-        }
+        })
     }
+
+    const abilityIds = abilitiesAffectingStructure[structure.id];
+    if (abilityIds) {
+        abilityIds.forEach(abilityId => {
+            const ability = getAbility(state.abilities, abilityId);
+            if (ability && isCasting(ability) && ability.effect) {
+                mergeEffectIntoOperations(ability.effect, operations);
+            }
+        })
+    }
+
+    applyOperationsToVariables(operations, variables);
 }

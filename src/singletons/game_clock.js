@@ -3,7 +3,7 @@ import store from "../redux/store";
 import {clockTick} from "../redux/modules/clock";
 import {batch} from "react-redux";
 import {resourcesTick} from "../redux/reducer";
-import {upgradesTick} from "../redux/modules/upgrades";
+import {upgradesTick, upgradesTickSlow} from "../redux/modules/upgrades";
 import {abilitiesTick} from "../redux/modules/abilities";
 import {structuresTick} from "../redux/modules/structures";
 import {planetTick} from "../redux/modules/planet";
@@ -59,7 +59,11 @@ class GameClock {
         this.setInterval('Summable', (iterations, period) => {
             store.dispatch(upgradesTick(iterations * period));
             store.dispatch(abilitiesTick(iterations * period));
-        }, 1000 / 10);
+        }, 1000 / 100);
+
+        this.setInterval('SummableSlow', (iterations, period) => {
+            store.dispatch(upgradesTickSlow(iterations * period));
+        }, 1000);
 
         this.run();
     }

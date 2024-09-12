@@ -2,6 +2,9 @@ import {getQuantity, getResource} from "../redux/modules/resources";
 import {numStandardDroids} from "../redux/reducer";
 import * as fromAbilities from "../redux/modules/abilities";
 import * as fromPlanet from "../redux/modules/planet";
+import {upgradesAffectingAbility, upgradesAffectingStructure} from "./upgrades";
+import {applyOperationsToVariables, EFFECT_TARGETS, initOperations, mergeEffectIntoOperations} from "../lib/effect";
+import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 
 export const STATES = {
     ready: 0,
@@ -17,10 +20,15 @@ const base = {
     castTime: 5,
     state: STATES.ready,
     effect: undefined, // Any effects will be applied for the duration of the CAST
+    affects: {
+        type: EFFECT_TARGETS.structure
+        // No default id necessary; if blank it is assumed to be the ability's structure
+    },
+
     cooldown: 0 // Note: cooldown starts after cast FINISHES (not at start of cast)
 }
 
-export default {
+const database = {
     harvester_manual: _.merge({}, base, {
         name: 'Manual Harvest',
         structure: 'harvester',
@@ -65,7 +73,6 @@ export default {
         produces: {
             standardDroids: 1
         },
-        castTime: 1
     }),
 
     replicate: _.merge({}, base, {
@@ -75,9 +82,20 @@ export default {
     })
 };
 
+export default database;
+
 // These are not part of the stored state because they contain functions
 export const calculators = {
     droidFactory_buildStandardDroid: {
+        variables: (state, ability) => {
+            const variables = {
+                castTime: 10
+            }
+            
+            applyAllEffects(state, variables, ability)
+            
+            return variables;
+        },
         cost: (state, ability) => ({
             ore: 100 * (1.4)**(numStandardDroids(state)),
             refinedMinerals: 10 * (1.4)**(numStandardDroids(state))
@@ -90,6 +108,9 @@ export const calculators = {
                 return `0 droid(s)`;
             }
             return `${total - remaining} / ${total} deployed`;
+        },
+        castTime: (state, ability, variables) => {
+            return variables.castTime;
         }
     },
     replicate: {
@@ -127,4 +148,45 @@ export const callbacks = {
             fromPlanet.finishDevelopment(dispatch, getState);
         }
     }
+}
+
+
+// A lookup of abilities that AFFECT a structure
+// Format: { structureId => [ability1, ability2, ...], ... }
+export const abilitiesAffectingStructure = {}
+
+for (const [abilityId, abilityDbRecord] of Object.entries(database)) {
+    switch(abilityDbRecord.affects.type) {
+        case EFFECT_TARGETS.structure:
+            // If `affects` obj has no id we default to affecting the ability's structure
+            const structureId = abilityDbRecord.affects.id || abilityDbRecord.structure;
+            if (abilitiesAffectingStructure[structureId] === undefined) {
+                abilitiesAffectingStructure[structureId] = []
+            }
+            abilitiesAffectingStructure[structureId].push(abilityId);
+            break;
+        case EFFECT_TARGETS.ability:
+            console.warn("It is not currently possible for an ability to affect another ability")
+            break;
+    }
+}
+
+
+
+// Applies all applicable upgrades for an ability
+// Note: order of application matters (we always add before multiplying).
+function applyAllEffects(state, variables, ability) {
+    const operations = initOperations();
+
+    const upgradeIds = upgradesAffectingAbility[ability.id];
+    if (upgradeIds) {
+        upgradeIds.forEach(upgradeId => {
+            const upgrade = getUpgrade(state.upgrades, upgradeId);
+            if (isResearched(upgrade) && upgrade.effect) {
+                mergeEffectIntoOperations(upgrade.effect, operations);
+            }
+        })
+    }
+
+    applyOperationsToVariables(operations, variables);
 }

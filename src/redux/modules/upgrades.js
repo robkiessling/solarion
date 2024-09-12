@@ -3,9 +3,10 @@ import database, {STATES, callbacks} from '../../database/upgrades'
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {LEARN} from "./abilities";
+import {hasLifetimeQuantities} from "./resources";
 
 // Actions
-export const SILHOUETTE = 'upgrades/SILHOUETTE';
+// export const SILHOUETTE = 'upgrades/SILHOUETTE';
 export const DISCOVER = 'upgrades/DISCOVER';
 export const RESEARCH = 'upgrades/RESEARCH';
 export const PROGRESS = 'upgrades/PROGRESS';
@@ -23,8 +24,8 @@ export default function reducer(state = initialState, action) {
     const payload = action.payload;
 
     switch (action.type) {
-        case SILHOUETTE:
-            return setUpgradeState(state, payload.id, STATES.silhouetted)
+        // case SILHOUETTE:
+        //     return setUpgradeState(state, payload.id, STATES.silhouetted)
         case DISCOVER:
             return setUpgradeState(state, payload.id, STATES.discovered)
         case RESEARCH:
@@ -90,9 +91,9 @@ function setUpgradeState(state, upgradeId, upgradeState) {
 }
 
 // Action Creators
-export function silhouette(id) {
-    return { type: SILHOUETTE, payload: { id } };
-}
+// export function silhouette(id) {
+//     return { type: SILHOUETTE, payload: { id } };
+// }
 export function discover(id) {
     return withRecalculation({ type: DISCOVER, payload: { id } }); // recalculate so we immediately calculate costs
 }
@@ -132,6 +133,45 @@ export function upgradesTick(timeDelta) {
     }
 }
 
+function checkForUpgradeDiscoveries(state, dispatch) {
+    let hasDiscovery = false;
+
+    for (const [upgradeId, upgradeDbRecord] of Object.entries(database)) {
+        const upgrade = getUpgrade(state.upgrades, upgradeId);
+        if ((!upgrade || upgrade.state === STATES.hidden) && upgradeDbRecord.discoverWhen) {
+            if (shouldDiscover(upgradeDbRecord.discoverWhen, state)) {
+                dispatch({ type: DISCOVER, payload: { id: upgradeId } })
+                hasDiscovery = true;
+            }
+        }
+    }
+
+    return hasDiscovery;
+}
+
+function shouldDiscover(discoverWhen, state) {
+    if (discoverWhen.resources && !hasLifetimeQuantities(state.resources, discoverWhen.resources)) {
+        return false;
+    }
+
+    if (discoverWhen.upgrades && !discoverWhen.upgrades.every(upgradeId => isResearched(getUpgrade(state.upgrades, upgradeId)))) {
+        return false;
+    }
+
+    return true;
+}
+
+// This runs at a slower rate to save processing power (it is not important that it updates immediately)
+export function upgradesTickSlow(timeDelta) {
+    return (dispatch, getState) => {
+        batch(() => {
+            if (checkForUpgradeDiscoveries(getState(), dispatch)) {
+                dispatch(recalculateState())
+            }
+        })
+    }
+}
+
 function finishResearch(dispatch, upgradeId) {
     dispatch({ type: FINISH, payload: { id: upgradeId } });
 
@@ -151,7 +191,8 @@ export function getResearchCost(upgrade) {
     return upgrade.cost;
 }
 export function getName(upgrade) {
-    return upgrade.state === STATES.silhouetted ? '?' : upgrade.name;
+    // return upgrade.state === STATES.silhouetted ? '?' : upgrade.name;
+    return upgrade.name;
 }
 export function isResearchable(upgrade) {
     return upgrade && upgrade.state === STATES.discovered;

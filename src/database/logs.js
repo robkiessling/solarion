@@ -300,7 +300,7 @@ export default {
             dispatch(fromStructures.learn('refinery'));
 
             dispatch(fromStructures.learn('solarPanel'));
-            dispatch(fromUpgrades.discover('solarPanel_largerPanels'))
+            // dispatch(fromUpgrades.discover('solarPanel_largerPanels'))
             dispatch(fromStructures.learn('thermalVent'));
             dispatch(fromStructures.learn('windTurbine'));
             dispatch(fromStructures.learn('energyBay'));
@@ -362,16 +362,11 @@ export default {
             ['New Schematic(s) Found:', 0, true],
             ['- Solar Panels', 0, true],
             ['- Wind Turbines', 0, true],
-            ['- Geothermal', 0, true],
             ['', 0]
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('solarPanel'));
             dispatch(fromStructures.learn('windTurbine'));
-
-            // dispatch(fromUpgrades.discover('researchSolar'))
-            // dispatch(fromUpgrades.discover('researchWind'))
-            // dispatch(fromUpgrades.discover('researchGas'));
         }
     },
 
