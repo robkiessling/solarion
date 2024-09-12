@@ -3,73 +3,6 @@
 $shutter-transition: 2s;
 $top-bar-float-padding: 0.875rem;
 
-#outside {
-  position: relative;
-  flex: 1 0 auto;
-  background: $top-bar-background;
-  overflow: hidden;
-
-  &.closed {
-    .shutters {
-      height: 100%;
-    }
-    .sky-image, .sky-color {
-      height: 0;
-    }
-  }
-
-  .shutters {
-    transition: $shutter-transition;
-    bottom: 0;
-
-    position: absolute;
-    height: 0;
-    width: 100%;
-    overflow: hidden;
-    margin: 0;
-    border-top: 1px solid $ui-border;
-
-    background-color: $ui-bg;
-    opacity: 1;
-    background-size: 17px 17px;
-    background-image: repeating-linear-gradient(45deg, $ui-border 0, $ui-border 1.7000000000000002px, $ui-bg 0, $ui-bg 50%);
-  }
-
-  .sky-color {
-    transition: $shutter-transition;
-
-    position: absolute;
-    left: 50%;
-    transform: translate(-50%, 0);
-
-    //height: 100%;
-    //width: 100%;
-
-    overflow: hidden;
-
-    margin: 0;
-  }
-
-  .sky-image {
-    transition: $shutter-transition;
-
-    position: absolute;
-    left: 50%;
-    transform: translate(-50%, 0);
-
-    //height: 100%;
-    //width: 100%;
-
-    overflow: hidden;
-
-    margin: 0;
-
-  }
-
-
-}
-
-
 .navigation-tabs {
   position: absolute;
   left: 50%;
@@ -171,13 +104,37 @@ $top-bar-float-padding: 0.875rem;
   background: $black;
 
   canvas {
-
-
     position: absolute;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
   }
+
+  #shutters {
+    transition: $shutter-transition;
+    z-index: 2;
+    bottom: 0;
+
+    position: absolute;
+    height: 0;
+    width: 100%;
+    overflow: hidden;
+    margin: 0;
+    border-top: 1px solid $ui-border;
+
+    background-color: $ui-bg;
+    opacity: 1;
+    background-size: 17px 17px;
+    background-image: repeating-linear-gradient(45deg, $ui-border 0, $ui-border 1.7000000000000002px, $ui-bg 0, $ui-bg 50%);
+  }
+
+  &.shutters-closed {
+    #shutters {
+      height: 100%;
+    }
+  }
+
+
 }
 
 #outside-canvas {

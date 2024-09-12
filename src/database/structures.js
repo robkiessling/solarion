@@ -164,13 +164,14 @@ export const calculators = {
     solarPanel: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
+                daylight: daylightPercent(state.clock),
                 peakEnergy: 5, // amount of energy generated in peak daylight
                 actualEnergy: undefined // amount of energy actually generated
             }
             
             applyUpgrade(state, variables, 'solarPanel_largerPanels');
             variables.peakEnergy *= netDroidPerformanceBoost(state, structure);
-            variables.actualEnergy = variables.peakEnergy * daylightPercent(state.clock);
+            variables.actualEnergy = variables.peakEnergy * variables.daylight;
             return variables;
         },
         cost: (state, structure) => ({
@@ -180,7 +181,10 @@ export const calculators = {
             energy: variables.actualEnergy
         }),
         statusMessage: (state, structure, variables) => {
-            return `${daylightPercent(state.clock) * 100}% daylight`
+            if (variables.daylight === 0) {
+                return redText(`${daylightPercent(state.clock) * 100}% daylight`);
+            }
+            return `${daylightPercent(state.clock) * 100}% daylight`;
         },
         description: (state, structure, variables) => {
             return `Produces ${variables.peakEnergy}${getIconSpan('energy', true)} per second in peak sunlight.`;

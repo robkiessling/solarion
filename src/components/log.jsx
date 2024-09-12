@@ -1,6 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import LogSection from "./log_section";
+import {debounce} from "../lib/helpers";
 
 class Log extends React.Component {
     constructor(props) {
@@ -9,7 +10,11 @@ class Log extends React.Component {
         this.logRef = React.createRef();
     }
 
-    onUpdate() {
+    componentDidMount() {
+        window.addEventListener("resize", debounce(() => this.scrollToBottom()));
+    }
+
+    scrollToBottom() {
         let log = this.logRef.current;
 
         // Scroll to the bottom of the log
@@ -25,7 +30,7 @@ class Log extends React.Component {
                         this.props.visibleSequenceIds.map((sequenceId, index) => {
                             return <LogSection sequenceId={sequenceId}
                                                key={sequenceId}
-                                               onUpdate={() => this.onUpdate()}
+                                               onUpdate={() => this.scrollToBottom()}
                                                active={index === (this.props.visibleSequenceIds.length - 1)}
                             />
                         })

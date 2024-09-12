@@ -14,13 +14,13 @@ export const NAV_TAB_TITLES = {
 
 // Initial State
 const initialState = {
-    windowOpen: false,
+    shuttersClosed: true,
     showPlanetStatus: false,
     showResourceBar: false,
     visibleNavTabs: [],
-    currentNavTab: 'star',
+    currentNavTab: 'outside',
 
-    showStructureTabs: true,
+    showStructureTabs: false,
     currentStructureTab: 'all',
 }
 

@@ -21,59 +21,59 @@ class Structure extends React.Component {
     render() {
         return (
             <div className="structure">
-                    <div className="header">
-                        <span className="structure-name">
-                            {this.props.structure.name}
-                            <span className="build-count">{this.props.numBuilt < 1 ? '' : ` x${this.props.numBuilt}`}</span>
-                        </span>
-                        <div className="build-area">
-                            <BuildButton structure={this.props.structure}/>
-                        </div>
+                <div className="header">
+                    <span className="structure-name">
+                        {this.props.structure.name}
+                        <span className="build-count">{this.props.numBuilt < 1 ? '' : ` x${this.props.numBuilt}`}</span>
+                    </span>
+                    <div className="build-area">
+                        <BuildButton structure={this.props.structure}/>
                     </div>
-                    {/*<div className="description"*/}
-                    {/*     dangerouslySetInnerHTML={{__html: this.props.structure.description}}></div>*/}
+                </div>
+                <div className="description"
+                     dangerouslySetInnerHTML={{__html: this.props.structure.description}}></div>
 
-                    <div className="body">
-                        <div className="details-area">
-                            {this.props.isBuilt && this.props.structure.runnable &&
-                                <div className={`d-flex justify-center`}><RunSlider structure={this.props.structure}/></div>}
-                            {
-                                this.props.isBuilt && Object.keys(this.props.production).length > 0 &&
-                                <div className={`d-flex space-between ${this.props.hasInsufficientResources ? 'text-grey' : ''}`}>
-                                    <div>Producing:</div>
-                                    <div><ResourceAmounts amounts={this.props.production} asRate={true}/></div>
-                                </div>
-                            }
-                            {
-                                this.props.isBuilt && Object.keys(this.props.consumption).length > 0 &&
-                                <div className={`d-flex space-between ${this.props.hasInsufficientResources ? 'text-grey' : ''}`}>
-                                    <div>Consuming:</div>
-                                    <div><ResourceAmounts amounts={this.props.consumption} asRate={true} invert={true}/></div>
-                                </div>
-                            }
-                            {
-                                this.props.isBuilt && Object.keys(this.props.capacity).length > 0 &&
-                                <div className={`d-flex space-between`}>
-                                    <div>Capacity:</div>
-                                    <div><ResourceAmounts amounts={this.props.capacity} /></div>
-                                </div>
-                            }
-                            {
-                                this.props.isBuilt && this.props.statusMessage &&
-                                <div className={`d-flex space-between`}>
-                                    <div>Status:</div>
-                                    <div className={'d-flex justify-end'}
-                                          dangerouslySetInnerHTML={{__html: this.props.statusMessage}}></div>
-                                </div>
-                            }
-                            {this.props.isBuilt && this.props.showDroidsForStructure &&
-                                <DroidCount droidData={this.props.droidData} targetId={this.props.structure.id} />}
-                        </div>
-
-                        {this.props.isBuilt && <Abilities structure={this.props.structure}/>}
-
-                        {this.props.isBuilt && <Upgrades structure={this.props.structure}/>}
+                <div className="body">
+                    <div className="details-area">
+                        {this.props.isBuilt && this.props.structure.runnable &&
+                            <div className={`d-flex justify-center`}><RunSlider structure={this.props.structure}/></div>}
+                        {
+                            this.props.isBuilt && Object.keys(this.props.production).length > 0 &&
+                            <div className={`d-flex space-between ${this.props.hasInsufficientResources ? 'text-grey' : ''}`}>
+                                <div>Producing:</div>
+                                <div><ResourceAmounts amounts={this.props.production} asRate={true}/></div>
+                            </div>
+                        }
+                        {
+                            this.props.isBuilt && Object.keys(this.props.consumption).length > 0 &&
+                            <div className={`d-flex space-between ${this.props.hasInsufficientResources ? 'text-grey' : ''}`}>
+                                <div>Consuming:</div>
+                                <div><ResourceAmounts amounts={this.props.consumption} asRate={true} invert={true}/></div>
+                            </div>
+                        }
+                        {
+                            this.props.isBuilt && Object.keys(this.props.capacity).length > 0 &&
+                            <div className={`d-flex space-between`}>
+                                <div>Capacity:</div>
+                                <div><ResourceAmounts amounts={this.props.capacity} /></div>
+                            </div>
+                        }
+                        {
+                            this.props.isBuilt && this.props.statusMessage &&
+                            <div className={`d-flex space-between`}>
+                                <div>Status:</div>
+                                <div className={'d-flex justify-end'}
+                                      dangerouslySetInnerHTML={{__html: this.props.statusMessage}}></div>
+                            </div>
+                        }
+                        {this.props.isBuilt && this.props.showDroidsForStructure &&
+                            <DroidCount droidData={this.props.droidData} targetId={this.props.structure.id} />}
                     </div>
+
+                    {this.props.isBuilt && <Abilities structure={this.props.structure}/>}
+
+                    {this.props.isBuilt && <Upgrades structure={this.props.structure}/>}
+                </div>
             </div>
         );
     }

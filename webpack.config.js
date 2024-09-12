@@ -28,7 +28,7 @@ module.exports = {
         inline: false
     },
     resolve: {
-        extensions: ['.js', '.jsx']
+        extensions: ['.js', '.jsx', '.mjs']
     },
     module: {
         rules: [
@@ -38,6 +38,11 @@ module.exports = {
                     loader: 'babel-loader',
                     options: { presets: ['@babel/preset-react', '@babel/preset-env'] }
                 }
+            },
+            {
+                test: /\.mjs$/, // Needed this for overlayscrollbars
+                include: /node_modules/,
+                type: 'javascript/auto'
             },
             {
                 test: /\.scss/,

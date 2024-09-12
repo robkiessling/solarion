@@ -105,9 +105,6 @@ class LogSection extends React.Component {
         printNextLine(0);
     }
 
-
-    // TODO on window resize -> scroll to bottom
-
     render() {
         return (
             <div className={`log-section ${this.props.active ? 'active' : 'inactive'}`} ref={this.logSectionRef}/>

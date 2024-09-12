@@ -12,8 +12,6 @@ import './styles/app.scss';
 import gameClock from "./singletons/game_clock"
 
 import * as fromLog from './redux/modules/log';
-import {generateMap} from "./redux/modules/planet";
-
 
 
 store.dispatch(fromLog.startLogSequence('startup'));

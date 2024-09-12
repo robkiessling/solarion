@@ -196,7 +196,7 @@ export default {
         ],
         onFinish: (dispatch) => {
             batch(() => {
-                dispatch(fromGame.updateSetting('windowOpen', true));
+                dispatch(fromGame.updateSetting('shuttersClosed', false));
                 dispatch(fromLog.startLogSequence('openWindow'));
             })
         }
@@ -250,7 +250,7 @@ export default {
         ],
         onFinish: (dispatch) => {
             batch(() => {
-                dispatch(fromGame.updateSetting('windowOpen', true));
+                dispatch(fromGame.updateSetting('shuttersClosed', false));
                 dispatch(fromGame.updateSetting('showPlanetStatus', true));
                 dispatch(fromGame.updateSetting('showResourceBar', true));
 
@@ -274,7 +274,7 @@ export default {
             ['All known resources have been loaded.', 0, true]
         ],
         onFinish: (dispatch) => {
-            dispatch(fromGame.updateSetting('windowOpen', true));
+            dispatch(fromGame.updateSetting('shuttersClosed', false));
             dispatch(fromGame.updateSetting('showPlanetStatus', true));
             dispatch(fromGame.updateSetting('showResourceBar', true));
 
@@ -348,7 +348,10 @@ export default {
             ['', 0]
         ],
         onFinish: (dispatch) => {
-            dispatch(fromUpgrades.discover('researchEnergyBay'));
+            // dispatch(fromUpgrades.discover('researchEnergyBay'));
+
+            dispatch(fromStructures.learn('energyBay'));
+
         }
     },
 
@@ -363,9 +366,12 @@ export default {
             ['', 0]
         ],
         onFinish: (dispatch) => {
-            dispatch(fromUpgrades.discover('researchSolar'))
-            dispatch(fromUpgrades.discover('researchWind'))
-            dispatch(fromUpgrades.discover('researchGas'));
+            dispatch(fromStructures.learn('solarPanel'));
+            dispatch(fromStructures.learn('windTurbine'));
+
+            // dispatch(fromUpgrades.discover('researchSolar'))
+            // dispatch(fromUpgrades.discover('researchWind'))
+            // dispatch(fromUpgrades.discover('researchGas'));
         }
     },
 

@@ -17,9 +17,9 @@ export default class App extends React.Component {
         return (
             <div id="app-container">
                 <div className="left-column">
-                    <PlanetStatus/>
-                    <ResourceBar/>
-                    <Log/>
+                    <Structures/>
+                    <PlanetTools/>
+
                 </div>
                 <div className="center-column">
                     <Outside/>
@@ -28,9 +28,12 @@ export default class App extends React.Component {
                     <NavigationTabs/>
                 </div>
                 <div className="right-column">
-                    <Structures/>
-                    <PlanetTools/>
+                    <PlanetStatus/>
+                    <ResourceBar/>
+                    <Log/>
+
                 </div>
+                <div id={"tooltip-container"}></div>
 
                 {/*<div className="top-row">*/}
                 {/*    <Outside/>*/}

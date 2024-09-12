@@ -21,7 +21,7 @@ class BuildButton extends React.Component {
                     Build
                 </span>
             </button>
-            <Tooltip id={tipId}>
+            <Tooltip id={tipId} place={'right'}>
                 <p>
                     <span className="tooltip-header">Build {this.props.name}</span>
                 </p>

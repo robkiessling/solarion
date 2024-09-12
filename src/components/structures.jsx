@@ -7,6 +7,9 @@ import {TYPES} from "../database/structures";
 import Tabs from "./ui/tabs";
 import {updateSetting} from "../redux/modules/game";
 
+import 'overlayscrollbars/styles/overlayscrollbars.css';
+import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
+
 class Structures extends React.Component {
     constructor(props) {
         super(props);
@@ -26,7 +29,7 @@ class Structures extends React.Component {
         const onTabClick = (tabId) => { this.props.updateSetting('currentStructureTab', tabId) }
 
         return (
-            <div className={`structures ${this.props.visible ? '' : 'hidden'}`}>
+            <OverlayScrollbarsComponent className={`structures ${this.props.visible ? '' : 'hidden'}`} defer>
                 {
                     this.props.structureIds.length ?
                         (
@@ -50,7 +53,7 @@ class Structures extends React.Component {
                         })
                     }
                 </div>
-            </div>
+            </OverlayScrollbarsComponent>
         );
     }
 }

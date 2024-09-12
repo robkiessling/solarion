@@ -82,7 +82,9 @@ class Outside extends React.Component {
         const skyOpacity = CHANGE_SKY_OPACITY ? Math.sin(radians) + 0.35 : 1;
 
         return (
-            <div id="outside-container" ref={this.canvasContainer} className={`${this.props.visible ? '' : 'hidden'}`}>
+            <div id="outside-container" ref={this.canvasContainer}
+                 className={`${this.props.visible ? '' : 'hidden'} ${this.props.shuttersClosed ? 'shutters-closed' : 'shutters-open'}`}>
+                <div id="shutters"></div>
                 <canvas id="sky-color" ref={this.skyCanvas} style={{background: skyColor, opacity: skyOpacity}}/>
                 <canvas id="outside-canvas" ref={this.canvas}></canvas>
             </div>
@@ -95,6 +97,7 @@ class Outside extends React.Component {
 const mapStateToProps = state => {
     return {
         visible: state.game.currentNavTab === 'outside',
+        shuttersClosed: state.game.shuttersClosed,
         fractionOfDay: fractionOfDay(state.clock),
         elapsedTime: state.clock.elapsedTime,
         structureAnimationData: animationData(state.structures)
