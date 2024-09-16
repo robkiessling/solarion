@@ -34,11 +34,11 @@ class Structures extends React.Component {
                 {
                     this.props.structureIds.length ?
                         (
-                            // this.props.showStructureTabs ?
-                            //     <Tabs tabs={tabs} currentTab={this.props.currentStructureTab} onChange={onTabClick}/> :
-                            //     <div className="component-header">Structures</div>
                             this.props.showStructureTabs ?
-                                <Tabs tabs={tabs} currentTab={this.props.currentStructureTab} onChange={onTabClick}/> : ''
+                                <Tabs tabs={tabs} currentTab={this.props.currentStructureTab} onChange={onTabClick}/> :
+                                <div className="component-header">Structures</div>
+                            // this.props.showStructureTabs ?
+                            //     <Tabs tabs={tabs} currentTab={this.props.currentStructureTab} onChange={onTabClick}/> : ''
                         ) : ''
                 }
                 <div className="structure-list">

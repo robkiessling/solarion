@@ -18,7 +18,7 @@ const NORMAL_BOOTUP = 'normalBootup'; // Standard crash log sequence
 const SKIP_BOOTUP = 'skipBootup'; // Skip crash log, normal story playthrough
 const SKIP_EVERYTHING = 'skipEverything'; // Skip to all structures buildable
 
-const GAME_MODE = NORMAL_BOOTUP; /* Controls overall game mode (e.g. set to SKIP_BOOTUP to skip bootup sequence) */
+const GAME_MODE = SKIP_BOOTUP; /* Controls overall game mode (e.g. set to SKIP_BOOTUP to skip bootup sequence) */
 
 
 export default {

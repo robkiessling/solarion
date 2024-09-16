@@ -3,7 +3,7 @@ import {batch, connect} from 'react-redux';
 import database from '../database/logs';
 import {endLogSequence, getLogData} from "../redux/modules/log";
 
-const DEBUG = true;
+const DEBUG = false;
 
 class LogSection extends React.Component {
     constructor(props) {

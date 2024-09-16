@@ -100,7 +100,7 @@ export const calculators = {
             return variables;
         },
         cost: (state, ability) => ({
-            // ore: 100 * (1.4)**(numStandardDroids(state)),
+            ore: 100 * (STANDARD_COST_EXP)**(numStandardDroids(state)),
             refinedMinerals: 50 * (STANDARD_COST_EXP)**(numStandardDroids(state))
         }),
         displayInfo: (state, ability) => {

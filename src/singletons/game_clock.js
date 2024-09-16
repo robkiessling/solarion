@@ -8,7 +8,9 @@ import {abilitiesTick} from "../redux/modules/abilities";
 import {structuresTick} from "../redux/modules/structures";
 import {planetTick} from "../redux/modules/planet";
 
-const GAME_SPEED = 1.0; // Overall game speed (can increase/decrease for testing purposes)
+const CLOCK_FPS = 10; // todo affects outside rendering
+const STRUCT_FPS = 10;
+const ABILITIES_FPS = 5; // todo this is only for button animation... find a way to reduce
 
 class GameClock {
     constructor() {
@@ -24,7 +26,7 @@ class GameClock {
         // Can be relatively slow since we only show seconds on the clock anyway.
         this.setInterval('GameClock', (iterations, period) => {
             store.dispatch(clockTick(iterations * period));
-        }, 1000 / 15);
+        }, 1000 / CLOCK_FPS);
 
         // Ticks in this block must be done iteratively (one by one in order)
         this.setInterval('Iterative', (iterations, period) => {
@@ -38,7 +40,7 @@ class GameClock {
                     iterations--;
                 }
             });
-        }, 1000 / 10);
+        }, 1000 / STRUCT_FPS);
 
         // Ticks in this block must be done iteratively (one by one in order), but it is iterated less frequently
         // since it updates slowly
@@ -52,18 +54,18 @@ class GameClock {
                     iterations--;
                 }
             });
-        }, 1000 / 10) // todo reduce
+        }, 1000 / CLOCK_FPS) // todo reduce
 
         // Ticks in this block can be batched into a single update for the entire time period
         // TODO Do these have to be iterative as well? What if an upgrade that boosts production finishes while offline?
         this.setInterval('Summable', (iterations, period) => {
             store.dispatch(upgradesTick(iterations * period));
             store.dispatch(abilitiesTick(iterations * period));
-        }, 1000 / 100);
+        }, 1000 / ABILITIES_FPS);
 
         this.setInterval('SummableSlow', (iterations, period) => {
             store.dispatch(upgradesTickSlow(iterations * period));
-        }, 1000);
+        }, 1000 / 1);
 
         this.run();
     }

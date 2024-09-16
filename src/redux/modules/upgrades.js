@@ -107,7 +107,7 @@ export function researchUnsafe(upgrade) {
         return function(dispatch, getState) {
             batch(() => {
                 dispatch({ type: RESEARCH, payload: { upgrade } }); // Still need to dispatch RESEARCH to trigger research cost
-                finishResearch(dispatch, upgrade.id); // Then immediately finish research
+                finishResearch(dispatch, getState, upgrade.id); // Then immediately finish research
             });
         }
     }
@@ -127,7 +127,7 @@ export function upgradesTick(timeDelta) {
 
             for (const [key, value] of Object.entries(getState().upgrades.byId)) {
                 if (value.state === STATES.researching && value.researchProgress >= value.researchTime * 1000) {
-                    finishResearch(dispatch, key);
+                    finishResearch(dispatch, getState, key);
                 }
             }
         });
@@ -185,12 +185,15 @@ export function upgradesTickSlow(timeDelta) {
     }
 }
 
-function finishResearch(dispatch, upgradeId) {
+function finishResearch(dispatch, getState, upgradeId) {
     dispatch({ type: FINISH, payload: { id: upgradeId } });
 
     if (callbacks[upgradeId] && callbacks[upgradeId].onFinish) {
         callbacks[upgradeId].onFinish(dispatch);
     }
+
+    // uncomment this if you want to immediately check for new upgrades
+    // checkForUpgradeDiscoveries(getState(), dispatch)
 
     dispatch(recalculateState());
 }

@@ -91,7 +91,7 @@ export default {
     }),
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
-        description: "Constructs droids to improve production and explore the planet.",
+        description: "Constructs droids assist with production.",
         type: TYPES.consumer,
         droidData: {
             usesDroids: false
@@ -179,6 +179,7 @@ export const calculators = {
         variables: (state, structure) => {
             const variables = {
                 daylight: daylightPercent(state.clock),
+                minDaylight: 0, // minimum daylight percentage
                 peakEnergy: 5, // amount of energy generated in peak daylight
                 actualEnergy: undefined // amount of energy actually generated (defined later based on sunlight)
             }
@@ -187,6 +188,7 @@ export const calculators = {
 
             variables.peakEnergy *= netDroidPerformanceBoost(state, structure);
             variables.peakEnergy *= netEnergyBayBoost(state);
+            variables.daylight = Math.max(variables.daylight, variables.minDaylight);
             variables.actualEnergy = variables.peakEnergy * variables.daylight;
             return variables;
         },
@@ -198,9 +200,9 @@ export const calculators = {
         }),
         statusMessage: (state, structure, variables) => {
             if (variables.daylight === 0) {
-                return redText(`${daylightPercent(state.clock) * 100}% daylight`);
+                return redText(`${daylightPercent(state.clock) * 100}% sunlight`);
             }
-            return `${daylightPercent(state.clock) * 100}% daylight`;
+            return `${daylightPercent(state.clock) * 100}% sunlight`;
         },
         description: (state, structure, variables) => {
             return `Produces up to ${formatInteger(variables.peakEnergy, true)}${getIconSpan('energy', true)} per second depending on sunlight.`;
@@ -328,17 +330,35 @@ export const calculators = {
         }
     }),
     refinery: _.merge({}, baseCalculator, {
+        variables: (state, structure) => {
+            const variables = {
+                energy: 50,
+                ore: 50,
+                refinedMinerals: 1,
+
+                nightReduction: 0
+            }
+
+            applyAllEffects(state, variables, structure);
+
+            variables.refinedMinerals *= netDroidPerformanceBoost(state, structure);
+            if (daylightPercent(state.clock) === 0) {
+                variables.energy *= (1 - variables.nightReduction);
+            }
+            return variables;
+
+        },
         cost: (state, structure) => ({
             ore: 2000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
             energy: 1400 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
         }),
-        consumes: (state, structure) => ({
-            energy: 50 * getRunningRate(structure),
-            ore: 50 * getRunningRate(structure)
+        consumes: (state, structure, variables) => ({
+            energy: variables.energy * getRunningRate(structure),
+            ore: variables.ore * getRunningRate(structure)
         }),
-        produces: (state, structure) => {
+        produces: (state, structure, variables) => {
             return {
-                refinedMinerals: 1 * getRunningRate(structure) * netDroidPerformanceBoost(state, structure)
+                refinedMinerals: variables.refinedMinerals * getRunningRate(structure)
             }
         },
         statusMessage: (state, structure, variables) => {
@@ -355,9 +375,9 @@ export const calculators = {
     }),
     droidFactory: _.merge({}, baseCalculator, {
         cost: (state, structure) => ({
-            ore: 3000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            ore: 5000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
             refinedMinerals: 100 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
-            energy: 2000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            energy: 5000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
         }),
     }),
     probeFactory: _.merge({}, baseCalculator, {
@@ -407,7 +427,7 @@ export const calculators = {
  */
 export function droidPerformanceBoost(state) {
     const variables = {
-        boost: 0.25
+        boost: 0.15
     }
 
     const improvedMaintenance = getUpgrade(state.upgrades, 'droidFactory_improvedMaintenance');
