@@ -24,13 +24,13 @@ export default {
     }),
     vents: _.merge({}, base, {
         name: "Thermal Vent",
-        amount: 2,
+        amount: 1,
         icon: 'icon-caldera',
         visible: false
     }),
     refinedMinerals: _.merge({}, base, {
         name: "Minerals",
-        amount: 99999,
+        amount: 0,
         icon: 'icon-crystal-growth'
     }),
     standardDroids: _.merge({}, base, {
@@ -58,7 +58,13 @@ export default {
     }),
 };
 
-// These are not part of the stored state because they contain functions
+/**
+ * These resource values vary depending on the rest of the state. We define them as functions here, and the RESULT
+ * of these function calls will be stored in the state. The results are recalculated often; see recalculateSlice method.
+ * 
+ * Note: `variables` is a special object that is calculated first; its result is provided to the rest of the functions as a
+ * third parameter (that way many functions can be built off the same variables)
+ */
 export const calculators = {
     energy: {
         capacity: state => {

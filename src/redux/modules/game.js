@@ -14,6 +14,8 @@ export const NAV_TAB_TITLES = {
 
 // Initial State
 const initialState = {
+    gameSpeed: 1,
+
     shuttersClosed: true,
     showPlanetStatus: false,
     showResourceBar: false,

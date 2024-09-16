@@ -5,6 +5,7 @@ import * as fromPlanet from "../redux/modules/planet";
 import {upgradesAffectingAbility, upgradesAffectingStructure} from "./upgrades";
 import {applyOperationsToVariables, EFFECT_TARGETS, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
+import {STANDARD_COST_EXP} from "./structures";
 
 export const STATES = {
     ready: 0,
@@ -66,10 +67,6 @@ const database = {
         name: 'Build Droid',
         structure: 'droidFactory',
         description: "Droids can be assigned to structures, improving their performance.",
-        cost: {
-            ore: 100,
-            refinedMinerals: 10
-        },
         produces: {
             standardDroids: 1
         },
@@ -84,12 +81,18 @@ const database = {
 
 export default database;
 
-// These are not part of the stored state because they contain functions
+/**
+ * These ability values vary depending on the rest of the state. We define them as functions here, and the RESULT
+ * of these function calls will be stored in the state. The results are recalculated often; see recalculateSlice method.
+ * 
+ * Note: `variables` is a special object that is calculated first; its result is provided to the rest of the functions as a
+ * third parameter (that way many functions can be built off the same variables)
+ */
 export const calculators = {
     droidFactory_buildStandardDroid: {
         variables: (state, ability) => {
             const variables = {
-                castTime: 10
+                castTime: 30
             }
             
             applyAllEffects(state, variables, ability)
@@ -97,8 +100,8 @@ export const calculators = {
             return variables;
         },
         cost: (state, ability) => ({
-            ore: 100 * (1.4)**(numStandardDroids(state)),
-            refinedMinerals: 10 * (1.4)**(numStandardDroids(state))
+            // ore: 100 * (1.4)**(numStandardDroids(state)),
+            refinedMinerals: 50 * (STANDARD_COST_EXP)**(numStandardDroids(state))
         }),
         displayInfo: (state, ability) => {
             const total = numStandardDroids(state);

@@ -393,12 +393,6 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
         percentRotated = cameraRotation;
     }
 
-    // Flicker tiles that are being explored by showing/hiding a border around it
-    // todo this is not actually thousandths, and it needs to be proportional to DAY_LENGTH
-    // let thousandths = Math.floor(fractionOfDay * 1000 % 20);
-    // const flicker = (thousandths >= 0 && thousandths < 5) || (thousandths >= 10 && thousandths < 15)
-    const flicker = true;
-
     return map.map((planetRow, rowIndex) => {
         const planetRowLength = PLANET_ROW_LENGTHS[rowIndex];
         const displayRowLength = DISPLAY_ROW_LENGTHS[rowIndex];
@@ -425,7 +419,7 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
                 className = TERRAINS_BY_ENUM[sector.terrain].className;
             }
 
-            // if (sector.status === STATUSES.exploring.enum && flicker) {
+            // if (sector.status === STATUSES.exploring.enum) {
             //     className += ' exploring'
             //     const pct = `${sector.exploreProgress / (sector.exploreLength * 1000) * 100}%`
             //     style = { background: `linear-gradient(90deg, rgba(0,0,0,0) ${pct}, rgba(255,255,255,0.2) ${pct})` }
@@ -460,6 +454,7 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
             }
             else {
                 // sunTracking is disabled: shading the night side of the planet
+                // TODO This performance is really bad
                 const planetFraction = sector.planetColIndex / planetRowLength; // How far into the planet length the sector is
                 const lightClass =
                     getTwilightClass(planetFraction, nightStart, nightEnd) ||

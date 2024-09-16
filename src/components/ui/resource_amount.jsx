@@ -26,6 +26,7 @@ export default function ResourceAmount(props) {
     if (props.invert) {
         amount *= -1;
     }
+    let magnitude = Math.abs(amount);
 
     let amountFormatted = formatInteger(amount);
     let capacityFormatted = capacity ? formatInteger(capacity) : null;
@@ -41,8 +42,15 @@ export default function ResourceAmount(props) {
             if (props.colorRate) { colorClass = 'text-red'; }
         }
 
+        /* If rate is less than 1, show it as 1/x seconds? like 1ore/33s */
+        let period = 's';
+        if (magnitude > 0 && magnitude < 1) {
+            period = `${formatNumber(1 / magnitude, 1)}s`;
+            amountFormatted = amount > 0 ? 1 : -1;
+        }
+
         return <span className={`resource-rate ${colorClass}`}>
-            {amountFormatted}{props.icon && <span className={props.icon}/>}/s
+            {amountFormatted}{props.icon && <span className={props.icon}/>}/{period}
         </span>;
     }
     else {

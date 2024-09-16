@@ -11,7 +11,7 @@ import BuildButton from "./build_button";
 import Upgrades from "./upgrades";
 import Abilities from "./abilities";
 import DroidCount from "./droid_count";
-import {highlightCosts} from "../../redux/modules/resources";
+import {getIcon, highlightCosts} from "../../redux/modules/resources";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -51,13 +51,7 @@ class Structure extends React.Component {
                                 <div><ResourceAmounts amounts={this.props.consumption} asRate={true} invert={true}/></div>
                             </div>
                         }
-                        {
-                            this.props.isBuilt && Object.keys(this.props.capacity).length > 0 &&
-                            <div className={`d-flex space-between`}>
-                                <div>Capacity:</div>
-                                <div><ResourceAmounts amounts={this.props.capacity} /></div>
-                            </div>
-                        }
+                        { this.props.children }
                         {
                             this.props.isBuilt && this.props.statusMessage &&
                             <div className={`d-flex space-between`}>
@@ -92,7 +86,6 @@ const mapStateToProps = (state, ownProps) => {
 
         production: getStructureStatistic(state, structure, 'produces'),
         consumption: highlightCosts(state.resources, getStructureStatistic(state, structure, 'consumes')),
-        capacity: getStructureStatistic(state, structure, 'capacity'),
 
         hasInsufficientResources: hasInsufficientResources(structure),
         statusMessage: structure.statusMessage

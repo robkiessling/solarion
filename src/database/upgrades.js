@@ -6,6 +6,7 @@ import * as fromUpgrades from "../redux/modules/upgrades";
 import * as fromAbilities from "../redux/modules/abilities";
 import {addTrigger} from "../redux/triggers";
 import {EFFECT_TARGETS} from "../lib/effect";
+import {getIconSpan} from "../redux/modules/resources";
 
 export const STATES = {
     hidden: 0,
@@ -21,7 +22,12 @@ const base = {
     description: "",
     researchTime: 0, // if 0, research will occur instantly
     state: STATES.hidden,
-    discoverWhen: undefined, // If defined, the upgrade will be discovered once lifetime resource totals pass these values
+
+    // Possible options -- discoverWhen: { resources: { x/y/z }, upgrades: [], structures: { x/y/z} }
+    // If resources is defined, the upgrade will be automatically discovered once lifetime resource totals pass these values
+    // If structures is defined, the upgrade will be automatically discovered once structure build count pass these values
+    // If upgrades is defined, those upgrades need to be already researched before this will be discovered
+    discoverWhen: undefined,
     
     effect: undefined,
     affects: {
@@ -31,62 +37,40 @@ const base = {
 }
 
 // TODO don't hardcode values into description, e.g. "Increase energy production by {{ multiplier * 100 }}% ..."
-// 'effect' keys correspond to structure calculated variables
+// Note: 'effect' keys correspond to structure calculated variables
 const database = {
-    researchSolar: _.merge({}, base, {
-        standalone: true,
-        name: "Research Solar Power",
-        description: "Find ways to produce energy based on sunlight. Only viable during daylight hours.",
-        researchTime: 15,
-        cost: {
-            ore: 50
-        }
-    }),
-    researchWind: _.merge({}, base, {
-        standalone: true,
-        name: "Research Wind Power",
-        description: "Find ways to produce energy based on the planet's wind and atmosphere.",
-        researchTime: 10,
-        cost: {
-            energy: 50,
-            ore: 50
-        }
-    }),
-    researchGas: _.merge({}, base, {
-        standalone: true,
-        name: "Research Geothermal Power",
-        description: "Find ways to produce energy based on exhaust from the planet's surface.",
-        researchTime: 10,
-        cost: {
-            energy: 50,
-            ore: 100
-        }
-    }),
-    researchEnergyBay: _.merge({}, base, {
-        standalone: true,
-        name: "Research Energy Bays",
-        description: "Research potential structures for energy storage.",
-        researchTime: 10,
-        cost: {
-            energy: 100,
-            ore: 100
-        }
-    }),
-
     harvester_drill1: _.merge({}, base, {
-        name: "Drill 1",
+        name: "Upgrade Drill #1",
         structure: 'harvester',
-        description: "Increases ore gathering by 20%",
+        description: "Increases ore production by 20%",
         discoverWhen: {
             resources: {
-                ore: 200
+                ore: 500
             }
         },
         cost: {
-            ore: 500
+            ore: 700
         },
         effect: {
             ore: { multiply: 1.2 },
+        }
+    }),
+    harvester_drill2: _.merge({}, base, {
+        name: "Upgrade Drill #2",
+        structure: 'harvester',
+        description: "Increases ore production by 30%",
+        discoverWhen: {
+            resources: {
+                ore: 3000
+            },
+            upgrades: ['harvester_drill1']
+        },
+        cost: {
+            ore: 1200,
+            refinedMinerals: 10
+        },
+        effect: {
+            ore: { multiply: 1.3 },
         }
     }),
 
@@ -106,19 +90,21 @@ const database = {
         name: "Larger Panels",
         structure: 'solarPanel',
 
-        description: "Increase solar panel energy production by 300%.",
+        description: "Increase solar panel energy production by 50%.",
+        discoverWhen: {
+            structures: {
+                solarPanel: 3
+            },
+            resources: {
+                energy: 1000
+            }
+        },
         cost: {
-            ore: 10
+            ore: 500
         },
         effect: {
-            peakEnergy: { multiply: 3 }
+            peakEnergy: { multiply: 1.5 }
         },
-        discoverWhen: {
-            resources: {
-                standardDroids: 8
-            },
-            upgrades: ['windTurbine_reduceCutIn']
-        }
     }),
 
 
@@ -126,6 +112,11 @@ const database = {
         name: "Flux Capacitors",
         structure: 'energyBay',
         description: "Increase energy bay capacity by 300%.",
+        discoverWhen: {
+            structures: {
+                energyBay: 5
+            }
+        },
         cost: {
             ore: 1000
         },
@@ -133,27 +124,69 @@ const database = {
             capacity: { multiply: 3 }
         }
     }),
+    energyBay_production1: _.merge({}, base, {
+        name: "Power Linking I",
+        structure: 'energyBay',
+        // description: `Increases overall ${getIconSpan('energy', true)} production by 3% per Energy Bay`,
+        description: `Increases overall energy production by 3% per Energy Bay`,
+        discoverWhen: {
+
+        },
+        cost: {
+
+        },
+        effect: {
+            energyBoost: { add: 0.03 }
+        }
+    }),
+    energyBay_production2: _.merge({}, base, {
+        name: "Power Linking II",
+        structure: 'energyBay',
+        // description: `Increases ${getIconSpan('energy', true)} production boost to 5%`,
+        description: `Increases energy production boost to 5%`,
+        discoverWhen: {
+            upgrades: ['energyBay_production1']
+        },
+        cost: {
+
+        },
+        effect: {
+            energyBoost: { add: 0.02 } // going from 3% to 5%
+        }
+    }),
 
     windTurbine_reduceCutIn: _.merge({}, base, {
         name: "Advanced Blades",
         structure: 'windTurbine',
         description: "Improves the turbine's power output at low wind speeds.",
+        discoverWhen: {
+            resources: {
+                refinedMinerals: 10
+            }
+        },
         cost: {
-            ore: 1000
+            ore: 1000,
+            refinedMinerals: 25
         },
         effect: {
-            cutInSpeed: { add: -3 }
+            cutInSpeed: { add: -5 }
         }
     }),
     windTurbine_increaseCutOut: _.merge({}, base, {
         name: "Hyper Motor",
         structure: 'windTurbine',
-        description: "Increases the turbine's max wind speed tolerance by 25 mph",
+        description: "Increases the turbine's max wind speed tolerance by 20 mph",
+        discoverWhen: {
+            resources: {
+                refinedMinerals: 10
+            }
+        },
         cost: {
-            ore: 1000
+            ore: 1000,
+            refinedMinerals: 25
         },
         effect: {
-            cutOutSpeed: { add: 25 }
+            cutOutSpeed: { add: 20 }
         }
     }),
     windTurbine_largerBlades: _.merge({}, base, {
@@ -224,39 +257,12 @@ export default database;
 
 // Functions can't be stored in the state so storing them in this const
 export const callbacks = {
-    researchSolar: {
-        onFinish: (dispatch) => {
-            dispatch(fromStructures.learn('solarPanel'));
-            dispatch(fromLog.logMessage('researchComplete'))
-        }
-    },
-    researchWind: {
-        onFinish: (dispatch) => {
-            dispatch(fromStructures.learn('windTurbine'));
-            dispatch(fromLog.logMessage('researchComplete'))
-        }
-    },
-    researchGas: {
-        onFinish: (dispatch) => {
-            dispatch(fromResources.learn('vents'));
-            dispatch(fromStructures.learn('thermalVent'));
-            dispatch(fromLog.logMessage('researchComplete'))
-        }
-    },
-    researchEnergyBay: {
-        onFinish: (dispatch) => {
-            dispatch(fromStructures.learn('energyBay'));
-            dispatch(fromLog.logMessage('researchComplete'))
-
-            addTrigger(
-                (state) => state.resources.byId.energy,
-                (slice) => slice.capacity >= 700,
-                () => {
-                    dispatch(fromUpgrades.discover('energyBay_largerCapacity'));
-                }
-            )
-        }
-    },
+    // researchSolar: {
+    //     onFinish: (dispatch) => {
+    //         dispatch(fromStructures.learn('solarPanel'));
+    //         dispatch(fromLog.logMessage('researchComplete'))
+    //     }
+    // },
 
     harvester_overclock: {
         onFinish: (dispatch) => {

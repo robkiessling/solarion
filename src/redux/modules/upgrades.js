@@ -3,7 +3,8 @@ import database, {STATES, callbacks} from '../../database/upgrades'
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {LEARN} from "./abilities";
-import {hasLifetimeQuantities} from "./resources";
+import {getLifetimeQuantity, getResource, hasLifetimeQuantities} from "./resources";
+import {getNumBuilt, getStructure} from "./structures";
 
 // Actions
 // export const SILHOUETTE = 'upgrades/SILHOUETTE';
@@ -138,7 +139,7 @@ function checkForUpgradeDiscoveries(state, dispatch) {
 
     for (const [upgradeId, upgradeDbRecord] of Object.entries(database)) {
         const upgrade = getUpgrade(state.upgrades, upgradeId);
-        if ((!upgrade || upgrade.state === STATES.hidden) && upgradeDbRecord.discoverWhen) {
+        if ((!upgrade || upgrade.state === STATES.hidden)) {
             if (shouldDiscover(upgradeDbRecord.discoverWhen, state)) {
                 dispatch({ type: DISCOVER, payload: { id: upgradeId } })
                 hasDiscovery = true;
@@ -150,11 +151,23 @@ function checkForUpgradeDiscoveries(state, dispatch) {
 }
 
 function shouldDiscover(discoverWhen, state) {
-    if (discoverWhen.resources && !hasLifetimeQuantities(state.resources, discoverWhen.resources)) {
+    if (!discoverWhen) {
+        // discoverWhen must be defined for upgrade to be auto-discovered
         return false;
     }
 
-    if (discoverWhen.upgrades && !discoverWhen.upgrades.every(upgradeId => isResearched(getUpgrade(state.upgrades, upgradeId)))) {
+    if (discoverWhen.resources &&
+        !hasLifetimeQuantities(state.resources, discoverWhen.resources)) {
+        return false;
+    }
+
+    if (discoverWhen.structures &&
+        !Object.entries(discoverWhen.structures).every(([k,v]) => getNumBuilt(getStructure(state.structures, k)) >= v)) {
+        return false;
+    }
+
+    if (discoverWhen.upgrades &&
+        !discoverWhen.upgrades.every(upgradeId => isResearched(getUpgrade(state.upgrades, upgradeId)))) {
         return false;
     }
 
@@ -188,7 +201,7 @@ export function getUpgrade(state, id) {
     return state.byId[id];
 }
 export function getResearchCost(upgrade) {
-    return upgrade.cost;
+    return upgrade.cost; // todo floor
 }
 export function getName(upgrade) {
     // return upgrade.state === STATES.silhouetted ? '?' : upgrade.name;

@@ -9,6 +9,7 @@ import {updateSetting} from "../redux/modules/game";
 
 import 'overlayscrollbars/styles/overlayscrollbars.css';
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
+import EnergyBay from "./structures/energy_bay";
 
 class Structures extends React.Component {
     constructor(props) {
@@ -47,6 +48,8 @@ class Structures extends React.Component {
                                 // TODO This is just an example if we need vastly different Structure components
                                 case 'harvester':
                                     return <Harvester key={id}/>
+                                case 'energyBay':
+                                    return <EnergyBay key={id}/>
                                 default:
                                     return <Structure type={id} key={id}/>
                             }

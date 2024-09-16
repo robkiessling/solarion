@@ -11,12 +11,14 @@ import {batch} from "react-redux";
 import {mapObject} from "../lib/helpers";
 import {generateMap} from "../redux/modules/planet";
 import {generateProbeDist} from "../redux/modules/star";
+import {dayNumber} from "../redux/modules/clock";
+import {updateSetting} from "../redux/modules/game";
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard crash log sequence
 const SKIP_BOOTUP = 'skipBootup'; // Skip crash log, normal story playthrough
 const SKIP_EVERYTHING = 'skipEverything'; // Skip to all structures buildable
 
-const GAME_MODE = SKIP_EVERYTHING; /* Controls overall game mode (e.g. set to SKIP_BOOTUP to skip bootup sequence) */
+const GAME_MODE = NORMAL_BOOTUP; /* Controls overall game mode (e.g. set to SKIP_BOOTUP to skip bootup sequence) */
 
 
 export default {
@@ -361,13 +363,69 @@ export default {
             ['', 0],
             ['New Schematic(s) Found:', 0, true],
             ['- Solar Panels', 0, true],
-            ['- Wind Turbines', 0, true],
+            // ['- Wind Turbines', 0, true],
             ['', 0]
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('solarPanel'));
+
+            addTrigger(
+                (state) => state.clock,
+                (slice) => dayNumber(slice, true) > 3.75,
+                () => {
+                    dispatch(fromLog.startLogSequence('discoverWindPower'));
+                }
+            )
+        }
+    },
+
+    discoverWindPower: {
+        text: [
+            ['Energy production is too limited at night. Researching solutions...', 3000, true],
+            ['', 0],
+            ['New Schematic(s) Found:', 0, true],
+            ['- Wind Turbines', 0, true],
+            ['', 0]
+        ],
+        onFinish: (dispatch) => {
             dispatch(fromStructures.learn('windTurbine'));
         }
+    },
+
+    unlockRefinery: {
+        text: [
+            ['Need a way to filter rare materials out of ore. Researching solutions...', 3000, true],
+            ['', 0],
+            ['New Schematic(s) Found:', 0, true],
+            ['- Refinery', 0, true],
+            ['', 0]
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromGame.updateSetting('showStructureTabs', true))
+            dispatch(fromResources.learn('refinedMinerals'));
+            dispatch(fromStructures.learn('refinery'));
+
+            addTrigger(
+                (state) => state.resources.byId.refinedMinerals,
+                (slice) => slice.lifetimeTotal >= 100,
+                () => {
+                    dispatch(fromLog.startLogSequence('unlockFactory'));
+                }
+            )
+        }
+    },
+
+    unlockFactory: {
+        text: [
+            ['Enough metal has been gathered to begin artificial synthesis', 3000, true],
+            ['', 0],
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromResources.learn('standardDroids'));
+            dispatch(fromStructures.learn('droidFactory'));
+            dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
+        }
+
     },
 
     researchComplete: {
@@ -401,28 +459,25 @@ function gameStartTriggers(dispatch) {
 
     addTrigger(
         (state) => state.resources.byId.energy,
-        (slice) => slice.amount >= slice.capacity * 0.80,
+        (slice) => slice.amount >= slice.capacity * 0.9,
         () => {
             dispatch(fromLog.startLogSequence('energyAlmostFull'));
         }
     )
 
     addTrigger(
-        (state) => state.structures.byId.harvester,
-        (slice) => slice.count.total >= 5,
+        (state) => state.resources.byId.ore,
+        (slice) => slice.lifetimeTotal >= 2000,
         () => {
-            batch(() => {
-                dispatch(fromStructures.learn('sensorTower'));
-                dispatch(fromStructures.learn('refinery'));
-            });
+            dispatch(fromLog.startLogSequence('unlockRefinery'));
         }
     )
 
-    addTrigger(
-        (state) => state.structures.byId.refinery,
-        (slice) => slice.count.total >= 1,
-        () => {
-            dispatch(fromLog.logMessage('gameEnd'))
-        }
-    )
+    // addTrigger(
+    //     (state) => state.structures.byId.refinery,
+    //     (slice) => slice.count.total >= 1,
+    //     () => {
+    //         dispatch(fromLog.logMessage('gameEnd'))
+    //     }
+    // )
 }

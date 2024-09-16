@@ -6,9 +6,9 @@ import update from 'immutability-helper';
 import game from './modules/game';
 import clock, * as fromClock from './modules/clock';
 import log, * as fromLog from './modules/log';
-import resources, * as fromResources from './modules/resources';
 import structures, * as fromStructures from "./modules/structures";
 import upgrades, * as fromUpgrades from "./modules/upgrades";
+import resources, * as fromResources from './modules/resources';
 import abilities, * as fromAbilities from "./modules/abilities";
 import planet, * as fromPlanet from "./modules/planet";
 import star, * as fromStar from "./modules/star";
@@ -48,6 +48,7 @@ export default reduceReducers(
 // Many values, such as production values or consumption values, change over time (e.g. when upgrades are researched).
 // Whenever this happens we call recalculateState, which will use the database `calculators` to snapshot the new production
 // or consumption values.
+// TODO let you just recalculate a piece of the state (e.g. just structures, or even just structures->solarPanel)
 function recalculateReducer(state) {
     state = update(state, {
         structures: {
@@ -186,14 +187,16 @@ export function getReplicatedStructureCount(structure, state) {
 }
 
 // Gets structure statistic based on how many of the structures are built. Statistics can be any keys on the structure record.
-export function getStructureStatistic(state, structure, statistic, forCount) {
-    if (structure[statistic] === undefined) {
+export function getStructureStatistic(state, structure, statistic, includeReplications = true) {
+    if (structure === undefined || structure[statistic] === undefined) {
         return {};
     }
-    if (forCount === undefined) {
-        forCount = getReplicatedStructureCount(structure, state);
-    }
-    return mapObject(structure[statistic], (key, value) => value * forCount);
+
+    const structureCount = includeReplications ?
+        getReplicatedStructureCount(structure, state) :
+        fromStructures.getNumBuilt(structure);
+
+    return mapObject(structure[statistic], (key, value) => value * structureCount);
 }
 
 

@@ -8,11 +8,11 @@ import {roundToDecimal} from "../../lib/helpers";
 // Actions
 export const TICK = 'clock/TICK';
 
-// const WIND_SPEEDS = [17, 18, 22, 33, 25, 20, 15, 22, 12, 3, 10, 15, 25, 35, 60, 40, 33, 25, 20];
-// const WIND_STEP_SIZE = 2000; // seconds per step
+const WIND_SPEEDS = [17, 18, 22, 33, 25, 20, 15, 22, 12, 3, 10, 15, 25, 35, 60, 40, 33, 25, 20];
+const WIND_STEP_SIZE = 2000; // seconds per step
 
-const WIND_SPEEDS = [0,20,40,60,80,100]
-const WIND_STEP_SIZE = 2000;
+// const WIND_SPEEDS = [0,20,40,60,80,100]
+// const WIND_STEP_SIZE = 2000;
 
 const WIND_STEP_COUNT = 5; // steps per target
 
@@ -78,11 +78,16 @@ export function dayLength(state) {
     return state.dayLength;
 }
 export function fractionOfDay(state) {
-    const secondsIntoDay = (state.elapsedTime / 1000.0 + STARTING_TOD_SECONDS) % state.dayLength;
+    const secondsIntoDay = elapsedTime(state) % state.dayLength;
     return secondsIntoDay / state.dayLength;
 }
-export function dayNumber(state) {
-    return Math.floor((state.elapsedTime / 1000.0) / state.dayLength) + 1;
+export function dayNumber(state, includeDecimal = false) {
+    const day = elapsedTime(state) / state.dayLength + 1
+    return includeDecimal ? day : Math.floor(day);
+}
+
+function elapsedTime(state) {
+    return state.elapsedTime / 1000.0 + STARTING_TOD_SECONDS
 }
 
 // duration (fraction of day), label, % daylight

@@ -1,6 +1,6 @@
 import {
     getNumBuilt,
-    getRunningRate,
+    getRunningRate, getStructure,
     hasInsufficientResources,
     isRunning
 } from "../redux/modules/structures";
@@ -9,10 +9,11 @@ import {daylightPercent, windSpeed} from "../redux/modules/clock";
 import {canConsume, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
 import {round} from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
-import {redText} from "../lib/helpers";
+import {formatInteger, redText} from "../lib/helpers";
 import {upgradesAffectingStructure} from "./upgrades";
 import {abilitiesAffectingStructure} from "./abilities";
 import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations} from "../lib/effect";
+import {getStructureStatistic} from "../redux/reducer";
 
 export const STATUSES = {
     normal: 0,
@@ -23,7 +24,11 @@ export const TYPES = {
     consumer: 1
 }
 
-const INSUFFICIENT_RESOURCES = redText('Insufficient Resources')
+const IDLE_LABEL = 'Idle';
+const RUNNING_LABEL = 'Running';
+const INSUFFICIENT_LABEL = redText('Insufficient Resources')
+
+export const STANDARD_COST_EXP = 1.5; // Default exponential growth of structure costs
 
 const base = {
     name: 'Unknown',
@@ -51,8 +56,8 @@ const base = {
 export default {
     harvester: _.merge({}, base, {
         name: "Harvester",
-        description: "Drills into the planet's surface to gather minerals." +
-            " Less energy efficient at higher harvesting rates.",
+        description: "Drills into the planet's surface to gather ore." +
+            " Less energy efficient as production rate increases.",
         runnable: true,
         type: TYPES.consumer,
     }),
@@ -82,7 +87,7 @@ export default {
         name: "Refinery",
         runnable: true,
         type: TYPES.consumer,
-        description: "Converts ore into minerals.",
+        description: "Filters rare metals out of ore.",
     }),
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
@@ -110,16 +115,22 @@ const baseCalculator = {
     }
 }
 
-// These are not part of the stored state because they contain functions
+/**
+ * These structure values vary depending on the rest of the state. We define them as functions here, and the RESULT
+ * of these function calls will be stored in the state. The results are recalculated often; see recalculateSlice method.
+ * 
+ * Note: `variables` is a special object that is calculated first; its result is provided to the rest of the functions as a
+ * third parameter (that way many functions can be built off the same variables)
+ */
 export const calculators = {
     harvester: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
-                lowEndRate: 0.05, // Running at this rate or lower will result in 100% efficiency
-                topEndEfficiency: 0.25, // Running at 100% will result in this efficiency
-                efficiency: undefined, // resulting efficiency
-                ore: 10, // how much ore is being produced
+                lowEndRate: 0.25, // Running at this rate or lower will result in 100% efficiency
+                topEndEfficiency: 0.25, // Running at 100% rate will result in this efficiency
+                ore: 20, // how much ore is being produced
                 energy: 10, // how much energy is being consumed
+                efficiency: undefined, // resulting efficiency (defined later based on running rate)
             }
 
             applyAllEffects(state, variables, structure);
@@ -144,7 +155,7 @@ export const calculators = {
             return variables;
         },
         cost: (state, structure) => ({
-            ore: 150 * (1.4)**(getNumBuilt(structure))
+            ore: 350 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
         }),
         consumes: (state, structure, variables) => ({
             energy: variables.energy
@@ -154,11 +165,11 @@ export const calculators = {
         }),
         statusMessage: (state, structure, variables) => {
             if (!isRunning(structure)) {
-                return 'Idle'
+                return IDLE_LABEL
             }
             else {
                 if (hasInsufficientResources(structure)) {
-                    return INSUFFICIENT_RESOURCES;
+                    return INSUFFICIENT_LABEL;
                 }
                 return `${round(variables.efficiency * 100)}% efficiency`
             }
@@ -169,17 +180,18 @@ export const calculators = {
             const variables = {
                 daylight: daylightPercent(state.clock),
                 peakEnergy: 5, // amount of energy generated in peak daylight
-                actualEnergy: undefined // amount of energy actually generated
+                actualEnergy: undefined // amount of energy actually generated (defined later based on sunlight)
             }
 
             applyAllEffects(state, variables, structure);
 
             variables.peakEnergy *= netDroidPerformanceBoost(state, structure);
+            variables.peakEnergy *= netEnergyBayBoost(state);
             variables.actualEnergy = variables.peakEnergy * variables.daylight;
             return variables;
         },
         cost: (state, structure) => ({
-            ore: 10 * (1.5)**(getNumBuilt(structure))
+            ore: 100 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
         }),
         produces: (state, structure, variables) => ({
             energy: variables.actualEnergy
@@ -191,7 +203,7 @@ export const calculators = {
             return `${daylightPercent(state.clock) * 100}% daylight`;
         },
         description: (state, structure, variables) => {
-            return `Produces ${variables.peakEnergy}${getIconSpan('energy', true)} per second in peak sunlight.`;
+            return `Produces up to ${formatInteger(variables.peakEnergy, true)}${getIconSpan('energy', true)} per second depending on sunlight.`;
         },
     }),
     windTurbine: _.merge({}, baseCalculator, {
@@ -201,17 +213,18 @@ export const calculators = {
                 ratedSpeed: 28,
                 cutOutSpeed: 47,
                 cutInPower: 0,
-                ratedPower: 50
+                ratedPower: 15
             }
 
             applyAllEffects(state, variables, structure);
 
             variables.ratedPower *= netDroidPerformanceBoost(state, structure);
+            variables.ratedPower *= netEnergyBayBoost(state);
 
             return variables;
         },
         cost: (state, structure) => ({
-            ore: 100 * (1.5)**(getNumBuilt(structure))
+            ore: 300 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
         }),
         produces: (state, structure, variables) => {
             const wind = windSpeed(state.clock);
@@ -252,22 +265,22 @@ export const calculators = {
             return '100% rated speed';
         },
         description: (state, structure, variables) => {
-            return `Produces up to ${variables.ratedPower}${getIconSpan('energy', true)} per second ` +
+            return `Produces up to ${formatInteger(variables.ratedPower, true)}${getIconSpan('energy', true)} per second ` +
                 `when wind speed is between ${variables.cutInSpeed} and ${variables.cutOutSpeed} mph.`;
         },
         animationTag: (state, structure, variables) => {
             const wind = windSpeed(state.clock);
-            return wind < variables.cutInSpeed || wind > variables.cutOutSpeed ? 'idle' : 'running';
+            return wind < variables.cutInSpeed || wind > variables.cutOutSpeed ? 'idle' : 'running'; // todo these should be a animation constant
         }
     }),
     thermalVent: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             return {
-                energy: 20 * netDroidPerformanceBoost(state, structure)
+                energy: 20 * netDroidPerformanceBoost(state, structure) * netEnergyBayBoost(state)
             }
         },
         cost: (state, structure) => ({
-            ore: 50 * (1.5)**(getNumBuilt(structure)),
+            ore: 50 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
             vents: 1
         }),
         produces: (state, structure, variables) => {
@@ -276,13 +289,14 @@ export const calculators = {
             }
         },
         description: (state, structure, variables) => {
-            return `Produces ${variables.energy}${getIconSpan('energy', true)} per second with occasional bursts of energy. `
+            return `Produces ${formatInteger(variables.energy, true)}${getIconSpan('energy', true)} per second with occasional bursts of energy. `
         }
     }),
     energyBay: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
-                capacity: 200
+                capacity: 200,
+                energyBoost: 0
             }
 
             applyAllEffects(state, variables, structure);
@@ -292,10 +306,14 @@ export const calculators = {
             return variables;
         },
         cost: (state, structure) => ({
-            ore: 100 * (1.4)**(getNumBuilt(structure))
+            ore: 100 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            energy: 50 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
         }),
         capacity: (state, structure, variables) => {
             return { energy: variables.capacity };
+        },
+        boost: (state, structure, variables) => {
+            return { energy: variables.energyBoost }
         },
         description: (state, structure, variables) => {
             return `Provides ${variables.capacity}${getIconSpan('energy', true)} storage capacity.`;
@@ -311,34 +329,36 @@ export const calculators = {
     }),
     refinery: _.merge({}, baseCalculator, {
         cost: (state, structure) => ({
-            ore: 1,
-            energy: 10
+            ore: 2000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            energy: 1400 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
         }),
         consumes: (state, structure) => ({
-            energy: 21000000 * getRunningRate(structure),
-            ore: 21000000 * getRunningRate(structure)
+            energy: 50 * getRunningRate(structure),
+            ore: 50 * getRunningRate(structure)
         }),
+        produces: (state, structure) => {
+            return {
+                refinedMinerals: 1 * getRunningRate(structure) * netDroidPerformanceBoost(state, structure)
+            }
+        },
         statusMessage: (state, structure, variables) => {
             if (!isRunning(structure)) {
-                return 'Idle'
+                return IDLE_LABEL
             }
             else {
                 if (hasInsufficientResources(structure)) {
-                    return INSUFFICIENT_RESOURCES;
+                    return INSUFFICIENT_LABEL;
                 }
-                return 'Running'
-            }
-        },
-        produces: (state, structure) => {
-            const topEndEfficiency = 0.75;
-            const efficiency = 1 - (getRunningRate(structure) * (1 - topEndEfficiency))
-            return {
-                refinedMinerals: 2 * getRunningRate(structure) * efficiency * netDroidPerformanceBoost(state, structure)
+                return RUNNING_LABEL
             }
         },
     }),
     droidFactory: _.merge({}, baseCalculator, {
-
+        cost: (state, structure) => ({
+            ore: 3000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            refinedMinerals: 100 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            energy: 2000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+        }),
     }),
     probeFactory: _.merge({}, baseCalculator, {
         cost: (state, structure) => ({
@@ -351,13 +371,13 @@ export const calculators = {
         }),
         statusMessage: (state, structure, variables) => {
             if (!isRunning(structure)) {
-                return 'Idle'
+                return IDLE_LABEL
             }
             else {
                 if (hasInsufficientResources(structure)) {
-                    return INSUFFICIENT_RESOURCES;
+                    return INSUFFICIENT_LABEL;
                 }
-                return 'Running'
+                return RUNNING_LABEL
             }
         },
         produces: (state, structure) => {
@@ -369,9 +389,25 @@ export const calculators = {
 
 }
 
+/**
+ * Some structure variables depend on OTHER structure variables (e.g. solarPanel production depends on energyBay boost).
+ * In these cases we have to make custom functions that both structures can use INDEPENDENTLY.
+ *
+ * In an ideal word, we'd have the structures recalculating their variables constantly, but this is costly performance-wise.
+ * Here is an example of the problem:
+ *
+ * 1. energyBay is built -> state is recalculated:
+ *     1a. solarPanel is recalculated using old energyBay:boost variable // this is the problem; energyBay hasn't been updated yet
+ *     1b. energyBay variable 'boost' is updated to reflect
+ * 2. on the NEXT state recalculation, solarPanel finally gets the updated energyBay:boost variable
+ *
+ * As you can see it takes up to TWO recalculations for the changes to propagate (when one structure depends on another).
+ *
+ * So instead of doing that, we implement custom functions here.
+ */
 export function droidPerformanceBoost(state) {
     const variables = {
-        boost: 0.2
+        boost: 0.25
     }
 
     const improvedMaintenance = getUpgrade(state.upgrades, 'droidFactory_improvedMaintenance');
@@ -385,6 +421,30 @@ export function droidPerformanceBoost(state) {
 function netDroidPerformanceBoost(state, structure) {
     return 1 + (droidPerformanceBoost(state) * structure.droidData.numDroidsAssigned);
 }
+
+
+export function energyBayBoost(state) {
+    const variables = {
+        energyBoost: 0
+    };
+
+    ['energyBay_production1', 'energyBay_production2'].forEach(upgradeId => {
+        const upgrade = getUpgrade(state.upgrades, upgradeId);
+        if (isResearched(upgrade)) {
+            applySingleEffect(upgrade.effect, variables);
+        }
+    })
+
+    return variables.energyBoost;
+}
+
+function netEnergyBayBoost(state) {
+    return 1 + energyBayBoost(state) * getNumBuilt(getStructure(state.structures, 'energyBay'))
+    // return 1 + getStructureStatistic(state, getStructure(state.structures, 'energyBay'), 'boost', false).energy;
+}
+
+
+
 
 // Applies all applicable upgrades and abilities for a structure
 // Note: order of application matters (we always add before multiplying).

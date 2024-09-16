@@ -153,7 +153,7 @@ export function getAbility(state, id) {
     return state.byId[id];
 }
 export function getAbilityCost(ability) {
-    return ability.cost;
+    return ability.cost; // todo floor
 }
 export function getAbilityProduction(ability) {
     return ability.produces;

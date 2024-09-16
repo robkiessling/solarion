@@ -166,7 +166,7 @@ export function getStructure(state, id) {
     return state.byId[id];
 }
 export function getBuildCost(structure) {
-    return structure.cost;
+    return structure.cost; // todo floor
 }
 export function getNumBuilt(structure) {
     if (!structure) { return 0; }

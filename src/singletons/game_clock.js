@@ -107,6 +107,8 @@ class GameClock {
 
     // A periodic function does not run every game loop, it runs every X milliseconds (to improve performance)
     _iteratePeriodicFns() {
+        const gameSpeed = store.getState().game.gameSpeed;
+
         for (const [key, periodicFn] of Object.entries(this.periodicFns)) {
             if (periodicFn === undefined) {
                 // When clearInterval is called, its periodicFn will still be called for the current iteration (the
@@ -123,7 +125,7 @@ class GameClock {
                     iterations += 1;
                     periodicFn.current -= periodicFn.period;
                 }
-                periodicFn.fn(iterations, periodicFn.period * GAME_SPEED);
+                periodicFn.fn(iterations, periodicFn.period * gameSpeed);
             }
         }
     }

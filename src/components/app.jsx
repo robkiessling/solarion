@@ -28,8 +28,8 @@ export default class App extends React.Component {
                     <NavigationTabs/>
                 </div>
                 <div className="right-column">
-                    <PlanetStatus/>
                     <ResourceBar/>
+                    <PlanetStatus/>
                     <Log/>
 
                 </div>

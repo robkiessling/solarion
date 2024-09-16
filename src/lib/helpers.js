@@ -74,24 +74,50 @@ const NUMBER_FORMAT_LOOKUP = [
     { value: 1e9, symbol: "G" },
     { value: 1e12, symbol: "T" },
     { value: 1e15, symbol: "P" },
-    { value: 1e18, symbol: "E" },
-    { value: 1e21, symbol: "Z" }
+    // { value: 1e18, symbol: "E" },
+    // { value: 1e21, symbol: "Z" }
 ];
+const DROP_ZEROS_REGEX = /\.0+$|(?<=\.[0-9]*[1-9])0+$/;
 
-// https://stackoverflow.com/a/9462382
-export function formatNumber(num, decimalDigits = 1) {
+// Adapted from https://stackoverflow.com/a/9462382
+export function formatNumber(num, decimalDigits = 1, dropZeros = false) {
     let isNegative = false;
     if (num < 0) {
         isNegative = true;
         num *= -1;
     }
+
     const item = NUMBER_FORMAT_LOOKUP.findLast(item => num >= item.value);
-    return item ? `${isNegative ? '-' : ''}${(num / item.value).toFixed(decimalDigits).concat(item.symbol)}` : "0";
+    let str;
+
+    if (item) {
+        str = (num / item.value).toFixed(decimalDigits);
+    }
+    else {
+        // Number is between 0 and 1:
+        str = num ? num.toFixed(decimalDigits) : '0';
+    }
+
+    if (dropZeros) {
+        str = str.replace(DROP_ZEROS_REGEX, '');
+    }
+
+    if (isNegative) {
+        str = `-${str}`
+    }
+
+    if (item) {
+        str = `${str}${item.symbol}`
+    }
+
+    return str;
 }
 
-// Only show decimal place when number is greater than 1000 (i.e. it starts showing a symbol like "k" or "M")
-export function formatInteger(num) {
-    return (Math.abs(num) < 1e3) ? formatNumber(num, 0) : formatNumber(num, 1);
+export function formatInteger(num, dropZeros = false) {
+    // Only show decimal place when number is greater than 1000 (i.e. it starts showing a symbol like "k" or "M")
+    // return (Math.abs(num) < 1e3) ? formatNumber(num, 0) : formatNumber(num, 1);
+
+    return formatNumber(num, 1, dropZeros);
 }
 
 // The maximum is inclusive and the minimum is inclusive

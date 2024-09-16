@@ -8,6 +8,7 @@ import store from './store';
  * Triggers currently will only be fired once (they are unsubscribed after firing).
  *
  * @param selector  Function that accepts one parameter `state` and returns the part of the state to listen to.
+ *                  It should be as specific as possible (only listen to what you have to)
  * @param condition Function that accepts one parameter `slice` and should return true when the `action` is to be performed.
  *                  Note: `slice` is the piece of the state specified by `selector`.
  * @param action    Function to call when triggered.
