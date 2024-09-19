@@ -55,7 +55,7 @@ const SHOW_DEBUG_MERIDIANS = false;
 const ADD_MOUNTAINS = true;
 const EXPLORE_EVERYTHING = false;
 
-const EXPLORATION_TIME_FACTOR = 1; // The fastest area takes this amount of time to explore
+const EXPLORATION_TIME_FACTOR = 10; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = false;
 
 export const TERRAINS = {

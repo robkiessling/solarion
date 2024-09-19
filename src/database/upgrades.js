@@ -133,7 +133,7 @@ const database = {
     commandCenter_improvedSolenoid3: _.merge({}, base, {
         name: "Fused Wiring",
         structure: 'commandCenter',
-        description: "Increases solenoid energy generation time from 5 to 10s.",
+        description: "Solenoid charging time increased to 10s.",
         discoverWhen: {
             upgrades: ['commandCenter_improvedSolenoid2'],
             resources: {
@@ -185,7 +185,7 @@ const database = {
             refinedMinerals: 125
         },
         effect: {
-            energy: { add: 75 }
+            energy: { add: 70 }
         }
     }),
 
@@ -318,7 +318,7 @@ const database = {
         },
     }),
     solarPanel_ambientLight: _.merge({}, base, {
-        name: "Ambient Light",
+        name: "Ambient Light Receptors",
         structure: 'solarPanel',
         description: "Produce energy at 25% effectiveness at night.",
         discoverWhen: {
@@ -414,12 +414,12 @@ const database = {
         discoverWhen: {
             upgrades: ['energyBay_largerCapacity'],
             resources: {
-                refinedMinerals: 400
+                refinedMinerals: 200
             }
         },
         cost: {
             ore: 4000,
-            refinedMinerals: 500
+            refinedMinerals: 300
         },
         effect: {
             capacity: { multiply: 5 }
@@ -497,25 +497,8 @@ const database = {
         }
     }),
 
-    refinery_reduceOre: _.merge({}, base, {
-        name: "Larger Sifters",
-        structure: 'refinery',
-        description: 'Reduce the amount of ore required by 20%',
-        discoverWhen: {
-            resources: {
-                refinedMinerals: 100
-            }
-        },
-        cost: {
-            ore: 2000,
-            refinedMinerals: 100,
-        },
-        effect: {
-            ore: { multiply: 0.8 }
-        }
-    }),
     refinery_improveProduction: _.merge({}, base, {
-        name: "High Yield",
+        name: "Higher Yields",
         structure: 'refinery',
         description: 'Increase amount of minerals produced by 25%',
         discoverWhen: {
@@ -546,6 +529,24 @@ const database = {
         },
         effect: {
             nightReduction: { add: 0.5 }
+        }
+    }),
+    refinery_improveProduction2: _.merge({}, base, {
+        name: "Advanced Sifting",
+        structure: 'refinery',
+        description: 'Increase amount of minerals produced by 100%',
+        discoverWhen: {
+            upgrades: ['refinery_improveProduction'],
+            resources: {
+                refinedMinerals: 600
+            }
+        },
+        cost: {
+            ore: 12000,
+            refinedMinerals: 1000
+        },
+        effect: {
+            refinedMinerals: { multiply: 2 }
         }
     }),
 

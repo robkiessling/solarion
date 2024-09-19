@@ -33,12 +33,12 @@ export const STANDARD_COST_EXP = 1.5; // Default exponential growth of structure
 const base = {
     name: 'Unknown',
     description: '',
-    buildable: true,
     runnable: false,
     runningRate: 0,
     runningCooldown: 0,
     count: {
-        total: 0 // todo why is this an object? maybe for total/broken/etc.?
+        total: 0, // todo why is this an object? maybe for total/broken/etc.?
+        max: Infinity
     },
     status: STATUSES.normal,
     statusMessage: '',
@@ -50,7 +50,8 @@ const base = {
     droidData: {
         usesDroids: true,
         numDroidsAssigned: 0,
-        droidAssignmentType: 'structure'
+        droidAssignmentType: 'structure',
+        assignTooltipPrefix: 'Each droid boosts productivity by '
     },
 }
 
@@ -59,7 +60,9 @@ export default {
         name: "Command Center",
         description: "A twisted mass of cables, switches and monitors surround a large solenoid.",
         types: TYPES.generator,
-        buildable: false
+        count: {
+            max: 1
+        }
     }),
     harvester: _.merge({}, base, {
         name: "Harvester",
@@ -82,6 +85,9 @@ export default {
     }),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
+        droidData: {
+            assignTooltipPrefix: 'Each droid boosts capacity by '
+        }
     }),
     sensorTower: _.merge({}, base, {
         name: "Sensor Tower",
@@ -102,6 +108,9 @@ export default {
         type: TYPES.consumer,
         droidData: {
             usesDroids: false
+        },
+        count: {
+            max: 1
         }
     }),
     probeFactory: _.merge({}, base, {
@@ -183,7 +192,7 @@ export const calculators = {
             return variables;
         },
         cost: (state, structure) => ({
-            ore: 300 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
+            ore: 200 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
         }),
         consumes: (state, structure, variables) => ({
             energy: variables.energy
@@ -228,9 +237,9 @@ export const calculators = {
         }),
         statusMessage: (state, structure, variables) => {
             if (variables.daylight === 0) {
-                return redText(`${daylightPercent(state.clock) * 100}% sunlight`);
+                return redText(`${variables.daylight * 100}% sunlight`);
             }
-            return `${daylightPercent(state.clock) * 100}% sunlight`;
+            return `${variables.daylight * 100}% sunlight`;
         },
         description: (state, structure, variables) => {
             return `Produces up to ${formatInteger(variables.peakEnergy, true)}${getIconSpan('energy', true)} per second depending on sunlight.`;

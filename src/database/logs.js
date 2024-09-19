@@ -17,7 +17,7 @@ import {updateSetting} from "../redux/modules/game";
 const NORMAL_BOOTUP = 'normalBootup'; // Standard campaign start
 const SKIP_START = 'skipStart';
 const SKIP_TO_GLOBE = 'skipToGlobe';
-const SKIP_EVERYTHING = 'skipEverything'; // Skip to all structures buildable
+const SKIP_EVERYTHING = 'skipEverything'; // Skip to all structures built
 
 const GAME_MODE = SKIP_TO_GLOBE; /* Controls overall game mode */
 
@@ -274,9 +274,10 @@ export default {
             dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity2'));
 
             dispatch(fromResources.produce({
-                energy: 99999,
-                ore: 99999,
-                refinedMinerals: 99999,
+                energy: 999999999,
+                ore: 999999999,
+                refinedMinerals: 999999999,
+                standardDroids: 10
             }));
         }
     },

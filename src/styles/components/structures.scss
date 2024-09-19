@@ -12,31 +12,34 @@
   }
 
   .structure {
-    padding-bottom: 0.5rem;
-    margin-bottom: 0.5rem;
-    //border-bottom: 1px solid $structure-border;
+    //padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid $structure-border;
 
     display: flex;
     flex-direction: column;
     //min-height: 5rem;
 
     .header {
-      //display: flex;
-      //flex-direction: row;
+      display: flex;
+      flex-direction: row;
 
       font-size: 1rem;
 
-      //justify-content: space-between;
-      //align-items: center;
-      //margin-bottom: 0.5rem;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
 
       position: relative;
 
       .structure-name {
-        //color: $blue;
+        color: $blue;
 
         .build-count {
           color: white;
+        }
+        .replication-count {
+          color: #fcb3b3;
         }
       }
 
@@ -71,7 +74,7 @@
       .abilities-area {
         .ability {
           display: flex;
-          justify-content: flex-end;
+          justify-content: center;
           align-items: center;
           gap: 1rem;
         }

@@ -22,7 +22,7 @@ class DroidCount extends React.Component {
                 </button>
                 <Tooltip id={tipIdAssign} place="bottom">
                     <p><span className="tooltip-header">Assign Droid</span></p>
-                    <p>Each droid boosts productivity by {_.round(this.props.boost * 100)}%.</p>
+                    <p>{this.props.assignTooltip}</p>
                 </Tooltip>
                 <button onClick={() => this.props.removeDroid(this.props.droidData, this.props.targetId)}
                         disabled={!this.props.canRemove} className="has-tip"
@@ -50,7 +50,7 @@ const mapStateToProps = (state, ownProps) => {
         droidData: ownProps.droidData,
         canAssign: canAssignDroid(state, ownProps.droidData),
         canRemove: canRemoveDroid(state, ownProps.droidData),
-        boost: droidPerformanceBoost(state)
+        assignTooltip: ownProps.assignTooltip
     }
 }
 

@@ -11,16 +11,15 @@ export const NUM_COLS = 120; // proportional would be (5/3) * NUM_ROWS
 // This determines where the structures are placed on the background. Each structure only displays a certain amount
 // of copies; if there are more built than we have coordinates for the rest just aren't shown.
 // Note: row is relative to the top of the page, col is relative to the center of the page
-// TODO specify model (e.g. harvester2)
 const STRUCTURE_POSITIONS = {
     harvester: [
         { row: 50, col: 10, animationId: 'harvester2' },
         { row: 45, col: -10 },
         { row: 52, col: -55 },
         { row: 54, col: -5, animationId: 'harvester2' },
-        { row: 50, col: -30, animationId: 'harvester' },
+        { row: 49, col: -28, animationId: 'harvester' },
         { row: 37, col: 5, animationId: 'harvester2' },
-        { row: 53, col: 43, animationId: 'harvester' },
+        { row: 48, col: 38, animationId: 'harvester' },
         { row: 47, col: 50, animationId: 'harvester2' },
     ],
     solarPanel: [
@@ -37,7 +36,6 @@ const STRUCTURE_POSITIONS = {
         { row: 42, col: -24 },
         { row: 43, col: -38 },
         { row: 43, col: -52 },
-        { row: 43, col: -66 },
     ],
     windTurbine: [
         { row: 18, col: 10 },

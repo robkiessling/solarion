@@ -40,7 +40,7 @@ const mapStateToProps = (state, ownProps) => {
     return {
         isBuilt: structure.count.total > 0,
         capacity: getStructureStatistic(state, structure, 'capacity'),
-        boost: getStructureStatistic(state, structure, 'boost'),
+        boost: getStructureStatistic(state, structure, 'boost', false),
     }
 }
 

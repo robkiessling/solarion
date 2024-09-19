@@ -6,6 +6,7 @@ import {upgradesAffectingAbility, upgradesAffectingStructure} from "./upgrades";
 import {applyOperationsToVariables, EFFECT_TARGETS, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {STANDARD_COST_EXP} from "./structures";
+import {countAllStructuresBuilt} from "../redux/modules/structures";
 
 export const STATES = {
     ready: 0,
@@ -151,8 +152,12 @@ export const calculators = {
             }
         },
         cost: (state, ability, variables) => {
+            const numStructures = countAllStructuresBuilt(state.structures);
+
             return {
-                ore: 1,
+                energy: numStructures * 200 * variables.nextDevelopmentSize,
+                ore: numStructures * 1000 * variables.nextDevelopmentSize,
+                refinedMinerals: numStructures * 10 * variables.nextDevelopmentSize,
                 buildableLand: variables.nextDevelopmentSize
             }
         },

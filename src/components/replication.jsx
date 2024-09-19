@@ -30,7 +30,7 @@ class Replication extends React.Component {
                     <span>{this.props.developedLand}x</span>
                 </span>
 
-                {this.props.replicateAbility && <Ability id={this.props.replicateAbility.id} />}
+                {this.props.replicateAbility && !this.props.finishedReplicating && <Ability id={this.props.replicateAbility.id} />}
 
 
             </div>
@@ -39,11 +39,15 @@ class Replication extends React.Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
+    const developedLand = getQuantity(getResource(state.resources, 'developedLand'))
+    const finishedReplicating = developedLand === state.planet.maxDevelopedLand
+
     return {
         buildableLand: getQuantity(getResource(state.resources, 'buildableLand')),
         buildableLandIcon: getIcon('buildableLand'),
         developedLand: getQuantity(getResource(state.resources, 'developedLand')),
-        replicateAbility: getAbility(state.abilities, 'replicate')
+        replicateAbility: getAbility(state.abilities, 'replicate'),
+        finishedReplicating: finishedReplicating
     };
 };
 

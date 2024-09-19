@@ -172,6 +172,11 @@ export function getNumBuilt(structure) {
     if (!structure) { return 0; }
     return structure.count.total;
 }
+export function countAllStructuresBuilt(state) {
+    return Object.values(state.byId).reduce((acc, structure) => {
+        return acc + getNumBuilt(structure)
+    }, 0);
+}
 export function getRunningRate(structure) {
     return structure.runnable ? structure.runningRate : 1;
 }

@@ -12,6 +12,7 @@ import Upgrades from "./upgrades";
 import Abilities from "./abilities";
 import DroidCount from "./droid_count";
 import {getIcon, getQuantity, getResource, highlightCosts} from "../../redux/modules/resources";
+import {droidPerformanceBoost} from "../../database/structures";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -22,12 +23,17 @@ class Structure extends React.Component {
         return (
             <div className="structure">
                 <div className="header">
-                    <div className="structure-name component-header">
+                    <div className="structure-name">
                         {this.props.structure.name}
-                        <span className="build-count">{this.props.numBuilt < 1 || !this.props.structure.buildable ? '' : ` x${this.props.numBuilt}`}</span>
+                        <span className="build-count">
+                            {this.props.numBuilt < 1 || !this.props.buildable ? '' : ` x${this.props.numBuilt}`}
+                        </span>
+                        <span className="replication-count">
+                            {this.props.replicationCount && ` (x${this.props.replicationCount})`}
+                        </span>
                     </div>
                     <div className="build-area">
-                        {this.props.structure.buildable && <BuildButton structure={this.props.structure}/>}
+                        {this.props.buildable && <BuildButton structure={this.props.structure}/>}
                     </div>
                 </div>
                 <div className="description"
@@ -64,7 +70,8 @@ class Structure extends React.Component {
                             </div>
                         }
                         {this.props.isBuilt && this.props.showDroidsForStructure &&
-                            <DroidCount droidData={this.props.droidData} targetId={this.props.structure.id} />}
+                            <DroidCount droidData={this.props.droidData} targetId={this.props.structure.id}
+                                        assignTooltip={this.props.droidAssignTooltip} />}
                     </div>
                     }
 
@@ -84,16 +91,20 @@ const mapStateToProps = (state, ownProps) => {
         structure: structure,
         numBuilt: structure.count.total,
         isBuilt: structure.count.total > 0,
+        buildable: structure.count.total < structure.count.max,
         showResourceRates: state.game.showResourceRates,
 
         showDroidsForStructure: showDroidsForStructure(state, structure),
         droidData: structure.droidData,
+        droidAssignTooltip: `${structure.droidData.assignTooltipPrefix}${_.round(droidPerformanceBoost(state) * 100)}%.`,
 
         production: getStructureStatistic(state, structure, 'produces'),
         consumption: highlightCosts(state.resources, getStructureStatistic(state, structure, 'consumes')),
 
         hasInsufficientResources: hasInsufficientResources(structure),
         statusMessage: structure.statusMessage,
+
+        replicationCount: getQuantity(getResource(state.resources, 'developedLand'))
     }
 };
 

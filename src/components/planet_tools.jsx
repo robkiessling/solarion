@@ -8,6 +8,7 @@ import {percentExplored, setRotation, setSunTracking} from "../redux/modules/pla
 import {showDroidsUI} from "../redux/reducer";
 import {fractionOfDay} from "../redux/modules/clock";
 import Replication from "./replication";
+import Events from "./events";
 
 class PlanetTools extends React.Component {
     constructor(props) {
@@ -44,7 +45,11 @@ class PlanetTools extends React.Component {
 
                     <div className={'half-br'}></div>
 
-                    {this.props.showDroidsUI && <DroidCount droidData={this.props.droidData}/>}
+                    {
+                        this.props.showDroidsUI &&
+                        <DroidCount droidData={this.props.droidData}
+                                    assignTooltip={`Send the droid out to explore the planet surface. Each assigned droid increases the exploration rate.`}/>
+                    }
 
                     <div className={'half-br'}></div>
 
@@ -64,6 +69,7 @@ class PlanetTools extends React.Component {
                     </div>
                 </div>
                 <Replication />
+                <Events/>
             </div>
         );
     }
