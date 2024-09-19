@@ -10,7 +10,7 @@ import {planetTick} from "../redux/modules/planet";
 
 const CLOCK_FPS = 10; // todo affects outside rendering
 const STRUCT_FPS = 10;
-const ABILITIES_FPS = 5; // todo this is only for button animation... find a way to reduce
+const ABILITIES_FPS = 10; // todo this is only for button animation... find a way to reduce
 
 class GameClock {
     constructor() {

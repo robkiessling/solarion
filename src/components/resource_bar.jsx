@@ -19,17 +19,30 @@ class ResourceBar extends React.Component {
                     {
                         this.props.visibleIds.map(id => {
                             const resource = this.props.resources[id];
-                            return <tr key={id}>
-                                <td width={'25%'}>
-                                    {resource.name}
-                                </td>
-                                <td width={'45%'}>
-                                    <ResourceAmount amount={getQuantity(resource)} icon={resource.icon} capacity={getCapacity(resource)}/>
-                                </td>
-                                <td width={'30%'}>
-                                    {resource.showRate && <ResourceAmount amount={this.props.netResourceRates[id]} asRate={true} colorRate={true} />}
-                                </td>
-                            </tr>
+
+                            if (this.props.showResourceRates) {
+                                return <tr key={id}>
+                                    <td width={'25%'}>
+                                        {resource.name}
+                                    </td>
+                                    <td width={'45%'}>
+                                        <ResourceAmount amount={getQuantity(resource)} icon={resource.icon} capacity={getCapacity(resource)}/>
+                                    </td>
+                                    <td width={'30%'}>
+                                        {resource.showRate && <ResourceAmount amount={this.props.netResourceRates[id]} asRate={true} colorRate={true} />}
+                                    </td>
+                                </tr>
+                            }
+                            else {
+                                return <tr key={id}>
+                                    <td width={'50%'}>
+                                        {resource.name}
+                                    </td>
+                                    <td width={'50%'}>
+                                        <ResourceAmount amount={getQuantity(resource)} icon={resource.icon} capacity={getCapacity(resource)}/>
+                                    </td>
+                                </tr>
+                            }
                         })
                     }
                     </tbody>
@@ -43,6 +56,7 @@ class ResourceBar extends React.Component {
 const mapStateToProps = state => {
     return {
         visible: state.game.showResourceBar,
+        showResourceRates: state.game.showResourceRates,
         elapsedTime: state.clock.elapsedTime,
         visibleIds: state.resources.visibleIds,
         resources: state.resources.byId,

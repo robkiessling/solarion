@@ -83,7 +83,7 @@ class Outside extends React.Component {
 
         return (
             <div id="outside-container" ref={this.canvasContainer}
-                 className={`${this.props.visible ? '' : 'hidden'} ${this.props.shuttersClosed ? 'shutters-closed' : 'shutters-open'}`}>
+                 className={`${this.props.visible ? '' : 'hidden'} ${this.props.shuttersOpen ? 'shutters-open' : 'shutters-closed'}`}>
                 <div id="shutters"></div>
                 <canvas id="sky-color" ref={this.skyCanvas} style={{background: skyColor, opacity: skyOpacity}}/>
                 <canvas id="outside-canvas" ref={this.canvas}></canvas>
@@ -97,7 +97,7 @@ class Outside extends React.Component {
 const mapStateToProps = state => {
     return {
         visible: state.game.currentNavTab === 'outside',
-        shuttersClosed: state.game.shuttersClosed,
+        shuttersOpen: state.game.shuttersOpen,
         fractionOfDay: fractionOfDay(state.clock),
         elapsedTime: state.clock.elapsedTime,
         structureAnimationData: animationData(state.structures)

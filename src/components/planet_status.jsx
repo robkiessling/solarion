@@ -6,8 +6,6 @@ import Slider from "rc-slider";
 import {updateSetting} from "../redux/modules/game";
 import {createArray} from "../lib/helpers";
 
-// TODO rename to CommandCenter?
-
 class PlanetStatus extends React.Component {
     constructor(props) {
         super(props);
@@ -18,13 +16,19 @@ class PlanetStatus extends React.Component {
 
         return (
             <div className={`planet-status ${this.props.visible ? '' : 'invisible'}`}>
-                <div className="component-header">Command Center: XLJ-800</div>
+                <div className="component-header">Sensor Readings</div>
                 <div>
                     <Clock dayLength={this.props.dayLength}
                            dayNumber={this.props.dayNumber}
                            fractionOfDay={this.props.fractionOfDay} />
-                    Temperature: {_.round(this.props.temperature)}°C<br/>
-                    Wind: {_.round(this.props.windSpeed)} mph
+                    <div className={'d-flex space-between'}>
+                        <span>Temperature:</span>
+                        <span>{_.round(this.props.temperature)}°C</span>
+                    </div>
+                    <div className={'d-flex space-between'}>
+                        <span>Wind:</span>
+                        <span>{_.round(this.props.windSpeed)} kph</span>
+                    </div>
                 </div>
                 <div style={{'marginTop': '1rem'}}>
                     [DEBUG] Game speed:

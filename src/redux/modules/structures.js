@@ -5,7 +5,7 @@ import {withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 
 export { calculators };
-const RUNNING_COOLDOWN = 5; // After running out of resources, wait this number of seconds before running again
+const RUNNING_COOLDOWN = 2; // After running out of resources, wait this number of seconds before running again
 
 // Actions
 export const LEARN = 'structures/LEARN';

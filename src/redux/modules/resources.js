@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import {mapObject} from "../../lib/helpers";
+import {compareNumbers, mapObject, roundToDecimal} from "../../lib/helpers";
 import database, {calculators} from '../../database/resources';
 import * as fromStructures from "./structures";
 import * as fromUpgrades from "./upgrades";
@@ -76,13 +76,14 @@ function produceReducer(state, amounts, incrementLifetimeTotal = true) {
     return update(state, {
         byId: mapObject(amounts, (resourceId, amount) => {
             const resource = getResource(state, resourceId);
+            if (!resource) { return {}; }
             const capacity = getCapacity(resource);
             const oldAmount = getQuantity(resource);
             const newAmount = Math.min(oldAmount + amount, capacity);
             const gain = capacity === Infinity ? amount : (newAmount - oldAmount);
             return {
-                amount: { $set: newAmount },
-                lifetimeTotal: { $apply: function(x) { return incrementLifetimeTotal ? x + gain : x; } }
+                amount: { $set: roundToDecimal(newAmount, 5) },
+                lifetimeTotal: { $apply: function(x) { return incrementLifetimeTotal ? roundToDecimal(x + gain, 5) : x; } }
             }
         })
     });

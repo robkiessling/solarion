@@ -33,6 +33,7 @@ export const STANDARD_COST_EXP = 1.5; // Default exponential growth of structure
 const base = {
     name: 'Unknown',
     description: '',
+    buildable: true,
     runnable: false,
     runningRate: 0,
     runningCooldown: 0,
@@ -54,10 +55,16 @@ const base = {
 }
 
 export default {
+    commandCenter: _.merge({}, base, {
+        name: "Command Center",
+        description: "A twisted mass of cables, switches and monitors surround a large solenoid.",
+        types: TYPES.generator,
+        buildable: false
+    }),
     harvester: _.merge({}, base, {
         name: "Harvester",
         description: "Drills into the planet's surface to gather ore." +
-            " Less energy efficient as production rate increases.",
+            " Less energy efficient as harvesting rate is increased.",
         runnable: true,
         type: TYPES.consumer,
     }),
@@ -91,7 +98,7 @@ export default {
     }),
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
-        description: "Constructs droids assist with production.",
+        description: "Constructs droids that can assist with production.",
         type: TYPES.consumer,
         droidData: {
             usesDroids: false
@@ -123,13 +130,34 @@ const baseCalculator = {
  * third parameter (that way many functions can be built off the same variables)
  */
 export const calculators = {
+    commandCenter: _.merge({}, baseCalculator, {
+        variables: (state, structure) => {
+            const variables = {
+                charging: 0, // Whether solanoid is charging or not (0 or 1)
+                energy: 1 // how much energy is produced per second when charging
+            }
+
+            applyAllEffects(state, variables, structure);
+            variables.energy *= netDroidPerformanceBoost(state, structure);
+
+            variables.energy *= variables.charging;
+
+            return variables;
+        },
+        consumes: (state, structure, variables) => ({
+
+        }),
+        produces: (state, structure, variables) => ({
+            energy: variables.energy
+        }),
+    }),
     harvester: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
                 lowEndRate: 0.25, // Running at this rate or lower will result in 100% efficiency
                 topEndEfficiency: 0.25, // Running at 100% rate will result in this efficiency
-                ore: 20, // how much ore is being produced
-                energy: 10, // how much energy is being consumed
+                ore: 10, // how much ore is being produced
+                energy: 5, // how much energy is being consumed
                 efficiency: undefined, // resulting efficiency (defined later based on running rate)
             }
 
@@ -155,7 +183,7 @@ export const calculators = {
             return variables;
         },
         cost: (state, structure) => ({
-            ore: 350 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
+            ore: 300 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
         }),
         consumes: (state, structure, variables) => ({
             energy: variables.energy
@@ -193,7 +221,7 @@ export const calculators = {
             return variables;
         },
         cost: (state, structure) => ({
-            ore: 100 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
+            ore: 60 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
         }),
         produces: (state, structure, variables) => ({
             energy: variables.actualEnergy
@@ -226,7 +254,7 @@ export const calculators = {
             return variables;
         },
         cost: (state, structure) => ({
-            ore: 300 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
+            ore: 200 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
         }),
         produces: (state, structure, variables) => {
             const wind = windSpeed(state.clock);
@@ -268,7 +296,7 @@ export const calculators = {
         },
         description: (state, structure, variables) => {
             return `Produces up to ${formatInteger(variables.ratedPower, true)}${getIconSpan('energy', true)} per second ` +
-                `when wind speed is between ${variables.cutInSpeed} and ${variables.cutOutSpeed} mph.`;
+                `when wind speed is between ${variables.cutInSpeed} and ${variables.cutOutSpeed} kph.`;
         },
         animationTag: (state, structure, variables) => {
             const wind = windSpeed(state.clock);
@@ -297,7 +325,7 @@ export const calculators = {
     energyBay: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
-                capacity: 200,
+                capacity: 100,
                 energyBoost: 0
             }
 
@@ -309,7 +337,7 @@ export const calculators = {
         },
         cost: (state, structure) => ({
             ore: 100 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
-            energy: 50 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            energy: 25 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
         }),
         capacity: (state, structure, variables) => {
             return { energy: variables.capacity };
@@ -349,8 +377,8 @@ export const calculators = {
 
         },
         cost: (state, structure) => ({
-            ore: 2000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
-            energy: 1400 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            ore: 1000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            energy: 500 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
         }),
         consumes: (state, structure, variables) => ({
             energy: variables.energy * getRunningRate(structure),
@@ -375,9 +403,9 @@ export const calculators = {
     }),
     droidFactory: _.merge({}, baseCalculator, {
         cost: (state, structure) => ({
-            ore: 5000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            ore: 2500 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
             refinedMinerals: 100 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
-            energy: 5000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            energy: 2000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
         }),
     }),
     probeFactory: _.merge({}, baseCalculator, {

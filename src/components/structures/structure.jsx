@@ -11,7 +11,7 @@ import BuildButton from "./build_button";
 import Upgrades from "./upgrades";
 import Abilities from "./abilities";
 import DroidCount from "./droid_count";
-import {getIcon, highlightCosts} from "../../redux/modules/resources";
+import {getIcon, getQuantity, getResource, highlightCosts} from "../../redux/modules/resources";
 
 class Structure extends React.Component {
     constructor(props) {
@@ -22,32 +22,35 @@ class Structure extends React.Component {
         return (
             <div className="structure">
                 <div className="header">
-                    <span className="structure-name">
+                    <div className="structure-name component-header">
                         {this.props.structure.name}
-                        <span className="build-count">{this.props.numBuilt < 1 ? '' : ` x${this.props.numBuilt}`}</span>
-                    </span>
+                        <span className="build-count">{this.props.numBuilt < 1 || !this.props.structure.buildable ? '' : ` x${this.props.numBuilt}`}</span>
+                    </div>
                     <div className="build-area">
-                        <BuildButton structure={this.props.structure}/>
+                        {this.props.structure.buildable && <BuildButton structure={this.props.structure}/>}
                     </div>
                 </div>
                 <div className="description"
                      dangerouslySetInnerHTML={{__html: this.props.structure.description}}></div>
 
                 <div className="body">
+                    { this.props.showResourceRates &&
                     <div className="details-area">
                         {this.props.isBuilt && this.props.structure.runnable &&
                             <div className={`d-flex justify-center`}><RunSlider structure={this.props.structure}/></div>}
                         {
                             this.props.isBuilt && Object.keys(this.props.production).length > 0 &&
-                            <div className={`d-flex space-between ${this.props.hasInsufficientResources ? 'text-grey' : ''}`}>
+                            <div
+                                className={`d-flex space-between ${this.props.hasInsufficientResources ? 'text-grey' : ''}`}>
                                 <div>Producing:</div>
                                 <div><ResourceAmounts amounts={this.props.production} asRate={true}/></div>
                             </div>
                         }
                         {
                             this.props.isBuilt && Object.keys(this.props.consumption).length > 0 &&
-                            <div className={`d-flex space-between ${this.props.hasInsufficientResources ? 'text-grey' : ''}`}>
-                                <div>Consuming:</div>
+                            <div
+                                className={`d-flex space-between ${this.props.hasInsufficientResources ? 'text-grey' : ''}`}>
+                            <div>Consuming:</div>
                                 <div><ResourceAmounts amounts={this.props.consumption} asRate={true} invert={true}/></div>
                             </div>
                         }
@@ -63,6 +66,7 @@ class Structure extends React.Component {
                         {this.props.isBuilt && this.props.showDroidsForStructure &&
                             <DroidCount droidData={this.props.droidData} targetId={this.props.structure.id} />}
                     </div>
+                    }
 
                     {this.props.isBuilt && <Abilities structure={this.props.structure}/>}
 
@@ -80,6 +84,7 @@ const mapStateToProps = (state, ownProps) => {
         structure: structure,
         numBuilt: structure.count.total,
         isBuilt: structure.count.total > 0,
+        showResourceRates: state.game.showResourceRates,
 
         showDroidsForStructure: showDroidsForStructure(state, structure),
         droidData: structure.droidData,
@@ -88,7 +93,7 @@ const mapStateToProps = (state, ownProps) => {
         consumption: highlightCosts(state.resources, getStructureStatistic(state, structure, 'consumes')),
 
         hasInsufficientResources: hasInsufficientResources(structure),
-        statusMessage: structure.statusMessage
+        statusMessage: structure.statusMessage,
     }
 };
 

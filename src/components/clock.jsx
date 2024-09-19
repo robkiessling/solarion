@@ -9,8 +9,17 @@ export default function Clock(props) {
     const minutes = _.padStart(Math.round((secondsOfDay % (60 * 60)) / 60), 2, '0');
 
     return <div>
-        Day: { props.dayNumber } <br/>
-        { hour }:{ minutes } ({ timePeriod })
+        <div className={'d-flex space-between'}>
+            <span>Time:</span>
+            <span>Day { props.dayNumber } { hour }:{ minutes }</span>
+        </div>
+        <div className={'d-flex space-between'}>
+            <span>Period:</span>
+            {/*<span>{ hour }:{ minutes } ({ timePeriod })</span>*/}
+            {/*<span>{ hour }:{ minutes }</span>*/}
+            <span>{timePeriod}</span>
+        </div>
+        {/*Day: { props.dayNumber } { hour }:{ minutes } ({ timePeriod })*/}
         {/*&mdash; { nextTimePeriod } in { Math.round(periodRemaining) }s*/}
     </div>;
 }

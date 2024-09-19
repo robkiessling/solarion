@@ -39,6 +39,11 @@ export default function reducer(state = initialState, action) {
                 }
             });
         case PROGRESS:
+            // If none are researching, short circuit
+            if (!Object.values(state.byId).some(upgrade => upgrade.state === STATES.researching)) {
+                return state;
+            }
+
             let newState = {};
             for (const [key, value] of Object.entries(state.byId)) {
                 if (value.state === STATES.researching) {
@@ -56,13 +61,7 @@ export default function reducer(state = initialState, action) {
         case RESUME:
             return setUpgradeState(state, payload.id, STATES.researching);
         case FINISH:
-            return update(state, {
-                byId: {
-                    [payload.id]: {
-                        state: { $set: STATES.researched }
-                    }
-                }
-            });
+            return setUpgradeState(state, payload.id, STATES.researched);
         default:
             return state;
     }
@@ -110,6 +109,13 @@ export function researchUnsafe(upgrade) {
                 finishResearch(dispatch, getState, upgrade.id); // Then immediately finish research
             });
         }
+    }
+}
+export function researchForFree(upgradeId) {
+    return (dispatch, getState) => {
+        batch(() => {
+            finishResearch(dispatch, getState, upgradeId)
+        })
     }
 }
 

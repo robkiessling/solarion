@@ -12,13 +12,15 @@ export const NAV_TAB_TITLES = {
     star: 'Solarion',
 }
 
-// Initial State
 const initialState = {
     gameSpeed: 1,
 
-    shuttersClosed: true,
+    showTerminal: false,
+    shuttersOpen: false,
     showPlanetStatus: false,
-    showResourceBar: false,
+    showResourceBar: true,
+    showResourceRates: false,
+    showNonCCBuildings: false, // This setting is just so we can show the harvester outside for a few secs before it shows up in structures
     visibleNavTabs: [],
     currentNavTab: 'outside',
 

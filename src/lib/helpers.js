@@ -62,6 +62,24 @@ export const roundForComparison = (num) => {
     return roundToDecimal(num, 5);
 };
 
+export const compareNumbers = (num1, operation, num2) => {
+    switch(operation) {
+        case '>':
+            return roundForComparison(num1) > roundForComparison(num2);
+        case '>=':
+            return roundForComparison(num1) >= roundForComparison(num2);
+        case '<':
+            return roundForComparison(num1) < roundForComparison(num2);
+        case '<=':
+            return roundForComparison(num1) <= roundForComparison(num2);
+        case '===':
+            return roundForComparison(num1) === roundForComparison(num2);
+        default:
+            console.warn('invalid operation: ', operation);
+            return false;
+    }
+}
+
 // Rounds to nearest int
 export const round = (num) => {
     return roundToDecimal(num, 0);

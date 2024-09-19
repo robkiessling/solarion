@@ -23,7 +23,7 @@ class Log extends React.Component {
 
     render() {
         return (
-            <div className="log-container">
+            <div className={`log-container ${this.props.visible ? '' : 'invisible'}`}>
                 <div className="component-header">Terminal</div>
                 <div className="log" ref={this.logRef}>
                 {
@@ -45,6 +45,7 @@ class Log extends React.Component {
 
 const mapStateToProps = state => {
     return {
+        visible: state.game.showTerminal,
         visibleSequenceIds: state.log.visibleSequenceIds
     }
 

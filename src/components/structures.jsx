@@ -30,20 +30,23 @@ class Structures extends React.Component {
         const onTabClick = (tabId) => { this.props.updateSetting('currentStructureTab', tabId) }
 
         return (
-            <OverlayScrollbarsComponent className={`structures ${this.props.visible ? '' : 'hidden'}`} defer>
+            <div className={`structures ${this.props.visible ? '' : 'hidden'}`}>
                 {
                     this.props.structureIds.length ?
                         (
-                            this.props.showStructureTabs ?
-                                <Tabs tabs={tabs} currentTab={this.props.currentStructureTab} onChange={onTabClick}/> :
-                                <div className="component-header">Structures</div>
                             // this.props.showStructureTabs ?
-                            //     <Tabs tabs={tabs} currentTab={this.props.currentStructureTab} onChange={onTabClick}/> : ''
+                            //     <Tabs tabs={tabs} currentTab={this.props.currentStructureTab} onChange={onTabClick}/> :
+                            //     <div className="component-header">Structures</div>
+                            this.props.showStructureTabs ?
+                                <Tabs tabs={tabs} currentTab={this.props.currentStructureTab} onChange={onTabClick}/> : ''
                         ) : ''
                 }
-                <div className="structure-list">
+                <OverlayScrollbarsComponent className="structure-list" defer>
                 {
                         this.props.structureIds.map((id) => {
+                            if (id !== 'commandCenter' && !this.props.showNonCCBuildings) {
+                                return <div key={id} className={'hidden'}></div>
+                            }
                             switch (id) {
                                 // TODO This is just an example if we need vastly different Structure components
                                 case 'harvester':
@@ -55,8 +58,8 @@ class Structures extends React.Component {
                             }
                         })
                     }
-                </div>
-            </OverlayScrollbarsComponent>
+                </OverlayScrollbarsComponent>
+            </div>
         );
     }
 }
@@ -81,7 +84,8 @@ const mapStateToProps = (state, ownProps) => {
         visible: state.game.currentNavTab === 'outside' || state.game.currentNavTab === 'star',
         showStructureTabs: state.game.showStructureTabs,
         currentStructureTab: state.game.currentStructureTab,
-        structureIds: getVisibleIds(state.structures, structureType)
+        structureIds: getVisibleIds(state.structures, structureType),
+        showNonCCBuildings: state.game.showNonCCBuildings,
     };
 };
 

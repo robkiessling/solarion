@@ -3,7 +3,7 @@ import {batch, connect} from 'react-redux';
 import database from '../database/logs';
 import {endLogSequence, getLogData} from "../redux/modules/log";
 
-const DEBUG = false;
+const DEBUG = true;
 
 class LogSection extends React.Component {
     constructor(props) {
@@ -61,7 +61,7 @@ class LogSection extends React.Component {
         let i = 0, len = text.length;
 
         if (len === 0) {
-            databaseRecord.onFinish(dispatch);
+            if (databaseRecord.onFinish) { databaseRecord.onFinish(dispatch); }
             dispatch(endLogSequence(this.props.logData.sequence));
             return;
         }
@@ -94,7 +94,7 @@ class LogSection extends React.Component {
                 else {
                     setTimeout(() => {
                         batch(() => {
-                            databaseRecord.onFinish(dispatch);
+                            if (databaseRecord.onFinish) { databaseRecord.onFinish(dispatch); }
                             dispatch(endLogSequence(this.props.logData.sequence));
                         })
                     }, nextDelay)

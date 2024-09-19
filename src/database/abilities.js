@@ -30,11 +30,22 @@ const base = {
 }
 
 const database = {
+    commandCenter_charge: _.merge({}, base, {
+        name: "Charge Solenoid",
+        structure: "commandCenter",
+        description: "Manually charge the solenoid, gaining a small amount of energy.",
+        cost: {},
+        castTime: 5,
+        effect: {
+            charging: { add: 1 }
+        }
+    }),
     harvester_manual: _.merge({}, base, {
         name: 'Manual Harvest',
         structure: 'harvester',
-        description: "Manually dig up some ore. Seems slow to do this manually...",
+        description: "Manually dig up some ore. Seems slow...",
         cost: {},
+        cooldown: 10,
         produces: {
             ore: 10
         },
@@ -89,6 +100,20 @@ export default database;
  * third parameter (that way many functions can be built off the same variables)
  */
 export const calculators = {
+    commandCenter_charge: {
+        variables: (state, ability) => {
+            const variables = {
+                castTime: 5
+            }
+
+            applyAllEffects(state, variables, ability)
+
+            return variables;
+        },
+        castTime: (state, ability, variables) => {
+            return variables.castTime;
+        }
+    },
     droidFactory_buildStandardDroid: {
         variables: (state, ability) => {
             const variables = {
@@ -101,7 +126,7 @@ export const calculators = {
         },
         cost: (state, ability) => ({
             ore: 100 * (STANDARD_COST_EXP)**(numStandardDroids(state)),
-            refinedMinerals: 50 * (STANDARD_COST_EXP)**(numStandardDroids(state))
+            refinedMinerals: 25 * (STANDARD_COST_EXP)**(numStandardDroids(state))
         }),
         displayInfo: (state, ability) => {
             const total = numStandardDroids(state);

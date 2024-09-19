@@ -14,12 +14,12 @@ const base = {
 export default {
     ore: _.merge({}, base, {
         name: "Ore",
-        amount: 100,
+        amount: 0,
         icon: 'icon-stone-pile'
     }),
     energy: _.merge({}, base, {
         name: "Energy",
-        amount: 100,
+        amount: 0,
         icon: 'icon-electric'
     }),
     vents: _.merge({}, base, {
@@ -68,7 +68,7 @@ export default {
 export const calculators = {
     energy: {
         capacity: state => {
-            let capacity = 500;
+            let capacity = 100;
 
             const energyBay = getStructure(state.structures, 'energyBay');
             if (energyBay) {

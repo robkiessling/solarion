@@ -14,11 +14,12 @@ import {generateProbeDist} from "../redux/modules/star";
 import {dayNumber} from "../redux/modules/clock";
 import {updateSetting} from "../redux/modules/game";
 
-const NORMAL_BOOTUP = 'normalBootup'; // Standard crash log sequence
-const SKIP_BOOTUP = 'skipBootup'; // Skip crash log, normal story playthrough
+const NORMAL_BOOTUP = 'normalBootup'; // Standard campaign start
+const SKIP_START = 'skipStart';
+const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_EVERYTHING = 'skipEverything'; // Skip to all structures buildable
 
-const GAME_MODE = SKIP_BOOTUP; /* Controls overall game mode (e.g. set to SKIP_BOOTUP to skip bootup sequence) */
+const GAME_MODE = SKIP_TO_GLOBE; /* Controls overall game mode */
 
 
 export default {
@@ -27,10 +28,13 @@ export default {
         onFinish: (dispatch) => {
             switch (GAME_MODE) {
                 case NORMAL_BOOTUP:
-                    dispatch(fromLog.startLogSequence('crashLog'));
+                    dispatch(fromLog.startLogSequence('normalBootup'));
                     break;
-                case SKIP_BOOTUP:
-                    dispatch(fromLog.startLogSequence('skipBootup'));
+                case SKIP_START:
+                    dispatch(fromLog.startLogSequence('skipStart'));
+                    break;
+                case SKIP_TO_GLOBE:
+                    dispatch(fromLog.startLogSequence('skipToGlobe'));
                     break;
                 case SKIP_EVERYTHING:
                     dispatch(fromLog.startLogSequence('skipEverything'));
@@ -39,29 +43,57 @@ export default {
         }
     },
 
-    crashLog: {
+    skipStart: {
         text: [
-            ['Resuming last session...', 0, true],
-            ['', 3000],
+            ['Skipping start', 0, true]
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromResources.learn('energy'));
+            dispatch(fromStructures.learn('commandCenter'));
+            dispatch(fromStructures.buildForFree('commandCenter', 1));
+            dispatch(fromAbilities.learn('commandCenter_charge'));
+
+            dispatch(fromUpgrades.researchForFree('commandCenter_showTerminal'));
+            dispatch(fromUpgrades.researchForFree('commandCenter_showPlanetStatus'));
+            dispatch(fromUpgrades.researchForFree('commandCenter_showResourceRates'));
+            dispatch(fromUpgrades.researchForFree('commandCenter_openShutters'));
+        }
+    },
+
+    normalBootup: {
+        text: [],
+        onFinish: (dispatch) => {
+            batch(() => {
+                dispatch(fromResources.learn('energy'));
+                dispatch(fromStructures.learn('commandCenter'));
+                dispatch(fromStructures.buildForFree('commandCenter', 1));
+                dispatch(fromAbilities.learn('commandCenter_charge'));
+            })
+        }
+    },
+
+    turnOnComputer: {
+        text: [
+            ['', 1000],
+            ['System Start.', 3000, true],
+            ['', 1000],
+            ['Resuming last session...', 3000, true],
+            // ['', 100],
+            // ['[73 years, 266 days ago', 3000, true],
+            // ['', 100],
+            // ['Restoring data...', 5000],
+            ['', 100],
             ['yUE9ha2tMCpmVtpKqZSc', 100],
             ['puKrMbdJZoO09kbxo40X', 100],
             ['gFfKhzGPVSHwvGyYwdT6', 100],
             ['dQ9kq7RMbVkTPjrHaqUF', 100],
             ['Fu2ZOLxLqCa5JIrs4dYn', 100],
             ['tMdJZAMZwY6itvypKRLE', 100],
-            ['Nfr3pPoxCuqOb6wZpZgB', 100],
-            ['PhjJOk2eQkcQIPlWzkhh', 100],
-            ['0VA8kLarEkErnYs8TkNp', 100],
             ['1FHhErZXfl39dlEuEWs5', 100],
             ['jn4p3K2ylr8jxVQ4hGRk', 100],
             ['u5bsjsfJJ2jSSDLidBc1', 100],
             ['mtPL2dwoxP04Gn9hfkvV', 100],
             ['jSupjlXMCSMWCabxn3tR', 100],
-            ['JLGfBu2Cf5pnE9aFoOOk', 100],
-            ['SvbmwEw2KcofYi1eIh1n', 100],
-            ['70kBJKMfVlHVsnrOUQzo', 100],
-            ['2EMDBbNV5vYHeAjk1T2C', 100],
-            ['WMBtMjf6VM6A4Trdfb5O', 100],
             ['cHb3exHm8xIVCTwwupN0', 100],
             ['WkGM7GWxwb6HXi7SoJR4', 100],
             ['55usa2sYLNDg3mT9dVji', 100],
@@ -74,35 +106,6 @@ export default {
             ['Nfr3pPoxCuqOb6wZpZgB', 100],
             ['PhjJOk2eQkcQIPlWzkhh', 100],
             ['0VA8kLarEkErnYs8TkNp', 100],
-            ['1FHhErZXfl39dlEuEWs5', 100],
-            ['jn4p3K2ylr8jxVQ4hGRk', 100],
-            ['u5bsjsfJJ2jSSDLidBc1', 100],
-            ['mtPL2dwoxP04Gn9hfkvV', 100],
-            ['jSupjlXMCSMWCabxn3tR', 100],
-            ['JLGfBu2Cf5pnE9aFoOOk', 100],
-            ['SvbmwEw2KcofYi1eIh1n', 100],
-            ['70kBJKMfVlHVsnrOUQzo', 100],
-            ['2EMDBbNV5vYHeAjk1T2C', 100],
-            ['WMBtMjf6VM6A4Trdfb5O', 100],
-            ['cHb3exHm8xIVCTwwupN0', 100],
-            ['WkGM7GWxwb6HXi7SoJR4', 100],
-            ['55usa2sYLNDg3mT9dVji', 100],
-            ['HOA3zYkEte1BXZkTa1nS', 100],
-            ['THNizuhnXw78z7yXTkWn', 100],
-            ['YGHrlFKyNObJlDahYkfU', 100],
-            ['XMERhSzPI5Fpmv3MKHVF', 100],
-            ['xNyuMtk0jVNAVJI2g7Re', 100],
-            ['dqPKeBfukEghCbLcpRml', 100],
-            ['HsKx1UmLZU4c4R4cZcOy', 100],
-            ['yuksp0ZPG00QnRgwqqY4', 100],
-            ['NJlUcLGfIrsnQXewNkxp', 100],
-            ['J1MLcYA98T8mYnVorsbo', 100],
-            ['TE5N16ZhW9rLHmYpGoMl', 100],
-            ['posyxsfClu7nEm1XByd5', 100],
-            ['vct1EcFh4RJWV¦L6WFYj', 100],
-            ['eapi4gImm1tUPcnX9JPZ', 100],
-            ['DMW9 Bl4LD1Ygk¦¦JuwWW', 100],
-            ['HxAl kN6.YGr826k8BxcL7', 100],
             ['Uoiq▓WCg..CTt8║      qZ2WVOeTx', 100],
             ['tGL6 f889f..e;', 100],
             ['Qu7h uAvF...xef  9gGUC6ZDSt', 100],
@@ -116,12 +119,12 @@ export default {
             ['▒', 0],
             ['', 0],
             ['FATAL ERROR OCCURRED', 0],
-            ['', 5000],
+            ['', 3000],
             ['****************', 0],
             ['****************', 0],
             ['****************', 0],
             [' ', 0],
-            ['RECOVERING', 0],
+            ['RECOVERING...', 0],
             ['', 3000],
             ['Error code: 18589194123098', 0],
             ['ADDR:', 100],
@@ -136,7 +139,6 @@ export default {
             ['[0140 5313 1417]', 0],
             ['', 3500],
             ['#################################', 10],
-            ['', 10],
             ['Safe boot', 10],
             ['***', 10],
             ['*** start.sc', 10],
@@ -148,65 +150,27 @@ export default {
             ['Solarion(R) CORE', 10],
             ['', 10],
             ['#################################', 10],
-            ['', 3000],
+            ['', 10],
+            ['Resources low.', 10],
+            ['', 10],
         ],
-        onFinish: (dispatch) => {
-            dispatch(fromLog.startLogSequence('recoverSensors'));
-        }
     },
 
-    recoverSensors: {
+    showPlanetStatus: {
         text: [
-            ['Performing system checks...', 3000],
-            ['Energy        100u', 800],
-            ['Capacity      500u', 800],
-            ['Oxygen        40%', 800],
-            ['Water         33%', 800],
-            ['Mineral Ore   0', 2000],
-            ['Life Support  ERR', 2000],
-            ['Sensors       Online', 2000],
+            ['Activating sensors...', 3000, true],
+            ['', 100],
+            ['Sensors are operational.', 100, true],
             ['', 100],
         ],
         onFinish: (dispatch) => {
-            batch(() => {
-                dispatch(fromGame.updateSetting('showPlanetStatus', true));
-                dispatch(fromLog.startLogSequence('displaySensors'));
-            })
+            dispatch(fromGame.updateSetting('showPlanetStatus', true));
         }
     },
 
-    displaySensors: {
+    openShutters: {
         text: [
-            ['Displaying Sensor Readings...', 4000, true],
-            ['', 100]
-        ],
-        onFinish: (dispatch) => {
-            dispatch(fromLog.startLogSequence('scanForHostiles'));
-        }
-    },
-
-    scanForHostiles: {
-        text: [
-            ['Scanning for hostile activity.', 2000, true],
-            ['.', 2000],
-            ['..', 2000],
-            ['...', 2000],
-            ['....', 2000],
-            ['', 0],
-            ['No exterior hostiles detected.', 5000],
-            ['', 0],
-        ],
-        onFinish: (dispatch) => {
-            batch(() => {
-                dispatch(fromGame.updateSetting('shuttersClosed', false));
-                dispatch(fromLog.startLogSequence('openWindow'));
-            })
-        }
-    },
-
-    openWindow: {
-        text: [
-            ['Lowering blast shield...', 16000, true], // should match $window-transition
+            ['Lowering blast shield...', 12000, true], // should match $shutter-transition
             ['', 0],
         ],
         onFinish: (dispatch) => {
@@ -230,45 +194,92 @@ export default {
         ],
         onFinish: (dispatch) => {
             batch(() => {
-                dispatch(fromResources.learn('energy'));
                 dispatch(fromResources.learn('ore'));
-
-                dispatch(fromGame.updateSetting('showResourceBar', true));
-
-                dispatch(fromStructures.learn('harvester'));
-                dispatch(fromStructures.buildForFree('harvester', 1));
+                dispatch(fromGame.updateSetting('showNonCCBuildings', true));
             })
 
-            gameStartTriggers(dispatch);
+            addTrigger(
+                (state) => state.resources.byId.ore,
+                (slice) => slice.lifetimeTotal >= 40,
+                () => {
+                    dispatch(fromLog.startLogSequence('discoverSolar'));
+                }
+            )
+            addTrigger(
+                (state) => state.resources.byId.ore,
+                (slice) => slice.lifetimeTotal >= 200,
+                () => {
+                    dispatch(fromLog.startLogSequence('discoverWindPower'));
+                }
+            )
+
+            addTrigger(
+                (state) => state.resources.byId.energy,
+                (slice) => slice.amount >= slice.capacity * 0.9,
+                () => {
+                    dispatch(fromLog.startLogSequence('energyAlmostFull'));
+                }
+            )
+
+            addTrigger(
+                (state) => state.resources.byId.ore,
+                (slice) => slice.lifetimeTotal >= 1000,
+                () => {
+                    dispatch(fromLog.startLogSequence('unlockRefinery'));
+                }
+            )
         }
     },
-    
-    skipBootup: {
+
+    skipToGlobe: {
         text: [
-            ['Skipping crash sequence', 1000, true],
-            ['', 100],
-            ['Awaiting input...', 0, true],
-            ['', 0],
+            ['Skipping to globe', 1, true]
         ],
         onFinish: (dispatch) => {
-            batch(() => {
-                dispatch(fromGame.updateSetting('shuttersClosed', false));
-                dispatch(fromGame.updateSetting('showPlanetStatus', true));
-                dispatch(fromGame.updateSetting('showResourceBar', true));
+            dispatch(fromGame.updateSetting('shuttersOpen', true));
+            dispatch(fromGame.updateSetting('showPlanetStatus', true));
+            dispatch(fromGame.updateSetting('showResourceBar', true));
+            dispatch(fromGame.updateSetting('showResourceRates', true));
+            dispatch(fromGame.updateSetting('showTerminal', true));
+            dispatch(fromGame.updateSetting('showNonCCBuildings', true));
+            dispatch(fromGame.updateSetting('showStructureTabs', true))
 
-                dispatch(fromResources.learn('energy'));
-                dispatch(fromResources.learn('ore'));
+            dispatch(fromResources.learn('energy'));
+            dispatch(fromResources.learn('ore'));
+            dispatch(fromResources.learn('vents'));
+            dispatch(fromResources.learn('refinedMinerals'));
+            dispatch(fromResources.learn('standardDroids'));
 
-                dispatch(fromGame.updateSetting('showResourceBar', true));
+            dispatch(fromStructures.learn('commandCenter'));
+            dispatch(fromStructures.buildForFree('commandCenter', 1));
+            dispatch(fromAbilities.learn('commandCenter_charge'));
 
-                dispatch(fromStructures.learn('harvester'));
-                dispatch(fromStructures.buildForFree('harvester', 1));
-            })
+            dispatch(fromStructures.learn('harvester'));
+            dispatch(fromStructures.learn('solarPanel'));
+            // dispatch(fromStructures.learn('thermalVent'));
+            dispatch(fromStructures.learn('windTurbine'));
+            dispatch(fromStructures.learn('energyBay'));
+            dispatch(fromStructures.learn('refinery'));
+            dispatch(fromStructures.learn('droidFactory'));
+            dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
 
-            gameStartTriggers(dispatch);
+            dispatch(fromStructures.buildForFree('harvester', 5));
+            dispatch(fromStructures.buildForFree('solarPanel', 7));
+            dispatch(fromStructures.buildForFree('windTurbine', 6));
+            dispatch(fromStructures.buildForFree('energyBay', 9));
+            dispatch(fromStructures.buildForFree('refinery', 2));
+            dispatch(fromStructures.buildForFree('droidFactory', 1));
+
+            dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity'));
+            dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity2'));
+
+            dispatch(fromResources.produce({
+                energy: 99999,
+                ore: 99999,
+                refinedMinerals: 99999,
+            }));
         }
     },
-
     skipEverything: {
         text: [
             ['Skipping Normal Login', 1, true],
@@ -276,9 +287,12 @@ export default {
             ['All known resources have been loaded.', 0, true]
         ],
         onFinish: (dispatch) => {
-            dispatch(fromGame.updateSetting('shuttersClosed', false));
+            dispatch(fromGame.updateSetting('shuttersOpen', true));
             dispatch(fromGame.updateSetting('showPlanetStatus', true));
             dispatch(fromGame.updateSetting('showResourceBar', true));
+            dispatch(fromGame.updateSetting('showTerminal', true));
+            dispatch(fromGame.updateSetting('showNonCCBuildings', true));
+            // dispatch(fromGame.updateSetting('showStructureTabs', true))
 
             dispatch(fromResources.learn('energy'));
             dispatch(fromResources.learn('ore'));
@@ -292,17 +306,17 @@ export default {
             dispatch(generateMap());
             dispatch(generateProbeDist());
 
+            dispatch(fromStructures.learn('commandCenter'));
+            dispatch(fromAbilities.learn('commandCenter_charge'));
+
             dispatch(fromStructures.learn('harvester'));
             dispatch(fromStructures.buildForFree('harvester', 1));
-            // dispatch(fromAbilities.learn('harvester_manual'));
-            // dispatch(fromAbilities.learn('harvester_power'));
             dispatch(fromUpgrades.discover('harvester_overclock'));
 
             // dispatch(fromStructures.learn('sensorTower'));
             dispatch(fromStructures.learn('refinery'));
 
             dispatch(fromStructures.learn('solarPanel'));
-            // dispatch(fromUpgrades.discover('solarPanel_largerPanels'))
             dispatch(fromStructures.learn('thermalVent'));
             dispatch(fromStructures.learn('windTurbine'));
             dispatch(fromStructures.learn('energyBay'));
@@ -357,9 +371,11 @@ export default {
         }
     },
 
-    energyDepleted: {
+    discoverSolar: {
         text: [
-            ['Energy depleted. Researching solutions...', 3000, true],
+            ['Manual energy generation insufficient for production.', 3000, true],
+            ['', 0],
+            ['Researching solutions...', 3000, true],
             ['', 0],
             ['New Schematic(s) Found:', 0, true],
             ['- Solar Panels', 0, true],
@@ -368,14 +384,6 @@ export default {
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('solarPanel'));
-
-            addTrigger(
-                (state) => state.clock,
-                (slice) => dayNumber(slice, true) > 3.75,
-                () => {
-                    dispatch(fromLog.startLogSequence('discoverWindPower'));
-                }
-            )
         }
     },
 
@@ -445,39 +453,4 @@ export default {
         ]
     }
 
-}
-
-function gameStartTriggers(dispatch) {
-
-    addTrigger(
-        (state) => state.resources.byId.energy,
-        (slice) => slice.amount <= 5,
-        () => {
-            dispatch(fromLog.startLogSequence('energyDepleted'));
-        }
-    )
-
-    addTrigger(
-        (state) => state.resources.byId.energy,
-        (slice) => slice.amount >= slice.capacity * 0.9,
-        () => {
-            dispatch(fromLog.startLogSequence('energyAlmostFull'));
-        }
-    )
-
-    addTrigger(
-        (state) => state.resources.byId.ore,
-        (slice) => slice.lifetimeTotal >= 2000,
-        () => {
-            dispatch(fromLog.startLogSequence('unlockRefinery'));
-        }
-    )
-
-    // addTrigger(
-    //     (state) => state.structures.byId.refinery,
-    //     (slice) => slice.count.total >= 1,
-    //     () => {
-    //         dispatch(fromLog.logMessage('gameEnd'))
-    //     }
-    // )
 }

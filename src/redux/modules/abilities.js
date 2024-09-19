@@ -44,6 +44,11 @@ export default function reducer(state = initialState, action) {
                 }
             });
         case PROGRESS:
+            // If none are casting/cooldown, short circuit
+            if (!Object.values(state.byId).some(ability => ability.state === STATES.casting || ability.state === STATES.cooldown)) {
+                return state;
+            }
+
             let newState = {};
             for (const [key, value] of Object.entries(state.byId)) {
                 if (value.state === STATES.casting) {
@@ -107,6 +112,10 @@ export function startCastUnsafe(ability) {
             dispatch({ type: START_CAST, payload: { ability } });
             if (callbacks[ability.id] && callbacks[ability.id].onStart) {
                 callbacks[ability.id].onStart(dispatch, getState, ability);
+            }
+
+            if (ability.castTime === 0) {
+                endCast(dispatch, getState, ability);
             }
 
             // Need to recalculate because some abilities have buffs that need to be applied right at cast start
