@@ -25,6 +25,7 @@ const base = {
     description: "",
     researchTime: 0, // if 0, research will occur instantly
     state: STATES.hidden,
+    cost: {},
 
     // Possible options -- discoverWhen: { resources: { x/y/z }, upgrades: [], structures: { x/y/z} }
     // If resources is defined, the upgrade will be automatically discovered once lifetime resource totals pass these values
@@ -114,7 +115,7 @@ const database = {
         }
     }),
     commandCenter_improvedSolenoid2: _.merge({}, base, {
-        name: "Metallic Coils",
+        name: "Superconductive Coils",
         structure: 'commandCenter',
         description: "Increases solenoid energy per second to 5.",
         discoverWhen: {
@@ -157,7 +158,7 @@ const database = {
         structure: 'commandCenter',
         description: "Increases solenoid energy per second to 30.",
         discoverWhen: {
-            upgrades: ['commandCenter_improvedSolenoid2'],
+            upgrades: ['commandCenter_improvedSolenoid3'],
             resources: {
                 ore: 1000
             }
@@ -186,6 +187,44 @@ const database = {
         },
         effect: {
             energy: { add: 70 }
+        }
+    }),
+    commandCenter_improvedSolenoid6: _.merge({}, base, {
+        name: "Plasma Inductor",
+        structure: 'commandCenter',
+        description: "Solenoid charging time increased to 30s.",
+        discoverWhen: {
+            upgrades: ['commandCenter_improvedSolenoid5'],
+            resources: {
+                refinedMinerals: 1000
+            }
+        },
+        cost: {
+            refinedMinerals: 3000
+        },
+        affects: {
+            type: EFFECT_TARGETS.ability,
+            id: 'commandCenter_charge'
+        },
+        effect: {
+            castTime: { add: 20 }
+        }
+    }),
+    commandCenter_improvedSolenoid7: _.merge({}, base, {
+        name: "Quantum Induction",
+        structure: 'commandCenter',
+        description: "Increases solenoid energy per second to 1000.",
+        discoverWhen: {
+            upgrades: ['commandCenter_improvedSolenoid6'],
+            resources: {
+                refinedMinerals: 15000
+            }
+        },
+        cost: {
+            refinedMinerals: 35000
+        },
+        effect: {
+            energy: { add: 900 }
         }
     }),
 
@@ -244,31 +283,32 @@ const database = {
             energy: { multiply: 1.3 }
         }
     }),
-    harvester_eff1: _.merge({}, base, {
-        name: "Power Conservers",
+    harvester_ore4: _.merge({}, base, {
+        name: "Hyper-kinetic Engines",
         structure: 'harvester',
-        description: "Reduces harvester energy consumption by 20%.",
+        description: "Increases harvester ore production by 200%, but also increases energy cost by 200%.",
         discoverWhen: {
             resources: {
-                ore: 300
-            }
+                refinedMinerals: 5000
+            },
+            upgrades: ['harvester_ore3']
         },
         cost: {
-            ore: 500
+            refinedMinerals: 10000
         },
         effect: {
-            energy: { multiply: 0.8 },
+            ore: { multiply: 3 },
+            energy: { multiply: 3 }
         }
     }),
-    harvester_eff2: _.merge({}, base, {
-        name: "Ultra-Guard",
+    harvester_eff1: _.merge({}, base, {
+        name: "Heat Guards",
         structure: 'harvester',
-        description: "Improves the efficiency when running at full speed from 25% to 50%.",
+        description: "Improves energy efficiency when running at max speed from 25% to 50%.",
         discoverWhen: {
             resources: {
                 ore: 2000
             },
-            upgrades: ['harvester_eff1']
         },
         cost: {
             ore: 1200,
@@ -278,6 +318,25 @@ const database = {
             topEndEfficiency: { add: 0.25 },
         }
     }),
+    harvester_eff2: _.merge({}, base, {
+        name: "Nanocarbon Threading",
+        structure: 'harvester',
+        description: "Allows the harvester to be completely energy efficient when running at max speed",
+        discoverWhen: {
+            upgrades: ['harvester_eff1'],
+            resources: {
+                ore: 10000
+            }
+        },
+        cost: {
+            ore: 12000,
+            refinedMinerals: 700
+        },
+        effect: {
+            energy: { add: 0.5 },
+        }
+    }),
+
 
 
     harvester_overclock: _.merge({}, base, {
@@ -294,6 +353,49 @@ const database = {
         cost: {
             ore: 1000,
             refinedMinerals: 50
+        }
+    }),
+    harvester_overclockUpgrade1: _.merge({}, base, {
+        name: "Feedback Loop",
+        structure: 'harvester',
+        description: "Increase the Overclock ability duration to 30 seconds",
+        discoverWhen: {
+            upgrades: ['harvester_overclock'],
+            resources: {
+                refinedMinerals: 3000
+            }
+        },
+        cost: {
+            refinedMinerals: 5000
+        },
+        affects: {
+            type: EFFECT_TARGETS.ability,
+            id: 'harvester_overclock'
+        },
+        effect: {
+            castTime: { add: 20 }
+        }
+    }),
+    harvester_overclockUpgrade2: _.merge({}, base, {
+        name: "Hyper-clock",
+        structure: 'harvester',
+        description: "Overclock increases ore production by 1000% at the cost of 500% increased energy.",
+        discoverWhen: {
+            upgrades: ['harvester_overclockUpgrade1'],
+            resources: {
+                refinedMinerals: 30000
+            }
+        },
+        cost: {
+            refinedMinerals: 50000
+        },
+        affects: {
+            type: EFFECT_TARGETS.ability,
+            id: 'harvester_overclock'
+        },
+        effect: {
+            oreMultiplication: { add: 9 },
+            energyMultiplication: { add: 4.5 },
         }
     }),
 
@@ -354,6 +456,14 @@ const database = {
         effect: {
             peakEnergy: { multiply: 3 }
         },
+    }),
+    solarPanel_global: _.merge({}, base, {
+        name: "Global Connect",
+        structure: 'solarPanel',
+        description: "Averages the output of all Solar Farms across the globe, allowing energy to be produced at a constant rate.",
+        effect: {
+            globalAverageRate: { add: 1 }
+        }
     }),
 
 
@@ -496,6 +606,14 @@ const database = {
             ratedPower: { multiply: 1.3 }
         }
     }),
+    windTurbine_global: _.merge({}, base, {
+        name: "Global Connect",
+        structure: 'windTurbine',
+        description: "Averages the output of all Wind Turbines across the globe, allowing energy to be produced at a constant rate.",
+        effect: {
+            globalAverageRate: { add: 1 }
+        }
+    }),
 
     refinery_improveProduction: _.merge({}, base, {
         name: "Higher Yields",
@@ -532,7 +650,7 @@ const database = {
         }
     }),
     refinery_improveProduction2: _.merge({}, base, {
-        name: "Advanced Sifting",
+        name: "Hyper-Alloy Synthesizer",
         structure: 'refinery',
         description: 'Increase amount of minerals produced by 100%',
         discoverWhen: {
@@ -547,6 +665,43 @@ const database = {
         },
         effect: {
             refinedMinerals: { multiply: 2 }
+        }
+    }),
+    refinery_improveProduction3: _.merge({}, base, {
+        name: "Plasma Furnace",
+        structure: 'refinery',
+        description: 'Increase amount of minerals produced by 100%, but also increases energy cost by 50%',
+        discoverWhen: {
+            upgrades: ['refinery_improveProduction2'],
+            resources: {
+                refinedMinerals: 10000
+            }
+        },
+        cost: {
+            ore: 30000,
+            refinedMinerals: 16000
+        },
+        effect: {
+            refinedMinerals: { multiply: 2 },
+            energy: { multiply: 1.5 }
+        }
+    }),
+    refinery_improveProduction4: _.merge({}, base, {
+        name: "Plasma Furnace",
+        structure: 'refinery',
+        description: 'Increase amount of minerals produced by 500%, but also increases energy cost by 300%',
+        discoverWhen: {
+            upgrades: ['refinery_improveProduction3'],
+            resources: {
+                refinedMinerals: 100000
+            }
+        },
+        cost: {
+            refinedMinerals: 350000
+        },
+        effect: {
+            refinedMinerals: { multiply: 6 },
+            energy: { multiply: 4 }
         }
     }),
 
@@ -607,6 +762,21 @@ const database = {
         effect: {
             castTime: { add: -15 }
         }
+    }),
+    droidFactory_fasterExplore: _.merge({}, base, {
+        name: "Jetpack Tech",
+        structure: 'droidFactory',
+        description: 'Equips droids with jetpacks, allowing them to explore the planet 5 times faster.',
+        discoverWhen: {
+            resources: {
+                standardDroids: 10,
+                refinedMinerals: 1e5
+            }
+        },
+        cost: {
+            ore: 1e6,
+            refinedMinerals: 1e6
+        }
     })
 };
 
@@ -658,6 +828,8 @@ export const callbacks = {
 
             dispatch(fromAbilities.learn('replicate'));
 
+            dispatch(fromLog.startLogSequence('globeUnlocked'));
+
             addTrigger(
                 (state) => state.planet.droidData,
                 (slice) => slice.numDroidsAssigned > 0,
@@ -665,6 +837,11 @@ export const callbacks = {
                     dispatch(fromPlanet.startExploringMap());
                 }
             )
+        }
+    },
+    droidFactory_fasterExplore: {
+        onFinish: (dispatch) => {
+            dispatch(fromPlanet.setExploreSpeed(5));
         }
     }
 }

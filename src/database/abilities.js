@@ -66,13 +66,6 @@ const database = {
     harvester_overclock: _.merge({}, base, {
         name: 'Overclock',
         structure: 'harvester',
-        description: "Overworks the harvester, increasing production by 100% but also increasing energy consumption by 50%.",
-        castTime: 10,
-        cooldown: 30,
-        effect: {
-            ore: { multiply: 2 },
-            energy: { multiply: 1.5 }
-        }
     }),
 
     droidFactory_buildStandardDroid: _.merge({}, base, {
@@ -87,7 +80,6 @@ const database = {
     replicate: _.merge({}, base, {
         name: 'Replicate',
         description: "Replicates your entire base onto new land, permanently increasing all production and consumption rates by 200%.",
-        castTime: 2
     })
 };
 
@@ -113,6 +105,49 @@ export const calculators = {
         },
         castTime: (state, ability, variables) => {
             return variables.castTime;
+        },
+        description: (state, ability, variables) => {
+            if (variables.castTime <= 5) {
+                return "Manually charge the solenoid, gaining a small amount of energy.";
+            }
+            else if (variables.castTime <= 10) {
+                return "Manually charge the solenoid, gaining a moderate amount of energy.";
+            }
+            else {
+                return "Manually charge the solenoid, gaining a large amount of energy.";
+            }
+        },
+
+    },
+    harvester_overclock: {
+        variables: (state, ability) => {
+            const variables = {
+                castTime: 10,
+                cooldown: 30,
+                oreMultiplication: 2,
+                energyMultiplication: 1.5
+            }
+
+            applyAllEffects(state, variables, ability)
+
+            return variables;
+        },
+        castTime: (state, ability, variables) => {
+            return variables.castTime;
+        },
+        cooldown: (state, ability, variables) => {
+            return variables.cooldown;
+        },
+        description: (state, ability, variables) => {
+            const formattedOre = `${((variables.oreMultiplication - 1)*100).toFixed(0)}%`;
+            const formattedEnergy = `${((variables.energyMultiplication - 1)*100).toFixed(0)}%`;
+            return `Overworks the harvester, increasing production by ${formattedOre} but also increasing energy consumption by ${formattedEnergy}.`
+        },
+        effect: (state, ability, variables) => {
+            return {
+                ore: { multiply: variables.oreMultiplication },
+                energy: { multiply: variables.energyMultiplication }
+            }
         }
     },
     droidFactory_buildStandardDroid: {
@@ -148,16 +183,15 @@ export const calculators = {
             const remainingDevelopments = state.planet.maxDevelopedLand - developedLand;
             const nextDevelopmentSize = Math.min(developedLand, remainingDevelopments)
             return {
-                nextDevelopmentSize: nextDevelopmentSize
+                nextDevelopmentSize: nextDevelopmentSize,
+                numStructures: countAllStructuresBuilt(state.structures)
             }
         },
         cost: (state, ability, variables) => {
-            const numStructures = countAllStructuresBuilt(state.structures);
-
             return {
-                energy: numStructures * 200 * variables.nextDevelopmentSize,
-                ore: numStructures * 1000 * variables.nextDevelopmentSize,
-                refinedMinerals: numStructures * 10 * variables.nextDevelopmentSize,
+                energy: variables.numStructures * 200 * variables.nextDevelopmentSize,
+                ore: variables.numStructures * 1000 * variables.nextDevelopmentSize,
+                refinedMinerals: variables.numStructures * 10 * variables.nextDevelopmentSize,
                 buildableLand: variables.nextDevelopmentSize
             }
         },
@@ -165,6 +199,10 @@ export const calculators = {
             return {
                 developedLand: variables.nextDevelopmentSize
             }
+        },
+        castTime: (state, ability, variables) => {
+            return 15 // todo scale this with structures?
+            // return variables.numStructures * 10
         }
     }
 }

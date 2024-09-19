@@ -29,7 +29,8 @@ class Structure extends React.Component {
                             {this.props.numBuilt < 1 || !this.props.buildable ? '' : ` x${this.props.numBuilt}`}
                         </span>
                         <span className="replication-count">
-                            {this.props.replicationCount && ` (x${this.props.replicationCount})`}
+                            {this.props.numBuilt > 1 && this.props.replicationCount > 0 &&
+                                ` (x${this.props.replicationCount})`}
                         </span>
                     </div>
                     <div className="build-area">

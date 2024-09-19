@@ -3,6 +3,7 @@ import {connect} from "react-redux";
 import Ability from "./structures/ability";
 import {getAbility} from "../redux/modules/abilities";
 import {getIcon, getQuantity, getResource} from "../redux/modules/resources";
+import {planetDevelopmentProgress} from "../redux/reducer";
 
 class Replication extends React.Component {
     constructor(props) {
@@ -39,15 +40,12 @@ class Replication extends React.Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
-    const developedLand = getQuantity(getResource(state.resources, 'developedLand'))
-    const finishedReplicating = developedLand === state.planet.maxDevelopedLand
-
     return {
         buildableLand: getQuantity(getResource(state.resources, 'buildableLand')),
         buildableLandIcon: getIcon('buildableLand'),
         developedLand: getQuantity(getResource(state.resources, 'developedLand')),
         replicateAbility: getAbility(state.abilities, 'replicate'),
-        finishedReplicating: finishedReplicating
+        finishedReplicating: planetDevelopmentProgress(state) === 1.0
     };
 };
 

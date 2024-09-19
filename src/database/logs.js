@@ -45,7 +45,8 @@ export default {
 
     skipStart: {
         text: [
-            ['Skipping start', 0, true]
+            ['Skipping start', 0, true],
+            ['', 0],
         ],
         onFinish: (dispatch) => {
             dispatch(fromResources.learn('energy'));
@@ -77,67 +78,67 @@ export default {
             ['', 1000],
             ['System Start.', 3000, true],
             ['', 1000],
-            ['Resuming last session...', 3000, true],
+            // ['Resuming last session...', 3000, true],
             // ['', 100],
-            // ['[73 years, 266 days ago', 3000, true],
-            // ['', 100],
-            // ['Restoring data...', 5000],
+            ['Last login: 73 years, 266 days ago', 3000, true],
             ['', 100],
-            ['yUE9ha2tMCpmVtpKqZSc', 100],
-            ['puKrMbdJZoO09kbxo40X', 100],
-            ['gFfKhzGPVSHwvGyYwdT6', 100],
-            ['dQ9kq7RMbVkTPjrHaqUF', 100],
-            ['Fu2ZOLxLqCa5JIrs4dYn', 100],
-            ['tMdJZAMZwY6itvypKRLE', 100],
-            ['1FHhErZXfl39dlEuEWs5', 100],
-            ['jn4p3K2ylr8jxVQ4hGRk', 100],
-            ['u5bsjsfJJ2jSSDLidBc1', 100],
-            ['mtPL2dwoxP04Gn9hfkvV', 100],
-            ['jSupjlXMCSMWCabxn3tR', 100],
-            ['cHb3exHm8xIVCTwwupN0', 100],
-            ['WkGM7GWxwb6HXi7SoJR4', 100],
-            ['55usa2sYLNDg3mT9dVji', 100],
-            ['HOA3zYkEte1BXZkTa1nS', 100],
-            ['THNizuhnXw78z7yXTkWn', 100],
-            ['YGHrlFKyNObJlDahYkfU', 100],
-            ['XMERhSzPI5Fpmv3MKHVF', 100],
-            ['xNyuMtk0jVNAVJI2g7Re', 100],
-            ['tMdJZAMZwY6itvypKRLE', 100],
-            ['Nfr3pPoxCuqOb6wZpZgB', 100],
-            ['PhjJOk2eQkcQIPlWzkhh', 100],
-            ['0VA8kLarEkErnYs8TkNp', 100],
-            ['Uoiq▓WCg..CTt8║      qZ2WVOeTx', 100],
-            ['tGL6 f889f..e;', 100],
-            ['Qu7h uAvF...xef  9gGUC6ZDSt', 100],
-            ['QjJo kY4Mjf||EWF  JqvK3jYtQB', 100],
-            ['9Bjf 6aI9pYwZB1k9Ye║▀', 100],
-            ['JuFZ 9hgp2F       [[[[iUvQvnsAxl', 100],
-            ['[[[ [ |||| =- **▒ ▒ ||    || |]]', 100],
-            ['[-----', 0],
-            ['▒▒▒ ║           |||| X  ▓', 0],
-            ['||', 0],
-            ['▒', 0],
-            ['', 0],
-            ['FATAL ERROR OCCURRED', 0],
-            ['', 3000],
-            ['****************', 0],
-            ['****************', 0],
-            ['****************', 0],
-            [' ', 0],
-            ['RECOVERING...', 0],
-            ['', 3000],
-            ['Error code: 18589194123098', 0],
-            ['ADDR:', 100],
-            ['[3260 7515 1562]', 0],
-            ['[3064 3772 8098]', 0],
-            ['[6849 7590 4712]', 0],
-            ['[5196 8857 2428]', 0],
-            ['[2598 8722 0112]', 0],
-            ['[5350 6892 8792]', 0],
-            ['[6240 4625 6629]', 0],
-            ['[6433 3822 8854]', 0],
-            ['[0140 5313 1417]', 0],
-            ['', 3500],
+            // ['Restoring data...', 5000],
+            // ['', 100],
+            // ['yUE9ha2tMCpmVtpKqZSc', 100],
+            // ['puKrMbdJZoO09kbxo40X', 100],
+            // ['gFfKhzGPVSHwvGyYwdT6', 100],
+            // ['dQ9kq7RMbVkTPjrHaqUF', 100],
+            // ['Fu2ZOLxLqCa5JIrs4dYn', 100],
+            // ['tMdJZAMZwY6itvypKRLE', 100],
+            // ['1FHhErZXfl39dlEuEWs5', 100],
+            // ['jn4p3K2ylr8jxVQ4hGRk', 100],
+            // ['u5bsjsfJJ2jSSDLidBc1', 100],
+            // ['mtPL2dwoxP04Gn9hfkvV', 100],
+            // ['jSupjlXMCSMWCabxn3tR', 100],
+            // ['cHb3exHm8xIVCTwwupN0', 100],
+            // ['WkGM7GWxwb6HXi7SoJR4', 100],
+            // ['55usa2sYLNDg3mT9dVji', 100],
+            // ['HOA3zYkEte1BXZkTa1nS', 100],
+            // ['THNizuhnXw78z7yXTkWn', 100],
+            // ['YGHrlFKyNObJlDahYkfU', 100],
+            // ['XMERhSzPI5Fpmv3MKHVF', 100],
+            // ['xNyuMtk0jVNAVJI2g7Re', 100],
+            // ['tMdJZAMZwY6itvypKRLE', 100],
+            // ['Nfr3pPoxCuqOb6wZpZgB', 100],
+            // ['PhjJOk2eQkcQIPlWzkhh', 100],
+            // ['0VA8kLarEkErnYs8TkNp', 100],
+            // ['Uoiq▓WCg..CTt8║      qZ2WVOeTx', 100],
+            // ['tGL6 f889f..e;', 100],
+            // ['Qu7h uAvF...xef  9gGUC6ZDSt', 100],
+            // ['QjJo kY4Mjf||EWF  JqvK3jYtQB', 100],
+            // ['9Bjf 6aI9pYwZB1k9Ye║▀', 100],
+            // ['JuFZ 9hgp2F       [[[[iUvQvnsAxl', 100],
+            // ['[[[ [ |||| =- **▒ ▒ ||    || |]]', 100],
+            // ['[-----', 0],
+            // ['▒▒▒ ║           |||| X  ▓', 0],
+            // ['||', 0],
+            // ['▒', 0],
+            // ['', 0],
+            // ['FATAL ERROR OCCURRED', 0],
+            // ['', 3000],
+            // ['****************', 0],
+            // ['****************', 0],
+            // ['****************', 0],
+            // [' ', 0],
+            // ['RECOVERING...', 0],
+            // ['', 3000],
+            // ['Error code: 18589194123098', 0],
+            // ['ADDR:', 100],
+            // ['[3260 7515 1562]', 0],
+            // ['[3064 3772 8098]', 0],
+            // ['[6849 7590 4712]', 0],
+            // ['[5196 8857 2428]', 0],
+            // ['[2598 8722 0112]', 0],
+            // ['[5350 6892 8792]', 0],
+            // ['[6240 4625 6629]', 0],
+            // ['[6433 3822 8854]', 0],
+            // ['[0140 5313 1417]', 0],
+            // ['', 3500],
             ['#################################', 10],
             ['Safe boot', 10],
             ['***', 10],
@@ -151,8 +152,8 @@ export default {
             ['', 10],
             ['#################################', 10],
             ['', 10],
-            ['Resources low.', 10],
-            ['', 10],
+            // ['Resources low.', 10],
+            // ['', 10],
         ],
     },
 
@@ -233,7 +234,8 @@ export default {
 
     skipToGlobe: {
         text: [
-            ['Skipping to globe', 1, true]
+            ['Skipping to globe', 1, true],
+            ['', 0],
         ],
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('shuttersOpen', true));
@@ -279,6 +281,16 @@ export default {
                 refinedMinerals: 999999999,
                 standardDroids: 10
             }));
+
+            addTrigger(
+                (state) => state.planet.droidData,
+                (slice) => slice.numDroidsAssigned > 0,
+                () => {
+                    dispatch(fromLog.startLogSequence('startExploringMap'));
+                    dispatch(fromPlanet.startExploringMap());
+                }
+            )
+
         }
     },
     skipEverything: {
@@ -433,15 +445,76 @@ export default {
             dispatch(fromResources.learn('standardDroids'));
             dispatch(fromStructures.learn('droidFactory'));
             dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
-        }
 
+            addTrigger(
+                (state) => state.planet.droidData,
+                (slice) => slice.numDroidsAssigned > 0,
+                () => {
+                    dispatch(fromLog.startLogSequence('startExploringMap'));
+                    dispatch(fromPlanet.startExploringMap());
+                }
+            )
+        }
     },
 
-    researchComplete: {
+    globeUnlocked: {
         text: [
-            ['Research complete.', 0, true],
+            ['Booting up global map...', 3000, true],
             ['', 0],
-        ]
+            ['World view online.', 3000, true],
+            ['', 0],
+        ],
+    },
+
+    startExploringMap: {
+        text: [
+            ['Dispatching droid(s).', 3000, true],
+            ['', 0],
+        ],
+        onFinish: (dispatch) => {
+            addTrigger(
+                (state) => state.resources.byId.developedLand,
+                (slice) => slice.amount >= 100,
+                () => {
+                    dispatch(fromUpgrades.discover('windTurbine_global'));
+                }
+            )
+            addTrigger(
+                (state) => state.resources.byId.developedLand,
+                (slice) => slice.amount >= 500,
+                () => {
+                    dispatch(fromUpgrades.discover('solarPanel_global'));
+                }
+            )
+            addTrigger(
+                (state) => state.resources.byId.refinedMinerals,
+                (slice) => slice.amount >= 1e6,
+                () => {
+                    dispatch(fromLog.startLogSequence('unlockLauncher'));
+                }
+            )
+        }
+    },
+
+    unlockLauncher: {
+        text: [
+            ['Mineral supplies sufficient.', 3000, true],
+            ['', 0],
+            ['Begin primary mission: Solarion', 3000, true],
+            ['', 0],
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromResources.learn('probes'));
+            dispatch(fromStructures.learn('probeFactory'));
+
+            addTrigger(
+                (state) => state.structures.byId.probeFactory,
+                (slice) => slice.count.total >= 1,
+                () => {
+                    dispatch(fromGame.addNavTab('star'));
+                }
+            )
+        }
     },
 
     gameEnd: {

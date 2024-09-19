@@ -22,6 +22,7 @@ export const ASSIGN_DROID = 'planet/ASSIGN_DROID';
 export const REMOVE_DROID = 'planet/REMOVE_DROID';
 export const START_DEVELOPMENT = 'planet/START_DEVELOPMENT';
 export const FINISH_DEVELOPMENT = 'planet/FINISH_DEVELOPMENT';
+export const SET_EXPLORE_SPEED = 'planet/SET_EXPLORE_SPEED';
 
 const OVERALL_MAP_STATUS = {
     unstarted: 'unstarted',
@@ -41,6 +42,7 @@ const initialState = {
         numDroidsAssigned: 0,
         droidAssignmentType: 'planet'
     },
+    exploreSpeed: 1,
 
     // The following caches store references/counts of various sectors within the map. They could be calculated at run-time
     // from the map variable, but to improve performance we cache the values here.
@@ -101,7 +103,7 @@ export default function reducer(state = initialState, action) {
             // - sector #2 gets 5 droids
             // - sector #3 gets 2 droids
             let availableDroids = state.droidData.numDroidsAssigned;
-            const progressRate = payload.timeDelta * 1; // todo multiply by upgrades
+            const progressRate = payload.timeDelta * state.exploreSpeed;
             state.coordsInProgress.forEach(coord => {
                 const numDroidsForSector = Math.min(availableDroids, MAX_DROIDS_PER_SECTOR);
                 availableDroids -= numDroidsForSector;
@@ -157,6 +159,10 @@ export default function reducer(state = initialState, action) {
                 }
             })
             return update(state, updates);
+        case SET_EXPLORE_SPEED:
+            return update(state, {
+                exploreSpeed: { $set: payload.value }
+            })
         default:
             return state;
     }
@@ -213,6 +219,10 @@ export function finishDevelopment(dispatch, getState) {
     const coords = getCurrentDevelopmentArea(getState().planet.map);
     dispatch({ type: FINISH_DEVELOPMENT, payload: { coords } });
     dispatch(recalculateState());
+}
+
+export function setExploreSpeed(value) {
+    return { type: SET_EXPLORE_SPEED, payload: { value } }
 }
 
 export function planetTick(timeDelta) {

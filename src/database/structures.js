@@ -217,6 +217,7 @@ export const calculators = {
             const variables = {
                 daylight: daylightPercent(state.clock),
                 minDaylight: 0, // minimum daylight percentage
+                globalAverageRate: 0, // once set (when solarPanel has expanded across global), will replace daylight value
                 peakEnergy: 5, // amount of energy generated in peak daylight
                 actualEnergy: undefined // amount of energy actually generated (defined later based on sunlight)
             }
@@ -226,6 +227,7 @@ export const calculators = {
             variables.peakEnergy *= netDroidPerformanceBoost(state, structure);
             variables.peakEnergy *= netEnergyBayBoost(state);
             variables.daylight = Math.max(variables.daylight, variables.minDaylight);
+            if (variables.globalAverageRate) { variables.daylight = variables.globalAverageRate; }
             variables.actualEnergy = variables.peakEnergy * variables.daylight;
             return variables;
         },
@@ -252,7 +254,8 @@ export const calculators = {
                 ratedSpeed: 28,
                 cutOutSpeed: 47,
                 cutInPower: 0,
-                ratedPower: 15
+                ratedPower: 15,
+                globalAverageRate: 0
             }
 
             applyAllEffects(state, variables, structure);
@@ -269,8 +272,12 @@ export const calculators = {
             const wind = windSpeed(state.clock);
             let energy;
 
+            if (variables.globalAverageRate) {
+                energy = variables.ratedPower * variables.globalAverageRate;
+            }
+
             // O < CUT_IN_SPEED < linear energy < RATED_SPEED < flatline energy < CUT_OUT_SPEED < 0
-            if (wind < variables.cutInSpeed || wind > variables.cutOutSpeed) {
+            else if (wind < variables.cutInSpeed || wind > variables.cutOutSpeed) {
                 // cutoff
                 energy = 0;
             }
@@ -288,6 +295,10 @@ export const calculators = {
         },
         statusMessage: (state, structure, variables) => {
             const wind = windSpeed(state.clock);
+
+            if (variables.globalAverageRate) {
+                return `Using Global Avg.`
+            }
 
             if (wind < variables.cutInSpeed) {
                 return redText('Not enough wind');
@@ -308,6 +319,10 @@ export const calculators = {
                 `when wind speed is between ${variables.cutInSpeed} and ${variables.cutOutSpeed} kph.`;
         },
         animationTag: (state, structure, variables) => {
+            if (variables.globalAverageRate) {
+                return 'running';
+            }
+
             const wind = windSpeed(state.clock);
             return wind < variables.cutInSpeed || wind > variables.cutOutSpeed ? 'idle' : 'running'; // todo these should be a animation constant
         }
@@ -419,12 +434,13 @@ export const calculators = {
     }),
     probeFactory: _.merge({}, baseCalculator, {
         cost: (state, structure) => ({
-            ore: 1,
-            energy: 10
+            ore: 4e7 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            refinedMinerals: 1e7 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            energy: 2e7 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
         }),
         consumes: (state, structure) => ({
-            energy: 5 * getRunningRate(structure),
-            refinedMinerals: 1 * getRunningRate(structure)
+            energy: 700 * getRunningRate(structure),
+            refinedMinerals: 800 * getRunningRate(structure)
         }),
         statusMessage: (state, structure, variables) => {
             if (!isRunning(structure)) {
@@ -439,7 +455,7 @@ export const calculators = {
         },
         produces: (state, structure) => {
             return {
-                probes: 1 * getRunningRate(structure) * netDroidPerformanceBoost(state, structure)
+                probes: 0.05 * getRunningRate(structure) * netDroidPerformanceBoost(state, structure)
             }
         },
     })

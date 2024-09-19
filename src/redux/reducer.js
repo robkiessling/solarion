@@ -12,7 +12,7 @@ import resources, * as fromResources from './modules/resources';
 import abilities, * as fromAbilities from "./modules/abilities";
 import planet, * as fromPlanet from "./modules/planet";
 import star, * as fromStar from "./modules/star";
-import {mapObject} from "../lib/helpers";
+import {mapObject, roundToDecimal} from "../lib/helpers";
 import {STATUSES} from "../database/structures";
 import {generateImage} from "../lib/planet_map";
 import {getQuantity, getResource} from "./modules/resources";
@@ -312,4 +312,10 @@ export function planetMapImage(state) {
         fromClock.fractionOfDay(state.clock),
         state.planet.sunTracking ? undefined : state.planet.rotation
     );
+}
+
+export function planetDevelopmentProgress(state) {
+    const developedLand = getQuantity(getResource(state.resources, 'developedLand'));
+    const maxDevelopedLand = state.planet.maxDevelopedLand;
+    return roundToDecimal(developedLand / maxDevelopedLand, 5);
 }
