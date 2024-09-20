@@ -3,6 +3,8 @@ import Ellipse from "./ellipse";
 import {QUEUE_TYPES} from "./ascii_canvas";
 
 
+const USE_CACHED_CANVAS = true;
+
 const SUN_SIZE = 75;
 const SUN_ELLIPSE_COUNT = 4;
 const SUN_CHARS_PER_ELLIPSE = 50;
@@ -18,8 +20,7 @@ const PROBES_PER_ELLIPSE = 100;
 const PROBE_ORBIT_TIME = 30;
 const PROBE_CHAR = 'X';
 const PROBE_COLOR = '#fff';
-
-const USE_CACHED_CANVAS = true;
+const PROBES_PER_CHAR = 1000; // one 'X' represents this many probes
 
 // Note: if you change this you will have to change the addQueueFilter logic, as well as update the
 //       generateProbeEllipse's h and k coordinates
@@ -62,14 +63,12 @@ const PROBES_MAX_VISIBLE = PROBE_ELLIPSES.length * PROBES_PER_ELLIPSE;
 const PLANET_POSITION = [5, 0.9]; // percent of canvas to draw lines to
 
 // "Zaps" are the line flashes that appear when a probe is created (showing where the probe was sent from)
-const ZAP_ENABLED = false;
+const ZAP_ENABLED = true;
 const ZAP_DURATION = 200;
 const ZAP_STARTING_OPACITY = 0.7;
-const ZAP_ENDING_OPACITY = 0.1;
-const ZAP_HIDE_AT_NUM_PROBES = 1800;
+const ZAP_ENDING_OPACITY = 0;
+const ZAP_HIDE_AT_NUM_PROBES = 500;
 
-const MIRRORS_ENABLED = false;
-const MAX_MIRRORS = 100;
 const MIRROR_COLOR = 'rgba(255,255,0,0.2)'
 
 /**
@@ -115,6 +114,10 @@ export function generateRandomProbeDist() {
     return distribution;
 }
 
+export function probeCapacity() {
+    return PROBES_MAX_VISIBLE * PROBES_PER_CHAR;
+}
+
 let CACHED_PROBE_CHAR, CACHED_SUN_CHAR_A, CACHED_SUN_CHAR_B;
 export function setupCache(manager) {
     if (USE_CACHED_CANVAS) {
@@ -126,9 +129,11 @@ export function setupCache(manager) {
 
 // Draws many probe ellipses to simulate the appearance of a 3-dimensional donut shape. Also draws a sun in the center
 // of the donut.
-export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numProbes) {
+export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numProbes, mirrorSettings) {
     // How far into their orbit each probe is (in radians)
     const orbitTheta = ((elapsedTime / 1000) % PROBE_ORBIT_TIME) / PROBE_ORBIT_TIME * 2 * Math.PI;
+
+    numProbes = Math.ceil(numProbes / PROBES_PER_CHAR);
 
     /**
      * We first draw all the probes located in the the top-left area of the canvas, then draw the sun, and then draw the
@@ -154,8 +159,8 @@ export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numPro
         }
     })
 
-    if (MIRRORS_ENABLED) {
-        drawMirrors(canvas, probeDistribution, numProbes, orbitTheta);
+    if (mirrorSettings && mirrorSettings.mirrorEnabled) {
+        drawMirrors(canvas, probeDistribution, numProbes, orbitTheta, mirrorSettings);
     }
     drawProbes(canvas, probeDistribution, numProbes, orbitTheta);
 
@@ -173,14 +178,15 @@ export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numPro
     }
 }
 
-function drawMirrors(canvas, probeDistribution, numProbes, thetaOffset) {
+function drawMirrors(canvas, probeDistribution, numProbes, thetaOffset, mirrorSettings) {
     const [centerX, centerY] = canvas.center();
 
     canvas.setStrokeStyle(MIRROR_COLOR);
     const endPoint = { x: canvas.width * PLANET_POSITION[0], y: canvas.height * PLANET_POSITION[1] }
 
     // Draw mirror reflection lines first
-    probeDistribution.slice(0, Math.min(numProbes, MAX_MIRRORS)).forEach(probeCoord => {
+    const maxMirrors = mirrorSettings.mirrorAmount * PROBES_MAX_VISIBLE
+    probeDistribution.slice(0, Math.min(numProbes, maxMirrors)).forEach(probeCoord => {
         const [x, y] = PROBE_ELLIPSES[probeCoord[0]].xyPoint(PROBES_PER_ELLIPSE, thetaOffset, probeCoord[1]);
         canvas.drawLine(
             { x: x + centerX + canvas.fontWidth / 2, y: y + centerY - canvas.fontHeight / 2 },

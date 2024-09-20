@@ -61,8 +61,10 @@ class LogSection extends React.Component {
         let i = 0, len = text.length;
 
         if (len === 0) {
-            if (databaseRecord.onFinish) { databaseRecord.onFinish(dispatch); }
-            dispatch(endLogSequence(this.props.logData.sequence));
+            batch(() => {
+                if (databaseRecord.onFinish) { databaseRecord.onFinish(dispatch); }
+                dispatch(endLogSequence(this.props.logData.sequence));
+            })
             return;
         }
 

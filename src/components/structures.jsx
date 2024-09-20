@@ -1,7 +1,8 @@
 import React from 'react';
 import {connect} from "react-redux";
 import Structure from "./structures/structure";
-import Harvester from "./structures/harvester";
+import ProbeFactory from "./structures/probe_factory";
+import EnergyBay from "./structures/energy_bay";
 import {getVisibleIds} from "../redux/modules/structures";
 import {TYPES} from "../database/structures";
 import Tabs from "./ui/tabs";
@@ -9,7 +10,6 @@ import {updateSetting} from "../redux/modules/game";
 
 import 'overlayscrollbars/styles/overlayscrollbars.css';
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
-import EnergyBay from "./structures/energy_bay";
 
 class Structures extends React.Component {
     constructor(props) {
@@ -48,11 +48,10 @@ class Structures extends React.Component {
                                 return <div key={id} className={'hidden'}></div>
                             }
                             switch (id) {
-                                // TODO This is just an example if we need vastly different Structure components
-                                case 'harvester':
-                                    return <Harvester key={id}/>
                                 case 'energyBay':
                                     return <EnergyBay key={id}/>
+                                case 'probeFactory':
+                                    return <ProbeFactory key={id}/>
                                 default:
                                     return <Structure type={id} key={id}/>
                             }
@@ -65,26 +64,35 @@ class Structures extends React.Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
-    let structureType;
-    switch(state.game.currentStructureTab) {
-        case 'all':
-            structureType = undefined;
+    let structureIds = [];
+
+    switch(state.game.currentNavTab) {
+        case 'outside':
+            switch(state.game.currentStructureTab) {
+                case 'all':
+                    structureIds = getVisibleIds(state.structures)
+                    break;
+                case 'consumers':
+                    structureIds = getVisibleIds(state.structures, TYPES.consumer)
+                    break;
+                case 'generators':
+                    structureIds = getVisibleIds(state.structures, TYPES.generator)
+                    break;
+                default:
+                    console.warn(`Unhandled tab: ${state.game.currentStructureTab}`)
+            }
+            structureIds = structureIds.filter(structureId => structureId !== 'probeFactory');
             break;
-        case 'consumers':
-            structureType = TYPES.consumer;
+        case 'star':
+            structureIds = ['probeFactory', 'solarPanel']
             break;
-        case 'generators':
-            structureType = TYPES.generator;
-            break;
-        default:
-            console.warn(`Unhandled tab: ${state.game.currentStructureTab}`)
     }
 
     return {
         visible: state.game.currentNavTab === 'outside' || state.game.currentNavTab === 'star',
-        showStructureTabs: state.game.showStructureTabs,
+        showStructureTabs: state.game.showStructureTabs && state.game.currentNavTab === 'outside',
         currentStructureTab: state.game.currentStructureTab,
-        structureIds: getVisibleIds(state.structures, structureType),
+        structureIds: structureIds,
         showNonCCBuildings: state.game.showNonCCBuildings,
     };
 };

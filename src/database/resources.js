@@ -1,6 +1,7 @@
 
 import {getStructure} from "../redux/modules/structures";
 import {getStructureStatistic} from "../redux/reducer";
+import {probeCapacity} from "../lib/star";
 
 const base = {
     name: 'Unknown',
@@ -76,6 +77,11 @@ export const calculators = {
             }
 
             return capacity;
+        }
+    },
+    probes: {
+        capacity: state => {
+            return probeCapacity();
         }
     }
 }

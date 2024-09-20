@@ -114,7 +114,7 @@ export default {
         }
     }),
     probeFactory: _.merge({}, base, {
-        name: "Orbital Launcher",
+        name: "Probe Launcher",
         description: "Manufactures and launches probes towards Solarion V.",
         runnable: true,
         type: TYPES.consumer,
@@ -227,7 +227,14 @@ export const calculators = {
             variables.peakEnergy *= netDroidPerformanceBoost(state, structure);
             variables.peakEnergy *= netEnergyBayBoost(state);
             variables.daylight = Math.max(variables.daylight, variables.minDaylight);
-            if (variables.globalAverageRate) { variables.daylight = variables.globalAverageRate; }
+
+            if (variables.globalAverageRate) {
+                variables.daylight = variables.globalAverageRate;
+            }
+            if (state.resources.byId.probes && state.resources.byId.probes.amount && state.star.mirrorTarget === 'planet') {
+                variables.daylight = 100 * state.resources.byId.probes.amount
+            }
+
             variables.actualEnergy = variables.peakEnergy * variables.daylight;
             return variables;
         },
@@ -238,6 +245,9 @@ export const calculators = {
             energy: variables.actualEnergy
         }),
         statusMessage: (state, structure, variables) => {
+            if (variables.daylight > 1000) {
+                return `1% solar output`
+            }
             if (variables.daylight === 0) {
                 return redText(`${variables.daylight * 100}% sunlight`);
             }
@@ -439,8 +449,8 @@ export const calculators = {
             energy: 2e7 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
         }),
         consumes: (state, structure) => ({
-            energy: 700 * getRunningRate(structure),
-            refinedMinerals: 800 * getRunningRate(structure)
+            energy: 666 * getRunningRate(structure),
+            refinedMinerals: 837 * getRunningRate(structure)
         }),
         statusMessage: (state, structure, variables) => {
             if (!isRunning(structure)) {
@@ -455,7 +465,8 @@ export const calculators = {
         },
         produces: (state, structure) => {
             return {
-                probes: 0.05 * getRunningRate(structure) * netDroidPerformanceBoost(state, structure)
+                // Dividing by 1000 because we generally have around x1000 replication bonus
+                probes: getRunningRate(structure) * netDroidPerformanceBoost(state, structure)
             }
         },
     })
@@ -501,7 +512,8 @@ export function energyBayBoost(state) {
         energyBoost: 0
     };
 
-    ['energyBay_production1', 'energyBay_production2'].forEach(upgradeId => {
+    // TODO This relies on updating this constant...
+    ['energyBay_production1', 'energyBay_production2', 'energyBay_production3', 'energyBay_production4'].forEach(upgradeId => {
         const upgrade = getUpgrade(state.upgrades, upgradeId);
         if (isResearched(upgrade)) {
             applySingleEffect(upgrade.effect, variables);

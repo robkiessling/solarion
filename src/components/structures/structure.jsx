@@ -29,8 +29,7 @@ class Structure extends React.Component {
                             {this.props.numBuilt < 1 || !this.props.buildable ? '' : ` x${this.props.numBuilt}`}
                         </span>
                         <span className="replication-count">
-                            {this.props.numBuilt > 1 && this.props.replicationCount > 0 &&
-                                ` (x${this.props.replicationCount})`}
+                            {this.props.numBuilt > 0 && this.props.replicationCount > 0 && ` (x${this.props.replicationCount})`}
                         </span>
                     </div>
                     <div className="build-area">
@@ -61,15 +60,15 @@ class Structure extends React.Component {
                                 <div><ResourceAmounts amounts={this.props.consumption} asRate={true} invert={true}/></div>
                             </div>
                         }
-                        { this.props.children }
                         {
                             this.props.isBuilt && this.props.statusMessage &&
                             <div className={`d-flex space-between`}>
                                 <div>Status:</div>
                                 <div className={'d-flex justify-end'}
-                                      dangerouslySetInnerHTML={{__html: this.props.statusMessage}}></div>
+                                     dangerouslySetInnerHTML={{__html: this.props.statusMessage}}></div>
                             </div>
                         }
+                        { this.props.children }
                         {this.props.isBuilt && this.props.showDroidsForStructure &&
                             <DroidCount droidData={this.props.droidData} targetId={this.props.structure.id}
                                         assignTooltip={this.props.droidAssignTooltip} />}

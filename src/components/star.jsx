@@ -52,7 +52,13 @@ class Star extends React.Component {
         }
 
         this.canvasManager.clearAll();
-        drawStarAndProbes(this.canvasManager, this.props.elapsedTime, this.props.probeDistribution, this.props.numProbes);
+        drawStarAndProbes(
+            this.canvasManager,
+            this.props.elapsedTime,
+            this.props.probeDistribution,
+            this.props.numProbes,
+            this.props.mirrorSettings
+        );
     }
 
     render() {
@@ -72,7 +78,12 @@ const mapStateToProps = state => {
         visible: state.game.currentNavTab === 'star',
         elapsedTime: state.clock.elapsedTime,
         probeDistribution: state.star.distribution,
-        numProbes: Math.floor(getQuantity(getResource(state.resources, 'probes')))
+        numProbes: Math.floor(getQuantity(getResource(state.resources, 'probes'))),
+        mirrorSettings: {
+            mirrorEnabled: state.star.mirrorEnabled,
+            mirrorTarget: state.star.mirrorTarget,
+            mirrorAmount: state.star.mirrorAmount,
+        }
     }
 };
 

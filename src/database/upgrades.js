@@ -10,6 +10,8 @@ import {getIconSpan} from "../redux/modules/resources";
 import * as fromGame from "../redux/modules/game";
 import * as fromPlanet from "../redux/modules/planet";
 import {generateMap} from "../redux/modules/planet";
+import * as fromStar from "../redux/modules/star";
+import {probeCapacity} from "../lib/star";
 
 export const STATES = {
     hidden: 0,
@@ -19,6 +21,8 @@ export const STATES = {
     paused: 4,
     researched: 5
 }
+
+const UNLIMITED_POWER_MULTIPLIER = 5000;
 
 const base = {
     name: 'Unknown',
@@ -399,6 +403,14 @@ const database = {
         }
     }),
 
+    harvester_unlimited: _.merge({}, base, {
+        structure: 'harvester',
+        effect: {
+            ore: { multiply: UNLIMITED_POWER_MULTIPLIER },
+            energy: { multiply: UNLIMITED_POWER_MULTIPLIER }
+        }
+    }),
+
     solarPanel_largerPanels: _.merge({}, base, {
         name: "Larger Panels",
         structure: 'solarPanel',
@@ -463,6 +475,35 @@ const database = {
         description: "Averages the output of all Solar Farms across the globe, allowing energy to be produced at a constant rate.",
         effect: {
             globalAverageRate: { add: 1 }
+        }
+    }),
+    solarPanel_receiveProbe: _.merge({}, base, {
+        name: "Radiation Shielding",
+        structure: 'solarPanel',
+        description: "Upgrades Solar Farms to be able to receive focused beams of light from space probes.",
+        discoverWhen: {
+            upgrades: ['solarPanel_global'],
+            resources: {
+                probes: 30e3, // out of 1800e3
+            }
+        },
+        cost: {
+            ore: 1.3e8,
+            refinedMinerals: 5.1e7
+        }
+    }),
+    solarPanel_unlimitedPower: _.merge({}, base, {
+        name: "Unlimited Power",
+        structure: 'solarPanel',
+        description: `Harnessing the near limitless power output of Solarion, boosts all production by ${UNLIMITED_POWER_MULTIPLIER}%.`,
+        discoverWhen: {
+            upgrades: ['solarPanel_receiveProbe'],
+            resources: {
+                probes: 100e3,
+            }
+        },
+        cost: {
+            energy: 100e6
         }
     }),
 
@@ -535,7 +576,7 @@ const database = {
             energyBoost: { add: 0.05 } // going from 5% to 10%
         }
     }),
-    energyBay_production4: _.merge({}, base, {
+    energyBay_production4: _.merge({}, base, { // todo if you copy this to make another level, update the constant in energyBayBoost function
         name: "Power Linking (IV)",
         structure: 'energyBay',
         // description: `Increases ${getIconSpan('energy', true)} production boost to 5%`,
@@ -553,6 +594,8 @@ const database = {
             energyBoost: { add: 0.1 } // going from 10% to 20%
         }
     }),
+
+
     energyBay_largerCapacity2: _.merge({}, base, {
         name: "Lithium Ions",
         structure: 'energyBay',
@@ -586,6 +629,12 @@ const database = {
         },
         effect: {
             capacity: { multiply: 5 }
+        }
+    }),
+    energyBay_unlimited: _.merge({}, base, {
+        structure: 'energyBay',
+        effect: {
+            capacity: { multiply: UNLIMITED_POWER_MULTIPLIER }
         }
     }),
 
@@ -757,6 +806,13 @@ const database = {
             energy: { multiply: 4 }
         }
     }),
+    refinery_unlimited: _.merge({}, base, {
+        structure: 'refinery',
+        effect: {
+            refinedMinerals: { multiply: UNLIMITED_POWER_MULTIPLIER },
+            energy: { multiply: UNLIMITED_POWER_MULTIPLIER }
+        }
+    }),
 
 
     droidFactory_improvedMaintenance: _.merge({}, base, {
@@ -895,6 +951,31 @@ export const callbacks = {
     droidFactory_fasterExplore: {
         onFinish: (dispatch) => {
             dispatch(fromPlanet.setExploreSpeed(5));
+        }
+    },
+
+    solarPanel_receiveProbe: {
+        onFinish: (dispatch) => {
+            dispatch(fromStar.updateSetting('mirrorEnabled', true));
+            dispatch(fromStar.updateSetting('mirrorTarget', 'planet'));
+            dispatch(fromStar.updateSetting('mirrorAmount', 0.01));
+
+            dispatch(fromLog.startLogSequence('solarPanelProbeReady'));
+
+            addTrigger(
+                (state) => state.resources.byId.probes,
+                (slice) => slice.amount >= probeCapacity(),
+                () => {
+                    dispatch(fromLog.startLogSequence('finalDestination'));
+                }
+            )
+        }
+    },
+    solarPanel_unlimitedPower: {
+        onFinish: (dispatch) => {
+            dispatch(fromUpgrades.researchForFree('harvester_unlimited'));
+            dispatch(fromUpgrades.researchForFree('energyBay_unlimited'));
+            dispatch(fromUpgrades.researchForFree('refinery_unlimited'));
         }
     }
 }

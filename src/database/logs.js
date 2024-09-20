@@ -366,7 +366,7 @@ export default {
                 ore: 999999999,
                 refinedMinerals: 999999999,
                 standardDroids: 20,
-                probes: 18000
+                probes: 0
             }));
         }
     },
@@ -522,13 +522,18 @@ export default {
         }
     },
 
-    gameEnd: {
+    solarPanelProbeReady: {
         text: [
-            ['Simulation END', 2000, true],
-            [''],
-            ['This is the end of the current game implementation...', 2000],
-            [''],
-            ['Thank you for playing.', 2000]
+            ['Redirecting sunlight towards planet.', 3000, true],
+            ['', 0],
+        ],
+    },
+
+    // TODO
+    finalDestination: {
+        text: [
+            ['Final destination.', 3000, true],
+            ['', 0],
         ]
     }
 
