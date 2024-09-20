@@ -8,18 +8,16 @@ import * as fromReducer from '../redux/reducer';
 import {addTrigger} from "../redux/triggers";
 import * as fromLog from "../redux/modules/log";
 import {batch} from "react-redux";
-import {mapObject} from "../lib/helpers";
 import {generateMap} from "../redux/modules/planet";
 import {generateProbeDist} from "../redux/modules/star";
-import {dayNumber} from "../redux/modules/clock";
-import {updateSetting} from "../redux/modules/game";
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard campaign start
 const SKIP_START = 'skipStart';
 const SKIP_TO_GLOBE = 'skipToGlobe';
+const SKIP_TO_STAR = 'skipToStar';
 const SKIP_EVERYTHING = 'skipEverything'; // Skip to all structures built
 
-const GAME_MODE = SKIP_TO_GLOBE; /* Controls overall game mode */
+const GAME_MODE = SKIP_TO_STAR; /* Controls overall game mode */
 
 
 export default {
@@ -35,6 +33,9 @@ export default {
                     break;
                 case SKIP_TO_GLOBE:
                     dispatch(fromLog.startLogSequence('skipToGlobe'));
+                    break;
+                case SKIP_TO_STAR:
+                    dispatch(fromLog.startLogSequence('skipToStar'));
                     break;
                 case SKIP_EVERYTHING:
                     dispatch(fromLog.startLogSequence('skipEverything'));
@@ -293,78 +294,80 @@ export default {
 
         }
     },
-    skipEverything: {
+    skipToStar: {
         text: [
-            ['Skipping Normal Login', 1, true],
-            ['', 1],
-            ['All known resources have been loaded.', 0, true]
+            ['Skipping to star', 1, true],
+            ['', 0],
         ],
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('shuttersOpen', true));
             dispatch(fromGame.updateSetting('showPlanetStatus', true));
             dispatch(fromGame.updateSetting('showResourceBar', true));
+            dispatch(fromGame.updateSetting('showResourceRates', true));
             dispatch(fromGame.updateSetting('showTerminal', true));
             dispatch(fromGame.updateSetting('showNonCCBuildings', true));
-            // dispatch(fromGame.updateSetting('showStructureTabs', true))
+            dispatch(fromGame.updateSetting('showStructureTabs', true))
 
             dispatch(fromResources.learn('energy'));
             dispatch(fromResources.learn('ore'));
             dispatch(fromResources.learn('vents'));
             dispatch(fromResources.learn('refinedMinerals'));
             dispatch(fromResources.learn('standardDroids'));
-            dispatch(fromResources.learn('probes'));
-            dispatch(fromResources.learn('buildableLand'));
-            dispatch(fromResources.learn('developedLand'));
-
-            dispatch(generateMap());
-            dispatch(generateProbeDist());
 
             dispatch(fromStructures.learn('commandCenter'));
+            dispatch(fromStructures.buildForFree('commandCenter', 1));
             dispatch(fromAbilities.learn('commandCenter_charge'));
 
             dispatch(fromStructures.learn('harvester'));
-            dispatch(fromStructures.buildForFree('harvester', 1));
-            dispatch(fromUpgrades.discover('harvester_overclock'));
-
-            // dispatch(fromStructures.learn('sensorTower'));
-            dispatch(fromStructures.learn('refinery'));
-
             dispatch(fromStructures.learn('solarPanel'));
-            dispatch(fromStructures.learn('thermalVent'));
+            // dispatch(fromStructures.learn('thermalVent'));
             dispatch(fromStructures.learn('windTurbine'));
             dispatch(fromStructures.learn('energyBay'));
-            dispatch(fromUpgrades.discover('energyBay_largerCapacity'))
-
+            dispatch(fromStructures.learn('refinery'));
             dispatch(fromStructures.learn('droidFactory'));
             dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
 
+            dispatch(fromStructures.buildForFree('harvester', 20));
+            dispatch(fromStructures.buildForFree('solarPanel', 28));
+            dispatch(fromStructures.buildForFree('windTurbine', 24));
+            dispatch(fromStructures.buildForFree('energyBay', 20));
+            dispatch(fromStructures.buildForFree('refinery', 8));
+            dispatch(fromStructures.buildForFree('droidFactory', 1));
+
+            dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity'));
+            dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity2'));
+            [
+                'harvester_ore1', 'harvester_ore2', 'harvester_ore3', 'harvester_ore4',
+                'harvester_eff1', 'harvester_eff2', 'harvester_overclock', 'harvester_overclockUpgrade1',
+                'solarPanel_largerPanels', 'solarPanel_ambientLight', 'solarPanel_sunTracking', 'solarPanel_global',
+                'energyBay_largerCapacity', 'energyBay_production1', 'energyBay_production2', 'energyBay_largerCapacity2',
+                'windTurbine_largerBlades', 'windTurbine_reduceCutIn', 'windTurbine_increaseCutOut', 'windTurbine_yawDrive',
+                'windTurbine_global', 'refinery_improveProduction', 'refinery_cooling', 'refinery_improveProduction2',
+                'droidFactory_improvedMaintenance', 'droidFactory_longerComm', 'droidFactory_fasterBuild',
+                'droidFactory_fasterExplore'
+            ].forEach(upgrade => dispatch(fromUpgrades.researchForFree(upgrade)));
+
+            dispatch(fromPlanet.startExploringMap());
+            dispatch(fromResources.produce({
+                developedLand: 1000
+            }));
+
+            dispatch(generateProbeDist());
+
+            dispatch(fromResources.learn('probes'));
             dispatch(fromStructures.learn('probeFactory'));
+            dispatch(fromStructures.buildForFree('probeFactory', 1));
+
+            dispatch(fromGame.addNavTab('star'));
+            dispatch(fromGame.updateSetting('currentNavTab', 'star'));
 
             dispatch(fromResources.produce({
-                ore: 5000,
-                energy: 0,
-                refinedMinerals: 100,
-                standardDroids: 5
-            }))
-
-            dispatch(fromGame.addNavTab('outside'));
-            dispatch(fromGame.addNavTab('planet'));
-            dispatch(fromGame.addNavTab('star'));
-
-            dispatch(fromUpgrades.discover('windTurbine_reduceCutIn'))
-            dispatch(fromUpgrades.discover('windTurbine_increaseCutOut'))
-            dispatch(fromUpgrades.discover('windTurbine_largerBlades'))
-            dispatch(fromUpgrades.discover('windTurbine_yawDrive'))
-
-            dispatch(fromAbilities.learn('replicate'));
-
-            addTrigger(
-                (state) => state.planet.droidData,
-                (slice) => slice.numDroidsAssigned > 0,
-                () => {
-                    dispatch(fromPlanet.startExploringMap());
-                }
-            )
+                energy: 999999999,
+                ore: 999999999,
+                refinedMinerals: 999999999,
+                standardDroids: 20,
+                probes: 18000
+            }));
         }
     },
 
@@ -504,6 +507,8 @@ export default {
             ['', 0],
         ],
         onFinish: (dispatch) => {
+            dispatch(generateProbeDist());
+
             dispatch(fromResources.learn('probes'));
             dispatch(fromStructures.learn('probeFactory'));
 

@@ -57,7 +57,6 @@ const mapStateToProps = state => {
     return {
         visible: state.game.showResourceBar,
         showResourceRates: state.game.showResourceRates,
-        elapsedTime: state.clock.elapsedTime,
         visibleIds: state.resources.visibleIds,
         resources: state.resources.byId,
         netResourceRates: getNetResourceRates(state)

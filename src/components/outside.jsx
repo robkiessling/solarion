@@ -4,7 +4,7 @@
 
 import React from 'react';
 import AsciiCanvas from "../lib/ascii_canvas";
-import gameClock from "../singletons/game_clock";
+import gameClock, {OUTSIDE_FPS} from "../singletons/game_clock";
 import {fractionOfDay} from "../redux/modules/clock";
 import {connect} from "react-redux";
 import {generateImage, NUM_COLS, NUM_ROWS} from "../lib/outside";
@@ -34,6 +34,8 @@ class Outside extends React.Component {
         this.canvasContainer = React.createRef();
         this.canvas = React.createRef();
         this.skyCanvas = React.createRef();
+
+        this.waitTimeMs = 1000.0 / OUTSIDE_FPS; // how long to wait between rendering
     }
 
     componentDidMount() {
@@ -42,8 +44,20 @@ class Outside extends React.Component {
     }
 
     shouldComponentUpdate(nextProps, nextState) {
-        // Checking both this props and next props to ensure we update on visibility changes
-        return this.props.visible || nextProps.visible;
+        if (this.props.visible !== nextProps.visible) {
+            return true;
+        }
+
+        if (!this.props.visible) {
+            return false;
+        }
+
+        if (this.lastRenderAt && this.lastRenderAt > (nextProps.elapsedTime - this.waitTimeMs)) {
+            return false;
+        }
+
+        this.lastRenderAt = nextProps.elapsedTime;
+        return true;
     }
 
     componentDidUpdate(prevProps, prevState) {

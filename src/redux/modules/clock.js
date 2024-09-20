@@ -65,7 +65,7 @@ export function clockTick(timeDelta) {
 
             dispatch({ type: TICK, payload: { timeDelta } });
 
-            // Need to recalculate the state if daylight percentage changed
+            // Need to recalculate the state if daylight/windspeed changed
             if (daylightPercent(getState().clock) !== startingDaylight ||
                 windSpeed(getState().clock) !== startingWindSpeed) {
                 dispatch(recalculateState());

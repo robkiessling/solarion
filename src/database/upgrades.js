@@ -321,7 +321,7 @@ const database = {
     harvester_eff2: _.merge({}, base, {
         name: "Nanocarbon Threading",
         structure: 'harvester',
-        description: "Allows the harvester to be completely energy efficient when running at max speed",
+        description: "Allows the harvester to run at 100% energy efficiency even when running at max speed.",
         discoverWhen: {
             upgrades: ['harvester_eff1'],
             resources: {
@@ -333,7 +333,7 @@ const database = {
             refinedMinerals: 700
         },
         effect: {
-            energy: { add: 0.5 },
+            topEndEfficiency: { add: 0.5 },
         }
     }),
 
@@ -458,7 +458,7 @@ const database = {
         },
     }),
     solarPanel_global: _.merge({}, base, {
-        name: "Global Connect",
+        name: "Global Infrastructure",
         structure: 'solarPanel',
         description: "Averages the output of all Solar Farms across the globe, allowing energy to be produced at a constant rate.",
         effect: {
@@ -517,6 +517,42 @@ const database = {
             energyBoost: { add: 0.02 } // going from 3% to 5%
         }
     }),
+    energyBay_production3: _.merge({}, base, {
+        name: "Power Linking (III)",
+        structure: 'energyBay',
+        // description: `Increases ${getIconSpan('energy', true)} production boost to 5%`,
+        description: `Increases energy production boost to 10% per Energy Bay`,
+        discoverWhen: {
+            upgrades: ['energyBay_production2'],
+            resources: {
+                refinedMinerals: 1e5
+            }
+        },
+        cost: {
+            refinedMinerals: 1.7e6
+        },
+        effect: {
+            energyBoost: { add: 0.05 } // going from 5% to 10%
+        }
+    }),
+    energyBay_production4: _.merge({}, base, {
+        name: "Power Linking (IV)",
+        structure: 'energyBay',
+        // description: `Increases ${getIconSpan('energy', true)} production boost to 5%`,
+        description: `Increases energy production boost to 20% per Energy Bay`,
+        discoverWhen: {
+            upgrades: ['energyBay_production2'],
+            resources: {
+                refinedMinerals: 1e7
+            }
+        },
+        cost: {
+            refinedMinerals: 2.3e8
+        },
+        effect: {
+            energyBoost: { add: 0.1 } // going from 10% to 20%
+        }
+    }),
     energyBay_largerCapacity2: _.merge({}, base, {
         name: "Lithium Ions",
         structure: 'energyBay',
@@ -530,6 +566,23 @@ const database = {
         cost: {
             ore: 4000,
             refinedMinerals: 300
+        },
+        effect: {
+            capacity: { multiply: 5 }
+        }
+    }),
+    energyBay_largerCapacity3: _.merge({}, base, {
+        name: "Ultra-dense Matrix",
+        structure: 'energyBay',
+        description: "Multiplies energy bay capacity by 500%.",
+        discoverWhen: {
+            upgrades: ['energyBay_largerCapacity2'],
+            resources: {
+                refinedMinerals: 5e5
+            }
+        },
+        cost: {
+            refinedMinerals: 5.8e6
         },
         effect: {
             capacity: { multiply: 5 }
@@ -607,7 +660,7 @@ const database = {
         }
     }),
     windTurbine_global: _.merge({}, base, {
-        name: "Global Connect",
+        name: "Global Infrastructure",
         structure: 'windTurbine',
         description: "Averages the output of all Wind Turbines across the globe, allowing energy to be produced at a constant rate.",
         effect: {

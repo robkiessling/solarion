@@ -6,8 +6,9 @@ import React from 'react';
 import AsciiCanvas from "../lib/ascii_canvas";
 import {connect} from "react-redux";
 import {NUM_COLS, NUM_ROWS} from "../lib/outside";
-import {drawStarAndProbes} from "../lib/star";
+import {drawStarAndProbes, setupCache} from "../lib/star";
 import {getQuantity, getResource} from "../redux/modules/resources";
+import {STAR_FPS} from "../singletons/game_clock";
 
 class Star extends React.Component {
     constructor(props) {
@@ -15,15 +16,33 @@ class Star extends React.Component {
 
         this.canvasContainer = React.createRef();
         this.canvas = React.createRef();
+        this.cachedCanvas = React.createRef();
+
+        this.waitTimeMs = 1000.0 / STAR_FPS; // how long to wait between rendering
     }
 
     componentDidMount() {
-        this.canvasManager = new AsciiCanvas(this.canvasContainer.current, this.canvas.current, NUM_ROWS, NUM_COLS);
+        this.canvasManager = new AsciiCanvas(
+            this.canvasContainer.current, this.canvas.current, NUM_ROWS, NUM_COLS, this.cachedCanvas.current
+        );
+        setupCache(this.canvasManager)
     }
 
     shouldComponentUpdate(nextProps, nextState) {
-        // Checking both this props and next props to ensure we update on visibility changes
-        return this.props.visible || nextProps.visible;
+        if (this.props.visible !== nextProps.visible) {
+            return true;
+        }
+
+        if (!this.props.visible) {
+            return false;
+        }
+
+        if (this.lastRenderAt && this.lastRenderAt > (nextProps.elapsedTime - this.waitTimeMs)) {
+            return false;
+        }
+
+        this.lastRenderAt = nextProps.elapsedTime;
+        return true;
     }
 
     componentDidUpdate(prevProps, prevState) {
@@ -40,6 +59,7 @@ class Star extends React.Component {
         return (
             <div id="star-container" ref={this.canvasContainer} className={`${this.props.visible ? '' : 'hidden'}`}>
                 <canvas id="star-canvas" ref={this.canvas}></canvas>
+                <canvas id="star-canvas-cache" ref={this.cachedCanvas} className={'invisible'}></canvas>
             </div>
         );
     }

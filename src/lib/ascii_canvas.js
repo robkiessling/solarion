@@ -1,22 +1,33 @@
-import {debounce, mod} from "./helpers";
+import {debounce} from "./helpers";
 
 const FONT_RATIO = 3/5;
 const FONT_COLOR = '#fff';
 
 export const QUEUE_TYPES = {
     fillText: 0,
-    stroke: 1
+    stroke: 1,
+    drawCachedChar: 2
 }
 
 export default class AsciiCanvas {
-    constructor(container, canvas, numRows, numCols) {
+    constructor(container, canvas, numRows, numCols, cachedCanvas) {
         this.container = container;
         this.canvas = canvas;
-        this.context = canvas.getContext('2d');
+
+        // Turn off alpha for performance boost:
+        // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas#turn_off_transparency
+        this.context = this.canvas.getContext('2d', { alpha: true });
         this.context.fillStyle = FONT_COLOR;
         this.numRows = numRows;
         this.numCols = numCols;
-        this.queue = []
+        this.queue = [];
+
+        if (cachedCanvas) {
+            // cachedCanvas is used for pre-rendering and caching of text. See cacheChar function below for more information
+            this.cachedCanvas = cachedCanvas;
+            this.cachedContext = this.cachedCanvas.getContext('2d', { alpha: true });
+            this.cachedContext.fillStyle = FONT_COLOR;
+        }
 
         this._setupResize();
 
@@ -74,6 +85,15 @@ export default class AsciiCanvas {
 
         ellipse.xyPoints(numPoints, thetaOffset, (x, y) => {
             this.fillText(char, x + canvasCenterX, y + canvasCenterY)
+        });
+    }
+
+    // Same as drawEllipse but uses a cached char
+    drawEllipseCachedChar(ellipse, cacheIndex, numPoints, thetaOffset = 0) {
+        const [canvasCenterX, canvasCenterY] = this.center();
+
+        ellipse.xyPoints(numPoints, thetaOffset, (x, y) => {
+            this.drawCachedChar(cacheIndex, x + canvasCenterX, y + canvasCenterY);
         });
     }
 
@@ -168,11 +188,14 @@ export default class AsciiCanvas {
                     this.context.lineTo(args.endX, args.endY);
                     this.context.stroke();
                     break;
+                case QUEUE_TYPES.drawCachedChar:
+                    this._copyCachedChar(args.cacheIndex, args.x, args.y);
+                    break;
             }
         });
         this.queue = [];
     }
-    
+
     fillText(text, x, y) {
         if (this.queueFilter) {
             const filterArgs = { x, y, text };
@@ -184,38 +207,114 @@ export default class AsciiCanvas {
         this.context.fillText(text, x, y);
     }
 
+    /**
+     * -------- Char caching ---------
+     *
+     * fillText is an expensive canvas operation: https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas#more_tips
+     *
+     * If you're drawing the same char over and over (e.g. when drawing space probes), one optimization is to draw
+     * that char to an offscreen canvas and then use drawImage to copy that char from the offscreen canvas to the real canvas.
+     */
+
+    // Caches a char for later use. Returns the index of the cached char so you can refer to it with drawCachedChar
+    cacheChar(char, color) {
+        if (this.cache === undefined) {
+            this.cache = [];
+        }
+        this.cache.push({ char, color });
+        this._redrawCache();
+
+        return this.cache.length - 1;
+    }
+
+
+    // Draws a cached char to the real canvas (alternative to fillText)
+    drawCachedChar(cacheIndex, x, y) {
+        if (this.queueFilter) {
+            const filterArgs = { x, y, cacheIndex };
+            if (this.queueFilter(QUEUE_TYPES.drawCachedChar, filterArgs)) {
+                this.queue.push({ type: QUEUE_TYPES.drawCachedChar, args: filterArgs })
+                return;
+            }
+        }
+        this._copyCachedChar(cacheIndex, x, y);
+    }
+
+    _copyCachedChar(cacheIndex, x, y) {
+        this.context.drawImage(
+            this.cachedCanvas,
+            cacheIndex * this.fontWidth * this.ratio, // sx
+            0, // sy
+            this.fontWidth * this.ratio, // sWidth
+            this.fontHeight * this.ratio, // sHeight
+            x, // dx
+            y - this.fontHeight * this.ratio / 2, // dy
+            this.fontWidth, // dWidth
+            this.fontHeight, // dHeight
+        );
+    }
+
+    _redrawCache() {
+        this.cachedContext.clearRect(0, 0, this.width, this.height);
+
+        this.cache.forEach((item, index) => {
+            this.cachedContext.fillStyle = item.color;
+            this.cachedContext.fillText(item.char, index * this.fontWidth, this.fontHeight);
+        });
+    }
+
+
+
+
+
+
 
 
 
     resize() {
         this.setDimensions();
-        this._convertCanvasToHiDPI();
+
+        this._convertCanvasToHiDPI(this.canvas, this.context);
+
+        if (this.cachedCanvas) {
+            this._convertCanvasToHiDPI(this.cachedCanvas, this.cachedContext);
+        }
+
         this.context.font = this.fontHeight + 'px monospace';
+
+        if (this.cachedCanvas) {
+            this.cachedContext.font = this.fontHeight + 'px monospace';
+        }
+
         // TODO Have to immediately redraw the current frame
+        if (this.cachedCanvas && this.cache) {
+            this._redrawCache();
+        }
     }
 
     _setupResize() {
         window.addEventListener("resize", debounce(() => this.resize()));
     }
 
-    _convertCanvasToHiDPI(ratio) {
+    _convertCanvasToHiDPI(canvas, context, ratio) {
         if (!ratio) {
             // TODO Internet Explorer
             // https://stackoverflow.com/questions/22483296/html5-msbackingstorepixelratio-and-window-devicepixelratio-dont-exist-are-the
             const dpr = window.devicePixelRatio || 1;
-            const bsr = this.context.webkitBackingStorePixelRatio ||
-                this.context.mozBackingStorePixelRatio ||
-                this.context.msBackingStorePixelRatio ||
-                this.context.oBackingStorePixelRatio ||
-                this.context.backingStorePixelRatio || 1;
+            const bsr = context.webkitBackingStorePixelRatio ||
+                context.mozBackingStorePixelRatio ||
+                context.msBackingStorePixelRatio ||
+                context.oBackingStorePixelRatio ||
+                context.backingStorePixelRatio || 1;
             ratio = dpr / bsr;
         }
 
-        this.canvas.width = this.width * ratio;
-        this.canvas.height = this.height * ratio;
-        this.canvas.style.width = this.width + "px";
-        this.canvas.style.height = this.height + "px";
-        this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        canvas.width = this.width * ratio;
+        canvas.height = this.height * ratio;
+        canvas.style.width = this.width + "px";
+        canvas.style.height = this.height + "px";
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        this.ratio = ratio;
     }
 
 }

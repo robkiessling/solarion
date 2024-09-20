@@ -17,6 +17,9 @@ const PROBE_RADIUS_B = 50;
 const PROBES_PER_ELLIPSE = 100;
 const PROBE_ORBIT_TIME = 30;
 const PROBE_CHAR = 'X';
+const PROBE_COLOR = '#fff';
+
+const USE_CACHED_CANVAS = true;
 
 // Note: if you change this you will have to change the addQueueFilter logic, as well as update the
 //       generateProbeEllipse's h and k coordinates
@@ -59,12 +62,13 @@ const PROBES_MAX_VISIBLE = PROBE_ELLIPSES.length * PROBES_PER_ELLIPSE;
 const PLANET_POSITION = [5, 0.9]; // percent of canvas to draw lines to
 
 // "Zaps" are the line flashes that appear when a probe is created (showing where the probe was sent from)
-const ZAP_ENABLED = true;
+const ZAP_ENABLED = false;
 const ZAP_DURATION = 200;
 const ZAP_STARTING_OPACITY = 0.7;
 const ZAP_ENDING_OPACITY = 0.1;
 const ZAP_HIDE_AT_NUM_PROBES = 1800;
 
+const MIRRORS_ENABLED = false;
 const MAX_MIRRORS = 100;
 const MIRROR_COLOR = 'rgba(255,255,0,0.2)'
 
@@ -111,6 +115,15 @@ export function generateRandomProbeDist() {
     return distribution;
 }
 
+let CACHED_PROBE_CHAR, CACHED_SUN_CHAR_A, CACHED_SUN_CHAR_B;
+export function setupCache(manager) {
+    if (USE_CACHED_CANVAS) {
+        CACHED_PROBE_CHAR = manager.cacheChar(PROBE_CHAR, PROBE_COLOR);
+        CACHED_SUN_CHAR_A = manager.cacheChar(SUN_CHAR_A, SUN_FOREGROUND);
+        CACHED_SUN_CHAR_B = manager.cacheChar(SUN_CHAR_B, SUN_FOREGROUND);
+    }
+}
+
 // Draws many probe ellipses to simulate the appearance of a 3-dimensional donut shape. Also draws a sun in the center
 // of the donut.
 export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numProbes) {
@@ -134,13 +147,16 @@ export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numPro
         // We multiply y by -1 because for a canvas a positive y means go DOWN.
         switch(type) {
             case QUEUE_TYPES.fillText:
+            case QUEUE_TYPES.drawCachedChar:
                 return -1 * args.y < m * args.x + b;
             case QUEUE_TYPES.stroke:
                 return -1 * args.startY < m * args.startX + b;
         }
     })
 
-    drawMirrors(canvas, probeDistribution, numProbes, orbitTheta);
+    if (MIRRORS_ENABLED) {
+        drawMirrors(canvas, probeDistribution, numProbes, orbitTheta);
+    }
     drawProbes(canvas, probeDistribution, numProbes, orbitTheta);
 
     canvas.removeQueueFilter();
@@ -148,7 +164,7 @@ export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numPro
     drawSun(canvas, orbitTheta);
 
     // Set styles accordingly so we can process the queued mirrors/probes
-    canvas.setFillStyle('#fff');
+    canvas.setFillStyle(PROBE_COLOR);
     canvas.setStrokeStyle(MIRROR_COLOR);
     canvas.processQueue();
 
@@ -176,11 +192,16 @@ function drawMirrors(canvas, probeDistribution, numProbes, thetaOffset) {
 function drawProbes(canvas, probeDistribution, numProbes, thetaOffset) {
     const [centerX, centerY] = canvas.center();
 
-    canvas.setFillStyle('#fff');
+    canvas.setFillStyle(PROBE_COLOR);
 
     probeDistribution.slice(0, numProbes).forEach(probeCoord => {
         const [x, y] = PROBE_ELLIPSES[probeCoord[0]].xyPoint(PROBES_PER_ELLIPSE, thetaOffset, probeCoord[1]);
-        canvas.fillText(PROBE_CHAR, x + centerX, y + centerY);
+        if (USE_CACHED_CANVAS) {
+            canvas.drawCachedChar(CACHED_PROBE_CHAR, x + centerX, y + centerY);
+        }
+        else {
+            canvas.fillText(PROBE_CHAR, x + centerX, y + centerY);
+        }
     })
 }
 
@@ -194,21 +215,40 @@ function drawSun(canvas, orbitTheta) {
     for (let i = 0; i < SUN_ELLIPSE_COUNT; i++) {
         const offset = i === 0 ? 0.1 : stepSize * i;
 
-        // Sun ellipses in the horizontal direction
-        canvas.drawEllipse(
-            new Ellipse(SUN_SIZE, SUN_SIZE * offset),
-            i % 2 === 0 ? SUN_CHAR_A : SUN_CHAR_B,
-            SUN_CHARS_PER_ELLIPSE,
-            orbitTheta
-        );
+        if (USE_CACHED_CANVAS) {
+            // Sun ellipses in the horizontal direction
+            canvas.drawEllipseCachedChar(
+                new Ellipse(SUN_SIZE, SUN_SIZE * offset),
+                i % 2 === 0 ? CACHED_SUN_CHAR_A : CACHED_SUN_CHAR_B,
+                SUN_CHARS_PER_ELLIPSE,
+                orbitTheta
+            );
 
-        // Sun ellipses in the vertical direction
-        canvas.drawEllipse(
-            new Ellipse(SUN_SIZE * offset, SUN_SIZE),
-            i % 2 === 0 ? SUN_CHAR_B : SUN_CHAR_A,
-            SUN_CHARS_PER_ELLIPSE,
-            orbitTheta
-        );
+            // Sun ellipses in the vertical direction
+            canvas.drawEllipseCachedChar(
+                new Ellipse(SUN_SIZE * offset, SUN_SIZE),
+                i % 2 === 0 ? CACHED_SUN_CHAR_B : CACHED_SUN_CHAR_A,
+                SUN_CHARS_PER_ELLIPSE,
+                orbitTheta
+            );
+        }
+        else {
+            // Sun ellipses in the horizontal direction
+            canvas.drawEllipse(
+                new Ellipse(SUN_SIZE, SUN_SIZE * offset),
+                i % 2 === 0 ? SUN_CHAR_A : SUN_CHAR_B,
+                SUN_CHARS_PER_ELLIPSE,
+                orbitTheta
+            );
+
+            // Sun ellipses in the vertical direction
+            canvas.drawEllipse(
+                new Ellipse(SUN_SIZE * offset, SUN_SIZE),
+                i % 2 === 0 ? SUN_CHAR_B : SUN_CHAR_A,
+                SUN_CHARS_PER_ELLIPSE,
+                orbitTheta
+            );
+        }
     }
 }
 

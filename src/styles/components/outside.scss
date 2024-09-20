@@ -146,7 +146,7 @@ $top-bar-float-padding: 0.875rem;
   flex: 1;
   position: relative;
   overflow: hidden; // sides (left/right) can get truncated based on screen size
-  background: $black;
+  background: #000;
 
   canvas {
 

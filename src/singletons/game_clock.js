@@ -8,7 +8,10 @@ import {abilitiesTick} from "../redux/modules/abilities";
 import {structuresTick} from "../redux/modules/structures";
 import {planetTick} from "../redux/modules/planet";
 
-const CLOCK_FPS = 10; // todo affects outside rendering
+const CLOCK_FPS = 30;
+export const OUTSIDE_FPS = 10;
+export const STAR_FPS = 30;
+
 const STRUCT_FPS = 10;
 const ABILITIES_FPS = 10; // todo this is only for button animation... find a way to reduce
 
