@@ -6,14 +6,15 @@ import {
 } from "../redux/modules/structures";
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {daylightPercent, windSpeed} from "../redux/modules/clock";
-import {canConsume, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
+import {canConsume, getCapacity, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
 import {round} from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
 import {formatInteger, redText} from "../lib/helpers";
 import {upgradesAffectingStructure} from "./upgrades";
 import {abilitiesAffectingStructure} from "./abilities";
 import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations} from "../lib/effect";
-import {getStructureStatistic} from "../redux/reducer";
+import {energyBeamStrengthEnergy, energyBeamStrengthPct, getStructureStatistic} from "../redux/reducer";
+import {isTargetingPlanet, TARGETS} from "../redux/modules/star";
 
 export const STATUSES = {
     normal: 0,
@@ -118,6 +119,12 @@ export default {
         description: "Manufactures and launches probes towards Solarion V.",
         runnable: true,
         type: TYPES.consumer,
+        droidData: {
+            usesDroids: false
+        },
+        count: {
+            max: 1
+        }
     }),
 
 };
@@ -189,6 +196,8 @@ export const calculators = {
             variables.ore *= netDroidPerformanceBoost(state, structure);
             variables.ore *= rate;
 
+            applyMirrorBoost(state, variables, ['energy', 'ore'])
+
             return variables;
         },
         cost: (state, structure) => ({
@@ -218,6 +227,7 @@ export const calculators = {
                 daylight: daylightPercent(state.clock),
                 minDaylight: 0, // minimum daylight percentage
                 globalAverageRate: 0, // once set (when solarPanel has expanded across global), will replace daylight value
+                probeMirrorPct: 0, // if probes are targeting the planet, this value will be set and overrides all other daylight
                 peakEnergy: 5, // amount of energy generated in peak daylight
                 actualEnergy: undefined // amount of energy actually generated (defined later based on sunlight)
             }
@@ -231,11 +241,14 @@ export const calculators = {
             if (variables.globalAverageRate) {
                 variables.daylight = variables.globalAverageRate;
             }
-            if (state.resources.byId.probes && state.resources.byId.probes.amount && state.star.mirrorTarget === 'planet') {
-                variables.daylight = 100 * state.resources.byId.probes.amount
-            }
 
             variables.actualEnergy = variables.peakEnergy * variables.daylight;
+
+            if (isTargetingPlanet(state.star)) {
+                variables.probeMirrorPct = energyBeamStrengthPct(state);
+                variables.actualEnergy = energyBeamStrengthEnergy(state);
+            }
+
             return variables;
         },
         cost: (state, structure) => ({
@@ -245,8 +258,8 @@ export const calculators = {
             energy: variables.actualEnergy
         }),
         statusMessage: (state, structure, variables) => {
-            if (variables.daylight > 1000) {
-                return `1% solar output`
+            if (variables.probeMirrorPct) {
+                return `Receiving Probe Beams`
             }
             if (variables.daylight === 0) {
                 return redText(`${variables.daylight * 100}% sunlight`);
@@ -254,6 +267,10 @@ export const calculators = {
             return `${variables.daylight * 100}% sunlight`;
         },
         description: (state, structure, variables) => {
+            if (variables.probeMirrorPct) {
+                return `Available energy equals total probe output and does not need to be stored.`
+            }
+
             return `Produces up to ${formatInteger(variables.peakEnergy, true)}${getIconSpan('energy', true)} per second depending on sunlight.`;
         },
     }),
@@ -404,6 +421,9 @@ export const calculators = {
             applyAllEffects(state, variables, structure);
 
             variables.refinedMinerals *= netDroidPerformanceBoost(state, structure);
+
+            applyMirrorBoost(state, variables, ['energy', 'ore', 'refinedMinerals'])
+
             if (daylightPercent(state.clock) === 0) {
                 variables.energy *= (1 - variables.nightReduction);
             }
@@ -443,14 +463,27 @@ export const calculators = {
         }),
     }),
     probeFactory: _.merge({}, baseCalculator, {
+        variables: (state, structure) => {
+            const variables = {
+                energy: 666,
+                refinedMinerals: 837,
+                probes: 1
+            }
+
+            applyAllEffects(state, variables, structure);
+            variables.probes *= netDroidPerformanceBoost(state, structure);
+            applyMirrorBoost(state, variables, ['energy', 'refinedMinerals', 'probes'])
+
+            return variables;
+        },
         cost: (state, structure) => ({
-            ore: 4e7 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
-            refinedMinerals: 1e7 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
-            energy: 2e7 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
+            ore: 4e7 * (5)**(getNumBuilt(structure)),
+            refinedMinerals: 1e7 * (5)**(getNumBuilt(structure)),
+            energy: 2e7 * (5)**(getNumBuilt(structure)),
         }),
-        consumes: (state, structure) => ({
-            energy: 666 * getRunningRate(structure),
-            refinedMinerals: 837 * getRunningRate(structure)
+        consumes: (state, structure, variables) => ({
+            energy: variables.energy * getRunningRate(structure),
+            refinedMinerals: variables.refinedMinerals * getRunningRate(structure)
         }),
         statusMessage: (state, structure, variables) => {
             if (!isRunning(structure)) {
@@ -463,10 +496,10 @@ export const calculators = {
                 return RUNNING_LABEL
             }
         },
-        produces: (state, structure) => {
+        produces: (state, structure, variables) => {
             return {
                 // Dividing by 1000 because we generally have around x1000 replication bonus
-                probes: getRunningRate(structure) * netDroidPerformanceBoost(state, structure)
+                probes: variables.probes * getRunningRate(structure)
             }
         },
     })
@@ -528,6 +561,26 @@ function netEnergyBayBoost(state) {
     // return 1 + getStructureStatistic(state, getStructure(state.structures, 'energyBay'), 'boost', false).energy;
 }
 
+
+function netProbeMirrorBoost(state) {
+    let boost = 1;
+    if (isTargetingPlanet(state.star) && isResearched(getUpgrade(state.upgrades, 'probeFactory_exponentialGrowth'))) {
+        const probes = getResource(state.resources, 'probes')
+        const probePct = getQuantity(probes) / getCapacity(probes); // will return a percentage scale, i.e. [0.0, 1.0]
+
+        boost += probePct * 100 // [0 to 100% boost]
+    }
+    return boost;
+}
+function applyMirrorBoost(state, variables, applicableKeys) {
+    variables.energy *= netProbeMirrorBoost(state);
+
+    const boost = netProbeMirrorBoost(state);
+
+    if (boost !== 1) {
+        applicableKeys.forEach(key => variables[key] *= boost)
+    }
+}
 
 
 

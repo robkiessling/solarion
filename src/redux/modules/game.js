@@ -26,6 +26,10 @@ const initialState = {
 
     showStructureTabs: false,
     currentStructureTab: 'all',
+
+    // end game variables
+    rapidlyRecalcEnergy: false,
+    blockPointerEvents: false,
 }
 
 // Reducers

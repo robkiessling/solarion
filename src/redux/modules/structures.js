@@ -1,8 +1,9 @@
 import update from 'immutability-helper';
 import database, {calculators, STATUSES, TYPES} from '../../database/structures'
 import {mapObject} from "../../lib/helpers";
-import {withRecalculation} from "../reducer";
+import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
+import {isTargetingPlanet} from "./star";
 
 export { calculators };
 const RUNNING_COOLDOWN = 2; // After running out of resources, wait this number of seconds before running again
@@ -79,7 +80,7 @@ export default function reducer(state = initialState, action) {
                 byId: {
                     [payload.id]: {
                         droidData: {
-                            numDroidsAssigned: { $apply: (x) => x + 1 }
+                            numDroidsAssigned: { $apply: (x) => x + payload.amount }
                         }
                     }
                 }
@@ -89,7 +90,7 @@ export default function reducer(state = initialState, action) {
                 byId: {
                     [payload.id]: {
                         droidData: {
-                            numDroidsAssigned: { $apply: (x) => x - 1 }
+                            numDroidsAssigned: { $apply: (x) => x - payload.amount }
                         }
                     }
                 }
@@ -129,11 +130,11 @@ export function buildForFree(id, amount) {
     return withRecalculation({ type: BUILD_FOR_FREE, payload: { id, amount } });
 }
 
-export function assignDroidUnsafe(id) {
-    return withRecalculation({ type: ASSIGN_DROID, payload: { id } });
+export function assignDroidUnsafe(id, amount = 1) {
+    return withRecalculation({ type: ASSIGN_DROID, payload: { id, amount } });
 }
-export function removeDroidUnsafe(id) {
-    return withRecalculation({ type: REMOVE_DROID, payload: { id } });
+export function removeDroidUnsafe(id, amount = 1) {
+    return withRecalculation({ type: REMOVE_DROID, payload: { id, amount } });
 }
 
 export function turnOff(id) {
@@ -152,9 +153,13 @@ export function setStatus(dispatch, structure, status) {
 
 export function structuresTick(timeDelta) {
     return (dispatch, getState) => {
-        batch(() => {
-            dispatch({ type: PROGRESS, payload: { timeDelta } });
-        });
+        dispatch({ type: PROGRESS, payload: { timeDelta } });
+
+        if (getState().game.rapidlyRecalcEnergy) {
+            // Need to rapidly recalculate structure variables because it is changing with every new probe added
+            dispatch(recalculateState('structures', 'probeFactory'));
+            dispatch(recalculateState('structures', 'solarPanel'));
+        }
     }
 }
 

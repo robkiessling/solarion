@@ -51,11 +51,11 @@ export default function reducer(state = initialState, action) {
             return produceReducer(state, fromAbilities.getAbilityProduction(payload.ability));
         case fromStructures.ASSIGN_DROID:
         case fromPlanet.ASSIGN_DROID:
-            return consumeReducer(state, { standardDroids: 1 })
+            return consumeReducer(state, { standardDroids: payload.amount })
         case fromStructures.REMOVE_DROID:
         case fromPlanet.REMOVE_DROID:
             // Do not want assigning/removing droids to affect lifetimeTotal
-            return produceReducer(state, { standardDroids: 1 }, false)
+            return produceReducer(state, { standardDroids: payload.amount }, false)
         case fromPlanet.GENERATE_MAP:
             return produceReducer(state, { buildableLand: numSectorsMatching(payload.map, STATUSES.explored.enum, TERRAINS.flatland.enum) })
         case fromPlanet.FINISH_EXPLORING_SECTOR:

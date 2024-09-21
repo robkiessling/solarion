@@ -11,6 +11,7 @@ import NavigationTabs from "./navigation_tabs";
 import Planet from "./planet";
 import PlanetTools from "./planet_tools";
 import Star from "./star";
+import BlockPointerEvents from "./block_pointer_events";
 
 export default class App extends React.Component {
     render() {
@@ -34,23 +35,7 @@ export default class App extends React.Component {
 
                 </div>
                 <div id={"tooltip-container"}></div>
-
-                {/*<div className="top-row">*/}
-                {/*    <Outside/>*/}
-                {/*    <PlanetStatus/>*/}
-                {/*    <ResourceBar/>*/}
-                {/*    <NavigationTabs/>*/}
-                {/*    <Planet/>*/}
-                {/*</div>*/}
-                {/*<div className="bottom-row">*/}
-                {/*    <div className="left-column">*/}
-                {/*        <Log/>*/}
-                {/*        <Computer/>*/}
-                {/*    </div>*/}
-                {/*    <div className="right-column">*/}
-                {/*        <Structures/>*/}
-                {/*    </div>*/}
-                {/*</div>*/}
+                <BlockPointerEvents/>
             </div>
         );
     }

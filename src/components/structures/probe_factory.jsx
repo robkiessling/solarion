@@ -2,6 +2,9 @@ import React from 'react';
 import Structure from "./structure";
 import {connect} from "react-redux";
 import {getStructure} from "../../redux/modules/structures";
+import {energyBeamStrengthPct} from "../../redux/reducer";
+import Dropdown from "../ui/dropdown";
+import {aimMirrors, TARGET_LABELS} from "../../redux/modules/star";
 
 
 export class ProbeFactory extends React.Component {
@@ -10,20 +13,35 @@ export class ProbeFactory extends React.Component {
     }
 
     render() {
+        const targets = Object.entries(TARGET_LABELS).map(
+            ([k, v]) => ({ text: v, value: k })
+        )
+
+        let mirrorAmountColor = '#fff';
+        if (this.props.mirrorAmount >= 0.02) {
+            mirrorAmountColor = '#ff9900';
+        }
+        if (this.props.mirrorAmount >= 0.2) {
+            mirrorAmountColor = '#ff0000';
+        }
+
         return (
             <Structure type="probeFactory">
                 {
-                    this.props.isBuilt && this.props.mirrorEnabled &&
+                    this.props.isBuilt && this.props.mirrorsOnline &&
                     <div className={`d-flex space-between`} style={{'marginTop': '1rem'}}>
                         <div>Mirror Target:</div>
-                        <div>{this.props.mirrorTarget}</div>
+                        <div>
+                            <Dropdown options={targets} selected={this.props.mirrorTarget}
+                                      onChange={value => this.props.aimMirrors(value)} />
+                        </div>
                     </div>
                 }
                 {
-                    this.props.isBuilt && this.props.mirrorEnabled &&
-                    <div className={`d-flex space-between`} style={{'marginBottom': '1rem'}}>
+                    this.props.isBuilt && this.props.mirrorsOnline &&
+                    <div className={`d-flex space-between`}>
                         <div>Mirrored Amount:</div>
-                        <div>{Math.floor(this.props.mirrorAmount * 100)}%</div>
+                        <div style={{color: mirrorAmountColor}}>{Math.floor(this.props.mirrorAmount * 100)}%</div>
                     </div>
                 }
             </Structure>
@@ -36,14 +54,14 @@ const mapStateToProps = (state, ownProps) => {
 
     return {
         isBuilt: structure.count.total > 0,
-        mirrorEnabled: state.star.mirrorEnabled,
+        mirrorsOnline: state.star.mirrorsOnline,
         mirrorTarget: state.star.mirrorTarget,
-        mirrorAmount: state.star.mirrorAmount,
+        mirrorAmount: energyBeamStrengthPct(state),
     }
 }
 
 export default connect(
     mapStateToProps,
-    {}
+    {aimMirrors}
 )(ProbeFactory);
 

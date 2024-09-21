@@ -2,6 +2,15 @@ import update from 'immutability-helper';
 import {recalculateState, withRecalculation} from "../reducer";
 import {generateRandomProbeDist} from "../../lib/star";
 
+export const TARGETS = {
+    NONE: 'none',
+    PLANET: 'planet'
+}
+export const TARGET_LABELS = {
+    [TARGETS.NONE]: 'None',
+    [TARGETS.PLANET]: 'Planet',
+}
+
 // Actions
 export const GENERATE_PROBE_DIST = 'star/GENERATE_PROBE_DIST';
 export const UPDATE_SETTING = 'star/UPDATE_SETTING';
@@ -9,9 +18,9 @@ export const UPDATE_SETTING = 'star/UPDATE_SETTING';
 // Initial State
 const initialState = {
     distribution: [],
-    mirrorEnabled: false,
-    mirrorTarget: null,
-    mirrorAmount: 0,
+    mirrorsOnline: false,
+    mirrorTarget: TARGETS.NONE,
+    hyperBeamStartedAt: null,
 }
 
 // Reducer
@@ -43,3 +52,14 @@ export function updateSetting(key, value) {
     return { type: UPDATE_SETTING, payload: { key, value } }
 }
 
+export function aimMirrors(target) {
+    return withRecalculation(updateSetting('mirrorTarget', target));
+}
+
+export function startEnergyBeam(time) {
+    return { type: UPDATE_SETTING, payload: { key: 'hyperBeamStartedAt', value: time } }
+}
+
+export function isTargetingPlanet(state) {
+    return state && state.mirrorTarget && state.mirrorTarget === TARGETS.PLANET;
+}

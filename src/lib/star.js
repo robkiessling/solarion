@@ -62,14 +62,21 @@ const PROBES_MAX_VISIBLE = PROBE_ELLIPSES.length * PROBES_PER_ELLIPSE;
 
 const PLANET_POSITION = [5, 0.9]; // percent of canvas to draw lines to
 
+// percent of canvas to draw lines to
+const TARGETS = {
+    planet: [5, 0.9],
+}
+
 // "Zaps" are the line flashes that appear when a probe is created (showing where the probe was sent from)
 const ZAP_ENABLED = true;
 const ZAP_DURATION = 200;
 const ZAP_STARTING_OPACITY = 0.7;
 const ZAP_ENDING_OPACITY = 0;
-const ZAP_HIDE_AT_NUM_PROBES = 500;
+const ZAP_HIDE_AT_NUM_PROBES = 100;
 
-const MIRROR_COLOR = 'rgba(255,255,0,0.2)'
+const MIRROR_COLOR = 'rgba(255,255,0,0.5)'
+
+export const HYPER_BEAM_CHARGE_TIME = 10000; // 10 seconds
 
 /**
  * Creates an ellipse to represent a ring of probes orbiting the star
@@ -159,7 +166,7 @@ export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numPro
         }
     })
 
-    if (mirrorSettings && mirrorSettings.mirrorEnabled) {
+    if (mirrorSettings && mirrorSettings.mirrorsOnline) {
         drawMirrors(canvas, probeDistribution, numProbes, orbitTheta, mirrorSettings);
     }
     drawProbes(canvas, probeDistribution, numProbes, orbitTheta);
@@ -179,13 +186,14 @@ export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numPro
 }
 
 function drawMirrors(canvas, probeDistribution, numProbes, thetaOffset, mirrorSettings) {
+    const target = TARGETS[mirrorSettings.mirrorTarget];
+    if (!target) { return; }
+
+    const endPoint = { x: canvas.width * target[0], y: canvas.height * target[1] };
+    const maxMirrors = mirrorSettings.mirrorAmount * PROBES_MAX_VISIBLE;
     const [centerX, centerY] = canvas.center();
 
     canvas.setStrokeStyle(MIRROR_COLOR);
-    const endPoint = { x: canvas.width * PLANET_POSITION[0], y: canvas.height * PLANET_POSITION[1] }
-
-    // Draw mirror reflection lines first
-    const maxMirrors = mirrorSettings.mirrorAmount * PROBES_MAX_VISIBLE
     probeDistribution.slice(0, Math.min(numProbes, maxMirrors)).forEach(probeCoord => {
         const [x, y] = PROBE_ELLIPSES[probeCoord[0]].xyPoint(PROBES_PER_ELLIPSE, thetaOffset, probeCoord[1]);
         canvas.drawLine(

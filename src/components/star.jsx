@@ -9,6 +9,7 @@ import {NUM_COLS, NUM_ROWS} from "../lib/outside";
 import {drawStarAndProbes, setupCache} from "../lib/star";
 import {getQuantity, getResource} from "../redux/modules/resources";
 import {STAR_FPS} from "../singletons/game_clock";
+import {energyBeamStrengthPct} from "../redux/reducer";
 
 class Star extends React.Component {
     constructor(props) {
@@ -80,9 +81,9 @@ const mapStateToProps = state => {
         probeDistribution: state.star.distribution,
         numProbes: Math.floor(getQuantity(getResource(state.resources, 'probes'))),
         mirrorSettings: {
-            mirrorEnabled: state.star.mirrorEnabled,
+            mirrorsOnline: state.star.mirrorsOnline,
             mirrorTarget: state.star.mirrorTarget,
-            mirrorAmount: state.star.mirrorAmount,
+            mirrorAmount: energyBeamStrengthPct(state)
         }
     }
 };

@@ -1,7 +1,8 @@
 
 import {getStructure} from "../redux/modules/structures";
-import {getStructureStatistic} from "../redux/reducer";
+import {energyBeamStrengthEnergy, energyBeamStrengthPct, getStructureStatistic} from "../redux/reducer";
 import {probeCapacity} from "../lib/star";
+import {isTargetingPlanet} from "../redux/modules/star";
 
 const base = {
     name: 'Unknown',
@@ -74,6 +75,12 @@ export const calculators = {
             const energyBay = getStructure(state.structures, 'energyBay');
             if (energyBay) {
                 capacity += getStructureStatistic(state, energyBay, 'capacity').energy;
+            }
+
+            if (isTargetingPlanet(state.star)) {
+                // Capacity becomes directly proportional to mirrored energy output
+                const solarPanel = getStructure(state.structures, 'solarPanel');
+                capacity = getStructureStatistic(state, solarPanel, 'produces').energy
             }
 
             return capacity;

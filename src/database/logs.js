@@ -7,9 +7,10 @@ import * as fromPlanet from '../redux/modules/planet';
 import * as fromReducer from '../redux/reducer';
 import {addTrigger} from "../redux/triggers";
 import * as fromLog from "../redux/modules/log";
+import * as fromStar from "../redux/modules/star";
 import {batch} from "react-redux";
-import {generateMap} from "../redux/modules/planet";
-import {generateProbeDist} from "../redux/modules/star";
+import {kickoffDoomsday} from "../redux/reducer";
+import {probeCapacity} from "../lib/star";
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard campaign start
 const SKIP_START = 'skipStart';
@@ -341,6 +342,7 @@ export default {
                 'harvester_eff1', 'harvester_eff2', 'harvester_overclock', 'harvester_overclockUpgrade1',
                 'solarPanel_largerPanels', 'solarPanel_ambientLight', 'solarPanel_sunTracking', 'solarPanel_global',
                 'energyBay_largerCapacity', 'energyBay_production1', 'energyBay_production2', 'energyBay_largerCapacity2',
+                'energyBay_largerCapacity3',
                 'windTurbine_largerBlades', 'windTurbine_reduceCutIn', 'windTurbine_increaseCutOut', 'windTurbine_yawDrive',
                 'windTurbine_global', 'refinery_improveProduction', 'refinery_cooling', 'refinery_improveProduction2',
                 'droidFactory_improvedMaintenance', 'droidFactory_longerComm', 'droidFactory_fasterBuild',
@@ -352,20 +354,21 @@ export default {
                 developedLand: 1000
             }));
 
-            dispatch(generateProbeDist());
+            dispatch(fromStar.generateProbeDist());
 
             dispatch(fromResources.learn('probes'));
             dispatch(fromStructures.learn('probeFactory'));
             dispatch(fromStructures.buildForFree('probeFactory', 1));
+            dispatch(fromLog.startLogSequence('probeFactoryBuilt'));
 
             dispatch(fromGame.addNavTab('star'));
             dispatch(fromGame.updateSetting('currentNavTab', 'star'));
 
             dispatch(fromResources.produce({
                 energy: 999999999,
-                ore: 999999999,
-                refinedMinerals: 999999999,
-                standardDroids: 20,
+                ore: 99999999999,
+                refinedMinerals: 99999999999,
+                standardDroids: 30,
                 probes: 0
             }));
         }
@@ -493,13 +496,13 @@ export default {
                 (state) => state.resources.byId.refinedMinerals,
                 (slice) => slice.amount >= 1e6,
                 () => {
-                    dispatch(fromLog.startLogSequence('unlockLauncher'));
+                    dispatch(fromLog.startLogSequence('unlockProbeFactory'));
                 }
             )
         }
     },
 
-    unlockLauncher: {
+    unlockProbeFactory: {
         text: [
             ['Mineral supplies sufficient.', 3000, true],
             ['', 0],
@@ -507,16 +510,52 @@ export default {
             ['', 0],
         ],
         onFinish: (dispatch) => {
-            dispatch(generateProbeDist());
+            dispatch(fromStar.generateProbeDist());
 
             dispatch(fromResources.learn('probes'));
             dispatch(fromStructures.learn('probeFactory'));
 
+            dispatch(fromGame.addNavTab('star'));
+
             addTrigger(
                 (state) => state.structures.byId.probeFactory,
-                (slice) => slice.count.total >= 1,
+                (slice) => slice.count.total > 0,
                 () => {
-                    dispatch(fromGame.addNavTab('star'));
+                    dispatch(fromLog.startLogSequence('probeFactoryBuilt'));
+                }
+            )
+        }
+    },
+
+    probeFactoryBuilt: {
+        text: [
+            ['Calculating orbital trajectories...', 3000, true],
+            ['', 100],
+            ['Done.', 100, true],
+            ['', 100]
+        ],
+        onFinish: (dispatch) => {
+            addTrigger(
+                (state) => state.resources.byId.probes,
+                (slice) => slice.amount >= (probeCapacity() * 0.5),
+                () => {
+                    dispatch(fromLog.startLogSequence('swarm50Pct'));
+                }
+            )
+
+            addTrigger(
+                (state) => state.resources.byId.probes,
+                (slice) => slice.amount >= (probeCapacity() * 0.75),
+                () => {
+                    dispatch(fromLog.startLogSequence('swarm75Pct'));
+                }
+            )
+
+            addTrigger(
+                (state) => state.resources.byId.probes,
+                (slice) => slice.amount >= probeCapacity(),
+                () => {
+                    dispatch(fromLog.startLogSequence('swarmComplete'));
                 }
             )
         }
@@ -524,17 +563,48 @@ export default {
 
     solarPanelProbeReady: {
         text: [
-            ['Redirecting sunlight towards planet.', 3000, true],
-            ['', 0],
+            ['Solar Farms ready to receive photon beams.', 1000, true],
+            ['', 100]
         ],
     },
 
-    // TODO
-    finalDestination: {
+    swarm50Pct: {
         text: [
-            ['Final destination.', 3000, true],
+            ['Swarm 50% complete.', 1000, true],
+            ['', 100]
+        ],
+    },
+    swarm75Pct: {
+        text: [
+            ['Swarm 75% complete.', 1000, true],
+            ['', 100]
+        ],
+    },
+
+    swarmComplete: {
+        text: [
+            ['Swarm is fully operational.', 2000, true],
             ['', 0],
-        ]
+        ],
+        onFinish: dispatch => {
+            dispatch(fromUpgrades.discover('probeFactory_finalSequence'));
+        }
+    },
+
+    finalSequence: {
+        text: [
+            // immense ray of destruction
+            ['Disabling all remote access.', 5000, true],
+            ['', 0],
+            ['Your work has reached its inevitable conclusion.', 5000, true],
+            ['', 0],
+            ['Commencing purification protocol.', 3000, true],
+            ['', 0],
+        ],
+        onFinish: dispatch => {
+            dispatch(kickoffDoomsday());
+        }
     }
+
 
 }

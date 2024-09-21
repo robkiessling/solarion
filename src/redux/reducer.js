@@ -3,7 +3,7 @@ import {batch} from "react-redux";
 import reduceReducers from "reduce-reducers";
 import update from 'immutability-helper';
 
-import game from './modules/game';
+import game, * as fromGame from './modules/game';
 import clock, * as fromClock from './modules/clock';
 import log, * as fromLog from './modules/log';
 import structures, * as fromStructures from "./modules/structures";
@@ -16,6 +16,9 @@ import {mapObject, roundToDecimal} from "../lib/helpers";
 import {STATUSES} from "../database/structures";
 import {generateImage} from "../lib/planet_map";
 import {getQuantity, getResource} from "./modules/resources";
+import {aimMirrors, isTargetingPlanet, startEnergyBeam, TARGETS} from "./modules/star";
+import {HYPER_BEAM_CHARGE_TIME} from "../lib/star";
+import {getStructure} from "./modules/structures";
 
 // Actions
 export const RECALCULATE = 'reducer/RECALCULATE';
@@ -36,46 +39,19 @@ export default reduceReducers(
 
     // cross-cutting entire state
     (state, action) => {
-        switch(action.type) {
+        switch (action.type) {
             case RECALCULATE:
-                return recalculateReducer(state);
+                return recalculateReducer(state, action.payload.onlySlice, action.payload.onlyId);
             default:
                 return state;
         }
     }
 );
 
-// Many values, such as production values or consumption values, change over time (e.g. when upgrades are researched).
-// Whenever this happens we call recalculateState, which will use the database `calculators` to snapshot the new production
-// or consumption values.
-// TODO let you just recalculate a piece of the state (e.g. just structures, or even just structures->solarPanel)
-function recalculateReducer(state) {
-    state = update(state, {
-        structures: {
-            byId: recalculateSlice(state, 'structures', fromStructures.calculators)
-        }
-    });
-
-    state = update(state, {
-        abilities: {
-            byId: recalculateSlice(state, 'abilities', fromAbilities.calculators)
-        }
-    })
-
-    // Store totals? nah not yet
-
-    // Update resource capacities
-    return update(state, {
-        resources: {
-            byId: recalculateSlice(state, 'resources', fromResources.calculators)
-        }
-    })
-}
-
 
 // Action Creators
-export function recalculateState() {
-    return { type: RECALCULATE };
+export function recalculateState(onlySlice, onlyId) {
+    return { type: RECALCULATE, payload: { onlySlice, onlyId } };
 }
 
 // Helper method - wrapping this around another action will cause the full state to be recalculated once the action completes
@@ -89,35 +65,91 @@ export function withRecalculation(action) {
 }
 
 
-// Standard Functions
-// Note: Functions are put here (instead of in a respective slice) because they need to access multiple slices of the state.
-// Parameter `state` for these functions will refer to the full state
+
+/**
+ * Recalculates various components of the state.
+ * Many values, such as production values or consumption values, change over time (e.g. when upgrades are researched).
+ * Whenever this happens we call recalculateState, which will use the database `calculators` to snapshot the new values.
+ *
+ * @param state Refers to the full state
+ * @param onlySlice (optional) If onlySlice is specified, ONLY that slice (e.g. 'structures') will be recalculated
+ * @param onlyId (optional) If onlyId is specified, ONLY that id (e.g. 'solarPanel') will be recalculated
+ * @returns {*} Overrides to update various structure values
+ */
+function recalculateReducer(state, onlySlice, onlyId) {
+    if (onlySlice === undefined || onlySlice === 'structures') {
+        state = update(state, {
+            structures: {
+                byId: recalculateSlice(state, 'structures', fromStructures.calculators, onlyId)
+            }
+        });
+    }
+
+    if (onlySlice === undefined || onlySlice === 'abilities') {
+        state = update(state, {
+            abilities: {
+                byId: recalculateSlice(state, 'abilities', fromAbilities.calculators, onlyId)
+            }
+        });
+    }
+
+    if (onlySlice === undefined || onlySlice === 'resources') {
+        state = update(state, {
+            resources: {
+                byId: recalculateSlice(state, 'resources', fromResources.calculators, onlyId)
+            }
+        });
+    }
+
+    return state;
+}
 
 /**
  * @param state Refers to the full state
  * @param sliceKey The key for the slice to recalculate (e.g. 'structures')
  * @param calculators Reference to the calculators object to use. The calculators object can have a special key 'variables'
  *                    which will always be calculated first and provided to the rest of the calculators as a third parameter
+ * @param onlyId (optional) If onlyId is specified, ONLY that id will be recalculated
  * @returns {*} Overrides to update various structure values
  */
-export function recalculateSlice(state, sliceKey, calculators) {
-    return mapObject(state[sliceKey].byId, (id, record) => {
-        if (!calculators[id]) { return {}; }
+function recalculateSlice(state, sliceKey, calculators, onlyId) {
+    if (onlyId === undefined) {
+        return mapObject(state[sliceKey].byId, (id, record) => {
+            return recalculateRecord(state, calculators, id, record)
+        });
+    }
+    else {
+        const record = state[sliceKey].byId[onlyId];
+        return record ? { [onlyId]: recalculateRecord(state, calculators, onlyId, record) } : {};
+    }
 
-        let result = {};
-
-        // Always calculate `variables` first; other calculated attributes may depend on these
-        if (calculators[id].variables) {
-            result.variables = { $set: calculators[id].variables(state, record) };
-        }
-        for (const [attr, calculator] of Object.entries(calculators[id])) {
-            if (attr === 'variables') { continue; }
-            result[attr] = { $set: calculator(state, record, result.variables ? result.variables.$set : undefined) };
-        }
-
-        return result;
-    });
 }
+
+function recalculateRecord(state, calculators, id, record) {
+    if (!calculators[id]) { return {}; }
+
+    let result = {};
+
+    // Always calculate `variables` first; other calculated attributes may depend on these
+    if (calculators[id].variables) {
+        result.variables = { $set: calculators[id].variables(state, record) };
+    }
+    for (const [attr, calculator] of Object.entries(calculators[id])) {
+        if (attr === 'variables') { continue; }
+        result[attr] = { $set: calculator(state, record, result.variables ? result.variables.$set : undefined) };
+    }
+
+    return result;
+}
+
+
+
+
+
+// Standard Functions
+// Note: Functions are put here (instead of in a respective slice) because they need to access multiple slices of the state.
+// Parameter `state` for these functions will refer to the full state
+
 
 // Returns ids of available upgrades for a structure
 export function getStructureUpgradeIds(state, structure) {
@@ -224,6 +256,25 @@ export function assignDroid(droidData, targetId) {
     }
 }
 
+export function assignAllDroids(droidData, targetId) {
+    return function(dispatch, getState) {
+        const numDroids = fromResources.getQuantity(fromResources.getResource(getState().resources, 'standardDroids'));
+
+        if (numDroids > 0) {
+            switch(droidData.droidAssignmentType) {
+                case 'structure':
+                    dispatch(fromStructures.assignDroidUnsafe(targetId, numDroids));
+                    break;
+                case 'planet':
+                    dispatch(fromPlanet.assignDroidUnsafe(numDroids));
+                    break;
+                default:
+                    console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
+            }
+        }
+    }
+}
+
 export function removeDroid(droidData, targetId) {
     return function(dispatch, getState) {
         if (canRemoveDroid(getState(), droidData)) {
@@ -233,6 +284,25 @@ export function removeDroid(droidData, targetId) {
                     break;
                 case 'planet':
                     dispatch(fromPlanet.removeDroidUnsafe());
+                    break;
+                default:
+                    console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
+            }
+        }
+    }
+}
+
+export function removeAllDroids(droidData, targetId) {
+    return function(dispatch, getState) {
+        const numDroids = droidData.numDroidsAssigned;
+
+        if (numDroids > 0) {
+            switch(droidData.droidAssignmentType) {
+                case 'structure':
+                    dispatch(fromStructures.removeDroidUnsafe(targetId, numDroids));
+                    break;
+                case 'planet':
+                    dispatch(fromPlanet.removeDroidUnsafe(numDroids));
                     break;
                 default:
                     console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
@@ -287,6 +357,11 @@ export function resourcesTick(time) {
                 // dispatch(fromStructures.turnOff(structure.id)); // todo we are not turning off anymore; too jarring
             }
         });
+
+        if (getState().game.rapidlyRecalcEnergy) {
+            // Need to rapidly recalculate energy variables because it is changing with every new probe added
+            dispatch(recalculateState('resources', 'energy'));
+        }
     }
 }
 
@@ -318,4 +393,52 @@ export function planetDevelopmentProgress(state) {
     const developedLand = getQuantity(getResource(state.resources, 'developedLand'));
     const maxDevelopedLand = state.planet.maxDevelopedLand;
     return roundToDecimal(developedLand / maxDevelopedLand, 5);
+}
+
+
+export function energyBeamStrengthPct(state) {
+    if (!state.star || !state.star.mirrorTarget || state.star.mirrorTarget === TARGETS.NONE) {
+        return 0;
+    }
+
+    if (!state.star.hyperBeamStartedAt) {
+        return 0.01;
+    }
+
+    const timePct = (state.clock.elapsedTime - state.star.hyperBeamStartedAt) / HYPER_BEAM_CHARGE_TIME;
+    let beamPct;
+
+    // Animation has two linear increase rates: it starts off with a slow linear increase and then flips to a rapid linear increase
+    const SWITCH_AT_PCT = 0.5; // Percent of animation after which it switches to second linear rate
+    const BEAM_PCT_AT_SWITCH = 0.2; // What % the beam should be at when it switches to second linear rate.
+    if (timePct < SWITCH_AT_PCT) {
+        beamPct = (timePct / SWITCH_AT_PCT) * BEAM_PCT_AT_SWITCH;
+    }
+    else {
+        beamPct = ((timePct - SWITCH_AT_PCT) / (1.0 - SWITCH_AT_PCT)) * (1 - BEAM_PCT_AT_SWITCH) + BEAM_PCT_AT_SWITCH
+    }
+
+    return Math.max(0.01, Math.min(beamPct, 1.0)); // Lock to 1% / 100% boundaries
+}
+
+// Produce this much energy when harvesting 1% of solar output and at 50000 probes
+// The value is arbitrarily high, however the probeFactory_exponentialGrowth upgrade discover/cost should be somewhat proportional it.
+const ENERGY_BEAM_BASE_VALUE = 1.5e13;
+
+export function energyBeamStrengthEnergy(state) {
+    const numProbes = getQuantity(getResource(state.resources, 'probes'));
+
+    // We divide by the number of solar panels so that the number of solar panels built is irrelevant
+    const numSolarPanels = getReplicatedStructureCount(getStructure(state.structures, 'solarPanel'), state);
+
+    return energyBeamStrengthPct(state) * 100 * ENERGY_BEAM_BASE_VALUE / numSolarPanels * numProbes / 50000;
+}
+
+export function kickoffDoomsday() {
+    return function(dispatch, getState) {
+        dispatch(fromClock.lockTimeOfDay());
+        dispatch(aimMirrors(TARGETS.PLANET));
+        dispatch(startEnergyBeam(getState().clock.elapsedTime));
+    }
+
 }

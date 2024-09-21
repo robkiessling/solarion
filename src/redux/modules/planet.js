@@ -132,13 +132,13 @@ export default function reducer(state = initialState, action) {
         case ASSIGN_DROID:
             return update(state, {
                 droidData: {
-                    numDroidsAssigned: { $apply: (x) => x + 1 }
+                    numDroidsAssigned: { $apply: (x) => x + payload.amount }
                 }
             });
         case REMOVE_DROID:
             return update(state, {
                 droidData: {
-                    numDroidsAssigned: { $apply: (x) => x - 1 }
+                    numDroidsAssigned: { $apply: (x) => x - payload.amount }
                 }
             });
         case START_DEVELOPMENT:
@@ -182,11 +182,11 @@ export function generateMap() {
     return { type: GENERATE_MAP, payload: { map } };
 }
 
-export function assignDroidUnsafe() {
-    return withRecalculation({ type: ASSIGN_DROID });
+export function assignDroidUnsafe(amount = 1) {
+    return withRecalculation({ type: ASSIGN_DROID, payload: { amount } });
 }
-export function removeDroidUnsafe() {
-    return withRecalculation({ type: REMOVE_DROID });
+export function removeDroidUnsafe(amount = 1) {
+    return withRecalculation({ type: REMOVE_DROID, payload: { amount } });
 }
 
 export function startExploringMap() {
