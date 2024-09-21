@@ -64,7 +64,8 @@ const PLANET_POSITION = [5, 0.9]; // percent of canvas to draw lines to
 
 // percent of canvas to draw lines to
 const TARGETS = {
-    planet: [5, 0.9],
+    // planet: [5, 0.9],
+    planet: [5, 0.5],
 }
 
 // "Zaps" are the line flashes that appear when a probe is created (showing where the probe was sent from)

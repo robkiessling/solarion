@@ -7,7 +7,6 @@ import {roundToDecimal} from "../../lib/helpers";
 
 // Actions
 export const TICK = 'clock/TICK';
-export const LOCK_TIME_OF_DAY = 'clock/LOCK_TIME_OF_DAY';
 
 const WIND_SPEEDS = [17, 18, 22, 33, 25, 20, 15, 22, 12, 3, 10, 15, 25, 35, 60, 40, 33, 25, 20];
 const WIND_STEP_SIZE = 2000; // seconds per step
@@ -34,13 +33,10 @@ const DAY_LENGTH = 60; // How long (in real time seconds) a day should last
 const STARTING_TOD_FRACTION = 0.25;
 const STARTING_TOD_SECONDS = DAY_LENGTH * STARTING_TOD_FRACTION;
 
-const DOOMSDAY_TOD_FRACTION = 7 / 24.0; // 7 am
-
 // Initial State
 const initialState = {
     elapsedTime: 0, // in milliseconds
     dayLength: DAY_LENGTH, // in seconds
-    lockTimeOfDay: null
 }
 
 // Reducer
@@ -49,10 +45,6 @@ export default function reducer(state = initialState, action) {
         case TICK:
             return update(state, {
                 elapsedTime: { $apply: function(x) { return x + action.payload.timeDelta; } }
-            });
-        case LOCK_TIME_OF_DAY:
-            return update(state, {
-                lockTimeOfDay: { $set: true }
             });
         default:
             return state;
@@ -64,9 +56,6 @@ export default function reducer(state = initialState, action) {
 //     return { type: TICK, payload: { timeDelta } };
 // }
 
-export function lockTimeOfDay() {
-    return { type: LOCK_TIME_OF_DAY, payload: {} }
-}
 
 // Note: This is an example of how to dispatch another action during a reduction
 export function clockTick(timeDelta) {
@@ -90,8 +79,6 @@ export function dayLength(state) {
     return state.dayLength;
 }
 export function fractionOfDay(state) {
-    if (state.lockTimeOfDay) { return DOOMSDAY_TOD_FRACTION; }
-
     const secondsIntoDay = elapsedTime(state) % state.dayLength;
     return secondsIntoDay / state.dayLength;
 }

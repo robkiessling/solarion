@@ -1,6 +1,7 @@
 import update from 'immutability-helper';
 import {recalculateState, withRecalculation} from "../reducer";
 import {
+    COOK_TIME,
     generateRandomMap, getCurrentDevelopmentArea, getNextDevelopmentArea,
     getNextExplorableSector,
     mapIsFullyExplored, NUM_SECTORS,
@@ -23,6 +24,8 @@ export const REMOVE_DROID = 'planet/REMOVE_DROID';
 export const START_DEVELOPMENT = 'planet/START_DEVELOPMENT';
 export const FINISH_DEVELOPMENT = 'planet/FINISH_DEVELOPMENT';
 export const SET_EXPLORE_SPEED = 'planet/SET_EXPLORE_SPEED';
+export const START_COOK = 'planet/START_COOK';
+export const INCREMENT_COOK = 'planet/INCREMENT_COOK';
 
 const OVERALL_MAP_STATUS = {
     unstarted: 'unstarted',
@@ -43,6 +46,7 @@ const initialState = {
         droidAssignmentType: 'planet'
     },
     exploreSpeed: 1,
+    cookedPct: 0, // How much of the entire planet is on fire :P
 
     // The following caches store references/counts of various sectors within the map. They could be calculated at run-time
     // from the map variable, but to improve performance we cache the values here.
@@ -163,6 +167,14 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 exploreSpeed: { $set: payload.value }
             })
+        case START_COOK:
+            return update(state, {
+                cookedPct: { $set: 0.01 }
+            })
+        case INCREMENT_COOK:
+            return update(state, {
+                cookedPct: { $apply: x => Math.min(x + (payload.timeDelta / COOK_TIME), 1) }
+            })
         default:
             return state;
     }
@@ -175,6 +187,9 @@ export function setRotation(value) {
 }
 export function setSunTracking(value) {
     return { type: SET_SUN_TRACKING, payload: { value } }
+}
+export function startCooking() {
+    return { type: START_COOK }
 }
 
 export function generateMap() {
@@ -228,6 +243,10 @@ export function setExploreSpeed(value) {
 export function planetTick(timeDelta) {
     return (dispatch, getState) => {
         batch(() => {
+            if (getState().planet.cookedPct > 0) {
+                dispatch({ type: INCREMENT_COOK, payload: { timeDelta } });
+            }
+            
             if (getState().planet.overallStatus !== OVERALL_MAP_STATUS.inProgress) {
                 return;
             }

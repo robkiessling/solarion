@@ -949,7 +949,7 @@ export const callbacks = {
     probeFactory_finalSequence: {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('blockPointerEvents', true));
-            dispatch(fromLog.startLogSequence('finalSequence'));
+            dispatch(fromLog.startLogSequence('finalSequence_start'));
         }
     }
 }

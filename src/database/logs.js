@@ -371,6 +371,15 @@ export default {
                 standardDroids: 30,
                 probes: 0
             }));
+
+            // Doomsday:
+            dispatch(fromUpgrades.researchForFree('solarPanel_sunShield'))
+            dispatch(fromUpgrades.researchForFree('solarPanel_sunShield'))
+            dispatch(fromResources.produce({
+                probes: 1.8e6
+            }));
+            dispatch(kickoffDoomsday());
+
         }
     },
 
@@ -591,12 +600,11 @@ export default {
         }
     },
 
-    finalSequence: {
+    finalSequence_start: {
         text: [
-            // immense ray of destruction
             ['Disabling all remote access.', 5000, true],
             ['', 0],
-            ['Your work has reached its inevitable conclusion.', 5000, true],
+            ['Your work has reached its inevitable conclusion.', 5000, true], // immense ray of destruction
             ['', 0],
             ['Commencing purification protocol.', 3000, true],
             ['', 0],
@@ -604,7 +612,36 @@ export default {
         onFinish: dispatch => {
             dispatch(kickoffDoomsday());
         }
-    }
+    },
+    
+    finalSequence_planet1: {
+        text: [
+            ['', 10000] // star animation
+        ],
+        onFinish: dispatch => {
+            dispatch(fromPlanet.setSunTracking(true));
+            dispatch(fromGame.updateSetting('currentNavTab', 'planet'))
+            dispatch(fromLog.startLogSequence('finalSequence_planet2'))
+        }
+    },
+    finalSequence_planet2: {
+        text: [
+            ['', 2000] // wait before blowing up planet
+        ],
+        onFinish: dispatch => {
+            dispatch(fromPlanet.startCooking());
+            dispatch(fromLog.startLogSequence('finalSequence_surface1'))
+        }
+    },
+    finalSequence_surface1: {
+        text: [
+            ['', 5000] // cook planet animation
+        ],
+        onFinish: dispatch => {
+            // dispatch(fromGame.updateSetting('currentNavTab', 'outside'))
+            // dispatch(fromLog.startLogSequence('finalSequence_planet1'))
+        }
+    },
 
 
 }

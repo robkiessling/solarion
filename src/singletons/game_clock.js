@@ -11,6 +11,7 @@ import {planetTick} from "../redux/modules/planet";
 const CLOCK_FPS = 30;
 export const OUTSIDE_FPS = 10;
 export const STAR_FPS = 30;
+export const PLANET_FPS = 10;
 
 const STRUCT_FPS = 10;
 const ABILITIES_FPS = 10; // todo this is only for button animation... find a way to reduce

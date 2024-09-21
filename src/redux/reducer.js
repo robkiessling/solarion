@@ -385,7 +385,8 @@ export function planetMapImage(state) {
     return generateImage(
         state.planet.map,
         fromClock.fractionOfDay(state.clock),
-        state.planet.sunTracking ? undefined : state.planet.rotation
+        state.planet.sunTracking ? undefined : state.planet.rotation,
+        state.planet.cookedPct
     );
 }
 
@@ -410,7 +411,7 @@ export function energyBeamStrengthPct(state) {
 
     // Animation has two linear increase rates: it starts off with a slow linear increase and then flips to a rapid linear increase
     const SWITCH_AT_PCT = 0.5; // Percent of animation after which it switches to second linear rate
-    const BEAM_PCT_AT_SWITCH = 0.2; // What % the beam should be at when it switches to second linear rate.
+    const BEAM_PCT_AT_SWITCH = 0.15; // What % the beam should be at when it switches to second linear rate.
     if (timePct < SWITCH_AT_PCT) {
         beamPct = (timePct / SWITCH_AT_PCT) * BEAM_PCT_AT_SWITCH;
     }
@@ -436,9 +437,9 @@ export function energyBeamStrengthEnergy(state) {
 
 export function kickoffDoomsday() {
     return function(dispatch, getState) {
-        dispatch(fromClock.lockTimeOfDay());
         dispatch(aimMirrors(TARGETS.PLANET));
         dispatch(startEnergyBeam(getState().clock.elapsedTime));
+        dispatch(fromLog.startLogSequence('finalSequence_planet1'))
     }
 
 }

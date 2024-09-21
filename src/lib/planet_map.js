@@ -90,6 +90,38 @@ for (const [key, attributes] of Object.entries(STATUSES)) {
     STATUSES_BY_ENUM[attributes.enum] = attributes;
 }
 
+
+export const COOK_TIME = 5000;
+const COOKED_CHAR = '}'
+
+// once cooking begins, planet color will transition from COOK_COLOR_START to COOK_COLOR_END over COOK_TIME milliseconds.
+const COOK_COLOR_START = [255, 180, 0]; // rgb ffb400
+const COOK_COLOR_END = [255, 60, 0]; // rgb ff3c00
+
+const LASER_BEAM_WIDTH = 151; // needs to be odd if widest planet width is odd
+const LASER_BEAM_HEIGHT = 27; // needs to be odd if planet height is odd
+const LASER_BEAM_SPEED = 150;
+const LASER_BEAM_CHAR_OPTS = ['-']
+const LASER_BEAM_ARROW_CHAR = '~'
+// const LASER_BEAM_SKIP_ROWS = [2, 5, 8, 11, 18, 22, 25]; // beam is empty for these rows
+const LASER_BEAM_SKIP_ROWS = []; // beam is empty for these rows
+const LASER_BEAM_STREAKS = { // some beams make a streak onto the planet itself
+    4: 21, // row 4, streak is 21 chars long
+    6: 26,
+    7: 15,
+    9: 14,
+    10: 31,
+    12: 27,
+    14: 36,
+    16: 24,
+    19: 27,
+    21: 21,
+}
+
+
+
+
+
 export function generateRandomMap() {
     const map = [];
 
@@ -210,7 +242,9 @@ function addHomeBase(map) {
     if (EXPLORE_EVERYTHING) {
         map.forEach((row, rowIndex) => {
             row.forEach((sector, colIndex) => {
-                sector.status = STATUSES.explored.enum
+                if (rowIndex !== map.length - 1) { // leaving 1 unexplored space for triggers
+                    sector.status = STATUSES.explored.enum
+                }
             });
         });
     }
@@ -369,7 +403,7 @@ export function numSectorsMatching(map, status, terrain) {
     return count;
 }
 
-export function generateImage(map, fractionOfDay, cameraRotation) {
+export function generateImage(map, fractionOfDay, cameraRotation, cookedPct) {
     let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
     let nightEnd = (fractionOfDay + NIGHT_END) % 1;
     let percentRotated;
@@ -393,7 +427,7 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
         percentRotated = cameraRotation;
     }
 
-    return map.map((planetRow, rowIndex) => {
+    let asciiImage = map.map((planetRow, rowIndex) => {
         const planetRowLength = PLANET_ROW_LENGTHS[rowIndex];
         const displayRowLength = DISPLAY_ROW_LENGTHS[rowIndex];
 
@@ -437,6 +471,7 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
                 char = STATUSES.unknown.display;
             }
 
+            let isDay = true;
             if (cameraRotation === undefined) {
                 // sunTracking is enabled: shading the far-right side of the planet accordingly
                 // (Ideally, the sunTracking:disabled shading would work for this use case too, but I couldn't get it to
@@ -444,12 +479,15 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
                 const displayFraction = displayColIndex / displayRowLength; // How far into the display length the sector is
                 if (displayFraction >= SUN_TRACKING_NIGHT_CUTOFF) {
                     className += ' night';
+                    isDay = false;
                 }
                 else if (displayFraction >= SUN_TRACKING_TWI_NIGHT_CUTOFF) {
                     className += ' twilight-night';
+                    isDay = false;
                 }
                 else if (displayFraction >= SUN_TRACKING_TWI_DAY_CUTOFF) {
                     className += ' twilight-day';
+                    isDay = false;
                 }
             }
             else {
@@ -460,6 +498,17 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
                     getTwilightClass(planetFraction, nightStart, nightEnd) ||
                     getNightClass(planetFraction, nightStart, nightEnd);
                 className += ` ${lightClass}`;
+                if (lightClass.length) { isDay = false; }
+            }
+
+            if (cookedPct) {
+                char = isDay ? COOKED_CHAR : TERRAINS.flatland.display
+
+                const cookedRGB = COOK_COLOR_START.map((colorStart, index) => {
+                    const colorEnd = COOK_COLOR_END[index];
+                    return cookedPct * (colorEnd - colorStart) + colorStart
+                })
+                style = { color: `rgb(${cookedRGB[0]}, ${cookedRGB[1]}, ${cookedRGB[2]})` }
             }
 
             return {
@@ -473,6 +522,12 @@ export function generateImage(map, fractionOfDay, cameraRotation) {
         displayRow.unshift(...createArray(numMissingSpaces, () => ({ char: ' ' })))
         return displayRow;
     });
+
+    if (cookedPct) {
+        asciiImage = addLaserBeams(asciiImage, fractionOfDay);
+    }
+
+    return asciiImage;
 }
 
 // There are 2 levels of twilight: a darker section is shaded towards night and a lighter section is shaded towards day.
@@ -545,4 +600,80 @@ function isWithinRange(planetFraction, range) {
     }
 
     return false;
+}
+
+
+
+const LASER_BEAM_LINE_CHARS = createArray(LASER_BEAM_HEIGHT, rowIndex => {
+    return LASER_BEAM_SKIP_ROWS.includes(rowIndex) ? ' ' : getRandomFromArray(LASER_BEAM_CHAR_OPTS);
+});
+
+// "arrows" are the moving chars within the beam, so that the beam appears to be in motion.
+// They are called arrows because originally the beam looked like: -------->>>>>-------->>>>>-------- (an arrow is the >>>>> section)
+// Each beam has a randomly generated arrow size, spacing, and initial offset
+const LASER_BEAM_ARROW_LENGTHS = createArray(LASER_BEAM_HEIGHT, rowIndex => {
+    return getRandomIntInclusive(1, 7);
+})
+const LASER_BEAM_ARROW_GAPS = createArray(LASER_BEAM_HEIGHT, rowIndex => {
+    return getRandomIntInclusive(3, 7);
+})
+const LASER_BEAM_ARROW_OFFSETS = createArray(LASER_BEAM_HEIGHT, rowIndex => {
+    return getRandomIntInclusive(1, 7);
+})
+
+function addLaserBeams(planetImage, fractionOfDay) {
+    const heightPadding = Math.floor((LASER_BEAM_HEIGHT - NUM_PLANET_ROWS) / 2);
+    const widthPadding = Math.floor((LASER_BEAM_WIDTH - WIDEST_DISPLAY_ROW) / 2);
+
+    // start by making a 2d array of beams
+    let result = createArray(LASER_BEAM_HEIGHT, (rowIndex) => {
+        const char = LASER_BEAM_LINE_CHARS[rowIndex];
+
+        // initialize beam as a long array of beam chars
+        const row = createArray(LASER_BEAM_WIDTH, () => {
+            return {
+                char: char,
+                className: 'laser-beam'
+            }
+        });
+
+        // apply arrow calculations
+        if (char !== ' ') {
+            const arrowLength = LASER_BEAM_ARROW_LENGTHS[rowIndex];
+            const arrowGap = LASER_BEAM_ARROW_GAPS[rowIndex];
+            const sumLength = arrowLength + arrowGap;
+            const dayOffset = (Math.floor(fractionOfDay * sumLength * LASER_BEAM_SPEED)) % sumLength;
+            const arrowOffset = LASER_BEAM_ARROW_OFFSETS[rowIndex] + dayOffset;
+            let inArrow = true, currentSegment = 0;
+            for (let c = -sumLength + arrowOffset; c < LASER_BEAM_WIDTH; c++) {
+                if (inArrow && c >= 0) {
+                    row[c].char = LASER_BEAM_ARROW_CHAR;
+                }
+                currentSegment += 1;
+                if (currentSegment >= (inArrow ? arrowLength : arrowGap)) {
+                    inArrow = !inArrow;
+                    currentSegment = 0;
+                }
+            }
+        }
+
+        return row;
+    });
+
+    // apply the planet image on top of the 2d beam array
+    planetImage.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            const {char, className, style} = sector;
+            const netRowIndex = heightPadding + rowIndex;
+
+            if (char === ' ') { return; }
+
+            // if there is a streak, we do not apply the planet image for that streak part
+            if (LASER_BEAM_STREAKS[netRowIndex] && colIndex <= LASER_BEAM_STREAKS[netRowIndex]) { return; }
+
+            result[netRowIndex][widthPadding + colIndex] = sector
+        });
+    })
+
+    return result;
 }

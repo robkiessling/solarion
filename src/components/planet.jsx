@@ -2,17 +2,30 @@ import React from 'react';
 import {connect} from "react-redux";
 import {TERRAINS, STATUSES} from "../lib/planet_map";
 import {planetMapImage} from "../redux/reducer";
+import {PLANET_FPS, STAR_FPS} from "../singletons/game_clock";
 
 class Planet extends React.Component {
     constructor(props) {
         super(props);
 
-        // this.manager = new PlanetManager();
+        this.waitTimeMs = 1000.0 / PLANET_FPS; // how long to wait between rendering
     }
 
     shouldComponentUpdate(nextProps, nextState) {
-        // Checking both this props and next props to ensure we update on visibility changes
-        return this.props.visible || nextProps.visible;
+        if (this.props.visible !== nextProps.visible) {
+            return true;
+        }
+
+        if (!this.props.visible) {
+            return false;
+        }
+
+        if (this.lastRenderAt && this.lastRenderAt > (nextProps.elapsedTime - this.waitTimeMs)) {
+            return false;
+        }
+
+        this.lastRenderAt = nextProps.elapsedTime;
+        return true;
     }
 
     render() {

@@ -44,6 +44,9 @@ $top-bar-float-padding: 0.875rem;
   justify-content: center;
   align-items: center;
 
+  width: 100%;
+  height: 100%;
+
   .planet-image {
     //margin: 3px 0 0 0;
     //margin-left: 16rem;
@@ -68,6 +71,8 @@ $top-bar-float-padding: 0.875rem;
   .developing { color: #d1eeff; }
   .developed { color: #20d9ff; }
   .exploring { outline: 1px dotted white; }
+
+  .laser-beam { color: yellow !important; }
 
   .planet-legend {
     position: absolute;
