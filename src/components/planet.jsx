@@ -1,8 +1,8 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {TERRAINS, STATUSES} from "../lib/planet_map";
-import {planetMapImage} from "../redux/reducer";
-import {PLANET_FPS, STAR_FPS} from "../singletons/game_clock";
+import {TERRAINS, STATUSES, generateImage} from "../lib/planet_map";
+import {PLANET_FPS} from "../singletons/game_clock";
+import * as fromClock from "../redux/modules/clock";
 
 class Planet extends React.Component {
     constructor(props) {
@@ -31,11 +31,18 @@ class Planet extends React.Component {
     render() {
         const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.developed, TERRAINS.mountain];
 
+        const planetImage = generateImage(
+            this.props.map,
+            this.props.fractionOfDay,
+            this.props.sunTracking,
+            this.props.cookedPct
+        );
+
         return (
             <div id="planet" className={`${this.props.visible ? '' : 'hidden'}`}>
                 <div className="planet-image">
                     {
-                        this.props.planetImage.map((imageRow, rowIndex) => {
+                        planetImage.map((imageRow, rowIndex) => {
                             return <span key={rowIndex}>
                                 {imageRow.map((sector, colIndex) => {
                                     const {char, className, style} = sector;
@@ -74,7 +81,10 @@ class Planet extends React.Component {
 const mapStateToProps = state => {
     return {
         visible: state.game.currentNavTab === 'planet',
-        planetImage: planetMapImage(state),
+        map: state.planet.map,
+        fractionOfDay: fromClock.fractionOfDay(state.clock),
+        sunTracking: state.planet.sunTracking ? undefined : state.planet.rotation,
+        cookedPct: state.planet.cookedPct
     }
 };
 

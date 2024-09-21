@@ -381,15 +381,6 @@ export function getNetResourceRates(state) {
     return result;
 }
 
-export function planetMapImage(state) {
-    return generateImage(
-        state.planet.map,
-        fromClock.fractionOfDay(state.clock),
-        state.planet.sunTracking ? undefined : state.planet.rotation,
-        state.planet.cookedPct
-    );
-}
-
 export function planetDevelopmentProgress(state) {
     const developedLand = getQuantity(getResource(state.resources, 'developedLand'));
     const maxDevelopedLand = state.planet.maxDevelopedLand;
