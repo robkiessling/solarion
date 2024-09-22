@@ -231,16 +231,16 @@ export function generateImage(structureAnimationData, elapsedTime, fractionOfDay
         //     queueDoodads(DOODAD_LASER_POSITIONS_6, renderingQueue, clockParams);
         // }
         // else {
-            if (burnOutside > 0.15) {
+            if (burnOutside > 0.2) {
                 queueDoodads(DOODAD_LASER_POSITIONS_2, renderingQueue, clockParams);
             }
-            if (burnOutside > 0.25) {
+            if (burnOutside > 0.3) {
                 queueDoodads(DOODAD_LASER_POSITIONS_3, renderingQueue, clockParams);
             }
-            if (burnOutside > 0.35) {
+            if (burnOutside > 0.4) {
                 queueDoodads(DOODAD_LASER_POSITIONS_4, renderingQueue, clockParams);
             }
-            if (burnOutside > 0.45) {
+            if (burnOutside > 0.5) {
                 queueDoodads(DOODAD_LASER_POSITIONS_5, renderingQueue, clockParams);
             }
         // }

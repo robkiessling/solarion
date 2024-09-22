@@ -474,7 +474,7 @@ const database = {
         discoverWhen: {
             upgrades: ['solarPanel_global'],
             resources: {
-                probes: 30e3, // out of 1800e3
+                probes: 15e3, // out of 1800e3
             }
         },
         cost: {
@@ -857,7 +857,7 @@ const database = {
         discoverWhen: {
             upgrades: ['solarPanel_sunShield'],
             resources: {
-                energy: 2.0e13,
+                energy: 1.5e13,
             }
         },
         cost: {

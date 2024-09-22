@@ -15,6 +15,7 @@ import {abilitiesAffectingStructure} from "./abilities";
 import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 import {energyBeamStrengthEnergy, energyBeamStrengthPct, getStructureStatistic} from "../redux/reducer";
 import {isTargetingPlanet, TARGETS} from "../redux/modules/star";
+import {probeCapacity} from "../lib/star";
 
 export const STATUSES = {
     normal: 0,
@@ -37,6 +38,7 @@ const base = {
     runnable: false,
     runningRate: 0,
     runningCooldown: 0,
+    disabled: false, // if disabled, cannot start running
     count: {
         total: 0, // todo why is this an object? maybe for total/broken/etc.?
         max: Infinity
@@ -466,7 +468,7 @@ export const calculators = {
         variables: (state, structure) => {
             const variables = {
                 energy: 666,
-                refinedMinerals: 837,
+                refinedMinerals: 400,
                 probes: 1
             }
 

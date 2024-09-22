@@ -17,6 +17,7 @@ export const SET_STATUS = 'structures/SET_STATUS';
 export const PROGRESS = 'structures/PROGRESS';
 export const ASSIGN_DROID = 'structures/ASSIGN_DROID';
 export const REMOVE_DROID = 'structures/REMOVE_DROID';
+export const DISABLE = 'structures/DISABLE';
 
 // Initial State
 const initialState = {
@@ -47,6 +48,15 @@ export default function reducer(state = initialState, action) {
                 byId: {
                     [payload.id]: {
                         runningRate: { $set: payload.amount }
+                    }
+                }
+            });
+        case DISABLE:
+            return update(state, {
+                byId: {
+                    [payload.id]: {
+                        runningRate: { $set: 0 },
+                        disabled: { $set: true }
                     }
                 }
             });
@@ -142,6 +152,10 @@ export function turnOff(id) {
 }
 export function setRunningRate(id, amount) {
     return withRecalculation({ type: SET_RUNNING_RATE, payload: { id, amount } });
+}
+
+export function disable(id) {
+    return withRecalculation({ type: DISABLE, payload: { id } });
 }
 
 // Unlike other action creators, we are passing the dispatch as a parameter because we don't always end up dispatching

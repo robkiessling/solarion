@@ -17,7 +17,7 @@ const NORMAL_BOOTUP = 'normalBootup'; // Standard campaign start
 const SKIP_START = 'skipStart';
 const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
-const SKIP_EVERYTHING = 'skipEverything'; // Skip to all structures built
+const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
 const GAME_MODE = SKIP_TO_STAR; /* Controls overall game mode */
 
@@ -37,10 +37,8 @@ export default {
                     dispatch(fromLog.startLogSequence('skipToGlobe'));
                     break;
                 case SKIP_TO_STAR:
+                case SKIP_TO_DOOMSDAY:
                     dispatch(fromLog.startLogSequence('skipToStar'));
-                    break;
-                case SKIP_EVERYTHING:
-                    dispatch(fromLog.startLogSequence('skipEverything'));
                     break;
             }
         }
@@ -374,13 +372,14 @@ export default {
             }));
 
             // Doomsday:
-            dispatch(fromUpgrades.researchForFree('solarPanel_sunShield'))
-            dispatch(fromUpgrades.researchForFree('solarPanel_sunShield'))
-            dispatch(fromResources.produce({
-                probes: 1.8e6
-            }));
-            dispatch(kickoffDoomsday());
-
+            if (GAME_MODE === SKIP_TO_DOOMSDAY) {
+                dispatch(fromUpgrades.researchForFree('solarPanel_sunShield'))
+                dispatch(fromUpgrades.researchForFree('solarPanel_sunShield'))
+                dispatch(fromResources.produce({
+                    probes: 1.8e6
+                }));
+                dispatch(kickoffDoomsday());
+            }
         }
     },
 
@@ -597,6 +596,7 @@ export default {
             ['', 0],
         ],
         onFinish: dispatch => {
+            dispatch(fromStructures.disable('probeFactory'));
             dispatch(fromUpgrades.discover('probeFactory_finalSequence'));
         }
     },
