@@ -61,7 +61,6 @@ class ResourceBar extends React.Component {
     }
 }
 
-// Updates to these fields will trigger re-renders
 const mapStateToProps = state => {
     return {
         visible: state.game.showResourceBar,

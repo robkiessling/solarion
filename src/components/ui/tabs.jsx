@@ -21,7 +21,6 @@ class Tabs extends React.Component {
     }
 }
 
-// Updates to these fields will trigger re-renders
 const mapStateToProps = (state, ownProps) => {
     return {
         tabs: ownProps.tabs,

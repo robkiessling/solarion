@@ -14,6 +14,7 @@ import Star from "./star";
 import BlockPointerEvents from "./block_pointer_events";
 import {connect} from "react-redux";
 import GameOver from "./game_over";
+import Settings from "./settings";
 
 class App extends React.Component {
 
@@ -45,7 +46,7 @@ class App extends React.Component {
                     <ResourceBar/>
                     <PlanetStatus/>
                     <Log/>
-
+                    <Settings/>
                 </div>
                 <div id={"tooltip-container"}></div>
                 <BlockPointerEvents/>

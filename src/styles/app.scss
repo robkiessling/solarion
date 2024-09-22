@@ -95,3 +95,51 @@ html {
   height: 100%;
   z-index: 100;
 }
+
+#open-settings-div {
+  position: absolute;
+  top: $component-padding;
+  right: $component-padding;
+
+  a {
+    cursor: pointer;
+  }
+}
+
+.settings-modal-overlay {
+  background-color: rgba(255, 255, 255, 0.5);
+  position: fixed;
+  inset: 0;
+}
+.settings-modal {
+  font-family: $font-family;
+
+  background: $black;
+  color: white;
+  position: absolute;
+  inset: 5rem;
+  overflow: auto;
+  max-width: 30rem;
+  border-radius: 4px;
+  left: 50%;
+  -webkit-transform: translateX(-50%);
+  transform: translateX(-50%);
+  padding: 2rem;
+  border: 2px solid #fff;
+
+  .close-modal {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    cursor: pointer;
+    span {
+      font-size: 1.5rem;
+    }
+  }
+  > div {
+    margin-bottom: 1.5rem;
+  }
+  p {
+    margin-top: 0;
+  }
+}

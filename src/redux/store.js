@@ -36,7 +36,9 @@ store.subscribe(throttle(() => {
     // })
 
     const state = store.getState();
+
     if (state && state.game && state.game.endGameSequenceStarted) {
+        // Do not auto-save if we're in the end game sequence
         return;
     }
 

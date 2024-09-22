@@ -19,7 +19,7 @@ class GameOver extends React.Component {
             <div className={'game-over-buttons'}>
                 <button onClick={() => {
                     window.location.reload();
-                }}>Re-watch End-game</button>
+                }}>Revert to Last Save</button>
                 <button onClick={() => {
                     resetState()
                     window.location.reload();
@@ -30,7 +30,6 @@ class GameOver extends React.Component {
 }
 
 
-// Updates to these fields will trigger re-renders
 const mapStateToProps = state => {
     return {}
 };
