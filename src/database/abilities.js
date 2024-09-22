@@ -32,9 +32,9 @@ const base = {
 
 const database = {
     commandCenter_charge: _.merge({}, base, {
-        name: "Charge Solenoid",
+        name: "Manually Charge",
         structure: "commandCenter",
-        description: "Manually charge the solenoid, gaining a small amount of energy.",
+        description: "The device has a hand crank to generate emergency power.",
         cost: {},
         castTime: 5,
         effect: {
@@ -79,7 +79,6 @@ const database = {
 
     replicate: _.merge({}, base, {
         name: 'Replicate',
-        description: "Replicates your entire base onto new land, permanently increasing all production and consumption rates by 200%.",
     })
 };
 
@@ -105,19 +104,7 @@ export const calculators = {
         },
         castTime: (state, ability, variables) => {
             return variables.castTime;
-        },
-        description: (state, ability, variables) => {
-            if (variables.castTime <= 5) {
-                return "Manually charge the solenoid, gaining a small amount of energy.";
-            }
-            else if (variables.castTime <= 10) {
-                return "Manually charge the solenoid, gaining a moderate amount of energy.";
-            }
-            else {
-                return "Manually charge the solenoid, gaining a large amount of energy.";
-            }
-        },
-
+        }
     },
     harvester_overclock: {
         variables: (state, ability) => {
@@ -184,8 +171,12 @@ export const calculators = {
             const nextDevelopmentSize = Math.min(developedLand, remainingDevelopments)
             return {
                 nextDevelopmentSize: nextDevelopmentSize,
-                numStructures: countAllStructuresBuilt(state.structures)
+                numStructures: countAllStructuresBuilt(state.structures),
+                productionIncrease: `${Math.floor(((nextDevelopmentSize / developedLand) + 1) * 100)}%`
             }
+        },
+        description: (state, ability, variables) => {
+            return `Replicates your entire base onto new land, permanently increasing all production and consumption rates by ${variables.productionIncrease}.`
         },
         cost: (state, ability, variables) => {
             return {

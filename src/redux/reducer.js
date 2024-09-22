@@ -401,8 +401,8 @@ export function energyBeamStrengthPct(state) {
     let beamPct;
 
     // Animation has two linear increase rates: it starts off with a slow linear increase and then flips to a rapid linear increase
-    const SWITCH_AT_PCT = 0.5; // Percent of animation after which it switches to second linear rate
-    const BEAM_PCT_AT_SWITCH = 0.15; // What % the beam should be at when it switches to second linear rate.
+    const SWITCH_AT_PCT = 0.6; // Percent of animation after which it switches to second linear rate
+    const BEAM_PCT_AT_SWITCH = 0.1; // What % the beam should be at when it switches to second linear rate.
     if (timePct < SWITCH_AT_PCT) {
         beamPct = (timePct / SWITCH_AT_PCT) * BEAM_PCT_AT_SWITCH;
     }

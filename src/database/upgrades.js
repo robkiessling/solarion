@@ -46,9 +46,9 @@ const base = {
 // Note: 'effect' keys correspond to structure calculated variables
 const database = {
     commandCenter_showTerminal: _.merge({}, base, {
-        name: "Boot-Up Computer",
+        name: "Boot-Up",
         structure: 'commandCenter',
-        description: "You manage to find the power switch for a computer terminal behind a mess of wire.",
+        description: "You manage to find the power switch for a computer terminal behind some debris.",
         discoverWhen: {
             resources: {
                 energy: 10,
@@ -69,17 +69,17 @@ const database = {
             }
         },
         cost: {
-            energy: 10
+            energy: 15
         }
     }),
     commandCenter_showResourceRates: _.merge({}, base, {
         name: "Turn on Advanced Stats",
         structure: 'commandCenter',
-        description: "Allows you to monitor resources collection rates.",
+        description: "Allows you to monitor resource collection rates.",
         discoverWhen: {
             upgrades: ['commandCenter_showPlanetStatus'],
             resources: {
-                energy: 30,
+                energy: 35,
             }
         },
         cost: {
@@ -93,17 +93,17 @@ const database = {
         discoverWhen: {
             upgrades: ['commandCenter_showResourceRates'],
             resources: {
-                energy: 40
+                energy: 45
             }
         },
         cost: {
             energy: 15
         }
     }),
-    commandCenter_improvedSolenoid: _.merge({}, base, {
+    commandCenter_improvedCharge: _.merge({}, base, {
         name: "Replace Coils",
         structure: 'commandCenter',
-        description: "Increases solenoid energy per second to 2.",
+        description: "Increases manual energy per second to 2.",
         discoverWhen: {
             resources: {
                 ore: 10
@@ -116,12 +116,12 @@ const database = {
             energy: { add: 1 }
         }
     }),
-    commandCenter_improvedSolenoid2: _.merge({}, base, {
+    commandCenter_improvedCharge2: _.merge({}, base, {
         name: "Superconductive Coils",
         structure: 'commandCenter',
-        description: "Increases solenoid energy per second to 5.",
+        description: "Increases manual energy per second to 5.",
         discoverWhen: {
-            upgrades: ['commandCenter_improvedSolenoid'],
+            upgrades: ['commandCenter_improvedCharge'],
             resources: {
                 ore: 50
             }
@@ -133,12 +133,12 @@ const database = {
             energy: { add: 3 }
         }
     }),
-    commandCenter_improvedSolenoid3: _.merge({}, base, {
-        name: "Fused Wiring",
+    commandCenter_improvedCharge3: _.merge({}, base, {
+        name: "Rotational Momentum",
         structure: 'commandCenter',
-        description: "Solenoid charging time increased to 10s.",
+        description: "Manual charging time increased to 10s.",
         discoverWhen: {
-            upgrades: ['commandCenter_improvedSolenoid2'],
+            upgrades: ['commandCenter_improvedCharge2'],
             resources: {
                 ore: 300
             }
@@ -155,12 +155,12 @@ const database = {
             castTime: { add: 5 }
         }
     }),
-    commandCenter_improvedSolenoid4: _.merge({}, base, {
+    commandCenter_improvedCharge4: _.merge({}, base, {
         name: "Gold Wiring",
         structure: 'commandCenter',
-        description: "Increases solenoid energy per second to 30.",
+        description: "Increases manual energy per second to 30.",
         discoverWhen: {
-            upgrades: ['commandCenter_improvedSolenoid3'],
+            upgrades: ['commandCenter_improvedCharge3'],
             resources: {
                 ore: 1000
             }
@@ -173,12 +173,12 @@ const database = {
             energy: { add: 25 }
         }
     }),
-    commandCenter_improvedSolenoid5: _.merge({}, base, {
+    commandCenter_improvedCharge5: _.merge({}, base, {
         name: "Platinum Wiring",
         structure: 'commandCenter',
-        description: "Increases solenoid energy per second to 100.",
+        description: "Increases manual energy per second to 100.",
         discoverWhen: {
-            upgrades: ['commandCenter_improvedSolenoid4'],
+            upgrades: ['commandCenter_improvedCharge4'],
             resources: {
                 refinedMinerals: 250
             }
@@ -191,12 +191,12 @@ const database = {
             energy: { add: 70 }
         }
     }),
-    commandCenter_improvedSolenoid6: _.merge({}, base, {
+    commandCenter_improvedCharge6: _.merge({}, base, {
         name: "Plasma Inductor",
         structure: 'commandCenter',
-        description: "Solenoid charging time increased to 30s.",
+        description: "Manual charging time increased to 30s.",
         discoverWhen: {
-            upgrades: ['commandCenter_improvedSolenoid5'],
+            upgrades: ['commandCenter_improvedCharge5'],
             resources: {
                 refinedMinerals: 1000
             }
@@ -212,12 +212,12 @@ const database = {
             castTime: { add: 20 }
         }
     }),
-    commandCenter_improvedSolenoid7: _.merge({}, base, {
+    commandCenter_improvedCharge7: _.merge({}, base, {
         name: "Quantum Induction",
         structure: 'commandCenter',
-        description: "Increases solenoid energy per second to 1000.",
+        description: "Increases manual energy per second to 1000.",
         discoverWhen: {
-            upgrades: ['commandCenter_improvedSolenoid6'],
+            upgrades: ['commandCenter_improvedCharge6'],
             resources: {
                 refinedMinerals: 15000
             }
@@ -274,10 +274,10 @@ const database = {
                 ore: 3000,
                 refinedMinerals: 40
             },
-            upgrades: ['harvester_ore2']
+            upgrades: ['harvester_ore2', 'harvester_eff1']
         },
         cost: {
-            ore: 1200,
+            ore: 2500,
             refinedMinerals: 100
         },
         effect: {
@@ -286,7 +286,7 @@ const database = {
         }
     }),
     harvester_ore4: _.merge({}, base, {
-        name: "Hyper-kinetic Engines",
+        name: "Kinetic Engines",
         structure: 'harvester',
         description: "Increases harvester ore production by 200%, but also increases energy cost by 200%.",
         discoverWhen: {
@@ -327,7 +327,8 @@ const database = {
         discoverWhen: {
             upgrades: ['harvester_eff1'],
             resources: {
-                ore: 10000
+                ore: 10000,
+                refinedMinerals: 400
             }
         },
         cost: {
@@ -379,13 +380,13 @@ const database = {
         }
     }),
     harvester_overclockUpgrade2: _.merge({}, base, {
-        name: "Hyper-clock",
+        name: "Hyper Acceleration",
         structure: 'harvester',
         description: "Overclock increases ore production by 1000% at the cost of 500% increased energy.",
         discoverWhen: {
             upgrades: ['harvester_overclockUpgrade1'],
             resources: {
-                refinedMinerals: 30000
+                refinedMinerals: 20000
             }
         },
         cost: {
@@ -401,7 +402,7 @@ const database = {
         }
     }),
 
-    solarPanel_largerPanels: _.merge({}, base, {
+    solarPanel_production1: _.merge({}, base, {
         name: "Larger Panels",
         structure: 'solarPanel',
 
@@ -430,7 +431,7 @@ const database = {
                 energy: 1000,
                 refinedMinerals: 10
             },
-            upgrades: ['solarPanel_largerPanels']
+            upgrades: ['solarPanel_production1']
         },
         cost: {
             ore: 2100,
@@ -440,20 +441,38 @@ const database = {
             minDaylight: { add: 0.25 }
         },
     }),
-    solarPanel_sunTracking: _.merge({}, base, {
+    solarPanel_production2: _.merge({}, base, {
         name: "Even Larger Panels",
         structure: 'solarPanel',
-        description: "Increase solar panel energy production by 200%.",
+        description: "Increase solar panel energy production by 150%.",
         discoverWhen: {
             resources: {
                 energy: 1000,
                 refinedMinerals: 100
             },
-            upgrades: ['solarPanel_largerPanels']
+            upgrades: ['solarPanel_production1']
         },
         cost: {
             ore: 5500,
             refinedMinerals: 150
+        },
+        effect: {
+            peakEnergy: { multiply: 2.5 }
+        },
+    }),
+    solarPanel_production3: _.merge({}, base, {
+        name: "Perovskite Solar Cells",
+        structure: 'solarPanel',
+        description: "Increase solar panel energy production by 200%.",
+        discoverWhen: {
+            resources: {
+                refinedMinerals: 700
+            },
+            upgrades: ['solarPanel_production2']
+        },
+        cost: {
+            ore: 11500,
+            refinedMinerals: 950
         },
         effect: {
             peakEnergy: { multiply: 3 }
@@ -474,7 +493,7 @@ const database = {
         discoverWhen: {
             upgrades: ['solarPanel_global'],
             resources: {
-                probes: 15e3, // out of 1800e3
+                probes: 30e3, // out of 1800e3
             }
         },
         cost: {
@@ -591,11 +610,29 @@ const database = {
         }
     }),
     energyBay_largerCapacity3: _.merge({}, base, {
-        name: "Ultra-dense Matrix",
+        name: "Ultra-Dense Matrices",
         structure: 'energyBay',
         description: "Multiplies energy bay capacity by 500%.",
         discoverWhen: {
             upgrades: ['energyBay_largerCapacity2'],
+            resources: {
+                refinedMinerals: 5000
+            }
+        },
+        cost: {
+            ore: 11000,
+            refinedMinerals: 6510
+        },
+        effect: {
+            capacity: { multiply: 5 }
+        }
+    }),
+    energyBay_largerCapacity4: _.merge({}, base, {
+        name: "Quantum Charging",
+        structure: 'energyBay',
+        description: "Multiplies energy bay capacity by 500%.",
+        discoverWhen: {
+            upgrades: ['energyBay_largerCapacity3'],
             resources: {
                 refinedMinerals: 5e5
             }
@@ -665,6 +702,7 @@ const database = {
         structure: 'windTurbine',
         description: "Allows the wind turbine to rotate towards the wind's direction, increasing energy production by 50%",
         discoverWhen: {
+            upgrades: ['windTurbine_largerBlades', 'windTurbine_reduceCutIn', 'windTurbine_increaseCutOut'],
             resources: {
                 // ore: 1500,
                 refinedMinerals: 50
@@ -676,6 +714,25 @@ const database = {
         },
         effect: {
             ratedPower: { multiply: 1.3 }
+        }
+    }),
+    windTurbine_zephyr: _.merge({}, base, {
+        name: "Zephyr PowerCore",
+        structure: 'windTurbine',
+        description: "Allows the wind turbine to rotate towards the wind's direction, increasing energy production by 100%",
+        discoverWhen: {
+            upgrades: ['windTurbine_yawDrive'],
+            resources: {
+                // ore: 1500,
+                refinedMinerals: 850
+            }
+        },
+        cost: {
+            ore: 18000,
+            refinedMinerals: 1200
+        },
+        effect: {
+            ratedPower: { multiply: 2 }
         }
     }),
     windTurbine_global: _.merge({}, base, {
@@ -724,7 +781,7 @@ const database = {
     refinery_improveProduction2: _.merge({}, base, {
         name: "Hyper-Alloy Synthesizer",
         structure: 'refinery',
-        description: 'Increase amount of minerals produced by 100%',
+        description: 'Increase amount of minerals produced by 75%',
         discoverWhen: {
             upgrades: ['refinery_improveProduction'],
             resources: {
@@ -733,10 +790,10 @@ const database = {
         },
         cost: {
             ore: 12000,
-            refinedMinerals: 1000
+            refinedMinerals: 1750
         },
         effect: {
-            refinedMinerals: { multiply: 2 }
+            refinedMinerals: { multiply: 1.75 }
         }
     }),
     refinery_improveProduction3: _.merge({}, base, {
@@ -759,7 +816,7 @@ const database = {
         }
     }),
     refinery_improveProduction4: _.merge({}, base, {
-        name: "Plasma Furnace",
+        name: "Quantum Synthesis",
         structure: 'refinery',
         description: 'Increase amount of minerals produced by 500%, but also increases energy cost by 300%',
         discoverWhen: {
@@ -819,7 +876,7 @@ const database = {
         description: 'Reduces build time by 15s',
         discoverWhen: {
             resources: {
-                standardDroids: 2
+                standardDroids: 3
             }
         },
         cost: {
@@ -857,7 +914,7 @@ const database = {
         discoverWhen: {
             upgrades: ['solarPanel_sunShield'],
             resources: {
-                energy: 1.5e13,
+                energy: 2.0e13,
             }
         },
         cost: {

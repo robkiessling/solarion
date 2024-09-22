@@ -61,7 +61,7 @@ const base = {
 export default {
     commandCenter: _.merge({}, base, {
         name: "Command Center",
-        description: "A twisted mass of cables, switches and monitors surround a large solenoid.",
+        description: "A twisted mass of cables, switches and monitors surround a large electronic device.",
         types: TYPES.generator,
         count: {
             max: 1
@@ -118,7 +118,7 @@ export default {
     }),
     probeFactory: _.merge({}, base, {
         name: "Probe Launcher",
-        description: "Manufactures and launches probes towards Solarion V.",
+        description: "Manufactures and launches probes towards Solarion.",
         runnable: true,
         type: TYPES.consumer,
         droidData: {

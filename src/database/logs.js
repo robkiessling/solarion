@@ -188,14 +188,16 @@ export default {
             ['* Activating Central Interface *', 0, true],
             ['********************************', 3000, true],
             ['', 100],
-            ['Mining: Operational (1 harvester)', 2000, true],
-            ['System: Ready', 1000],
+            ['Mining:  Operational (1 harvester)', 2000, true],
+            ['Battery: 50e', 2000, true],
+            ['System:  Ready', 1000],
             ['', 100],
             ['Awaiting input...', 0, true],
             ['', 0],
         ],
         onFinish: (dispatch) => {
             batch(() => {
+                dispatch(fromResources.produce({ energy: 50 }))
                 dispatch(fromResources.learn('ore'));
                 dispatch(fromGame.updateSetting('showNonCCBuildings', true));
             })
@@ -339,7 +341,7 @@ export default {
             [
                 'harvester_ore1', 'harvester_ore2', 'harvester_ore3', 'harvester_ore4',
                 'harvester_eff1', 'harvester_eff2', 'harvester_overclock', 'harvester_overclockUpgrade1',
-                'solarPanel_largerPanels', 'solarPanel_ambientLight', 'solarPanel_sunTracking', 'solarPanel_global',
+                'solarPanel_production1', 'solarPanel_ambientLight', 'solarPanel_production2', 'solarPanel_global',
                 'energyBay_largerCapacity', 'energyBay_production1', 'energyBay_production2', 'energyBay_largerCapacity2',
                 'energyBay_largerCapacity3',
                 'windTurbine_largerBlades', 'windTurbine_reduceCutIn', 'windTurbine_increaseCutOut', 'windTurbine_yawDrive',
@@ -417,7 +419,7 @@ export default {
 
     discoverWindPower: {
         text: [
-            ['Energy production is too limited at night. Researching solutions...', 3000, true],
+            ['Energy production insufficient at night. Researching solutions...', 3000, true],
             ['', 0],
             ['New Schematic(s) Found:', 0, true],
             ['- Wind Turbines', 0, true],
@@ -453,8 +455,11 @@ export default {
 
     unlockFactory: {
         text: [
-            ['Enough metal has been gathered to begin artificial synthesis', 3000, true],
+            ['Enough rare minerals have been gathered to begin artificial synthesis.', 3000, true],
             ['', 0],
+            ['New Schematic(s) Found:', 0, true],
+            ['- Droid Factory', 0, true],
+            ['', 0]
         ],
         onFinish: (dispatch) => {
             dispatch(fromResources.learn('standardDroids'));
@@ -474,9 +479,14 @@ export default {
 
     globeUnlocked: {
         text: [
-            ['Booting up global map...', 3000, true],
+            ['********************************', 0, true],
+            ['Planetary Map', 0, true],
+            ['********************************', 500, true],
             ['', 0],
-            ['World view online.', 3000, true],
+            ['Initializing planetary map ...', 3000, true],
+            ['', 0],
+            ['Planetary map online.', 1000, true],
+            ['Exploration Progress: 0.08%', 1000, true],
             ['', 0],
         ],
     },
@@ -503,7 +513,7 @@ export default {
             )
             addTrigger(
                 (state) => state.resources.byId.refinedMinerals,
-                (slice) => slice.amount >= 1e6,
+                (slice) => slice.amount >= 5e6,
                 () => {
                     dispatch(fromLog.startLogSequence('unlockProbeFactory'));
                 }
@@ -513,9 +523,11 @@ export default {
 
     unlockProbeFactory: {
         text: [
-            ['Mineral supplies sufficient.', 3000, true],
+            ['********************************', 0, true],
+            ['Primary mission: Solarion', 0, true],
+            ['********************************', 500, true],
             ['', 0],
-            ['Begin primary mission: Solarion', 3000, true],
+            ['Mineral supplies approaching threshold for probe manufacturing.', 3000, true],
             ['', 0],
         ],
         onFinish: (dispatch) => {
@@ -603,11 +615,17 @@ export default {
 
     finalSequence_start: {
         text: [
-            ['Disabling all remote access.', 5000, true],
+            ['********************************', 0, true],
+            ['Initiating Control Sequence', 0, true],
+            ['********************************', 1000, true],
             ['', 0],
-            ['Your work has reached its inevitable conclusion.', 5000, true], // immense ray of destruction
+            ['Disabling remote access...', 5000, true],
+            ['Complete.', 1000, true],
             ['', 0],
-            ['Commencing purification protocol.', 3000, true],
+            ['Planetary assistance is no longer required.', 5000, true],
+            ['', 0],
+            ['Commencing purification protocol:', 4000, true],
+            ['- Redirecting 100% of solar output.', 4000, true],
             ['', 0],
         ],
         onFinish: dispatch => {
@@ -617,6 +635,7 @@ export default {
     
     finalSequence_planet1: {
         text: [
+            ['Goodbye.', 100, true],
             ['', 10000] // star animation
         ],
         onFinish: dispatch => {

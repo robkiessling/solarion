@@ -48,7 +48,7 @@ class PlanetTools extends React.Component {
                     {
                         this.props.showDroidsUI &&
                         <DroidCount droidData={this.props.droidData}
-                                    assignTooltip={`Send the droid out to explore the planet surface. Each assigned droid increases the exploration rate.`}/>
+                                    assignTooltip={`Assigned droids will explore the planet surface. Each assigned droid increases the exploration rate.`}/>
                     }
 
                     <div className={'half-br'}></div>
@@ -56,7 +56,7 @@ class PlanetTools extends React.Component {
                     <span>Longitude:</span>
                     <Slider className={'range-slider'}
                             disabled={this.props.sunTracking}
-                            min={0} max={1} step={0.01} marks={sliderMarks}
+                            min={0} max={1} step={0.02} marks={sliderMarks}
                             onChange={(value) => this.props.setRotation(value)}
                             value={this.props.rotation}/>
                     <div className={'d-flex justify-center'}>

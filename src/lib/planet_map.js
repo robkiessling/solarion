@@ -112,7 +112,7 @@ const LASER_BEAM_STREAKS = { // some beams make a streak onto the planet itself
     9: 14,
     10: 31,
     12: 27,
-    14: 36,
+    14: 32,
     16: 24,
     19: 27,
     21: 21,

@@ -29,7 +29,7 @@ class Planet extends React.Component {
     }
 
     render() {
-        const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.developed, TERRAINS.mountain];
+        const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.developed];
 
         const planetImage = generateImage(
             this.props.map,
