@@ -11,10 +11,17 @@ import './styles/app.scss';
 // Note: Singleton imports are necessary despite not being used in this file; they initialize the singletons
 import gameClock from "./singletons/game_clock"
 
-import * as fromLog from './redux/modules/log';
+import {hasStartedGame, startLogSequence} from "./redux/modules/log";
+import {syncTriggers} from "./redux/modules/triggers";
 
 
-store.dispatch(fromLog.startLogSequence('startup'));
+if (hasStartedGame(store.getState().log)) {
+    // initialize store subscriptions from previous saved state
+    syncTriggers(store.getState().triggers)
+} else {
+    // fresh start!
+    store.dispatch(startLogSequence('startup'));
+}
 
 ReactDOM.render(
     <Provider store={store}>

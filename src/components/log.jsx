@@ -11,14 +11,18 @@ class Log extends React.Component {
     }
 
     componentDidMount() {
+        this.scrollToBottom();
+
         window.addEventListener("resize", debounce(() => this.scrollToBottom()));
     }
 
     scrollToBottom() {
         let log = this.logRef.current;
 
-        // Scroll to the bottom of the log
-        log.scrollTop = log.scrollHeight - log.clientHeight;
+        if (log) {
+            // Scroll to the bottom of the log
+            log.scrollTop = log.scrollHeight - log.clientHeight;
+        }
     }
 
     render() {
@@ -32,7 +36,7 @@ class Log extends React.Component {
                                                key={sequenceId}
                                                onUpdate={() => this.scrollToBottom()}
                                                active={index === (this.props.visibleSequenceIds.length - 1)}
-                            />
+                            />;
                         })
                     }
                 </div>

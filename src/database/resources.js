@@ -1,14 +1,15 @@
 
 import {getStructure} from "../redux/modules/structures";
-import {energyBeamStrengthEnergy, energyBeamStrengthPct, getStructureStatistic} from "../redux/reducer";
+import {getStructureStatistic} from "../redux/reducer";
 import {probeCapacity} from "../lib/star";
 import {isTargetingPlanet} from "../redux/modules/star";
+import {INFINITY} from "../lib/helpers";
 
 const base = {
     name: 'Unknown',
     amount: 0,
     lifetimeTotal: 0,
-    capacity: Infinity,
+    capacity: INFINITY,
     visible: true, // Whether the resources shows up in display
     showRate: true // Whether the resource shows a rate in the display (only relevant if visible:true)
 }

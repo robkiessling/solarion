@@ -13,25 +13,13 @@ import PlanetTools from "./planet_tools";
 import Star from "./star";
 import BlockPointerEvents from "./block_pointer_events";
 import {connect} from "react-redux";
+import GameOver from "./game_over";
 
 class App extends React.Component {
 
     render() {
         if (this.props.gameOver) {
-            return <div id="app-container" className="game-over">
-
-                <div className="game-over-text">
-                    Game Over
-                </div>
-                <div>
-                    Thanks for playing :)
-                </div>
-                <div style={{marginTop: '1rem'}}>
-                    <button>
-                        Restart
-                    </button>
-                </div>
-            </div>
+            return <GameOver />
         }
 
         let containerClass = '';

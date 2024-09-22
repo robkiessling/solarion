@@ -27,6 +27,7 @@ const initialState = {
     currentStructureTab: 'all',
 
     // end game variables
+    endGameSequenceStarted: false,
     rapidlyRecalcEnergy: false,
     blockPointerEvents: false,
     burnOutside: false,

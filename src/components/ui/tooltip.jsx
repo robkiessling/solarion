@@ -3,6 +3,15 @@ import ReactTooltip from "react-tooltip";
 import ReactDOM from "react-dom";
 
 export default function Tooltip(props) {
+    // Do not call createPortal until DOM is ready: https://stackoverflow.com/a/66447347
+    const [domReady, setDomReady] = React.useState(false)
+    React.useEffect(() => {
+        setDomReady(true)
+    }, [])
+
+    if (!domReady) {
+        return null;
+    }
 
     // TODO this doesn't work well if the tooltip is forced to move, since it is still offset according to original direction
     const place = props.place || 'right';

@@ -16,7 +16,7 @@ class LogSection extends React.Component {
         const databaseRecord = database[this.props.logData.id]
 
         if (this.props.logData.status === 'completed') {
-            this.logInstant(databaseRecord);
+            this.backfillSequence(databaseRecord);
         }
         else {
             this.logSequence(databaseRecord);
@@ -33,7 +33,8 @@ class LogSection extends React.Component {
     //     const newState = store.getState();
     // }
 
-    logInstant(databaseRecord) {
+    // Just displaying it for historical purposes; skipping all callbacks
+    backfillSequence(databaseRecord) {
         const logSection = this.logSectionRef.current;
         const text = databaseRecord.text;
 

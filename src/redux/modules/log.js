@@ -1,4 +1,5 @@
 import update from 'immutability-helper';
+import { v4 } from 'node-uuid';
 
 // Actions
 export const LOG = 'log/LOG';
@@ -17,6 +18,8 @@ export default function reducer(state = initialState, action) {
 
     switch (action.type) {
         case LOG:
+            if (state.bySequenceId[payload.sequence]) { return state; } // already logged (e.g. previous save state)
+
             return update(state, {
                 bySequenceId: {
                     [payload.sequence]: {
@@ -26,6 +29,8 @@ export default function reducer(state = initialState, action) {
                 visibleSequenceIds: { $push: [payload.sequence] }
             });
         case START_LOG_SEQUENCE:
+            if (state.bySequenceId[payload.sequence]) { return state; } // already logged (e.g. previous save state)
+
             return update(state, {
                 bySequenceId: {
                     [payload.sequence]: {
@@ -48,16 +53,16 @@ export default function reducer(state = initialState, action) {
 }
 
 // Action Creators
-let currentSequence = 1;
 
 // Logs a message in the 'completed' state (instantly rendering it)
+// sequence is a random uuid, just has to be unique: https://egghead.io/lessons/javascript-redux-persisting-the-state-to-the-local-storage
 export function logMessage(id) {
-    return { type: LOG, payload: { id: id, sequence: currentSequence++, timestamp: null } };
+    return { type: LOG, payload: { id: id, sequence: v4(), timestamp: null } };
 }
 
 // Starts a log sequence (outputs the text over time)
 export function startLogSequence(id) {
-    return { type: START_LOG_SEQUENCE, payload: { id: id, sequence: currentSequence++, timestamp: null } };
+    return { type: START_LOG_SEQUENCE, payload: { id: id, sequence: v4(), timestamp: null } };
 }
 export function endLogSequence(sequence) {
     return { type: END_LOG_SEQUENCE, payload: { sequence } };
@@ -67,4 +72,8 @@ export function endLogSequence(sequence) {
 // Standard Functions
 export function getLogData(state, sequenceId) {
     return state.bySequenceId[sequenceId];
+}
+
+export function hasStartedGame(state) {
+    return state && state.visibleSequenceIds && state.visibleSequenceIds.length;
 }

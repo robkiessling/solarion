@@ -9,7 +9,7 @@ import {daylightPercent, windSpeed} from "../redux/modules/clock";
 import {canConsume, getCapacity, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
 import {round} from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
-import {formatInteger, redText} from "../lib/helpers";
+import {formatInteger, INFINITY, redText} from "../lib/helpers";
 import {upgradesAffectingStructure} from "./upgrades";
 import {abilitiesAffectingStructure} from "./abilities";
 import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations} from "../lib/effect";
@@ -41,7 +41,7 @@ const base = {
     disabled: false, // if disabled, cannot start running
     count: {
         total: 0, // todo why is this an object? maybe for total/broken/etc.?
-        max: Infinity
+        max: INFINITY
     },
     status: STATUSES.normal,
     statusMessage: '',

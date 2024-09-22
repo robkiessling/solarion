@@ -5,6 +5,9 @@ import {dayLength, dayNumber, fractionOfDay, surfaceTemperature, windSpeed} from
 import Slider from "rc-slider";
 import {updateSetting} from "../redux/modules/game";
 import {createArray} from "../lib/helpers";
+import {resetState, saveState} from "../lib/local_storage";
+import store from "../redux/store";
+import {produce} from "../redux/modules/resources";
 
 class PlanetStatus extends React.Component {
     constructor(props) {
@@ -37,6 +40,11 @@ class PlanetStatus extends React.Component {
                             marks={createArray(debug__maxGameSpeed + 1, i => i).reduce((obj, v) => ({ ...obj, [v]: v }), {})}
                             onChange={(value) => this.props.updateSetting('gameSpeed', value)}
                             value={this.props.gameSpeed}/>
+                    <button onClick={() => saveState(store.getState())}>Save</button>&emsp;
+                    <button onClick={() => resetState()}>Reset</button>&emsp;
+                    <button onClick={() => this.props.produce({
+                        energy: 1e10, ore: 1e10, refinedMinerals: 1e10
+                    })}>Gain Res.</button>
                 </div>
             </div>
 
@@ -60,5 +68,5 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { updateSetting }
+    { updateSetting, produce }
 )(PlanetStatus);

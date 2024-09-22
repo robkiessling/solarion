@@ -2,7 +2,10 @@ import {applyMiddleware, compose, createStore} from 'redux';
 import thunk from 'redux-thunk';
 import reducer from './reducer';
 import {batchedSubscribe} from 'redux-batched-subscribe';
-import {debounce} from 'lodash';
+import {debounce, throttle} from 'lodash';
+import {loadState, resetState, saveState} from "../lib/local_storage";
+
+const SAVE_INTERVAL = 10 * 1000;
 
 const middleware = [ thunk ];
 // if (process.env.NODE_ENV !== 'production') {
@@ -17,8 +20,27 @@ const enhancer = composeEnhancers(
     batchedSubscribe(debounce(notify => notify()))
 )
 
-export default createStore(
+// resetState();
+const persistedState = loadState();
+
+const store = createStore(
     reducer,
-    /* preloadedState, */
+    persistedState,
     enhancer
 );
+
+store.subscribe(throttle(() => {
+    /* Example saving a partial state: */
+    // saveState({
+    //     todos: store.getState().todos
+    // })
+
+    const state = store.getState();
+    if (state && state.game && state.game.endGameSequenceStarted) {
+        return;
+    }
+
+    saveState(store.getState());
+}, SAVE_INTERVAL));
+
+export default store;

@@ -4,6 +4,7 @@ import reduceReducers from "reduce-reducers";
 import update from 'immutability-helper';
 
 import game, * as fromGame from './modules/game';
+import triggers, * as fromTriggers from "./modules/triggers";
 import clock, * as fromClock from './modules/clock';
 import log, * as fromLog from './modules/log';
 import structures, * as fromStructures from "./modules/structures";
@@ -27,6 +28,7 @@ export const RECALCULATE = 'reducer/RECALCULATE';
 export default reduceReducers(
     combineReducers({
         game,
+        triggers,
         clock,
         log,
         resources,

@@ -1,6 +1,3 @@
-/**
- * Not sure if going to keep this... deciding between a canvas approach vs. straight up HTML
- */
 
 import React from 'react';
 import AsciiCanvas from "../lib/ascii_canvas";

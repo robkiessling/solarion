@@ -4,14 +4,11 @@ import * as fromStructures from "../redux/modules/structures";
 import * as fromLog from "../redux/modules/log"
 import * as fromUpgrades from "../redux/modules/upgrades";
 import * as fromAbilities from "../redux/modules/abilities";
-import {addTrigger} from "../redux/triggers";
 import {EFFECT_TARGETS} from "../lib/effect";
-import {getIconSpan} from "../redux/modules/resources";
 import * as fromGame from "../redux/modules/game";
 import * as fromPlanet from "../redux/modules/planet";
 import {generateMap} from "../redux/modules/planet";
 import * as fromStar from "../redux/modules/star";
-import {probeCapacity} from "../lib/star";
 
 export const STATES = {
     hidden: 0,
@@ -837,20 +834,20 @@ const database = {
     droidFactory_improvedMaintenance: _.merge({}, base, {
         name: "Advanced Hyperchips",
         structure: 'droidFactory',
-        description: 'Doubles the effectiveness of droids assigned to structures',
+        description: 'Droids are 50% more effective when assigned to structures',
         discoverWhen: {
             resources: {
                 standardDroids: 5
             }
         },
         cost: {
-            refinedMinerals: 200,
+            refinedMinerals: 950,
         },
         affects: {
             type: EFFECT_TARGETS.misc
         },
         effect: {
-            boost: { multiply: 2 }
+            boost: { multiply: 1.5 }
         }
     }),
     droidFactory_longerComm: _.merge({}, base, {
@@ -980,14 +977,6 @@ export const callbacks = {
             dispatch(fromAbilities.learn('replicate'));
 
             dispatch(fromLog.startLogSequence('globeUnlocked'));
-
-            addTrigger(
-                (state) => state.planet.droidData,
-                (slice) => slice.numDroidsAssigned > 0,
-                () => {
-                    dispatch(fromPlanet.startExploringMap());
-                }
-            )
         }
     },
     droidFactory_fasterExplore: {
@@ -1005,6 +994,7 @@ export const callbacks = {
     },
     probeFactory_finalSequence: {
         onFinish: (dispatch) => {
+            dispatch(fromGame.updateSetting('endGameSequenceStarted', true));
             dispatch(fromGame.updateSetting('blockPointerEvents', true));
             dispatch(fromLog.startLogSequence('finalSequence_start'));
         }

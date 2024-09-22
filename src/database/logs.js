@@ -5,12 +5,11 @@ import * as fromAbilities from '../redux/modules/abilities';
 import * as fromGame from '../redux/modules/game';
 import * as fromPlanet from '../redux/modules/planet';
 import * as fromReducer from '../redux/reducer';
-import {addTrigger} from "../redux/triggers";
+import {addTrigger} from "../redux/modules/triggers";
 import * as fromLog from "../redux/modules/log";
 import * as fromStar from "../redux/modules/star";
 import {batch} from "react-redux";
 import {kickoffDoomsday} from "../redux/reducer";
-import {probeCapacity} from "../lib/star";
 import {COOK_TIME} from "../lib/planet_map";
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard campaign start
@@ -19,7 +18,7 @@ const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE = SKIP_TO_STAR; /* Controls overall game mode */
+const GAME_MODE = NORMAL_BOOTUP; /* Controls overall game mode */
 
 
 export default {
@@ -200,38 +199,12 @@ export default {
                 dispatch(fromResources.produce({ energy: 50 }))
                 dispatch(fromResources.learn('ore'));
                 dispatch(fromGame.updateSetting('showNonCCBuildings', true));
+
+                dispatch(addTrigger('discoverSolar'));
+                dispatch(addTrigger('discoverWindPower'));
+                dispatch(addTrigger('energyAlmostFull'));
+                dispatch(addTrigger('unlockRefinery'));
             })
-
-            addTrigger(
-                (state) => state.resources.byId.ore,
-                (slice) => slice.lifetimeTotal >= 40,
-                () => {
-                    dispatch(fromLog.startLogSequence('discoverSolar'));
-                }
-            )
-            addTrigger(
-                (state) => state.resources.byId.ore,
-                (slice) => slice.lifetimeTotal >= 200,
-                () => {
-                    dispatch(fromLog.startLogSequence('discoverWindPower'));
-                }
-            )
-
-            addTrigger(
-                (state) => state.resources.byId.energy,
-                (slice) => slice.amount >= slice.capacity * 0.9,
-                () => {
-                    dispatch(fromLog.startLogSequence('energyAlmostFull'));
-                }
-            )
-
-            addTrigger(
-                (state) => state.resources.byId.ore,
-                (slice) => slice.lifetimeTotal >= 1000,
-                () => {
-                    dispatch(fromLog.startLogSequence('unlockRefinery'));
-                }
-            )
         }
     },
 
@@ -285,15 +258,7 @@ export default {
                 standardDroids: 10
             }));
 
-            addTrigger(
-                (state) => state.planet.droidData,
-                (slice) => slice.numDroidsAssigned > 0,
-                () => {
-                    dispatch(fromLog.startLogSequence('startExploringMap'));
-                    dispatch(fromPlanet.startExploringMap());
-                }
-            )
-
+            dispatch(addTrigger('startExploringMap'))
         }
     },
     skipToStar: {
@@ -443,17 +408,11 @@ export default {
             dispatch(fromResources.learn('refinedMinerals'));
             dispatch(fromStructures.learn('refinery'));
 
-            addTrigger(
-                (state) => state.resources.byId.refinedMinerals,
-                (slice) => slice.lifetimeTotal >= 100,
-                () => {
-                    dispatch(fromLog.startLogSequence('unlockFactory'));
-                }
-            )
+            dispatch(addTrigger('unlockDroidFactory'));
         }
     },
 
-    unlockFactory: {
+    unlockDroidFactory: {
         text: [
             ['Enough rare minerals have been gathered to begin artificial synthesis.', 3000, true],
             ['', 0],
@@ -466,14 +425,7 @@ export default {
             dispatch(fromStructures.learn('droidFactory'));
             dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
 
-            addTrigger(
-                (state) => state.planet.droidData,
-                (slice) => slice.numDroidsAssigned > 0,
-                () => {
-                    dispatch(fromLog.startLogSequence('startExploringMap'));
-                    dispatch(fromPlanet.startExploringMap());
-                }
-            )
+            dispatch(addTrigger('startExploringMap'))
         }
     },
 
@@ -493,31 +445,14 @@ export default {
 
     startExploringMap: {
         text: [
-            ['Dispatching droid(s).', 3000, true],
+            ['Dispatching droid(s).', 100, true],
             ['', 0],
         ],
         onFinish: (dispatch) => {
-            addTrigger(
-                (state) => state.resources.byId.developedLand,
-                (slice) => slice.amount >= 100,
-                () => {
-                    dispatch(fromUpgrades.discover('windTurbine_global'));
-                }
-            )
-            addTrigger(
-                (state) => state.resources.byId.developedLand,
-                (slice) => slice.amount >= 500,
-                () => {
-                    dispatch(fromUpgrades.discover('solarPanel_global'));
-                }
-            )
-            addTrigger(
-                (state) => state.resources.byId.refinedMinerals,
-                (slice) => slice.amount >= 5e6,
-                () => {
-                    dispatch(fromLog.startLogSequence('unlockProbeFactory'));
-                }
-            )
+            dispatch(addTrigger('windTurbine_global'))
+            dispatch(addTrigger('solarPanel_global'))
+            dispatch(addTrigger('unlockProbeFactory'))
+            dispatch(fromPlanet.startExploringMap());
         }
     },
 
@@ -538,13 +473,7 @@ export default {
 
             dispatch(fromGame.addNavTab('star'));
 
-            addTrigger(
-                (state) => state.structures.byId.probeFactory,
-                (slice) => slice.count.total > 0,
-                () => {
-                    dispatch(fromLog.startLogSequence('probeFactoryBuilt'));
-                }
-            )
+            dispatch(addTrigger('probeFactoryBuilt'))
         }
     },
 
@@ -556,29 +485,9 @@ export default {
             ['', 100]
         ],
         onFinish: (dispatch) => {
-            addTrigger(
-                (state) => state.resources.byId.probes,
-                (slice) => slice.amount >= (probeCapacity() * 0.5),
-                () => {
-                    dispatch(fromLog.startLogSequence('swarm50Pct'));
-                }
-            )
-
-            addTrigger(
-                (state) => state.resources.byId.probes,
-                (slice) => slice.amount >= (probeCapacity() * 0.75),
-                () => {
-                    dispatch(fromLog.startLogSequence('swarm75Pct'));
-                }
-            )
-
-            addTrigger(
-                (state) => state.resources.byId.probes,
-                (slice) => slice.amount >= probeCapacity(),
-                () => {
-                    dispatch(fromLog.startLogSequence('swarmComplete'));
-                }
-            )
+            dispatch(addTrigger('swarm50Pct'));
+            dispatch(addTrigger('swarm75Pct'));
+            dispatch(addTrigger('swarmComplete'));
         }
     },
 

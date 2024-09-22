@@ -1,4 +1,11 @@
-import {createArray, getIntermediateColor, getRandomFromArray, getRandomIntInclusive, mod} from "./helpers";
+import {
+    createArray,
+    getIntermediateColor,
+    getRandomFromArray,
+    getRandomIntInclusive,
+    mod,
+    roundToDecimal
+} from "./helpers";
 
 
 // TODO The planet layout currently is like a football. This causes things to get stretched weirdly, we need to
@@ -166,8 +173,7 @@ function createSector(terrain, status) {
     return {
         terrain: terrain.enum,
         status: status.enum,
-        exploreLength: terrain.exploreLength,
-        border: false,
+        exploreLength: terrain.exploreLength
     }
 }
 
@@ -309,7 +315,7 @@ function getDistanceBetweenCoords(coord1, coord2) {
 
     // This is not the same as triangular distance (sqrt(a^2 + b^2)); we have to weigh the row distance more heavily
     // because text characters are taller than they are wide. No need to sqrt because we just care about distance ratios
-    return rowOffset**(1.5) + colOffset;
+    return roundToDecimal(rowOffset**(1.5) + colOffset, 5);
 }
 
 function cacheDistancesToHome(map, homeCoord) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import {formatInteger, formatNumber, roundToDecimal} from "../../lib/helpers";
+import {formatInteger, formatNumber, INFINITY, roundToDecimal} from "../../lib/helpers";
 import {isObject} from "lodash";
 
 /**
@@ -15,7 +15,7 @@ import {isObject} from "lodash";
  */
 export default function ResourceAmount(props) {
     let amount = props.amount;
-    let capacity = props.capacity && props.capacity < Infinity ? props.capacity : null;
+    let capacity = props.capacity && props.capacity < INFINITY ? props.capacity : null;
 
     let hasEnough = true;
     if (isObject(amount)) {

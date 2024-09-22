@@ -206,3 +206,6 @@ export function getIntermediateColor(startColor, endColor, pct) {
     });
     return `rgb(${color[0]},${color[1]},${color[2]})`
 }
+
+
+export const INFINITY = 1e24; // cannot stringify javascript's `Infinity` value, so just using a really big number

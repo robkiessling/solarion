@@ -75,6 +75,11 @@ html {
     .game-over-text {
       font-size: 3rem;
     }
+    .game-over-buttons {
+      margin-top: 1rem;
+      display: flex;
+      gap: 1rem;
+    }
   }
 }
 
