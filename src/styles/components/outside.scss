@@ -108,6 +108,14 @@ $top-bar-float-padding: 0.875rem;
   overflow: hidden; // sides (left/right) can get truncated based on screen size
   background: $black;
 
+  &.burning {
+    background: $burn;
+
+    #sky-color {
+      display: none;
+    }
+  }
+
   canvas {
     position: absolute;
     left: 50%;

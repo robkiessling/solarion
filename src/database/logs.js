@@ -11,6 +11,7 @@ import * as fromStar from "../redux/modules/star";
 import {batch} from "react-redux";
 import {kickoffDoomsday} from "../redux/reducer";
 import {probeCapacity} from "../lib/star";
+import {COOK_TIME} from "../lib/planet_map";
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard campaign start
 const SKIP_START = 'skipStart';
@@ -620,28 +621,56 @@ export default {
         ],
         onFinish: dispatch => {
             dispatch(fromPlanet.setSunTracking(true));
+            dispatch(fromGame.updateSetting('hideUI', true));
             dispatch(fromGame.updateSetting('currentNavTab', 'planet'))
             dispatch(fromLog.startLogSequence('finalSequence_planet2'))
         }
     },
     finalSequence_planet2: {
         text: [
-            ['', 2000] // wait before blowing up planet
+            ['', 4000] // wait before blowing up planet
         ],
         onFinish: dispatch => {
             dispatch(fromPlanet.startCooking());
-            dispatch(fromLog.startLogSequence('finalSequence_surface1'))
+            dispatch(fromLog.startLogSequence('finalSequence_outside1'))
         }
     },
-    finalSequence_surface1: {
+    finalSequence_outside1: {
         text: [
-            ['', 5000] // cook planet animation
+            ['', COOK_TIME] // cook planet animation
         ],
         onFinish: dispatch => {
-            // dispatch(fromGame.updateSetting('currentNavTab', 'outside'))
-            // dispatch(fromLog.startLogSequence('finalSequence_planet1'))
+            dispatch(fromPlanet.startCooking());
+            dispatch(fromGame.updateSetting('burnOutside', true));
+            dispatch(fromGame.updateSetting('currentNavTab', 'outside'))
+            dispatch(fromLog.startLogSequence('finalSequence_outside2'))
         }
     },
-
+    finalSequence_outside2: {
+        text: [
+            ['', 4000] // cook outside animation
+        ],
+        onFinish: dispatch => {
+            dispatch(fromGame.updateSetting('hideCanvas', true));
+            dispatch(fromLog.startLogSequence('finalSequence_outside3'))
+        }
+    },
+    finalSequence_outside3: {
+        text: [
+            ['', 8000] // wait for canvas to hide
+        ],
+        onFinish: dispatch => {
+            dispatch(fromGame.updateSetting('fadeToBlack', true));
+            dispatch(fromLog.startLogSequence('finalSequence_gameOver'))
+        }
+    },
+    finalSequence_gameOver: {
+        text: [
+            ['', 5000] // waiting on fade to black
+        ],
+        onFinish: dispatch => {
+            dispatch(fromGame.updateSetting('gameOver', true));
+        }
+    }
 
 }

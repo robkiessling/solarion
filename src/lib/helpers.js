@@ -196,3 +196,13 @@ export function getDynamicValue(value, functionParams) {
 export function redText(text) {
     return `<span class="text-red">${text}</span>`
 }
+
+// Returns a color that is a partially between two other colors
+// param startColor/endColor should be an rgb array (e.g. [255, 255, 0])
+export function getIntermediateColor(startColor, endColor, pct) {
+    const color = startColor.map((startValue, index) => {
+        const endValue = endColor[index];
+        return pct * (endValue - startValue) + startValue;
+    });
+    return `rgb(${color[0]},${color[1]},${color[2]})`
+}

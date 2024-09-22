@@ -12,11 +12,36 @@ import Planet from "./planet";
 import PlanetTools from "./planet_tools";
 import Star from "./star";
 import BlockPointerEvents from "./block_pointer_events";
+import {connect} from "react-redux";
 
-export default class App extends React.Component {
+class App extends React.Component {
+
     render() {
+        if (this.props.gameOver) {
+            return <div id="app-container" className="game-over">
+
+                <div className="game-over-text">
+                    Game Over
+                </div>
+                <div>
+                    Thanks for playing :)
+                </div>
+                <div style={{marginTop: '1rem'}}>
+                    <button>
+                        Restart
+                    </button>
+                </div>
+            </div>
+        }
+
+        let containerClass = '';
+        containerClass += (this.props.hideUI ? ' hide-ui' : '');
+        containerClass += (this.props.hideCanvas ? ' hide-canvas' : '');
+        containerClass += (this.props.fadeToBlack ? ' fade-to-black' : '');
+
         return (
-            <div id="app-container">
+            <div id="app-container"
+                 className={containerClass}>
                 <div className="left-column">
                     <Structures/>
                     <PlanetTools/>
@@ -40,3 +65,17 @@ export default class App extends React.Component {
         );
     }
 }
+
+const mapStateToProps = state => {
+    return {
+        hideUI: state.game.hideUI,
+        hideCanvas: state.game.hideCanvas,
+        fadeToBlack: state.game.fadeToBlack,
+        gameOver: state.game.gameOver
+    }
+};
+
+export default connect(
+    mapStateToProps,
+    {}
+)(App);

@@ -1,5 +1,4 @@
 import update from 'immutability-helper';
-import {mod} from "../../lib/helpers";
 
 // Actions
 export const UPDATE_SETTING = 'game/UPDATE_SETTING';
@@ -30,6 +29,10 @@ const initialState = {
     // end game variables
     rapidlyRecalcEnergy: false,
     blockPointerEvents: false,
+    burnOutside: false,
+    hideUI: false,
+    hideCanvas: false,
+    gameOver: false,
 }
 
 // Reducers
@@ -57,3 +60,4 @@ export function updateSetting(key, value) {
 export function addNavTab(tab) {
     return { type: ADD_NAV_TAB, payload: { tab } }
 }
+

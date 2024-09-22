@@ -23,10 +23,10 @@ const base = {
 
 
 class Frame {
-    constructor(charArray, color = '#fff', cycles = 1) {
+    constructor(charArray, color = '#fff', duration = 1) {
         this.charArray = charArray;
         this.color = color;
-        this.cycles = cycles;
+        this.duration = duration;
     }
 
     getFrame() {
@@ -35,6 +35,25 @@ class Frame {
 
     toDisplay() {
         return this.charArray;
+    }
+
+    height() {
+        return this.charArray.length
+    }
+}
+
+// repeats a frame in the desired direction
+// e.g. [['x','y']] repeated 3 times would be [['x','y'],['x','y'],['x','y']]
+// note: only extending in the vertical direction is currently supported
+class LargerFrame extends Frame {
+    constructor(charArray, magnitude, color = '#fff', duration = 1) {
+        const newCharArray = [];
+        for (let i = 0; i < magnitude; i++) {
+            charArray.forEach(row => {
+                newCharArray.push(row);
+            })
+        }
+        super(newCharArray, color, duration);
     }
 }
 
@@ -50,7 +69,7 @@ class Animation {
     _unfoldFrames(frames) {
         const result = [];
         frames.forEach(frame => {
-            for (let i = 0; i < frame.cycles; i++) {
+            for (let i = 0; i < frame.duration; i++) {
                 result.push(frame);
             }
         })
@@ -75,6 +94,27 @@ class RandomAnimation extends Animation {
     getFrame(elapsedTime, animationDelay) {
         return this.frames[Math.floor(animationDelay * this.frames.length)];
     }
+}
+
+// Given a single frame, will animate it by looping the image as if it were on a roll.
+// i.e. for each frame, it shifts all the rows down 1, and loops the lowest row back to the top
+// Note: Only the downward direction is currently supported, but it wouldn't be too hard to implement others
+class LoopingAnimation extends Animation {
+    constructor(options, exampleFrame) {
+        const frames = [];
+
+        let charArray = exampleFrame.charArray.slice(0);
+
+        for (let i = 0; i < exampleFrame.height(); i++) {
+            frames.push(new Frame(charArray, exampleFrame.color));
+
+            charArray = charArray.slice(0); // duplicate the charArray for the next frame
+            charArray.unshift(charArray.pop()); // rotate it downward
+        }
+
+        super(options, frames);
+    }
+
 }
 
 export const doodads = {
@@ -116,7 +156,109 @@ export const doodads = {
             '       _   ',
             '__,.-`` \\__',
         ], '#f9903c')
-    }
+    },
+    laserBeam1: {
+        idle: new LoopingAnimation(
+            { fps: 15 },
+            new LargerFrame([
+                '|',
+                'V',
+                '|',
+                'v',
+                'V',
+                '!',
+                '|',
+                '#',
+                '|',
+                'V'
+            ], 2, 'yellow')
+        )
+    },
+    laserBeam2: {
+        idle: new LoopingAnimation(
+            { fps: 15 },
+            new LargerFrame([
+                '||',
+                'Vv',
+                '|V',
+                'vv',
+                'V|',
+                '!|',
+                '||',
+                '#V',
+                '||',
+                'V|'
+            ], 3, 'yellow')
+        )
+    },
+    laserBeam6: {
+        idle: new LoopingAnimation(
+            { fps: 15 },
+            new LargerFrame([
+                '|v|v||',
+                'V|V|#v',
+                '|!|VV|',
+                'vv|||v',
+                'V|!V||',
+                '!v$|v|',
+                '||||V|',
+                '#|!!|V',
+                '||||||',
+                'V|v|V|'
+            ], 4, 'yellow')
+        )
+    },
+    laserBeam10: {
+        idle: new LoopingAnimation(
+            { fps: 15 },
+            new LargerFrame([
+                '|v|!|v|v||',
+                'Vv||||V|#v',
+                '|v|V+!|VV|',
+                'v||V|v|||v',
+                'V*||||!V||',
+                '!*!V|v$|v|',
+                '||$|V|||V|',
+                '#|v|||!!|V',
+                '||v|||||||',
+                'V|v|v|v|V|'
+            ], 5, 'yellow')
+        )
+    },
+    laserBeam14: {
+        idle: new LoopingAnimation(
+            { fps: 15 },
+            new LargerFrame([
+                '|||v|||v||',
+                'V$Vv||V|#v',
+                '||!v|v|VV|',
+                'v|#||V|||v',
+                'V||*|V!V||',
+                '!||*!|$|v|',
+                '|V||$V||V|',
+                '#|v|vV!!|V',
+                '||V|vV||||',
+                'V|||v|v|V|'
+            ], 6, 'yellow')
+        )
+    },
+    laserBeam60: {
+        idle: new LoopingAnimation(
+            { fps: 15 },
+            new LargerFrame([
+                '|||v|||v|||||v|||v|||||v|||v|||||v|||v|||||v|||v|||||v|||v||||',
+                'V$Vv||V|#vV$Vv||V|#vV$Vv||V|#vV$Vv||V|#vV$Vv||V|#vV$Vv||V|#vV$',
+                '||!v|v|VV|||!v|v|VV|||!v|v|VV|||!v|v|VV|||!v|v|VV|||!v|v|VV|||',
+                'v|#||V|||vv|#||V|||vv|#||V|||vv|#||V|||vv|#||V|||vv|#||V|||vv|',
+                'V||*|V!V||V||*|V!V||V||*|V!V||V||*|V!V||V||*|V!V||V||*|V!V||V|',
+                '!||*!|$|v|!||*!|$|v|!||*!|$|v|!||*!|$|v|!||*!|$|v|!||*!|$|v|!|',
+                '|V||$V||V||V||$V||V||V||$V||V||V||$V||V||V||$V||V||V||$V||V||V',
+                '#|v|vV!!|V#|v|vV!!|V#|v|vV!!|V#|v|vV!!|V#|v|vV!!|V#|v|vV!!|V#|',
+                '||V|vV||||||V|vV||||||V|vV||||||V|vV||||||V|vV||||||V|vV||||||',
+                'V|||v|v|V|V|||v|v|V|V|||v|v|V|V|||v|v|V|V|||v|v|V|V|||v|v|V|V|'
+            ], 6, 'yellow')
+        )
+    },
 }
 
 
@@ -285,6 +427,7 @@ export const structures = {
         ])
     },
     windTurbine: {
+        // when idle, we use a random animation frame so they don't all look frozen at the exact same spot
         idle: new RandomAnimation({},
             WIND_TURBINE_FRAMES
         ),
@@ -890,881 +1033,3 @@ export const structures = {
         ])
     }
 }
-
-const old = {
-    harvester: _.merge({}, base, {
-        style: {
-            bottom: '4px'
-        },
-        background: [
-            '            ',
-            ' TTT8>//==║ ',
-            '/____|_|  ║ ',
-            'oo oo oo  | ',
-        ],
-        idle: {
-            ascii: [
-                '          | ',
-                '          ║ ',
-                '          ║ ',
-                '          V ',
-            ]
-        },
-        running: [
-            {
-                ascii: [
-                    '          | ',
-                    '          ║ ',
-                    '          ║ ',
-                    '         `║,',
-                ],
-                duration: 0.25
-            },
-            {
-                ascii: [
-                    '          | ',
-                    '          ║ ',
-                    '          ║ ',
-                    '         .║\'',
-                ],
-                duration: 0.25
-            },
-            {
-                ascii: [
-                    '          | ',
-                    '          ║ ',
-                    '          ║ ',
-                    '         \\║,',
-                ],
-                duration: 0.25
-            },
-            {
-                ascii: [
-                    '          | ',
-                    '          ║ ',
-                    '          ║ ',
-                    '         .║;',
-                ],
-                duration: 0.25
-            },
-        ]
-    }),
-    solarPanel: {
-        style: {
-            bottom: '8px',
-        },
-        idle: [
-            {
-                ascii: [
-                    ' _ _ _ _    ',
-                    ' \\_\\_\\_\\_\\  ',
-                    ' /\\_\\_\\_\\_\\ ',
-                    '/I¯\\_\\_\\_\\_\\',
-                ],
-                duration: 2
-            }
-        ],
-    },
-    windTurbine: {
-        style: {
-            bottom: '2px'
-        },
-        background: [
-            '       ',
-            '       ',
-            '   OD  ',
-            '    ║  ',
-            '    ║  ',
-            '    ║  ',
-        ],
-        idle: {
-            ascii: [
-                '   |   ',
-                '   |   ',
-                '   O   ',
-                '  / \\  ',
-                ' /  ║\\ ',
-                '    ║  ',
-            ]
-        },
-        running: [
-            {
-                ascii: [
-                    '     / ',
-                    '    /  ',
-                    '---O   ',
-                    '    \\  ',
-                    '    ║\\ ',
-                    '    ║  ',
-                ],
-                duration: 0.45
-            },
-            {
-                ascii: [
-                    '   |   ',
-                    '   |   ',
-                    '   O---',
-                    '  / ║  ',
-                    ' /  ║  ',
-                    '    ║  ',
-                ],
-                duration: 0.45
-            },
-            {
-                ascii: [
-                    ' \\   / ',
-                    '  \\ /  ',
-                    '   O   ',
-                    '   |║  ',
-                    '   |║  ',
-                    '    ║  ',
-                ],
-                duration: 0.45
-            },
-            {
-                ascii: [
-                    '   |   ',
-                    '   |   ',
-                    '---O   ',
-                    '    \\  ',
-                    '    ║\\ ',
-                    '    ║  ',
-                ],
-                duration: 0.45
-            },
-            {
-                ascii: [
-                    ' \\     ',
-                    '  \\    ',
-                    '   O---',
-                    '  / ║  ',
-                    ' /  ║  ',
-                    '    ║  ',
-                ],
-                duration: 0.45
-            },
-            {
-                ascii: [
-                    '     / ',
-                    '    /  ',
-                    '---O   ',
-                    '   |║  ',
-                    '   |║  ',
-                    '    ║  ',
-                ],
-                duration: 0.45
-            },
-            {
-                ascii: [
-                    '   |   ',
-                    '   |   ',
-                    '   O   ',
-                    '  / \\  ',
-                    ' /  ║\\ ',
-                    '    ║  ',
-                ],
-                duration: 0.45
-            },
-            {
-                ascii: [
-                    ' \\     ',
-                    '  \\    ',
-                    '   O---',
-                    '   |║  ',
-                    '   |║  ',
-                    '    ║  ',
-                ],
-                duration: 0.45
-            },
-        ],
-    },
-    thermalVent: {
-        style: {
-            bottom: '2px',
-        },
-        idle: [
-            {
-                ascii: [
-                    '  ,-~--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 5
-            },
-            {
-                ascii: [
-                    '  ,-)--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '   (        ',
-                    '  ,-)--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '    )       ',
-                    '   (        ',
-                    '  ,-)--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '   (        ',
-                    '    )       ',
-                    '   (        ',
-                    '  ,-~--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '    )       ',
-                    '   (        ',
-                    '    )       ',
-                    '            ',
-                    '  ,-~--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '    )       ',
-                    '   (        ',
-                    '            ',
-                    '            ',
-                    '  ,-~--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '    )       ',
-                    '            ',
-                    '            ',
-                    '            ',
-                    '  ,-~--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            },
-
-            // ---- 2nd plume
-            {
-                ascii: [
-                    '  ,-~--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 3
-            },
-            {
-                ascii: [
-                    '  ,-~--)-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '      (     ',
-                    '  ,-~--)-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '       ))   ',
-                    '      (     ',
-                    '  ,-~--)-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '      ((    ',
-                    '       ))   ',
-                    '      (     ',
-                    '  ,-~--)-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '     ) ) )  ',
-                    '      ((    ',
-                    '       ))   ',
-                    '      (     ',
-                    '  ,-~--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '     ) ) )  ',
-                    '      ((    ',
-                    '       ))   ',
-                    '            ',
-                    '  ,-~--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '     ) ) )  ',
-                    '      ((    ',
-                    '            ',
-                    '            ',
-                    '  ,-~--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            },
-            {
-                ascii: [
-                    '     ) ) )  ',
-                    '            ',
-                    '            ',
-                    '            ',
-                    '  ,-~--~-,  ',
-                    ' /`·,~-.-´\\ ',
-                    '/ ,; ,  \\. \\',
-                ],
-                duration: 0.15
-            }
-        ]
-    },
-    energyBay: {
-        style: {
-            bottom: '4px',
-        },
-        idle: [
-            {
-                ascii: [
-                    '  ______  ',
-                    ' ||-|-|-| ',
-                    ' ||_____| ',
-                    '/__\\ ___ \\',
-                ],
-                duration: 3
-            },
-            {
-                ascii: [
-                    '  ______  ',
-                    ' ||=|-|-| ',
-                    ' ||_____| ',
-                    '/__\\ ___ \\',
-                ],
-                duration: 0.1
-            },
-            {
-                ascii: [
-                    '  ______  ',
-                    ' ||-|=|-| ',
-                    ' ||_____| ',
-                    '/__\\ ___ \\',
-                ],
-                duration: 0.1
-            },
-            {
-                ascii: [
-                    '  ______  ',
-                    ' ||-|-|=| ',
-                    ' ||_____| ',
-                    '/__\\ ___ \\',
-                ],
-                duration: 0.1
-            },
-            {
-                ascii: [
-                    '  ______  ',
-                    ' ||-|=|-| ',
-                    ' ||_____| ',
-                    '/__\\ ___ \\',
-                ],
-                duration: 0.1
-            },
-            {
-                ascii: [
-                    '  ______  ',
-                    ' ||=|-|-| ',
-                    ' ||_____| ',
-                    '/__\\ ___ \\',
-                ],
-                duration: 0.1
-            },
-        ],
-    },
-    sensorTower: {
-        style: {
-            fontSize: '12px'
-        },
-        idle: [
-            {
-                ascii: [
-                    '    __   ',
-                    '   |  `. ',
-                    '   ;\\ ´ \\',
-                    '    \'`--´',
-                    '   /#\\   ',
-                ],
-                duration: 12
-            },
-            {
-                ascii: [
-                    '   ___   ',
-                    '  ´ . `  ',
-                    ' |  \'  | ',
-                    '  `---´  ',
-                    '   /#\\   ',
-                ],
-                duration: 8
-            },
-            {
-                ascii: [
-                    '   __    ',
-                    ' .´  |   ',
-                    '/ ` /;   ',
-                    '`--´\'    ',
-                    '   /#\\   ',
-                ],
-                duration: 12
-            },
-            {
-                ascii: [
-                    '   ___   ',
-                    '  ´ . `  ',
-                    ' |  ┴  | ',
-                    '  `---´  ',
-                    '   /#\\   ',
-                ],
-                duration: 8
-            }
-        ]
-    },
-    probeFactory: {
-        style: {},
-        background: [
-            '              ',
-            ' \'.           ',
-            '  \\\'.         ',
-            '   \\\\\'.       ',
-            '  /¯T\\\\\'.     ',
-            ' /_/T\\\\\\\\\'.   ',
-            '|T|¯|/\\\\\\\\\\\'.  '
-        ],
-        running: [
-            {
-                ascii: [
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                ],
-                duration: 0.0625
-            },
-            {
-                ascii: [
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '             ·',
-                ],
-                duration: 0.0625
-            },
-            {
-                ascii: [
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '           ·  ',
-                    '              ',
-                ],
-                duration: 0.0625
-            },
-            {
-                ascii: [
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '         ·    ',
-                    '              ',
-                    '              ',
-                ],
-                duration: 0.0625
-            },
-            {
-                ascii: [
-                    '              ',
-                    '              ',
-                    '              ',
-                    '       ·      ',
-                    '              ',
-                    '              ',
-                    '              ',
-                ],
-                duration: 0.0625
-            },
-            {
-                ascii: [
-                    '              ',
-                    '              ',
-                    '     ·        ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                ],
-                duration: 0.0625
-            },
-            {
-                ascii: [
-                    '              ',
-                    '   ·          ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                ],
-                duration: 0.0625
-            },
-            {
-                ascii: [
-                    ' ·            ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                ],
-                duration: 0.0625
-            },
-            {
-                ascii: [
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                    '              ',
-                ],
-                duration: 0.0625
-            },
-        ]
-    },
-
-    refinery: {
-        style: {
-            paddingBottom: '4px'
-        },
-        background: [
-            ' __     .  ',
-            ' ║║  _  |  ',
-            ' ║║==║-=║  ',
-            '/__\\  \\  \\ ',
-        ],
-        running: [
-            {
-                ascii: [
-                    '           ',
-                    '           ',
-                    '           ',
-                    '           ',
-                ],
-                duration: 0.41
-            },
-            {
-                ascii: [
-                    '           ',
-                    '           ',
-                    '           ',
-                    ' -=        ',
-                    '           ',
-                    '           ',
-                    '           ',
-                ],
-                duration: 0.41
-            },
-            {
-                ascii: [
-                    '           ',
-                    '           ',
-                    '  =≡       ',
-                    ' =-        ',
-                    '           ',
-                    '           ',
-                    '           ',
-                ],
-                duration: 0.41
-            },
-            {
-                ascii: [
-                    '           ',
-                    '   _=-     ',
-                    '  -=       ',
-                    ' -=        ',
-                    '           ',
-                    '           ',
-                    '           ',
-                ],
-                duration: 0.41
-            },
-            {
-                ascii: [
-                    '    =-≡¯   ',
-                    '   ¯-=     ',
-                    '  -¯       ',
-                    '  ¯        ',
-                    '           ',
-                    '           ',
-                    '           ',
-                ],
-                duration: 0.41
-            },
-
-            {
-                ascii: [
-                    '    ¯=¯=   ',
-                    '    =¯     ',
-                    '   ¯       ',
-                    '           ',
-                    '           ',
-                    '           ',
-                    '           ',
-                ],
-                duration: 0.41
-            },
-
-            {
-                ascii: [
-                    '     -≡   ',
-                    '    -¯    ',
-                    '           ',
-                    '           ',
-                    '           ',
-                    '           ',
-                    '           ',
-                ],
-                duration: 0.41
-            },
-
-            {
-                ascii: [
-                    '     ¯=¯   ',
-                    '           ',
-                    '           ',
-                    '           ',
-                    '           ',
-                    '           ',
-                    '           ',
-                ],
-                duration: 0.41
-            },
-            {
-                ascii: [
-                    '           ',
-                    '           ',
-                    '           ',
-                    '           ',
-                ],
-                duration: 0.41
-            },
-        ]
-    },
-    droidFactory: {
-        style: {
-            bottom: '0px',
-        },
-        idle: [
-            {
-                ascii: [
-                    '            ',
-                    ' (x   ¯¯¯¯¯¯',
-                    '   \\        ',
-                    '    =[>  [> ',
-                    ' /\\  /\\  /\\ ',
-                    ' /\\  /\\  /\\ ',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '           [',
-                    ' (x   ¯¯¯¯¯¯',
-                    '   \\        ',
-                    '    =[>  [> ',
-                    ' /\\  /\\  /\\ ',
-                    ' /\\  /\\  /\\ ',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '          [>',
-                    ' (x   ¯¯¯¯¯¯',
-                    '   \\        ',
-                    '    =[>  [> ',
-                    ' /\\  /\\` /\\ ',
-                    ' /\\  /\\  /\\ ',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '         [> ',
-                    ' (x   ¯¯¯¯¯¯',
-                    '   \\        ',
-                    '    =[>, [> ',
-                    ' /\\ ´/\\  /\\ ',
-                    ' /\\  /\\  /\\ ',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '        [>  ',
-                    ' (x   ¯¯¯¯¯¯',
-                    '   \\        ',
-                    '    =[>  [> ',
-                    ' /\\ \'/\\` /\\ ',
-                    ' /\\  /\\  /\\ ',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '       [>   ',
-                    ' (x   ¯¯¯¯¯¯',
-                    '   \\        ',
-                    '    =[>  [> ',
-                    ' /\\ `/\\\' /\\ ',
-                    ' /\\  /\\  /\\ ',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '      [>    ',
-                    ' (x   ¯¯¯¯¯¯',
-                    '   \\        ',
-                    '    =[>  [> ',
-                    ' /\\  /\\  /\\ ',
-                    ' /\\  /\\  /\\ ',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '      [>    ',
-                    ' (x_  ¯¯¯¯¯¯',
-                    '    -=      ',
-                    '     [>  [> ',
-                    ' /\\  /\\  /\\ ',
-                    ' /\\  /\\  /\\ ',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '      [>    ',
-                    ' (+--=¯¯¯¯¯¯',
-                    '            ',
-                    '      [>  [>',
-                    '  /\\  /\\  /\\',
-                    '  /\\  /\\  /\\',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '   _-=[>    ',
-                    ' (x   ¯¯¯¯¯¯',
-                    '            ',
-                    '       [>  [',
-                    '\\  /\\  /\\  /',
-                    '\\  /\\  /\\  /',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '            ',
-                    ' (+--=[>¯¯¯¯',
-                    '            ',
-                    '        [>  ',
-                    '/\\  /\\  /\\  ',
-                    '/\\  /\\  /\\  ',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            },
-            {
-                ascii: [
-                    '            ',
-                    ' (x   ¯¯¯¯¯¯',
-                    '   \\-=[>    ',
-                    '         [> ',
-                    ' /\\  /\\  /\\ ',
-                    ' /\\  /\\  /\\ ',
-                    '-o--o--o--o-',
-                ],
-                duration: 0.166
-            }
-        ]
-    }
-};

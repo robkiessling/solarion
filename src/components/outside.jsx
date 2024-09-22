@@ -4,28 +4,11 @@
 
 import React from 'react';
 import AsciiCanvas from "../lib/ascii_canvas";
-import gameClock, {OUTSIDE_FPS} from "../singletons/game_clock";
+import {OUTSIDE_FPS} from "../singletons/game_clock";
 import {fractionOfDay} from "../redux/modules/clock";
 import {connect} from "react-redux";
-import {generateImage, NUM_COLS, NUM_ROWS} from "../lib/outside";
+import {generateImage, getSkyColorAndOpacity, NUM_COLS, NUM_ROWS} from "../lib/outside";
 import {animationData} from "../redux/modules/structures";
-import {mod} from "../lib/helpers";
-
-const CHANGE_SKY_OPACITY = true; // can turn off for sun orbit testing
-
-// const SUN_ORBIT_X_RADIUS = 120; // This is a percentage; 50 means the x radius is half the width of the canvas
-// const SUN_ORBIT_Y_RADIUS = 100;
-// const SUN_ORBIT_X_ORIGIN = 50; // This is also a percentage, 50 means x origin is center (50%) of the canvas
-// const SUN_ORBIT_Y_ORIGIN = 50;
-// const SUN_RADIUS = '115vh'
-
-const SUN_ORBIT_X_RADIUS = 90; // This is a percentage; 50 means the x radius is half the width of the canvas
-const SUN_ORBIT_Y_RADIUS = 55;
-const SUN_ORBIT_X_ORIGIN = 50; // This is also a percentage, 50 means x origin is center (50%) of the canvas
-const SUN_ORBIT_Y_ORIGIN = 30;
-const SUN_RADIUS = '60vh'
-
-
 
 class Outside extends React.Component {
     constructor(props) {
@@ -67,37 +50,26 @@ class Outside extends React.Component {
             this.skyCanvasManager.resize();
         }
 
-        const image = generateImage(this.props.structureAnimationData, this.props.elapsedTime / 1000, this.props.fractionOfDay);
+        const image = generateImage(
+            this.props.structureAnimationData,
+            this.props.elapsedTime / 1000,
+            this.props.fractionOfDay,
+            this.props.burnOutside
+        );
         this.canvasManager.clearAll();
         this.canvasManager.drawImage(image, 0, 0);
     }
 
-    sunPosition() {
-        // Midnight should be at bottom of the unit circle (instead of at (1,0)), so we have to go back 25% of the circle
-        const fractionOfDay = mod(this.props.fractionOfDay - 0.25, 1);
-        const radians = fractionOfDay * 2 * Math.PI;
-
-        // Formula for an ellipse centered at (0,0):
-        //      x = a*cos(t), where a = radius of x axis
-        //      y = b*sin(t), where b = radius of y axis
-        const x = SUN_ORBIT_X_RADIUS * Math.cos(radians) + SUN_ORBIT_X_ORIGIN;
-        const y = SUN_ORBIT_Y_RADIUS * Math.sin(radians) * -1 + SUN_ORBIT_Y_ORIGIN; // Multiply by -1 because positive y direction is down
-
-        return { x, y, radians };
-    }
-
     render() {
-        const { x, y, radians } = this.sunPosition();
-        const skyColor = `radial-gradient(circle ${SUN_RADIUS} at ${x}% ${y}%, ` +
-            `rgb(212 132 41) 20%, rgb(142, 56, 18) 50%, rgb(116 37 10) 100%)`;
+        const { skyColor, skyOpacity } = getSkyColorAndOpacity(this.props.fractionOfDay)
 
-        // Math.sin(radians) oscillates between 1 and -1 (y axis of unit circle). Adding a bit so that the sky turns
-        // on a little before 6am / turns off a little after 6pm
-        const skyOpacity = CHANGE_SKY_OPACITY ? Math.sin(radians) + 0.35 : 1;
+        let containerClass = '';
+        containerClass += (this.props.visible ? '' : ' hidden');
+        containerClass += (this.props.shuttersOpen ? ' shutters-open' : ' shutters-closed');
+        containerClass += (this.props.burnOutside ? ' burning' : '');
 
         return (
-            <div id="outside-container" ref={this.canvasContainer}
-                 className={`${this.props.visible ? '' : 'hidden'} ${this.props.shuttersOpen ? 'shutters-open' : 'shutters-closed'}`}>
+            <div id="outside-container" ref={this.canvasContainer} className={containerClass}>
                 <div id="shutters"></div>
                 <canvas id="sky-color" ref={this.skyCanvas} style={{background: skyColor, opacity: skyOpacity}}/>
                 <canvas id="outside-canvas" ref={this.canvas}></canvas>
@@ -114,7 +86,8 @@ const mapStateToProps = state => {
         shuttersOpen: state.game.shuttersOpen,
         fractionOfDay: fractionOfDay(state.clock),
         elapsedTime: state.clock.elapsedTime,
-        structureAnimationData: animationData(state.structures)
+        structureAnimationData: animationData(state.structures),
+        burnOutside: state.game.burnOutside ? state.planet.cookedPct : false,
     }
 };
 

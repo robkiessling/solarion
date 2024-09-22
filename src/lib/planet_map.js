@@ -1,4 +1,4 @@
-import {createArray, getRandomFromArray, getRandomIntInclusive, mod} from "./helpers";
+import {createArray, getIntermediateColor, getRandomFromArray, getRandomIntInclusive, mod} from "./helpers";
 
 
 // TODO The planet layout currently is like a football. This causes things to get stretched weirdly, we need to
@@ -91,14 +91,14 @@ for (const [key, attributes] of Object.entries(STATUSES)) {
 }
 
 
-export const COOK_TIME = 5000;
+export const COOK_TIME = 8000;
 const COOKED_CHAR = '}'
 
 // once cooking begins, planet color will transition from COOK_COLOR_START to COOK_COLOR_END over COOK_TIME milliseconds.
 const COOK_COLOR_START = [255, 180, 0]; // rgb ffb400
 const COOK_COLOR_END = [255, 60, 0]; // rgb ff3c00
 
-const LASER_BEAM_WIDTH = 151; // needs to be odd if widest planet width is odd
+const LASER_BEAM_WIDTH = 251; // needs to be odd if widest planet width is odd
 const LASER_BEAM_HEIGHT = 27; // needs to be odd if planet height is odd
 const LASER_BEAM_SPEED = 150;
 const LASER_BEAM_CHAR_OPTS = ['-']
@@ -503,12 +503,7 @@ export function generateImage(map, fractionOfDay, cameraRotation, cookedPct) {
 
             if (cookedPct) {
                 char = isDay ? COOKED_CHAR : TERRAINS.flatland.display
-
-                const cookedRGB = COOK_COLOR_START.map((colorStart, index) => {
-                    const colorEnd = COOK_COLOR_END[index];
-                    return cookedPct * (colorEnd - colorStart) + colorStart
-                })
-                style = { color: `rgb(${cookedRGB[0]}, ${cookedRGB[1]}, ${cookedRGB[2]})` }
+                style = { color: getIntermediateColor(COOK_COLOR_START, COOK_COLOR_END, cookedPct) }
             }
 
             return {

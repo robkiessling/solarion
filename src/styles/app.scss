@@ -20,6 +20,7 @@ html {
 }
 
 #app-container {
+  //padding-top: 5rem;
   background: $ui-bg;
   height: 100%;
   font-family: $font-family;
@@ -33,11 +34,13 @@ html {
     flex: 0 0 22rem;
     display: flex;
     flex-direction: column;
+    background: $ui-bg;
   }
   .right-column {
     flex: 0 0 22rem;
     display: flex;
     flex-direction: column;
+    background: $ui-bg;
   }
   .center-column {
     flex: 1 1 auto;
@@ -45,6 +48,33 @@ html {
     flex-direction: row;
     position: relative;
     overflow: hidden;
+  }
+
+  &.hide-ui {
+    background: $burn;
+    .left-column, .right-column, .navigation-tabs, .planet-legend {
+      display: none;
+    }
+  }
+  &.hide-canvas {
+    .center-column {
+      transition: opacity 10s;
+      opacity: 0;
+    }
+  }
+  &.fade-to-black {
+    transition: opacity 5s;
+    opacity: 0;
+  }
+  &.game-over {
+    color: white;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    font-family: monospace;
+    .game-over-text {
+      font-size: 3rem;
+    }
   }
 }
 
