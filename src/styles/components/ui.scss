@@ -71,10 +71,6 @@
   &.full-width {
     width: calc(100% - 1rem);
   }
-
-  .game-tooltip.place-right {
-    margin-left: 16px;
-  }
 }
 
 .on-off-switch {
@@ -172,6 +168,7 @@ button {
   max-width: 22rem;
   opacity: 1 !important;
   padding: 0 1rem !important;
+  left: $side-column-width !important;
 
   .tooltip-header {
     //color: $ui-text-dim;

@@ -31,13 +31,13 @@ html {
   flex-direction: row;
 
   .left-column {
-    flex: 0 0 22rem;
+    flex: 0 0 $side-column-width;
     display: flex;
     flex-direction: column;
     background: $ui-bg;
   }
   .right-column {
-    flex: 0 0 22rem;
+    flex: 0 0 $side-column-width;
     display: flex;
     flex-direction: column;
     background: $ui-bg;
