@@ -5,7 +5,7 @@ import {batchedSubscribe} from 'redux-batched-subscribe';
 import {debounce, throttle} from 'lodash';
 import {loadState, resetState, saveState} from "../lib/local_storage";
 
-const SAVE_INTERVAL = 10 * 1000;
+const AUTO_SAVE_INTERVAL = 30 * 1000;
 
 const middleware = [ thunk ];
 // if (process.env.NODE_ENV !== 'production') {
@@ -43,6 +43,6 @@ store.subscribe(throttle(() => {
     }
 
     saveState(store.getState());
-}, SAVE_INTERVAL));
+}, AUTO_SAVE_INTERVAL));
 
 export default store;

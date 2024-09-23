@@ -45,7 +45,7 @@ const database = {
     commandCenter_showTerminal: _.merge({}, base, {
         name: "Boot-Up",
         structure: 'commandCenter',
-        description: "You manage to find the power switch for a computer terminal behind some debris.",
+        description: "You manage to find the power switch for a computer behind some debris.",
         discoverWhen: {
             resources: {
                 energy: 10,
@@ -103,11 +103,11 @@ const database = {
         description: "Increases manual energy per second to 2.",
         discoverWhen: {
             resources: {
-                ore: 10
+                ore: 60
             }
         },
         cost: {
-            ore: 40
+            ore: 75
         },
         effect: {
             energy: { add: 1 }
@@ -120,11 +120,12 @@ const database = {
         discoverWhen: {
             upgrades: ['commandCenter_improvedCharge'],
             resources: {
-                ore: 50
+                ore: 300
             }
         },
         cost: {
-            ore: 100
+            ore: 300,
+            energy: 100
         },
         effect: {
             energy: { add: 3 }
@@ -141,8 +142,8 @@ const database = {
             }
         },
         cost: {
-            ore: 300,
-            energy: 150
+            ore: 200,
+            energy: 200
         },
         affects: {
             type: EFFECT_TARGETS.ability,
@@ -224,6 +225,93 @@ const database = {
         },
         effect: {
             energy: { add: 900 }
+        }
+    }),
+
+    commandCenter_researchSolar: _.merge({}, base, {
+        name: "Research: Solar Power",
+        structure: 'commandCenter',
+        description: "Manual energy production is insufficient for sustained production. Need to find an alternative energy source.",
+        discoverWhen: {
+            resources: {
+                energy: 115,
+                ore: 20
+            }
+        },
+        researchTime: 30,
+        cost: {
+            energy: 20
+        }
+    }),
+    commandCenter_researchWind: _.merge({}, base, {
+        name: "Research: Wind Power",
+        structure: 'commandCenter',
+        description: "Energy production is very limited at night. Need to find an alternative energy source.",
+        discoverWhen: {
+            upgrades: ['commandCenter_researchSolar'],
+            resources: {
+                energy: 500,
+                ore: 100
+            }
+        },
+        researchTime: 60,
+        cost: {
+            energy: 50
+        }
+    }),
+    commandCenter_researchEnergyBay: _.merge({}, base, {
+        name: "Research: Energy Capacity",
+        structure: 'commandCenter',
+        description: "Energy stores have hit their max capacity. Need to research additional storage methods.",
+        researchTime: 30,
+        cost: {
+            energy: 50,
+            ore: 50
+        }
+    }),
+    commandCenter_researchRefinery: _.merge({}, base, {
+        name: "Research: Rare Minerals",
+        structure: 'commandCenter',
+        description: "Further technological advancements require method(s) of obtaining rare minerals.",
+        researchTime: 60,
+        discoverWhen: {
+            resources: {
+                ore: 1500
+            }
+        },
+        cost: {
+            energy: 500,
+            ore: 500
+        }
+    }),
+    commandCenter_researchDroidFactory: _.merge({}, base, {
+        name: "Research: Robotics",
+        structure: 'commandCenter',
+        description: "Enough rare minerals have been gathered to begin artificial synthesis.",
+        researchTime: 90,
+        discoverWhen: {
+            resources: {
+                refinedMinerals: 100
+            }
+        },
+        cost: {
+            energy: 2000,
+            refinedMinerals: 50
+        }
+    }),
+    commandCenter_researchProbeFactory: _.merge({}, base, {
+        name: "Research: Astronautics",
+        structure: 'commandCenter',
+        description: "Infrastructure is approaching the threshold required for mass probe manufacturing. ",
+        researchTime: 300,
+        discoverWhen: {
+            resources: {
+                refinedMinerals: 1e6
+            }
+        },
+        cost: {
+            energy: 1.5e6,
+            refinedMinerals: 5e6
         }
     }),
 
@@ -350,6 +438,7 @@ const database = {
             // },
             upgrades: ['harvester_ore1', 'harvester_eff1']
         },
+        researchTime: 60,
         cost: {
             ore: 1000,
             refinedMinerals: 50
@@ -490,7 +579,7 @@ const database = {
         discoverWhen: {
             upgrades: ['solarPanel_global'],
             resources: {
-                probes: 30e3, // out of 1800e3
+                probes: 25e3, // out of 1800e3
             }
         },
         cost: {
@@ -889,7 +978,7 @@ const database = {
         }
     }),
     droidFactory_fasterExplore: _.merge({}, base, {
-        name: "Jetpack Tech",
+        name: "Research: Jet Propulsion",
         structure: 'droidFactory',
         description: 'Equips droids with jetpacks, allowing them to explore the planet 5 times faster.',
         discoverWhen: {
@@ -898,6 +987,7 @@ const database = {
                 refinedMinerals: 1e5
             }
         },
+        researchTime: 30,
         cost: {
             ore: 1e6,
             refinedMinerals: 1e6
@@ -915,7 +1005,7 @@ const database = {
             }
         },
         cost: {
-            energy: 3.0e13
+            energy: 3.5e13
         }
     }),
     probeFactory_finalSequence: _.merge({}, base, {
@@ -955,6 +1045,36 @@ export const callbacks = {
             dispatch(fromStructures.learn('harvester'));
             dispatch(fromStructures.buildForFree('harvester', 1));
             dispatch(fromLog.startLogSequence('openShutters'));
+        }
+    },
+    commandCenter_researchSolar : {
+        onFinish: (dispatch) => {
+            dispatch(fromLog.startLogSequence('researchedSolarPower'))
+        }
+    },
+    commandCenter_researchWind : {
+        onFinish: (dispatch) => {
+            dispatch(fromLog.startLogSequence('researchedWindPower'))
+        }
+    },
+    commandCenter_researchEnergyBay: {
+        onFinish: (dispatch) => {
+            dispatch(fromLog.startLogSequence('researchedEnergyBay'))
+        }
+    },
+    commandCenter_researchRefinery: {
+        onFinish: (dispatch) => {
+            dispatch(fromLog.startLogSequence('researchedRefinery'))
+        }
+    },
+    commandCenter_researchDroidFactory: {
+        onFinish: (dispatch) => {
+            dispatch(fromLog.startLogSequence('researchedDroidFactory'))
+        }
+    },
+    commandCenter_researchProbeFactory: {
+        onFinish: (dispatch) => {
+            dispatch(fromLog.startLogSequence('researchedProbeFactory'))
         }
     },
 

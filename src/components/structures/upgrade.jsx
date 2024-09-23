@@ -8,13 +8,13 @@ import _ from "lodash";
 import {highlightCosts} from "../../redux/modules/resources";
 
 class Upgrade extends React.Component {
-
     render() {
         return <ProgressButton
             fullWidth={false}
             onClick={() => this.props.researchUpgrade(this.props.id)}
             disabled={!this.props.canResearch}
             progress={this.props.progress}
+            showAsPercent={true}
             className='upgrade'
             tooltipId={`upgrade-${this.props.id}-tip`}
             tooltip={
@@ -24,7 +24,7 @@ class Upgrade extends React.Component {
                     </p>
                     <p dangerouslySetInnerHTML={{__html: this.props.description}}/>
                     {!_.isEmpty(this.props.cost) && <p>Cost: <ResourceAmounts amounts={this.props.cost}/></p>}
-                    {this.props.researchTime > 0 && <p>Time: {_.round(this.props.researchTime)}s</p>}
+                    {this.props.researchTime > 0 && <p>Research Time: {_.round(this.props.researchTime)}s</p>}
                 </div>
             }>
             <span className={'icon-upgrade'}></span>

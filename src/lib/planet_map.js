@@ -68,8 +68,8 @@ const START_WITH_ADJ_EXPLORED = false;
 export const TERRAINS = {
     home: { key: 'home', enum: 0, display: '#', className: 'home', label: 'Command Center' },
     flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland', exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
-    developing: { key: 'developing', enum: 2, display: '+', className: 'developing', label: 'Developing' },
-    developed: { key: 'developed', enum: 3, display: '+', className: 'developed', label: 'Developed' },
+    developing: { key: 'developing', enum: 2, display: '+', className: 'developing', label: 'Replicating' },
+    developed: { key: 'developed', enum: 3, display: '+', className: 'developed', label: 'Replicated' },
     mountain: { key: 'mountain', enum: 4, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
 }
 
@@ -508,8 +508,17 @@ export function generateImage(map, fractionOfDay, cameraRotation, cookedPct) {
             }
 
             if (cookedPct) {
-                char = isDay ? COOKED_CHAR : TERRAINS.flatland.display
-                style = { color: getIntermediateColor(COOK_COLOR_START, COOK_COLOR_END, cookedPct) }
+                const cookedColor = getIntermediateColor(COOK_COLOR_START, COOK_COLOR_END, cookedPct)
+                if (isDay) {
+                    // if (char !== TERRAINS.mountain.display) {
+                        char = COOKED_CHAR;
+                        style = { color: cookedColor }
+                    // }
+                }
+                else {
+                    char = TERRAINS.flatland.display
+                    style = { color: cookedColor }
+                }
             }
 
             return {

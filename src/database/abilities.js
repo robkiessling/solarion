@@ -32,36 +32,13 @@ const base = {
 
 const database = {
     commandCenter_charge: _.merge({}, base, {
-        name: "Manually Charge",
+        name: "Manual Charge",
         structure: "commandCenter",
         description: "The device has a hand crank to generate emergency power.",
         cost: {},
-        castTime: 5,
         effect: {
             charging: { add: 1 }
         }
-    }),
-    harvester_manual: _.merge({}, base, {
-        name: 'Manual Harvest',
-        structure: 'harvester',
-        description: "Manually dig up some ore. Seems slow...",
-        cost: {},
-        cooldown: 10,
-        produces: {
-            ore: 10
-        },
-        castTime: 10
-    }),
-    harvester_power: _.merge({}, base, {
-        name: 'Power Drill',
-        structure: 'harvester',
-        cost: {
-            energy: 20
-        },
-        produces: {
-            ore: 30
-        },
-        castTime: 20
     }),
     harvester_overclock: _.merge({}, base, {
         name: 'Overclock',

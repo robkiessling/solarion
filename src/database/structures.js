@@ -61,7 +61,7 @@ const base = {
 export default {
     commandCenter: _.merge({}, base, {
         name: "Command Center",
-        description: "A twisted mass of cables, switches and monitors surround a large electronic device.",
+        description: "A twisted mass of cables, switches and monitors surround a large device.",
         types: TYPES.generator,
         count: {
             max: 1
@@ -270,7 +270,7 @@ export const calculators = {
         },
         description: (state, structure, variables) => {
             if (variables.probeMirrorPct) {
-                return `Available energy equals total probe output and does not need to be stored.`
+                return `Receiving according to total probe output.`
             }
 
             return `Produces up to ${formatInteger(variables.peakEnergy, true)}${getIconSpan('energy', true)} per second depending on sunlight.`;

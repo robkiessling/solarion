@@ -10,6 +10,16 @@ export default function ProgressButton(props) {
         className += ' disabled';
     }
 
+    let progress;
+    if (props.progress > 0) {
+        if (props.showAsPercent) {
+            progress = <span className={'progress-percent'}> ({Math.floor(props.progress)}%)</span>
+        } else {
+            progress = <div className={`progress-bar ${props.progress <= 0 ? 'hidden' : ''}`}
+                            style={{width: `${100 - props.progress}%`}}/>
+        }
+    }
+
     if (props.tooltip) {
         if (!props.tooltipId) {
             console.error("ProgressButton: `tooltipId` is required if using `tooltip`.");
@@ -19,8 +29,7 @@ export default function ProgressButton(props) {
                 <div className={className} onClick={() => props.onClick()}
                      data-tip data-for={props.tooltipId}>
                     {props.children}
-                    <div className={`progress-bar ${props.progress <= 0 ? 'hidden' : ''}`}
-                         style={ { width: `${100 - props.progress}%` } }/>
+                    {progress}
                 </div>
                 <Tooltip id={props.tooltipId}>
                     {props.tooltip}
@@ -32,8 +41,7 @@ export default function ProgressButton(props) {
         return (
             <div className={className} onClick={() => props.onClick()}>
                 {props.children}
-                <div className={`progress-bar ${props.progress <= 0 ? 'hidden' : ''}`}
-                     style={{width: `${100 - props.progress}%`}}/>
+                {progress}
             </div>
         );
     }

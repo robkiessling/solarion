@@ -3,6 +3,7 @@ import * as fromLog from "../redux/modules/log";
 import * as fromUpgrades from "../redux/modules/upgrades";
 import store from "../redux/store";
 import {probeCapacity} from "../lib/star";
+import {TARGETS} from "../redux/modules/star";
 
 
 /**
@@ -19,30 +20,10 @@ import {probeCapacity} from "../lib/star";
  * @param action    Function to call when triggered.
  */
 export default {
-    discoverSolar: {
-        selector: (state) => state.resources.byId.ore,
-        condition: (slice) => slice.lifetimeTotal >= 40,
-        action: () => store.dispatch(fromLog.startLogSequence('discoverSolar'))
-    },
-    discoverWindPower: {
-        selector: (state) => state.resources.byId.ore,
-        condition: (slice) => slice.lifetimeTotal >= 200,
-        action: () => store.dispatch(fromLog.startLogSequence('discoverWindPower'))
-    },
     energyAlmostFull: {
         selector: (state) => state.resources.byId.energy,
         condition: (slice) => slice.amount >= slice.capacity * 0.9,
         action: () => store.dispatch(fromLog.startLogSequence('energyAlmostFull'))
-    },
-    unlockRefinery: {
-        selector: (state) => state.resources.byId.ore,
-        condition: (slice) => slice.lifetimeTotal >= 1000,
-        action: () => store.dispatch(fromLog.startLogSequence('unlockRefinery'))
-    },
-    unlockDroidFactory: {
-        selector: (state) => state.resources.byId.refinedMinerals,
-        condition: (slice) => slice.lifetimeTotal >= 100,
-        action: () => store.dispatch(fromLog.startLogSequence('unlockDroidFactory'))
     },
     startExploringMap: {
         selector: (state) => state.planet.droidData,
@@ -59,15 +40,20 @@ export default {
         condition: (slice) => slice.amount >= 500,
         action: () => store.dispatch(fromUpgrades.discover('solarPanel_global'))
     },
-    unlockProbeFactory: {
-        selector: (state) => state.resources.byId.refinedMinerals,
-        condition: (slice) => slice.amount >= 5e6,
-        action: () => store.dispatch(fromLog.startLogSequence('unlockProbeFactory'))
-    },
     probeFactoryBuilt: {
         selector: (state) => state.structures.byId.probeFactory,
-        condition: (slice) => slice.count.total >= 0,
+        condition: (slice) => slice.count.total >= 1,
         action: () => store.dispatch(fromLog.startLogSequence('probeFactoryBuilt'))
+    },
+    probeLaunched: {
+        selector: (state) => state.resources.byId.probes,
+        condition: (slice) => slice.amount >= 1,
+        action: () => store.dispatch(fromLog.startLogSequence('probeLaunched'))
+    },
+    solarPanelReceivingProbes: {
+        selector: (state) => state.star.mirrorTarget,
+        condition: (slice) => slice === TARGETS.PLANET,
+        action: () => store.dispatch(fromLog.startLogSequence('solarPanelReceivingProbes'))
     },
     swarm50Pct: {
         selector: (state) => state.resources.byId.probes,

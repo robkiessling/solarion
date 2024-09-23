@@ -1,11 +1,11 @@
 import {resetLastSavedAt, updateLastSavedAt, updateSetting} from "../redux/modules/game";
 import store from "../redux/store";
 
-const STORAGE_KEY = 'state'
+const STATE_KEY = 'state'
 
 export const loadState = () => {
     try {
-        const serializedState = localStorage.getItem(STORAGE_KEY);
+        const serializedState = localStorage.getItem(STATE_KEY);
         if (serializedState === null) {
             return undefined;
         }
@@ -18,9 +18,9 @@ export const loadState = () => {
 export const saveState = (state) => {
     try {
         const serializedState = JSON.stringify(state);
-        localStorage.setItem(STORAGE_KEY, serializedState);
+        localStorage.setItem(STATE_KEY, serializedState);
         // console.log('Data has been saved');
-        store.dispatch(updateLastSavedAt());
+        store.dispatch(updateLastSavedAt()); // todo maybe this shouldn't be in store? if they clear their cookies, then it's wrong
     } catch (err) {
         console.error('Error saving state: ', err);
     }
@@ -28,7 +28,7 @@ export const saveState = (state) => {
 
 export const resetState = () => {
     try {
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STATE_KEY);
         // console.log('Saved data has been reset');
         store.dispatch(resetLastSavedAt());
     } catch (err) {

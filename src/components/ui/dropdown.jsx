@@ -33,6 +33,7 @@ const mapStateToProps = (state, ownProps) => {
     }
 };
 
+// todo this does not need redux connect
 export default connect(
     mapStateToProps,
     null

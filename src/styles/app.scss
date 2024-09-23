@@ -58,12 +58,12 @@ html {
   }
   &.hide-canvas {
     .center-column {
-      transition: opacity 10s;
+      transition: opacity 12s;
       opacity: 0;
     }
   }
   &.fade-to-black {
-    transition: opacity 5s;
+    transition: opacity 10s;
     opacity: 0;
   }
   &.game-over {
@@ -80,6 +80,14 @@ html {
       display: flex;
       gap: 1rem;
     }
+  }
+
+  &.app-error {
+    color: white;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    font-family: monospace;
   }
 }
 
@@ -110,6 +118,7 @@ html {
   background-color: rgba(255, 255, 255, 0.5);
   position: fixed;
   inset: 0;
+  z-index: 4;
 }
 .settings-modal {
   font-family: $font-family;
@@ -126,6 +135,10 @@ html {
   transform: translateX(-50%);
   padding: 2rem;
   border: 2px solid #fff;
+
+  a {
+    color: $blue;
+  }
 
   .close-modal {
     position: absolute;

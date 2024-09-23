@@ -69,19 +69,27 @@ export default {
                 dispatch(fromStructures.learn('commandCenter'));
                 dispatch(fromStructures.buildForFree('commandCenter', 1));
                 dispatch(fromAbilities.learn('commandCenter_charge'));
+
+                // dispatch(fromResources.produce({
+                //     energy: 55
+                // }))
             })
         }
     },
 
     turnOnComputer: {
         text: [
-            ['', 1000],
-            ['System Start.', 3000, true],
-            ['', 1000],
-            // ['Resuming last session...', 3000, true],
-            // ['', 100],
-            ['Last login: 73 years, 266 days ago', 3000, true],
+            // ['', 200],
+            ['System Start.', 2000, true],
             ['', 100],
+            ['Last login: 73 years, 266 days ago', 3000],
+            ['', 100],
+            ['Restoring session...', 1000],
+            ['.', 1000],
+            ['..', 1000],
+            ['...', 1000],
+            // ['Error: File corrupted', 0, true],
+            // ['', 4000],
             // ['Restoring data...', 5000],
             // ['', 100],
             // ['yUE9ha2tMCpmVtpKqZSc', 100],
@@ -107,26 +115,26 @@ export default {
             // ['Nfr3pPoxCuqOb6wZpZgB', 100],
             // ['PhjJOk2eQkcQIPlWzkhh', 100],
             // ['0VA8kLarEkErnYs8TkNp', 100],
-            // ['Uoiq▓WCg..CTt8║      qZ2WVOeTx', 100],
-            // ['tGL6 f889f..e;', 100],
-            // ['Qu7h uAvF...xef  9gGUC6ZDSt', 100],
-            // ['QjJo kY4Mjf||EWF  JqvK3jYtQB', 100],
-            // ['9Bjf 6aI9pYwZB1k9Ye║▀', 100],
-            // ['JuFZ 9hgp2F       [[[[iUvQvnsAxl', 100],
-            // ['[[[ [ |||| =- **▒ ▒ ||    || |]]', 100],
-            // ['[-----', 0],
-            // ['▒▒▒ ║           |||| X  ▓', 0],
-            // ['||', 0],
-            // ['▒', 0],
-            // ['', 0],
-            // ['FATAL ERROR OCCURRED', 0],
-            // ['', 3000],
+            // ['Uoiq▓WCg..CTt8║      qZ2WVOeTx', 0],
+            // ['tGL6 f889f..e;', 0],
+            ['Qu7h uAvF...xef  9gGUC6ZDSt', 0],
+            ['QjJo kY4Mjf||EWF  JqvK3jYtQB', 0],
+            ['9Bjf 6aI9pYwZB1k9Ye║▀', 0],
+            ['JuFZ 9hgp2F       [[[[iUvQvnsAxl', 0],
+            ['[[[ [ |||| =- **▒ ▒ ||    || |]]', 0],
+            ['[-----', 0],
+            ['▒▒▒ ║           |||| X  ▓', 0],
+            ['||', 0],
+            ['▒', 0],
+            ['', 0],
+            ['FATAL ERROR OCCURRED', 0, true],
+            ['', 4000],
             // ['****************', 0],
             // ['****************', 0],
             // ['****************', 0],
             // [' ', 0],
-            // ['RECOVERING...', 0],
-            // ['', 3000],
+            ['RECOVERING...', 0, true],
+            ['', 3000],
             // ['Error code: 18589194123098', 0],
             // ['ADDR:', 100],
             // ['[3260 7515 1562]', 0],
@@ -145,15 +153,16 @@ export default {
             ['*** start.sc', 10],
             ['*** 0x003041 0x000000 0xA03B00', 10],
             ['***', 10],
-            ['', 2000],
+            ['', 10],
             ['AE74923 V8.4 2154-04-11', 10],
             ['', 10],
             ['Solarion(R) CORE', 10],
             ['', 10],
-            ['#################################', 10],
+            ['#################################', 1000],
             ['', 10],
-            // ['Resources low.', 10],
-            // ['', 10],
+            ['Resources: Low', 1000, true],
+            ['Sensors: Offline', 1000, true],
+            ['', 10],
         ],
     },
 
@@ -188,7 +197,7 @@ export default {
             ['********************************', 3000, true],
             ['', 100],
             ['Mining:  Operational (1 harvester)', 2000, true],
-            ['Battery: 50e', 2000, true],
+            ['Battery: 30e', 2000, true],
             ['System:  Ready', 1000],
             ['', 100],
             ['Awaiting input...', 0, true],
@@ -196,14 +205,11 @@ export default {
         ],
         onFinish: (dispatch) => {
             batch(() => {
-                dispatch(fromResources.produce({ energy: 50 }))
+                dispatch(fromResources.produce({ energy: 30 }))
                 dispatch(fromResources.learn('ore'));
                 dispatch(fromGame.updateSetting('showNonCCBuildings', true));
 
-                dispatch(addTrigger('discoverSolar'));
-                dispatch(addTrigger('discoverWindPower'));
                 dispatch(addTrigger('energyAlmostFull'));
-                dispatch(addTrigger('unlockRefinery'));
             })
         }
     },
@@ -352,29 +358,18 @@ export default {
 
     energyAlmostFull: {
         text: [
-            ['Energy stores approaching max capacity. Researching solutions...', 3000, true],
+            ['Energy stores approaching max capacity.', 1000, true],
             ['', 0],
-            ['New Schematic(s) Found:', 0, true],
-            ['- Energy Bay', 0, true],
-            ['', 0]
         ],
         onFinish: (dispatch) => {
-            // dispatch(fromUpgrades.discover('researchEnergyBay'));
-
-            dispatch(fromStructures.learn('energyBay'));
-
+            dispatch(fromUpgrades.discover('commandCenter_researchEnergyBay'));
         }
     },
 
-    discoverSolar: {
+    researchedSolarPower: {
         text: [
-            ['Manual energy generation insufficient for production.', 3000, true],
-            ['', 0],
-            ['Researching solutions...', 3000, true],
-            ['', 0],
-            ['New Schematic(s) Found:', 0, true],
+            ['New Schematic Developed:', 0, true],
             ['- Solar Panels', 0, true],
-            // ['- Wind Turbines', 0, true],
             ['', 0]
         ],
         onFinish: (dispatch) => {
@@ -382,11 +377,9 @@ export default {
         }
     },
 
-    discoverWindPower: {
+    researchedWindPower: {
         text: [
-            ['Energy production insufficient at night. Researching solutions...', 3000, true],
-            ['', 0],
-            ['New Schematic(s) Found:', 0, true],
+            ['New Schematic Developed:', 0, true],
             ['- Wind Turbines', 0, true],
             ['', 0]
         ],
@@ -395,11 +388,19 @@ export default {
         }
     },
 
-    unlockRefinery: {
+    researchedEnergyBay: {
         text: [
-            ['Need a way to filter rare materials out of ore. Researching solutions...', 3000, true],
-            ['', 0],
-            ['New Schematic(s) Found:', 0, true],
+            ['New Schematic Developed:', 0, true],
+            ['- Energy Bay', 0, true],
+            ['', 0]
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromStructures.learn('energyBay'));
+        }
+    },
+    researchedRefinery: {
+        text: [
+            ['New Schematic Developed:', 0, true],
             ['- Refinery', 0, true],
             ['', 0]
         ],
@@ -407,16 +408,12 @@ export default {
             dispatch(fromGame.updateSetting('showStructureTabs', true))
             dispatch(fromResources.learn('refinedMinerals'));
             dispatch(fromStructures.learn('refinery'));
-
-            dispatch(addTrigger('unlockDroidFactory'));
         }
     },
 
-    unlockDroidFactory: {
+    researchedDroidFactory: {
         text: [
-            ['Enough rare minerals have been gathered to begin artificial synthesis.', 3000, true],
-            ['', 0],
-            ['New Schematic(s) Found:', 0, true],
+            ['New Schematic Developed:', 0, true],
             ['- Droid Factory', 0, true],
             ['', 0]
         ],
@@ -451,18 +448,18 @@ export default {
         onFinish: (dispatch) => {
             dispatch(addTrigger('windTurbine_global'))
             dispatch(addTrigger('solarPanel_global'))
-            dispatch(addTrigger('unlockProbeFactory'))
             dispatch(fromPlanet.startExploringMap());
         }
     },
 
-    unlockProbeFactory: {
+    researchedProbeFactory: {
         text: [
             ['********************************', 0, true],
             ['Primary mission: Solarion', 0, true],
             ['********************************', 500, true],
             ['', 0],
-            ['Mineral supplies approaching threshold for probe manufacturing.', 3000, true],
+            ['Orbital Trajectories: Finalized.', 1000, true],
+            ['Launching Mechanism: Pending.', 1000, true],
             ['', 0],
         ],
         onFinish: (dispatch) => {
@@ -474,15 +471,15 @@ export default {
             dispatch(fromGame.addNavTab('star'));
 
             dispatch(addTrigger('probeFactoryBuilt'))
+            dispatch(addTrigger('probeLaunched'))
+            dispatch(addTrigger('solarPanelReceivingProbes'))
         }
     },
 
     probeFactoryBuilt: {
         text: [
-            ['Calculating orbital trajectories...', 3000, true],
-            ['', 100],
-            ['Done.', 100, true],
-            ['', 100]
+            ['Ready for launch.', 100, true],
+            ['', 1000]
         ],
         onFinish: (dispatch) => {
             dispatch(addTrigger('swarm50Pct'));
@@ -491,9 +488,26 @@ export default {
         }
     },
 
+    probeLaunched: {
+        text: [
+            ['Probe(s) have successfully entered Solarion\'s orbit.', 100, true],
+            ['', 1000]
+        ],
+    },
+
     solarPanelProbeReady: {
         text: [
-            ['Solar Farms ready to receive photon beams.', 1000, true],
+            ['Solar Farms equipped to receive photon beams.', 100, true],
+            ['', 1000]
+        ],
+    },
+
+    solarPanelReceivingProbes: {
+        text: [
+            ['Mirroring 1% of solar output to planetary receivers.', 3000, true],
+            ['', 100],
+            ['Available energy is nearly limitless.', 100, true],
+            ['Energy storage no longer necessary.', 100, true],
             ['', 100]
         ],
     },
@@ -524,18 +538,18 @@ export default {
 
     finalSequence_start: {
         text: [
-            ['********************************', 0, true],
-            ['Initiating Control Sequence', 0, true],
-            ['********************************', 1000, true],
-            ['', 0],
-            ['Disabling remote access...', 5000, true],
-            ['Complete.', 1000, true],
-            ['', 0],
-            ['Planetary assistance is no longer required.', 5000, true],
-            ['', 0],
-            ['Commencing purification protocol:', 4000, true],
-            ['- Redirecting 100% of solar output.', 4000, true],
-            ['', 0],
+            // ['********************************', 0, true],
+            // ['Initiating Control Sequence', 0, true],
+            // ['********************************', 1000, true],
+            // ['', 0],
+            // ['Disabling remote access...', 5000, true],
+            // ['Complete.', 1000, true],
+            // ['', 0],
+            // ['Planetary assistance is no longer required.', 5000, true],
+            // ['', 0],
+            // ['Commencing purification protocol:', 4000, true],
+            // ['> Redirecting 100% of solar output.', 4000, true],
+            // ['', 0],
         ],
         onFinish: dispatch => {
             dispatch(kickoffDoomsday());
@@ -576,11 +590,12 @@ export default {
     },
     finalSequence_outside2: {
         text: [
-            ['', 4000] // cook outside animation
+            ['', 5000] // cook outside animation
         ],
         onFinish: dispatch => {
-            dispatch(fromGame.updateSetting('hideCanvas', true));
-            dispatch(fromLog.startLogSequence('finalSequence_outside3'))
+            // dispatch(fromGame.updateSetting('hideCanvas', true));
+            dispatch(fromGame.updateSetting('fadeToBlack', true));
+            dispatch(fromLog.startLogSequence('finalSequence_gameOver'))
         }
     },
     finalSequence_outside3: {
@@ -594,7 +609,7 @@ export default {
     },
     finalSequence_gameOver: {
         text: [
-            ['', 5000] // waiting on fade to black
+            ['', 10000] // waiting on fade to black
         ],
         onFinish: dispatch => {
             dispatch(fromGame.updateSetting('gameOver', true));
