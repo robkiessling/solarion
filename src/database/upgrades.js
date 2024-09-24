@@ -12,11 +12,10 @@ import * as fromStar from "../redux/modules/star";
 
 export const STATES = {
     hidden: 0,
-    // silhouetted: 1,
-    discovered: 2,
-    researching: 3,
-    paused: 4,
-    researched: 5
+    discovered: 1,
+    researching: 2,
+    paused: 3,
+    researched: 4
 }
 
 const base = {
@@ -302,7 +301,7 @@ const database = {
     commandCenter_researchProbeFactory: _.merge({}, base, {
         name: "Research: Astronautics",
         structure: 'commandCenter',
-        description: "Infrastructure is approaching the threshold required for mass probe manufacturing. ",
+        description: "Infrastructure is approaching the threshold required for mass probe manufacturing.",
         researchTime: 120,
         discoverWhen: {
             resources: {
@@ -447,7 +446,7 @@ const database = {
     harvester_overclockUpgrade1: _.merge({}, base, {
         name: "Feedback Loop",
         structure: 'harvester',
-        description: "Increase the Overclock ability duration to 30 seconds",
+        description: "Increase the Overclock ability duration to 30 seconds.",
         discoverWhen: {
             upgrades: ['harvester_overclock'],
             resources: {
@@ -608,8 +607,8 @@ const database = {
     energyBay_production1: _.merge({}, base, {
         name: "Power Linking (I)",
         structure: 'energyBay',
-        // description: `Increases overall ${getIconSpan('energy', true)} production by 3% per Energy Bay`,
-        description: `Increases overall energy production by 3% per Energy Bay`,
+        // description: `Increases overall ${getIconSpan('energy', true)} production by 3% per Energy Bay.`,
+        description: `Increases overall energy production by 3% per Energy Bay.`,
         discoverWhen: {
             structures: {
                 energyBay: 5
@@ -626,8 +625,8 @@ const database = {
     energyBay_production2: _.merge({}, base, {
         name: "Power Linking (II)",
         structure: 'energyBay',
-        // description: `Increases ${getIconSpan('energy', true)} production boost to 5%`,
-        description: `Increases energy production boost to 5% per Energy Bay`,
+        // description: `Increases ${getIconSpan('energy', true)} production boost to 5%.`,
+        description: `Increases energy production boost to 5% per Energy Bay.`,
         discoverWhen: {
             upgrades: ['energyBay_production1']
         },
@@ -642,8 +641,8 @@ const database = {
     energyBay_production3: _.merge({}, base, {
         name: "Power Linking (III)",
         structure: 'energyBay',
-        // description: `Increases ${getIconSpan('energy', true)} production boost to 5%`,
-        description: `Increases energy production boost to 10% per Energy Bay`,
+        // description: `Increases ${getIconSpan('energy', true)} production boost to 5%.`,
+        description: `Increases energy production boost to 10% per Energy Bay.`,
         discoverWhen: {
             upgrades: ['energyBay_production2'],
             resources: {
@@ -660,8 +659,8 @@ const database = {
     energyBay_production4: _.merge({}, base, { // todo if you copy this to make another level, update the constant in energyBayBoost function
         name: "Power Linking (IV)",
         structure: 'energyBay',
-        // description: `Increases ${getIconSpan('energy', true)} production boost to 5%`,
-        description: `Increases energy production boost to 20% per Energy Bay`,
+        // description: `Increases ${getIconSpan('energy', true)} production boost to 5%.`,
+        description: `Increases energy production boost to 20% per Energy Bay.`,
         discoverWhen: {
             upgrades: ['energyBay_production2'],
             resources: {
@@ -734,7 +733,7 @@ const database = {
     windTurbine_largerBlades: _.merge({}, base, {
         name: "Larger Blades",
         structure: 'windTurbine',
-        description: "Increase energy production by 25%",
+        description: "Increase wind turbine energy production by 25%.",
         discoverWhen: {
             resources: {
                 ore: 1500
@@ -768,7 +767,7 @@ const database = {
     windTurbine_increaseCutOut: _.merge({}, base, {
         name: "Hyper Motor",
         structure: 'windTurbine',
-        description: "Increases the turbine's max wind speed tolerance by 20 kph",
+        description: "Increases the turbine's max wind speed tolerance by 20 kph.",
         discoverWhen: {
             resources: {
                 ore: 1500,
@@ -786,7 +785,7 @@ const database = {
     windTurbine_yawDrive: _.merge({}, base, {
         name: "Yaw Drive",
         structure: 'windTurbine',
-        description: "Allows the wind turbine to rotate towards the wind's direction, increasing energy production by 50%",
+        description: "Allows the wind turbine to rotate towards the wind's direction, increasing energy production by 50%.",
         discoverWhen: {
             upgrades: ['windTurbine_largerBlades', 'windTurbine_reduceCutIn', 'windTurbine_increaseCutOut'],
             resources: {
@@ -805,7 +804,7 @@ const database = {
     windTurbine_zephyr: _.merge({}, base, {
         name: "Zephyr PowerCore",
         structure: 'windTurbine',
-        description: "Allows the wind turbine to rotate towards the wind's direction, increasing energy production by 100%",
+        description: "Allows the wind turbine to rotate towards the wind's direction, increasing energy production by 100%.",
         discoverWhen: {
             upgrades: ['windTurbine_yawDrive'],
             resources: {
@@ -833,7 +832,7 @@ const database = {
     refinery_improveProduction: _.merge({}, base, {
         name: "Higher Yields",
         structure: 'refinery',
-        description: 'Increase amount of minerals produced by 25%',
+        description: 'Increases the refinery\'s mineral production by 25%.',
         discoverWhen: {
             resources: {
                 refinedMinerals: 10
@@ -850,7 +849,7 @@ const database = {
     refinery_cooling: _.merge({}, base, {
         name: "Surface Cooling",
         structure: 'refinery',
-        description: 'Reduce energy cost by 50% at night',
+        description: 'Reduce the refinery\'s energy cost by 50% at night.',
         discoverWhen: {
             resources: {
                 refinedMinerals: 100
@@ -867,7 +866,7 @@ const database = {
     refinery_improveProduction2: _.merge({}, base, {
         name: "Hyper-Alloy Synthesizer",
         structure: 'refinery',
-        description: 'Increase amount of minerals produced by 75%',
+        description: 'Increases the refinery\'s mineral production by 75%.',
         discoverWhen: {
             upgrades: ['refinery_improveProduction'],
             resources: {
@@ -885,7 +884,7 @@ const database = {
     refinery_improveProduction3: _.merge({}, base, {
         name: "Plasma Furnace",
         structure: 'refinery',
-        description: 'Increase amount of minerals produced by 100%, but also increases energy cost by 50%',
+        description: 'Increases the refinery\'s mineral production by 100%, but also increases its energy consumption by 50%.',
         discoverWhen: {
             upgrades: ['refinery_improveProduction2'],
             resources: {
@@ -904,7 +903,7 @@ const database = {
     refinery_improveProduction4: _.merge({}, base, {
         name: "Quantum Synthesis",
         structure: 'refinery',
-        description: 'Increase amount of minerals produced by 500%, but also increases energy cost by 300%',
+        description: 'Increases the refinery\'s mineral production by 500%, but also increases its energy consumption by 300%.',
         discoverWhen: {
             upgrades: ['refinery_improveProduction3'],
             resources: {
@@ -923,7 +922,7 @@ const database = {
     droidFactory_improvedMaintenance: _.merge({}, base, {
         name: "Advanced Hyperchips",
         structure: 'droidFactory',
-        description: 'Droids are 50% more effective when assigned to structures',
+        description: 'Droids are 50% more effective when assigned to structures.',
         discoverWhen: {
             resources: {
                 standardDroids: 5
@@ -942,7 +941,7 @@ const database = {
     droidFactory_longerComm: _.merge({}, base, {
         name: "Long-range Communication",
         structure: 'droidFactory',
-        description: 'Allows droids to explore the planet',
+        description: 'Allows droids to explore the planet\'s surface.',
         discoverWhen: {
             resources: {
                 standardDroids: 5,
@@ -959,7 +958,7 @@ const database = {
     droidFactory_fasterBuild: _.merge({}, base, {
         name: "Faster Builds",
         structure: 'droidFactory',
-        description: 'Reduces build time by 15s',
+        description: 'Reduces droid build time by 15s.',
         discoverWhen: {
             resources: {
                 standardDroids: 3
@@ -997,7 +996,7 @@ const database = {
     probeFactory_exponentialGrowth: _.merge({}, base, {
         name: "Exponential Growth",
         structure: 'probeFactory',
-        description: `Use the massive energy output of Solarion to boost all production relative to your probe count.`,
+        description: `Boosts all structure production relative to the incoming energy rate.`,
         discoverWhen: {
             upgrades: ['solarPanel_sunShield'],
             resources: {

@@ -92,18 +92,11 @@ export default {
             assignTooltipPrefix: 'Each droid boosts capacity by '
         }
     }),
-    sensorTower: _.merge({}, base, {
-        name: "Sensor Tower",
-        type: TYPES.consumer,
-        droidData: {
-            usesDroids: false
-        },
-    }),
     refinery: _.merge({}, base, {
         name: "Refinery",
         runnable: true,
         type: TYPES.consumer,
-        description: "Filters rare metals out of ore.",
+        description: "Filters rare minerals out of ore.",
     }),
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
@@ -400,14 +393,6 @@ export const calculators = {
         },
         description: (state, structure, variables) => {
             return `Provides ${variables.capacity}${getIconSpan('energy', true)} storage capacity.`;
-        }
-    }),
-    sensorTower: _.merge({}, baseCalculator, {
-        cost: (state, structure) => ({
-            ore: 1
-        }),
-        description: (state, structure) => {
-            return `TODO`;
         }
     }),
     refinery: _.merge({}, baseCalculator, {

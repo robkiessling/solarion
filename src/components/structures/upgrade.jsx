@@ -38,7 +38,7 @@ const mapStateToProps = (state, ownProps) => {
 
     return {
         id: upgrade.id,
-        name: fromUpgrades.getName(upgrade),
+        name: upgrade.name,
         description: upgrade.description,
         cost: highlightCosts(state.resources, fromUpgrades.getResearchCost(upgrade)),
         researchTime: upgrade.researchTime,

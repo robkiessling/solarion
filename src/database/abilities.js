@@ -32,7 +32,7 @@ const base = {
 
 const database = {
     commandCenter_charge: _.merge({}, base, {
-        name: "Manual Charge",
+        name: "Manually Charge",
         structure: "commandCenter",
         description: "The device has a hand crank to generate emergency power.",
         cost: {},

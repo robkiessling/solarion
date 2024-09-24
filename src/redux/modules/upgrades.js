@@ -25,8 +25,6 @@ export default function reducer(state = initialState, action) {
     const payload = action.payload;
 
     switch (action.type) {
-        // case SILHOUETTE:
-        //     return setUpgradeState(state, payload.id, STATES.silhouetted)
         case DISCOVER:
             return setUpgradeState(state, payload.id, STATES.discovered)
         case RESEARCH:
@@ -210,11 +208,7 @@ export function getUpgrade(state, id) {
     return state.byId[id];
 }
 export function getResearchCost(upgrade) {
-    return upgrade.cost; // todo floor
-}
-export function getName(upgrade) {
-    // return upgrade.state === STATES.silhouetted ? '?' : upgrade.name;
-    return upgrade.name;
+    return upgrade.cost;
 }
 export function isResearchable(upgrade) {
     return upgrade && upgrade.state === STATES.discovered;
