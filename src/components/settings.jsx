@@ -53,20 +53,20 @@ class Settings extends React.Component {
                         All source code is available in <a target={"_blank"} href={'https://github.com/robkiessling/solarion'}>Github</a>.
                     </p>
                 </div>
-                <div>
-                    <div className={'component-header'}>Dev</div>
-                    <div>
-                        Game speed:
-                        <Slider className={'range-slider'}
-                                min={0} max={maxGameSpeed} step={0.5}
-                                marks={createArray(maxGameSpeed + 1, i => i).reduce((obj, v) => ({ ...obj, [v]: v }), {})}
-                                onChange={(value) => this.props.updateSetting('gameSpeed', value)}
-                                value={this.props.gameSpeed}/>
-                        <button onClick={() => this.props.produce({
-                            energy: 1e10, ore: 1e10, refinedMinerals: 1e10
-                        })}>+Resources</button>
-                    </div>
-                </div>
+                {/*<div>*/}
+                {/*    <div className={'component-header'}>Dev</div>*/}
+                {/*    <div>*/}
+                {/*        Game speed:*/}
+                {/*        <Slider className={'range-slider'}*/}
+                {/*                min={0} max={maxGameSpeed} step={0.5}*/}
+                {/*                marks={createArray(maxGameSpeed + 1, i => i).reduce((obj, v) => ({ ...obj, [v]: v }), {})}*/}
+                {/*                onChange={(value) => this.props.updateSetting('gameSpeed', value)}*/}
+                {/*                value={this.props.gameSpeed}/>*/}
+                {/*        <button onClick={() => this.props.produce({*/}
+                {/*            energy: 1e10, ore: 1e10, refinedMinerals: 1e10*/}
+                {/*        })}>+Resources</button>*/}
+                {/*    </div>*/}
+                {/*</div>*/}
             </Modal>
         </div>
     }

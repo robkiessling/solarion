@@ -11,9 +11,6 @@ class Ability extends React.Component {
 
     render() {
         return <div key={this.props.id} className={'ability'}>
-            {
-                this.props.displayInfo && <div className='ability-info'>{ this.props.displayInfo }</div>
-            }
             <ProgressButton
                 fullWidth={false}
                 onClick={() => this.props.castAbility(this.props.id)}
@@ -34,6 +31,9 @@ class Ability extends React.Component {
                 }>
                 {this.props.name}
             </ProgressButton>
+            {
+                this.props.displayInfo && <div className='ability-info'>{ this.props.displayInfo }</div>
+            }
         </div>;
     }
 }

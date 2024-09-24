@@ -6,7 +6,7 @@
 
 
   .upgrade {
-    color: lightgreen;
+    color: #90EE90;
   }
   .ability {
     color: $progress-button-ability-bg;
@@ -32,7 +32,7 @@
   &.upgrade {
     border: none;
     background: transparent;
-    color: lightgreen;
+    color: #90EE90;
     margin: 0.5rem;
     padding: 0;
   }
@@ -80,7 +80,7 @@
 }
 
 .text-green {
-  color: lightgreen;
+  color: #90EE90;
 }
 .text-red {
   color: red;

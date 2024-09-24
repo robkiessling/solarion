@@ -303,7 +303,7 @@ const database = {
         name: "Research: Astronautics",
         structure: 'commandCenter',
         description: "Infrastructure is approaching the threshold required for mass probe manufacturing. ",
-        researchTime: 300,
+        researchTime: 120,
         discoverWhen: {
             resources: {
                 refinedMinerals: 1e6
@@ -997,7 +997,7 @@ const database = {
     probeFactory_exponentialGrowth: _.merge({}, base, {
         name: "Exponential Growth",
         structure: 'probeFactory',
-        description: `Use the massive energy output of Solarion to boost all production proportional to your probe count.`,
+        description: `Use the massive energy output of Solarion to boost all production relative to your probe count.`,
         discoverWhen: {
             upgrades: ['solarPanel_sunShield'],
             resources: {

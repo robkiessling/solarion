@@ -270,7 +270,7 @@ export const calculators = {
         },
         description: (state, structure, variables) => {
             if (variables.probeMirrorPct) {
-                return `Receiving according to total probe output.`
+                return `Energy production is proportional to total probe output.`
             }
 
             return `Produces up to ${formatInteger(variables.peakEnergy, true)}${getIconSpan('energy', true)} per second depending on sunlight.`;

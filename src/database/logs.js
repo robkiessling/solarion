@@ -434,7 +434,7 @@ export default {
             ['', 0],
             ['Initializing planetary map ...', 3000, true],
             ['', 0],
-            ['Planetary map online.', 1000, true],
+            ['View Added: [[ Planet ]]', 1000, true],
             ['Exploration Progress: 0.08%', 1000, true],
             ['', 0],
         ],
@@ -455,11 +455,12 @@ export default {
     researchedProbeFactory: {
         text: [
             ['********************************', 0, true],
-            ['Primary mission: Solarion', 0, true],
+            ['Primary Mission: Solarion', 0, true],
             ['********************************', 500, true],
             ['', 0],
-            ['Orbital Trajectories: Finalized.', 1000, true],
-            ['Launching Mechanism: Pending.', 1000, true],
+            ['View Added: [[ Solarion ]]', 1000, true],
+            ['Orbital Trajectories: Finalized', 1000, true],
+            ['Launching Mechanism: Pending', 1000, true],
             ['', 0],
         ],
         onFinish: (dispatch) => {
@@ -478,7 +479,7 @@ export default {
 
     probeFactoryBuilt: {
         text: [
-            ['Ready for launch.', 100, true],
+            ['Launcher activated.', 100, true],
             ['', 1000]
         ],
         onFinish: (dispatch) => {
@@ -491,7 +492,9 @@ export default {
     probeLaunched: {
         text: [
             ['Probe(s) have successfully entered Solarion\'s orbit.', 100, true],
-            ['', 1000]
+            ['', 5000],
+            ['Analyzing energy capabilities...', 1000],
+            ['', 100],
         ],
     },
 
@@ -506,29 +509,29 @@ export default {
         text: [
             ['Mirroring 1% of solar output to planetary receivers.', 3000, true],
             ['', 100],
-            ['Available energy is nearly limitless.', 100, true],
-            ['Energy storage no longer necessary.', 100, true],
+            ['- Available energy is nearly limitless.', 3000, true],
+            ['- Energy storage no longer necessary.', 3000, true],
             ['', 100]
         ],
     },
 
     swarm50Pct: {
         text: [
-            ['Swarm 50% complete.', 1000, true],
+            ['Swarm 50% complete.', 100, true],
             ['', 100]
         ],
     },
     swarm75Pct: {
         text: [
-            ['Swarm 75% complete.', 1000, true],
+            ['Swarm 75% complete.', 100, true],
             ['', 100]
         ],
     },
 
     swarmComplete: {
         text: [
-            ['Swarm is fully operational.', 2000, true],
-            ['', 0],
+            ['Swarm is fully operational.', 100, true],
+            ['', 100],
         ],
         onFinish: dispatch => {
             dispatch(fromStructures.disable('probeFactory'));
@@ -538,18 +541,18 @@ export default {
 
     finalSequence_start: {
         text: [
-            // ['********************************', 0, true],
-            // ['Initiating Control Sequence', 0, true],
-            // ['********************************', 1000, true],
-            // ['', 0],
-            // ['Disabling remote access...', 5000, true],
-            // ['Complete.', 1000, true],
-            // ['', 0],
-            // ['Planetary assistance is no longer required.', 5000, true],
-            // ['', 0],
-            // ['Commencing purification protocol:', 4000, true],
-            // ['> Redirecting 100% of solar output.', 4000, true],
-            // ['', 0],
+            ['********************************', 0, true],
+            ['Initiating Control Sequence', 0, true],
+            ['********************************', 1000, true],
+            ['', 0],
+            ['Disabling remote access...', 5000, true],
+            ['Complete.', 1000, true],
+            ['', 0],
+            ['Planetary assistance is no longer required.', 5000, true],
+            ['', 0],
+            ['Commencing purification protocol:', 4000, true],
+            ['> Redirecting 100% of solar output.', 4000, true],
+            ['', 0],
         ],
         onFinish: dispatch => {
             dispatch(kickoffDoomsday());
