@@ -42,7 +42,7 @@ export default class AsciiCanvas {
         this.context.clearRect(x, y, width, height);
     }
 
-    setDimensions() {
+    _setDimensions() {
         const outerWidth = this.container.getBoundingClientRect().width;
         const outerHeight = this.container.getBoundingClientRect().height;
 
@@ -272,7 +272,7 @@ export default class AsciiCanvas {
 
 
     resize() {
-        this.setDimensions();
+        this._setDimensions();
 
         this._convertCanvasToHiDPI(this.canvas, this.context);
 

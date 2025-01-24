@@ -99,7 +99,7 @@ const database = {
     commandCenter_improvedCharge: _.merge({}, base, {
         name: "Replace Coils",
         structure: 'commandCenter',
-        description: "Increases manual energy per second to 2.",
+        description: "Increases energy per click to 2.",
         discoverWhen: {
             resources: {
                 ore: 60
@@ -108,6 +108,10 @@ const database = {
         cost: {
             ore: 75
         },
+        affects: {
+            type: EFFECT_TARGETS.ability,
+            id: 'commandCenter_charge'
+        },
         effect: {
             energy: { add: 1 }
         }
@@ -115,7 +119,7 @@ const database = {
     commandCenter_improvedCharge2: _.merge({}, base, {
         name: "Superconductive Coils",
         structure: 'commandCenter',
-        description: "Increases manual energy per second to 5.",
+        description: "Increases energy per click to 5.",
         discoverWhen: {
             upgrades: ['commandCenter_improvedCharge'],
             resources: {
@@ -126,36 +130,40 @@ const database = {
             ore: 300,
             energy: 100
         },
-        effect: {
-            energy: { add: 3 }
-        }
-    }),
-    commandCenter_improvedCharge3: _.merge({}, base, {
-        name: "Rotational Momentum",
-        structure: 'commandCenter',
-        description: "Manual charging time increased to 10s.",
-        discoverWhen: {
-            upgrades: ['commandCenter_improvedCharge2'],
-            resources: {
-                ore: 300
-            }
-        },
-        cost: {
-            ore: 200,
-            energy: 200
-        },
         affects: {
             type: EFFECT_TARGETS.ability,
             id: 'commandCenter_charge'
         },
         effect: {
-            castTime: { add: 5 }
+            energy: { add: 3 }
         }
     }),
+    // commandCenter_improvedCharge3: _.merge({}, base, {
+    //     name: "Rotational Momentum",
+    //     structure: 'commandCenter',
+    //     description: "Manual charging time increased to 10s.",
+    //     discoverWhen: {
+    //         upgrades: ['commandCenter_improvedCharge2'],
+    //         resources: {
+    //             ore: 300
+    //         }
+    //     },
+    //     cost: {
+    //         ore: 200,
+    //         energy: 200
+    //     },
+    //     affects: {
+    //         type: EFFECT_TARGETS.ability,
+    //         id: 'commandCenter_charge'
+    //     },
+    //     effect: {
+    //         castTime: { add: 5 }
+    //     }
+    // }),
     commandCenter_improvedCharge4: _.merge({}, base, {
         name: "Gold Wiring",
         structure: 'commandCenter',
-        description: "Increases manual energy per second to 30.",
+        description: "Increases energy per click to 30.",
         discoverWhen: {
             upgrades: ['commandCenter_improvedCharge3'],
             resources: {
@@ -166,6 +174,10 @@ const database = {
             ore: 500,
             refinedMinerals: 25
         },
+        affects: {
+            type: EFFECT_TARGETS.ability,
+            id: 'commandCenter_charge'
+        },
         effect: {
             energy: { add: 25 }
         }
@@ -173,7 +185,7 @@ const database = {
     commandCenter_improvedCharge5: _.merge({}, base, {
         name: "Platinum Wiring",
         structure: 'commandCenter',
-        description: "Increases manual energy per second to 100.",
+        description: "Increases energy per click to 100.",
         discoverWhen: {
             upgrades: ['commandCenter_improvedCharge4'],
             resources: {
@@ -184,35 +196,39 @@ const database = {
             ore: 1200,
             refinedMinerals: 125
         },
-        effect: {
-            energy: { add: 70 }
-        }
-    }),
-    commandCenter_improvedCharge6: _.merge({}, base, {
-        name: "Plasma Inductor",
-        structure: 'commandCenter',
-        description: "Manual charging time increased to 30s.",
-        discoverWhen: {
-            upgrades: ['commandCenter_improvedCharge5'],
-            resources: {
-                refinedMinerals: 1000
-            }
-        },
-        cost: {
-            refinedMinerals: 3000
-        },
         affects: {
             type: EFFECT_TARGETS.ability,
             id: 'commandCenter_charge'
         },
         effect: {
-            castTime: { add: 20 }
+            energy: { add: 70 }
         }
     }),
+    // commandCenter_improvedCharge6: _.merge({}, base, {
+    //     name: "Plasma Inductor",
+    //     structure: 'commandCenter',
+    //     description: "Manual charging time increased to 30s.",
+    //     discoverWhen: {
+    //         upgrades: ['commandCenter_improvedCharge5'],
+    //         resources: {
+    //             refinedMinerals: 1000
+    //         }
+    //     },
+    //     cost: {
+    //         refinedMinerals: 3000
+    //     },
+    //     affects: {
+    //         type: EFFECT_TARGETS.ability,
+    //         id: 'commandCenter_charge'
+    //     },
+    //     effect: {
+    //         castTime: { add: 20 }
+    //     }
+    // }),
     commandCenter_improvedCharge7: _.merge({}, base, {
         name: "Quantum Induction",
         structure: 'commandCenter',
-        description: "Increases manual energy per second to 1000.",
+        description: "Increases energy per click to 1000.",
         discoverWhen: {
             upgrades: ['commandCenter_improvedCharge6'],
             resources: {
@@ -222,6 +238,10 @@ const database = {
         cost: {
             refinedMinerals: 35000
         },
+        affects: {
+            type: EFFECT_TARGETS.ability,
+            id: 'commandCenter_charge'
+        },
         effect: {
             energy: { add: 900 }
         }
@@ -230,7 +250,7 @@ const database = {
     commandCenter_researchSolar: _.merge({}, base, {
         name: "Research: Solar Power",
         structure: 'commandCenter',
-        description: "Manual energy production is insufficient for sustained production. Need to find an alternative energy source.",
+        description: "Manual energy production is insufficient for sustained harvesting. Need to find an alternative energy source.",
         discoverWhen: {
             resources: {
                 energy: 115,
@@ -271,7 +291,7 @@ const database = {
     commandCenter_researchRefinery: _.merge({}, base, {
         name: "Research: Rare Minerals",
         structure: 'commandCenter',
-        description: "Further technological advancements require method(s) of obtaining rare minerals.",
+        description: "Further technological advancements require new methods of obtaining rare minerals.",
         researchTime: 60,
         discoverWhen: {
             resources: {
@@ -884,7 +904,7 @@ const database = {
     refinery_improveProduction3: _.merge({}, base, {
         name: "Plasma Furnace",
         structure: 'refinery',
-        description: 'Increases the refinery\'s mineral production by 100%, but also increases its energy consumption by 50%.',
+        description: 'Increases the refinery\'s mineral production by 100%, but also increases its energy consumption by 80%.',
         discoverWhen: {
             upgrades: ['refinery_improveProduction2'],
             resources: {
@@ -897,7 +917,7 @@ const database = {
         },
         effect: {
             refinedMinerals: { multiply: 2 },
-            energy: { multiply: 1.5 }
+            energy: { multiply: 1.8 }
         }
     }),
     refinery_improveProduction4: _.merge({}, base, {

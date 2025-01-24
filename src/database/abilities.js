@@ -26,6 +26,7 @@ const base = {
         type: EFFECT_TARGETS.structure
         // No default id necessary; if blank it is assumed to be the ability's structure
     },
+    hidden: '', // if true, will not show an ability button even after the ability is learned
 
     cooldown: 0 // Note: cooldown starts after cast FINISHES (not at start of cast)
 }
@@ -35,10 +36,9 @@ const database = {
         name: "Manually Charge",
         structure: "commandCenter",
         description: "The device has a hand crank to generate emergency power.",
+        castTime: 0,
         cost: {},
-        effect: {
-            charging: { add: 1 }
-        }
+        hidden: true
     }),
     harvester_overclock: _.merge({}, base, {
         name: 'Overclock',
@@ -72,15 +72,17 @@ export const calculators = {
     commandCenter_charge: {
         variables: (state, ability) => {
             const variables = {
-                castTime: 5
+                energy: 1
             }
 
             applyAllEffects(state, variables, ability)
 
             return variables;
         },
-        castTime: (state, ability, variables) => {
-            return variables.castTime;
+        produces: (state, ability, variables) => {
+            return {
+                energy: variables.energy
+            }
         }
     },
     harvester_overclock: {
@@ -149,7 +151,7 @@ export const calculators = {
             return {
                 nextDevelopmentSize: nextDevelopmentSize,
                 numStructures: countAllStructuresBuilt(state.structures),
-                productionIncrease: `${Math.floor(((nextDevelopmentSize / developedLand) + 1) * 100)}%`
+                productionIncrease: `${Math.floor((nextDevelopmentSize / developedLand) * 100)}%`
             }
         },
         description: (state, ability, variables) => {

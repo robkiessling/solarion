@@ -141,27 +141,27 @@ const baseCalculator = {
  * third parameter (that way many functions can be built off the same variables)
  */
 export const calculators = {
-    commandCenter: _.merge({}, baseCalculator, {
-        variables: (state, structure) => {
-            const variables = {
-                charging: 0, // Whether solanoid is charging or not (0 or 1)
-                energy: 1 // how much energy is produced per second when charging
-            }
-
-            applyAllEffects(state, variables, structure);
-            variables.energy *= netDroidPerformanceBoost(state, structure);
-
-            variables.energy *= variables.charging;
-
-            return variables;
-        },
-        consumes: (state, structure, variables) => ({
-
-        }),
-        produces: (state, structure, variables) => ({
-            energy: variables.energy
-        }),
-    }),
+    // commandCenter: _.merge({}, baseCalculator, {
+    //     variables: (state, structure) => {
+    //         const variables = {
+    //             charging: 0, // Whether solanoid is charging or not (0 or 1)
+    //             energy: 1 // how much energy is produced per second when charging
+    //         }
+    //
+    //         applyAllEffects(state, variables, structure);
+    //         variables.energy *= netDroidPerformanceBoost(state, structure);
+    //
+    //         variables.energy *= variables.charging;
+    //
+    //         return variables;
+    //     },
+    //     consumes: (state, structure, variables) => ({
+    //
+    //     }),
+    //     produces: (state, structure, variables) => ({
+    //         energy: variables.energy
+    //     }),
+    // }),
     harvester: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {

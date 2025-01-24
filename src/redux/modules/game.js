@@ -18,7 +18,8 @@ const initialState = {
     shuttersOpen: false,
     showPlanetStatus: false,
     showResourceBar: true,
-    showResourceRates: false,
+    showResourceRates: true, // todo should set this false, then set true when first harvester built?
+                             //      i'm having issues with the energy button being hidden by this
     showNonCCBuildings: false, // This setting is just so we can show the harvester outside for a few secs before it shows up in structures
     visibleNavTabs: [],
     currentNavTab: 'outside',

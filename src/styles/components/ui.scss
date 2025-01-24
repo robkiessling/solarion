@@ -89,6 +89,16 @@
   color: grey;
 }
 
+// prevents selection of the element (e.g. can be used to stop double-clicks from highlighting text)
+// https://stackoverflow.com/a/880518
+.no-selection {
+  user-select: none; /* standard syntax */
+  -webkit-user-select: none; /* webkit (safari, chrome) browsers */
+  -moz-user-select: none; /* mozilla browsers */
+  -khtml-user-select: none; /* webkit (konqueror) browsers */
+  -ms-user-select: none; /* IE10+ */
+}
+
 .range-slider {
   height: 1rem;
   width: calc(100% - 1.3rem);

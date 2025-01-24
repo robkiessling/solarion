@@ -5,6 +5,7 @@ import {batchedSubscribe} from 'redux-batched-subscribe';
 import {debounce, throttle} from 'lodash';
 import {loadState, resetState, saveState} from "../lib/local_storage";
 
+const AUTO_SAVE = false;
 const AUTO_SAVE_INTERVAL = 30 * 1000;
 
 const middleware = [ thunk ];
@@ -30,10 +31,7 @@ const store = createStore(
 );
 
 store.subscribe(throttle(() => {
-    /* Example saving a partial state: */
-    // saveState({
-    //     todos: store.getState().todos
-    // })
+    if (!AUTO_SAVE) { return; }
 
     const state = store.getState();
 

@@ -3,6 +3,7 @@ import {connect} from "react-redux";
 import Structure from "./structures/structure";
 import ProbeFactory from "./structures/probe_factory";
 import EnergyBay from "./structures/energy_bay";
+import CommandCenter from "./structures/command_center";
 import {getVisibleIds} from "../redux/modules/structures";
 import {TYPES} from "../database/structures";
 import Tabs from "./ui/tabs";
@@ -48,6 +49,8 @@ class Structures extends React.Component {
                                 return <div key={id} className={'hidden'}></div>
                             }
                             switch (id) {
+                                case 'commandCenter':
+                                    return <CommandCenter key={id}/>
                                 case 'energyBay':
                                     return <EnergyBay key={id}/>
                                 case 'probeFactory':

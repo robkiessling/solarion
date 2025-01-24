@@ -139,5 +139,17 @@
       display: inline-block;
       margin-left: 1rem;
     }
+
+    #energy-button-container {
+      height: 150px;
+    }
+    #energy-button-canvas {
+      background: $black;
+      border-radius: 4px;
+
+      // small starting size so container size is unaffected. canvas will be resized by js
+      width: 0;
+      height: 0;
+    }
   }
 }

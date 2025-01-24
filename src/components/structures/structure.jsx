@@ -42,7 +42,8 @@ class Structure extends React.Component {
                 <div className="body">
                     { this.props.showResourceRates &&
                     <div className="details-area">
-                        {this.props.isBuilt && this.props.structure.runnable &&
+                        {
+                            this.props.isBuilt && this.props.structure.runnable &&
                             <div className={`d-flex justify-center`}><RunSlider structure={this.props.structure}/></div>}
                         {
                             this.props.isBuilt && Object.keys(this.props.production).length > 0 &&

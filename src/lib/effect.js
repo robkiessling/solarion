@@ -7,9 +7,9 @@
  *    }
  * }
  *
- * In this example, ratedPower is the variable name and { multiple: 1.25 } are operations performed on the variable.
+ * In this example, ratedPower is the variable name and { multiply: 1.25 } are operations performed on the variable.
  *
- * Currently there is no effects database; effects are part of a upgrade, ability, etc.
+ * Currently there is no `effects` database; effects are part of a upgrade, ability, etc.
  */
 
 

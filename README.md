@@ -19,3 +19,6 @@ npm run dev
 ```
 
 Game will be hosted on http://localhost:8080.
+
+Note: I have to use an old version of Node (v14.21.3) due to Sass
+conflicting with my environment. https://stackoverflow.com/a/64645028

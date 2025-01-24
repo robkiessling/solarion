@@ -16,7 +16,7 @@ class Ability extends React.Component {
                 onClick={() => this.props.castAbility(this.props.id)}
                 disabled={!this.props.canCast}
                 progress={this.props.progress}
-                className='ability'
+                className={`ability ${this.props.hidden ? 'hidden' : ''}`}
                 tooltipId={`ability-${this.props.id}-tip`}
                 tooltip={
                     <div>
@@ -50,7 +50,8 @@ const mapStateToProps = (state, ownProps) => {
         cooldown: ability.cooldown,
         canCast: canCastAbility(state, ability),
         progress: fromAbilities.getProgress(ability, true),
-        displayInfo: ability.displayInfo
+        displayInfo: ability.displayInfo,
+        hidden: ability.hidden
     }
 };
 
