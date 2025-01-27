@@ -1,4 +1,4 @@
-import {debounce, getRandomIntInclusive} from "./helpers";
+import {debounce, getRandomIntInclusive, nTimes} from "./helpers";
 
 let animationIdSeq = 1;
 
@@ -21,6 +21,7 @@ export default class EnergyButton {
 
     // Local state is not persisted to redux... it is just for fleeting animations so there is no need to persist them
     this._state = {
+      prevAnimationCounts: {},
       button: {
         x: this.width / 2 - BUTTON_WIDTH / 2,
         y: this.height / 2 - BUTTON_HEIGHT / 2,
@@ -44,13 +45,36 @@ export default class EnergyButton {
     this.context.clearRect(0, 0, this.width, this.height);
   }
 
-  drawState(state, elapsedTime) {
+  drawState(state, elapsedTime, newAnimationValues) {
     this.clearAll();
 
     this._state.elapsedTime = elapsedTime;
+    this._spawnNewAnimations(newAnimationValues);
 
     this._drawAnimations();
     this._drawButton();
+  }
+
+  _spawnNewAnimations(newAnimationValues) {
+    for (const [animationKey, newValue] of Object.entries(newAnimationValues)) {
+      const prevValue = this._state.prevAnimationCounts[animationKey];
+      if (newValue > 0 && (prevValue === undefined || newValue > prevValue)) {
+        // spawn new animation
+        switch(animationKey) {
+          case 'numClicks':
+            nTimes(newAnimationValues.energyBonus, () => this._createSpark())
+            // this._createSpark();
+            this._createFloatingNumber(newAnimationValues.energyBonus);
+            break;
+          case 'numMineralBonusProcs':
+            this._createWave();
+            break;
+          default:
+            console.warn('No animation found for: ', animationKey);
+        }
+        this._state.prevAnimationCounts[animationKey] = newValue;
+      }
+    }
   }
 
   _drawAnimations() {
@@ -138,8 +162,8 @@ export default class EnergyButton {
   }
 
   _createWave() {
-    this._createAnimation(1000, undefined, (animation, currentTime, progress) => {
-      const growth = 1 + progress;
+    this._createAnimation(2000, undefined, (animation, currentTime, progress) => {
+      const growth = 1 + progress * 2;
       const width = BUTTON_WIDTH * growth;
       const height = BUTTON_HEIGHT * growth;
       const opacity = 1 - progress;
@@ -150,8 +174,27 @@ export default class EnergyButton {
         animation.buttonCenter.y - height / 2,
         width, height, [10]
       );
-      this.context.strokeStyle = `rgba(202,126,126,${opacity})`;
+      this.context.strokeStyle = `rgba(62,192,218,${opacity})`;
       this.context.stroke(path);
+    });
+  }
+
+  _createFloatingNumber(value) {
+    this._createAnimation(1000, animation => {
+      const PADDING = 16;
+      animation.position = {
+        x: getRandomIntInclusive(PADDING, this.width - PADDING),
+        y: getRandomIntInclusive(PADDING, this.height - PADDING),
+      }
+    }, (animation, currentTime, progress) => {
+      const opacity = 1 - progress;
+      this.context.fillStyle = `rgba(255,255,255,${opacity})`;
+
+      this.context.font = "14px monospace";
+      this.context.fillText(`+${value}`, animation.position.x, animation.position.y);
+
+      // this.context.font = "14px icomoon";
+      // this.context.fillText(String.fromCharCode("0xe904"), animation.position.x + 16, animation.position.y);
     });
   }
 
@@ -163,12 +206,8 @@ export default class EnergyButton {
       const targetX = animation.buttonCenter.x + LINE_LENGTH * Math.cos(targetRadians);
       const targetY = animation.buttonCenter.y + LINE_LENGTH * Math.sin(targetRadians);
       animation.target = { x: targetX, y: targetY };
-      // animation.x = animation.buttonCenter.x;
-      // animation.y = animation.buttonCenter.y;
     }, (animation, currentTime, progress) => {
       const opacity = 1 - progress;
-      // this.context.strokeStyle = `rgba(234,225,28,${opacity})`;
-
       const gradient = this.context.createLinearGradient(
         animation.buttonCenter.x, animation.buttonCenter.y,
         animation.target.x, animation.target.y
@@ -214,8 +253,8 @@ export default class EnergyButton {
       this._state.button.isPressed = true;
 
       // this._createWave();
-      this._createSpark();
-      this.onClickCallback(true);
+      // this._createSpark();
+      this.onClickCallback();
     }
     else {
       // todo stop hot streak

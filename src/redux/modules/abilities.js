@@ -4,6 +4,7 @@ import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {getUpgrade, isResearched} from "./upgrades";
 import {BUILD} from "./structures";
+import _ from "lodash";
 
 export { calculators }
 
@@ -13,6 +14,8 @@ export const START_CAST = 'abilities/START_CAST';
 export const PROGRESS = 'abilities/PROGRESS';
 export const END_CAST = 'abilities/END_CAST';
 export const END_COOLDOWN = 'abilities/END_COOLDOWN';
+
+export const CHARGE_RNG = 'abilities/CHARGE_RNG';
 
 // Initial State
 const initialState = {
@@ -97,6 +100,14 @@ export default function reducer(state = initialState, action) {
                     }
                 }
             });
+        case CHARGE_RNG:
+            return update(state, {
+                byId: {
+                    commandCenter_charge: {
+                        animations: payload.animations
+                    }
+                }
+            })
         default:
             return state;
     }
@@ -122,6 +133,33 @@ export function startCastUnsafe(ability) {
             dispatch(recalculateState())
         });
     }
+}
+
+// The commandCenter_charge ability is a bit special. It has RNG components (e.g. 5% chance to generate a crystal)
+// which is hard to build into the normal `produces` handler (and we don't want randomness in reducers). It also needs
+// to trigger animations, some of which only happen some of the time (e.g. special animation when crystal is found).
+export function chargeRNG(dispatch, getState) {
+    const charge = getAbility(getState().abilities, 'commandCenter_charge');
+
+    const resources = {
+        energy: 0,
+        refinedMinerals: 0,
+    }
+    const animations = {};
+
+    // 100% chance to generate energy
+    resources.energy += charge.variables.energy;
+    animations.numClicks = { $apply: (x) => x + 1 }
+    animations.energyBonus = { $set: charge.variables.energy };
+
+    // % chance to gain bonus minerals
+    if (charge.variables.mineralChance > 0 && Math.random() <= charge.variables.mineralChance) {
+        resources.refinedMinerals += charge.variables.mineralBonus
+        animations.numMineralBonusProcs = { $apply: (x) => x + 1 }
+        animations.mineralBonus = { $set: charge.variables.mineralBonus }
+    }
+
+    dispatch({ type: CHARGE_RNG, payload: { resources, animations } })
 }
 
 export function abilitiesTick(timeDelta) {

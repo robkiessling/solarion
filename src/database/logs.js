@@ -18,7 +18,7 @@ const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE = NORMAL_BOOTUP; /* Controls overall game mode */
+const GAME_MODE = SKIP_TO_GLOBE; /* Controls overall game mode */
 
 
 export default {
@@ -248,19 +248,20 @@ export default {
             dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
 
             dispatch(fromStructures.buildForFree('harvester', 5));
-            dispatch(fromStructures.buildForFree('solarPanel', 7));
-            dispatch(fromStructures.buildForFree('windTurbine', 6));
-            dispatch(fromStructures.buildForFree('energyBay', 9));
-            dispatch(fromStructures.buildForFree('refinery', 2));
-            dispatch(fromStructures.buildForFree('droidFactory', 1));
+            // dispatch(fromStructures.buildForFree('solarPanel', 7));
+            // dispatch(fromStructures.buildForFree('windTurbine', 6));
+            // dispatch(fromStructures.buildForFree('energyBay', 9));
+            // dispatch(fromStructures.buildForFree('refinery', 2));
+            // dispatch(fromStructures.buildForFree('droidFactory', 1));
 
             dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity'));
             dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity2'));
 
             dispatch(fromResources.produce({
-                energy: 999999999,
+                energy: 10,
                 ore: 999999999,
-                refinedMinerals: 999999999,
+                // refinedMinerals: 999999999,
+                refinedMinerals: 100,
                 standardDroids: 10
             }));
 

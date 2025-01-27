@@ -65,6 +65,9 @@ export default {
         types: TYPES.generator,
         count: {
             max: 1
+        },
+        droidData: {
+            usesDroids: false
         }
     }),
     harvester: _.merge({}, base, {

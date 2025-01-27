@@ -49,6 +49,8 @@ export default function reducer(state = initialState, action) {
             return consumeReducer(state, fromAbilities.getAbilityCost(payload.ability));
         case fromAbilities.END_CAST:
             return produceReducer(state, fromAbilities.getAbilityProduction(payload.ability));
+        case fromAbilities.CHARGE_RNG:
+            return produceReducer(state, payload.resources)
         case fromStructures.ASSIGN_DROID:
         case fromPlanet.ASSIGN_DROID:
             return consumeReducer(state, { standardDroids: payload.amount })

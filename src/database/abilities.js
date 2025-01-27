@@ -38,7 +38,12 @@ const database = {
         description: "The device has a hand crank to generate emergency power.",
         castTime: 0,
         cost: {},
-        hidden: true
+        hidden: true,
+
+        animations: {
+            numClicks: 0,
+            numMineralBonusProcs: 0
+        }
     }),
     harvester_overclock: _.merge({}, base, {
         name: 'Overclock',
@@ -72,18 +77,17 @@ export const calculators = {
     commandCenter_charge: {
         variables: (state, ability) => {
             const variables = {
-                energy: 1
+                energy: 1,
+                mineralChance: 0.2,
+                mineralBonus: 0
             }
 
             applyAllEffects(state, variables, ability)
 
             return variables;
         },
-        produces: (state, ability, variables) => {
-            return {
-                energy: variables.energy
-            }
-        }
+        // Note: commandCenter_charge is too complex for the normal `produces` handler. It has RNG components and
+        //       animation effects, so its production is all handled by the `chargeRNG` function.
     },
     harvester_overclock: {
         variables: (state, ability) => {
@@ -181,6 +185,11 @@ export const calculators = {
 // Functions can't be stored in the state so storing them in this const
 // TODO Should all callbacks be in reducers??
 export const callbacks = {
+    commandCenter_charge: {
+        onFinish: (dispatch, getState) => {
+            fromAbilities.chargeRNG(dispatch, getState);
+        }
+    },
     replicate: {
         onStart: (dispatch, getState, ability) => {
             fromPlanet.startDevelopment(dispatch, getState, ability.produces.developedLand)

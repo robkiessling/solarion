@@ -29,6 +29,12 @@ export function debounce(func, delayMs = 100){
     };
 }
 
+export function nTimes(n, func) {
+    for (let i = 0; i < n; i++) {
+        func(i);
+    }
+}
+
 // Faster than `element.innerHTML = '';`
 export function emptyElement(element) {
     while (element.firstChild) {

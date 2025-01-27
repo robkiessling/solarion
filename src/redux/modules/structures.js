@@ -1,9 +1,6 @@
 import update from 'immutability-helper';
 import database, {calculators, STATUSES, TYPES} from '../../database/structures'
-import {mapObject} from "../../lib/helpers";
 import {recalculateState, withRecalculation} from "../reducer";
-import {batch} from "react-redux";
-import {isTargetingPlanet} from "./star";
 
 export { calculators };
 const RUNNING_COOLDOWN = 2; // After running out of resources, wait this number of seconds before running again

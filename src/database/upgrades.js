@@ -96,6 +96,7 @@ const database = {
             energy: 15
         }
     }),
+
     commandCenter_improvedCharge: _.merge({}, base, {
         name: "Replace Coils",
         structure: 'commandCenter',
@@ -138,34 +139,12 @@ const database = {
             energy: { add: 3 }
         }
     }),
-    // commandCenter_improvedCharge3: _.merge({}, base, {
-    //     name: "Rotational Momentum",
-    //     structure: 'commandCenter',
-    //     description: "Manual charging time increased to 10s.",
-    //     discoverWhen: {
-    //         upgrades: ['commandCenter_improvedCharge2'],
-    //         resources: {
-    //             ore: 300
-    //         }
-    //     },
-    //     cost: {
-    //         ore: 200,
-    //         energy: 200
-    //     },
-    //     affects: {
-    //         type: EFFECT_TARGETS.ability,
-    //         id: 'commandCenter_charge'
-    //     },
-    //     effect: {
-    //         castTime: { add: 5 }
-    //     }
-    // }),
-    commandCenter_improvedCharge4: _.merge({}, base, {
+    commandCenter_improvedCharge3: _.merge({}, base, {
         name: "Gold Wiring",
         structure: 'commandCenter',
         description: "Increases energy per click to 30.",
         discoverWhen: {
-            upgrades: ['commandCenter_improvedCharge3'],
+            upgrades: ['commandCenter_improvedCharge2'],
             resources: {
                 ore: 1000
             }
@@ -182,12 +161,12 @@ const database = {
             energy: { add: 25 }
         }
     }),
-    commandCenter_improvedCharge5: _.merge({}, base, {
+    commandCenter_improvedCharge4: _.merge({}, base, {
         name: "Platinum Wiring",
         structure: 'commandCenter',
         description: "Increases energy per click to 100.",
         discoverWhen: {
-            upgrades: ['commandCenter_improvedCharge4'],
+            upgrades: ['commandCenter_improvedCharge3'],
             resources: {
                 refinedMinerals: 250
             }
@@ -204,33 +183,12 @@ const database = {
             energy: { add: 70 }
         }
     }),
-    // commandCenter_improvedCharge6: _.merge({}, base, {
-    //     name: "Plasma Inductor",
-    //     structure: 'commandCenter',
-    //     description: "Manual charging time increased to 30s.",
-    //     discoverWhen: {
-    //         upgrades: ['commandCenter_improvedCharge5'],
-    //         resources: {
-    //             refinedMinerals: 1000
-    //         }
-    //     },
-    //     cost: {
-    //         refinedMinerals: 3000
-    //     },
-    //     affects: {
-    //         type: EFFECT_TARGETS.ability,
-    //         id: 'commandCenter_charge'
-    //     },
-    //     effect: {
-    //         castTime: { add: 20 }
-    //     }
-    // }),
-    commandCenter_improvedCharge7: _.merge({}, base, {
+    commandCenter_improvedCharge5: _.merge({}, base, {
         name: "Quantum Induction",
         structure: 'commandCenter',
         description: "Increases energy per click to 1000.",
         discoverWhen: {
-            upgrades: ['commandCenter_improvedCharge6'],
+            upgrades: ['commandCenter_improvedCharge4'],
             resources: {
                 refinedMinerals: 15000
             }
@@ -246,6 +204,33 @@ const database = {
             energy: { add: 900 }
         }
     }),
+
+    commandCenter_chargeMineral1: _.merge({}, base, {
+        name: "Crystallization",
+        structure: 'commandCenter',
+        description: "Clicks have a 5% chance to harvest 1 mineral.",
+        discoverWhen: {
+            upgrades: ['commandCenter_improvedCharge2'],
+            resources: {
+                ore: 300,
+                refinedMinerals: 10
+            }
+        },
+        cost: {
+            ore: 200,
+            energy: 200,
+            refinedMinerals: 20
+        },
+        affects: {
+            type: EFFECT_TARGETS.ability,
+            id: 'commandCenter_charge'
+        },
+        effect: {
+            mineralChance: { add: 0.05 },
+            mineralBonus: { add: 1 },
+        }
+    }),
+
 
     commandCenter_researchSolar: _.merge({}, base, {
         name: "Research: Solar Power",
@@ -410,7 +395,7 @@ const database = {
     harvester_eff1: _.merge({}, base, {
         name: "Heat Guards",
         structure: 'harvester',
-        description: "Improves energy efficiency when running at max speed from 25% to 50%.",
+        description: "Improves harvester energy efficiency.",
         discoverWhen: {
             resources: {
                 ore: 2000
@@ -699,7 +684,7 @@ const database = {
     energyBay_largerCapacity2: _.merge({}, base, {
         name: "Lithium Ions",
         structure: 'energyBay',
-        description: "Multiplies energy bay capacity by 500%.",
+        description: "Multiplies energy bay capacity by 400%.",
         discoverWhen: {
             upgrades: ['energyBay_largerCapacity'],
             resources: {
@@ -711,13 +696,13 @@ const database = {
             refinedMinerals: 300
         },
         effect: {
-            capacity: { multiply: 5 }
+            capacity: { multiply: 4 }
         }
     }),
     energyBay_largerCapacity3: _.merge({}, base, {
         name: "Ultra-Dense Matrices",
         structure: 'energyBay',
-        description: "Multiplies energy bay capacity by 500%.",
+        description: "Multiplies energy bay capacity by 400%.",
         discoverWhen: {
             upgrades: ['energyBay_largerCapacity2'],
             resources: {
@@ -729,13 +714,13 @@ const database = {
             refinedMinerals: 6510
         },
         effect: {
-            capacity: { multiply: 5 }
+            capacity: { multiply: 4 }
         }
     }),
     energyBay_largerCapacity4: _.merge({}, base, {
         name: "Quantum Charging",
         structure: 'energyBay',
-        description: "Multiplies energy bay capacity by 500%.",
+        description: "Multiplies energy bay capacity by 400%.",
         discoverWhen: {
             upgrades: ['energyBay_largerCapacity3'],
             resources: {
@@ -746,7 +731,7 @@ const database = {
             refinedMinerals: 5.8e6
         },
         effect: {
-            capacity: { multiply: 5 }
+            capacity: { multiply: 4 }
         }
     }),
 
@@ -824,7 +809,7 @@ const database = {
     windTurbine_zephyr: _.merge({}, base, {
         name: "Zephyr PowerCore",
         structure: 'windTurbine',
-        description: "Allows the wind turbine to rotate towards the wind's direction, increasing energy production by 100%.",
+        description: "Increases turbine energy production by an additional 100%.",
         discoverWhen: {
             upgrades: ['windTurbine_yawDrive'],
             resources: {

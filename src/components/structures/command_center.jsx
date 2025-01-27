@@ -4,6 +4,7 @@ import {connect} from "react-redux";
 import EnergyButton from "../../lib/energy_button";
 import {ENERGY_BUTTON_FPS} from "../../singletons/game_clock";
 import {castAbility} from "../../redux/reducer";
+import {getAbility} from "../../redux/modules/abilities";
 
 export class CommandCenter extends React.Component {
   constructor(props) {
@@ -46,7 +47,7 @@ export class CommandCenter extends React.Component {
       this.energyButton.resize();
     }
 
-    this.energyButton.drawState({}, this.props.elapsedTime);
+    this.energyButton.drawState({}, this.props.elapsedTime, this.props.energyBtnAnimations);
   }
 
   render() {
@@ -62,9 +63,12 @@ export class CommandCenter extends React.Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
+  const charge = getAbility(state.abilities, 'commandCenter_charge');
+
   return {
     visible: state.game.currentNavTab === 'outside',
     elapsedTime: state.clock.elapsedTime,
+    energyBtnAnimations: charge.animations
   };
 }
 
