@@ -3,7 +3,6 @@ import {connect} from "react-redux";
 import Structure from "./structures/structure";
 import ProbeFactory from "./structures/probe_factory";
 import EnergyBay from "./structures/energy_bay";
-import CommandCenter from "./structures/command_center";
 import {getVisibleIds} from "../redux/modules/structures";
 import {TYPES} from "../database/structures";
 import Tabs from "./ui/tabs";
@@ -45,12 +44,10 @@ class Structures extends React.Component {
                 <OverlayScrollbarsComponent className="structure-list" defer>
                 {
                         this.props.structureIds.map((id) => {
-                            if (id !== 'commandCenter' && !this.props.showNonCCBuildings) {
+                            if (!this.props.showStructuresList) {
                                 return <div key={id} className={'hidden'}></div>
                             }
                             switch (id) {
-                                case 'commandCenter':
-                                    return <CommandCenter key={id}/>
                                 case 'energyBay':
                                     return <EnergyBay key={id}/>
                                 case 'probeFactory':
@@ -91,12 +88,15 @@ const mapStateToProps = (state, ownProps) => {
             break;
     }
 
+    // commandCenter structure is shown on its own in the left column; never show it on the right column
+    structureIds = structureIds.filter(structureId => structureId !== 'commandCenter');
+
     return {
         visible: state.game.currentNavTab === 'outside' || state.game.currentNavTab === 'star',
         showStructureTabs: state.game.showStructureTabs && state.game.currentNavTab === 'outside',
         currentStructureTab: state.game.currentStructureTab,
         structureIds: structureIds,
-        showNonCCBuildings: state.game.showNonCCBuildings,
+        showStructuresList: state.game.showStructuresList,
     };
 };
 

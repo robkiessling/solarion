@@ -64,13 +64,13 @@ export default class EnergyButton {
           case 'numClicks':
             nTimes(newAnimationValues.energyBonus, () => this._createSpark())
             // this._createSpark();
-            this._createFloatingNumber(newAnimationValues.energyBonus);
+            // this._createFloatingNumber(newAnimationValues.energyBonus);
             break;
           case 'numMineralBonusProcs':
             this._createWave();
             break;
-          default:
-            console.warn('No animation found for: ', animationKey);
+          // default:
+          //   console.warn('No animation found for: ', animationKey);
         }
         this._state.prevAnimationCounts[animationKey] = newValue;
       }

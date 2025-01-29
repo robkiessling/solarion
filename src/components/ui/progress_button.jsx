@@ -31,7 +31,7 @@ export default function ProgressButton(props) {
                     {props.children}
                     {progress}
                 </div>
-                <Tooltip id={props.tooltipId}>
+                <Tooltip id={props.tooltipId} {...props.tooltipProps}>
                     {props.tooltip}
                 </Tooltip>
             </div>

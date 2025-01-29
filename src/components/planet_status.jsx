@@ -1,7 +1,13 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import Clock from "./clock";
-import {dayLength, dayNumber, fractionOfDay, surfaceTemperature, windSpeed} from "../redux/modules/clock";
+import {
+    dayLength,
+    dayNumber,
+    fractionOfDay,
+    surfaceTemperature,
+    timePeriodData,
+    windSpeed
+} from "../redux/modules/clock";
 import {updateSetting} from "../redux/modules/game";
 import {produce} from "../redux/modules/resources";
 
@@ -13,21 +19,21 @@ class PlanetStatus extends React.Component {
     render() {
         const debug__maxGameSpeed = 10;
 
+        const timePeriod = timePeriodData(this.props.fractionOfDay)[1];
+        const secondsOfDay = this.props.fractionOfDay * (24 * 60 * 60);
+        const hour = Math.floor(secondsOfDay / (60 * 60));
+        const minutes = _.padStart(Math.round((secondsOfDay % (60 * 60)) / 60), 2, '0');
+
         return (
-            <div className={`planet-status ${this.props.visible ? '' : 'invisible'}`}>
-                <div className="component-header">Sensor Readings</div>
+            <div className={`planet-status ${this.props.visible ? '' : 'invisible'} d-flex space-between`}>
                 <div>
-                    <Clock dayLength={this.props.dayLength}
-                           dayNumber={this.props.dayNumber}
-                           fractionOfDay={this.props.fractionOfDay} />
-                    <div className={'d-flex space-between'}>
-                        <span>Temperature:</span>
-                        <span>{_.round(this.props.temperature)}°C</span>
-                    </div>
-                    <div className={'d-flex space-between'}>
-                        <span>Wind:</span>
-                        <span>{_.round(this.props.windSpeed)} kph</span>
-                    </div>
+                    <span>Day {this.props.dayNumber} {hour}:{minutes} ({timePeriod})</span>
+                </div>
+                <div>
+                    <span>Temperature: {_.round(this.props.temperature)}°C</span>
+                </div>
+                <div>
+                    <span>Wind: {_.round(this.props.windSpeed)} kph</span>
                 </div>
                 {/*<div style={{'marginTop': '1rem'}}>*/}
                 {/*    [DEBUG] Game speed:*/}
@@ -63,5 +69,5 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { updateSetting, produce }
+    {updateSetting, produce}
 )(PlanetStatus);

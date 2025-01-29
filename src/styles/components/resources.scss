@@ -3,9 +3,7 @@
 .resource-bar {
   padding: $component-padding;
 
-  // todo hack so that the terminal height never changes (otherwise as resources get discovered, the terminal shrinks
-  //      slightly). Better way would be to remove this & re-scroll-to-bottom after a resource is discovered.
-  min-height: 8.5rem;
+  flex: 0 0 8rem; // static height
 
   //position: absolute;
   //top: 1rem;

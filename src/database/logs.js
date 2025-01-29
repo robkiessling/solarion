@@ -18,7 +18,7 @@ const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE = SKIP_TO_GLOBE; /* Controls overall game mode */
+const GAME_MODE = NORMAL_BOOTUP; /* Controls overall game mode */
 
 
 export default {
@@ -45,8 +45,8 @@ export default {
 
     skipStart: {
         text: [
-            ['Skipping start', 0, true],
             ['', 0],
+            ['Skipping start', 0, true],
         ],
         onFinish: (dispatch) => {
             dispatch(fromResources.learn('energy'));
@@ -162,16 +162,15 @@ export default {
             ['', 10],
             ['Resources: Low', 1000, true],
             ['Sensors: Offline', 1000, true],
-            ['', 10],
         ],
     },
 
     showPlanetStatus: {
         text: [
+            ['', 100],
             ['Activating sensors...', 3000, true],
             ['', 100],
             ['Sensors are operational.', 100, true],
-            ['', 100],
         ],
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showPlanetStatus', true));
@@ -180,8 +179,8 @@ export default {
 
     openShutters: {
         text: [
-            ['Lowering blast shield...', 12000, true], // should match $shutter-transition
             ['', 0],
+            ['Lowering blast shield...', 12000, true], // should match $shutter-transition
         ],
         onFinish: (dispatch) => {
             batch(() => {
@@ -192,6 +191,7 @@ export default {
 
     missionStart: {
         text: [
+            ['', 0],
             ['********************************', 0, true],
             ['* Activating Central Interface *', 0, true],
             ['********************************', 3000, true],
@@ -201,13 +201,12 @@ export default {
             ['System:  Ready', 1000],
             ['', 100],
             ['Awaiting input...', 0, true],
-            ['', 0],
         ],
         onFinish: (dispatch) => {
             batch(() => {
                 dispatch(fromResources.produce({ energy: 30 }))
                 dispatch(fromResources.learn('ore'));
-                dispatch(fromGame.updateSetting('showNonCCBuildings', true));
+                dispatch(fromGame.updateSetting('showStructuresList', true));
 
                 dispatch(addTrigger('energyAlmostFull'));
             })
@@ -216,8 +215,8 @@ export default {
 
     skipToGlobe: {
         text: [
-            ['Skipping to globe', 1, true],
             ['', 0],
+            ['Skipping to globe', 1, true],
         ],
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('shuttersOpen', true));
@@ -225,7 +224,7 @@ export default {
             dispatch(fromGame.updateSetting('showResourceBar', true));
             dispatch(fromGame.updateSetting('showResourceRates', true));
             dispatch(fromGame.updateSetting('showTerminal', true));
-            dispatch(fromGame.updateSetting('showNonCCBuildings', true));
+            dispatch(fromGame.updateSetting('showStructuresList', true));
             dispatch(fromGame.updateSetting('showStructureTabs', true))
 
             dispatch(fromResources.learn('energy'));
@@ -270,8 +269,8 @@ export default {
     },
     skipToStar: {
         text: [
-            ['Skipping to star', 1, true],
             ['', 0],
+            ['Skipping to star', 1, true],
         ],
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('shuttersOpen', true));
@@ -279,7 +278,7 @@ export default {
             dispatch(fromGame.updateSetting('showResourceBar', true));
             dispatch(fromGame.updateSetting('showResourceRates', true));
             dispatch(fromGame.updateSetting('showTerminal', true));
-            dispatch(fromGame.updateSetting('showNonCCBuildings', true));
+            dispatch(fromGame.updateSetting('showStructuresList', true));
             dispatch(fromGame.updateSetting('showStructureTabs', true))
 
             dispatch(fromResources.learn('energy'));
@@ -359,8 +358,8 @@ export default {
 
     energyAlmostFull: {
         text: [
-            ['Energy stores approaching max capacity.', 1000, true],
             ['', 0],
+            ['Energy stores approaching max capacity.', 1000, true],
         ],
         onFinish: (dispatch) => {
             dispatch(fromUpgrades.discover('commandCenter_researchEnergyBay'));
@@ -369,9 +368,9 @@ export default {
 
     researchedSolarPower: {
         text: [
+            ['', 0],
             ['New Schematic Developed:', 0, true],
             ['- Solar Panels', 0, true],
-            ['', 0]
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('solarPanel'));
@@ -380,9 +379,9 @@ export default {
 
     researchedWindPower: {
         text: [
+            ['', 0],
             ['New Schematic Developed:', 0, true],
             ['- Wind Turbines', 0, true],
-            ['', 0]
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('windTurbine'));
@@ -391,9 +390,9 @@ export default {
 
     researchedEnergyBay: {
         text: [
+            ['', 0],
             ['New Schematic Developed:', 0, true],
             ['- Energy Bay', 0, true],
-            ['', 0]
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('energyBay'));
@@ -401,9 +400,9 @@ export default {
     },
     researchedRefinery: {
         text: [
+            ['', 0],
             ['New Schematic Developed:', 0, true],
             ['- Refinery', 0, true],
-            ['', 0]
         ],
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showStructureTabs', true))
@@ -414,9 +413,9 @@ export default {
 
     researchedDroidFactory: {
         text: [
+            ['', 0],
             ['New Schematic Developed:', 0, true],
             ['- Droid Factory', 0, true],
-            ['', 0]
         ],
         onFinish: (dispatch) => {
             dispatch(fromResources.learn('standardDroids'));
@@ -429,6 +428,7 @@ export default {
 
     globeUnlocked: {
         text: [
+            ['', 0],
             ['********************************', 0, true],
             ['Planetary Map', 0, true],
             ['********************************', 500, true],
@@ -437,14 +437,13 @@ export default {
             ['', 0],
             ['View Added: [[ Planet ]]', 1000, true],
             ['Exploration Progress: 0.08%', 1000, true],
-            ['', 0],
         ],
     },
 
     startExploringMap: {
         text: [
-            ['Dispatching droid(s).', 100, true],
             ['', 0],
+            ['Dispatching droid(s).', 100, true],
         ],
         onFinish: (dispatch) => {
             dispatch(addTrigger('windTurbine_global'))
@@ -455,6 +454,7 @@ export default {
 
     researchedProbeFactory: {
         text: [
+            ['', 0],
             ['********************************', 0, true],
             ['Primary Mission: Solarion', 0, true],
             ['********************************', 500, true],
@@ -462,7 +462,6 @@ export default {
             ['View Added: [[ Solarion ]]', 1000, true],
             ['Orbital Trajectories: Finalized', 1000, true],
             ['Launching Mechanism: Pending', 1000, true],
-            ['', 0],
         ],
         onFinish: (dispatch) => {
             dispatch(fromStar.generateProbeDist());
@@ -480,8 +479,8 @@ export default {
 
     probeFactoryBuilt: {
         text: [
+            ['', 1000],
             ['Launcher activated.', 100, true],
-            ['', 1000]
         ],
         onFinish: (dispatch) => {
             dispatch(addTrigger('swarm50Pct'));
@@ -492,47 +491,47 @@ export default {
 
     probeLaunched: {
         text: [
+            ['', 100],
             ['Probe(s) have successfully entered Solarion\'s orbit.', 100, true],
             ['', 5000],
             ['Analyzing energy capabilities...', 1000],
-            ['', 100],
         ],
     },
 
     solarPanelProbeReady: {
         text: [
+            ['', 1000],
             ['Solar Farms equipped to receive photon beams.', 100, true],
-            ['', 1000]
         ],
     },
 
     solarPanelReceivingProbes: {
         text: [
+            ['', 100],
             ['Mirroring 1% of solar output to planetary receivers.', 3000, true],
             ['', 100],
             ['- Available energy is nearly limitless.', 3000, true],
             ['- Energy storage no longer necessary.', 3000, true],
-            ['', 100]
         ],
     },
 
     swarm50Pct: {
         text: [
+            ['', 100],
             ['Swarm 50% complete.', 100, true],
-            ['', 100]
         ],
     },
     swarm75Pct: {
         text: [
+            ['', 100],
             ['Swarm 75% complete.', 100, true],
-            ['', 100]
         ],
     },
 
     swarmComplete: {
         text: [
-            ['Swarm is fully operational.', 100, true],
             ['', 100],
+            ['Swarm is fully operational.', 100, true],
         ],
         onFinish: dispatch => {
             dispatch(fromStructures.disable('probeFactory'));
@@ -542,6 +541,7 @@ export default {
 
     finalSequence_start: {
         text: [
+            ['', 0],
             ['********************************', 0, true],
             ['Initiating Control Sequence', 0, true],
             ['********************************', 1000, true],
@@ -553,7 +553,6 @@ export default {
             ['', 0],
             ['Commencing purification protocol:', 4000, true],
             ['> Redirecting 100% of solar output.', 4000, true],
-            ['', 0],
         ],
         onFinish: dispatch => {
             dispatch(kickoffDoomsday());
@@ -562,8 +561,8 @@ export default {
     
     finalSequence_planet1: {
         text: [
-            ['Goodbye.', 100, true],
-            ['', 10000] // star animation
+            ['', 0],
+            ['Goodbye.', 10000, true], // star animation
         ],
         onFinish: dispatch => {
             dispatch(fromPlanet.setSunTracking(true));

@@ -61,7 +61,7 @@ const base = {
 export default {
     commandCenter: _.merge({}, base, {
         name: "Command Center",
-        description: "A twisted mass of cables, switches and monitors surround a large device.",
+        // description: "A twisted mass of cables, switches and monitors surround a large device.",
         types: TYPES.generator,
         count: {
             max: 1

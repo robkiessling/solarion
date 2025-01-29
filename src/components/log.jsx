@@ -2,6 +2,8 @@ import React from 'react';
 import { connect } from 'react-redux';
 import LogSection from "./log_section";
 import {debounce} from "../lib/helpers";
+import 'overlayscrollbars/styles/overlayscrollbars.css';
+import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 
 class Log extends React.Component {
     constructor(props) {
@@ -13,15 +15,17 @@ class Log extends React.Component {
     componentDidMount() {
         this.scrollToBottom();
 
-        window.addEventListener("resize", debounce(() => this.scrollToBottom()));
+        // window.addEventListener("resize", debounce(() => this.scrollToBottom()));
     }
 
     scrollToBottom() {
-        let log = this.logRef.current;
+        if (this.logRef.current) {
+            let osInstance = this.logRef.current.osInstance();
 
-        if (log) {
-            // Scroll to the bottom of the log
-            log.scrollTop = log.scrollHeight - log.clientHeight;
+            if (osInstance) {
+                const { scrollOffsetElement } = osInstance.elements();
+                scrollOffsetElement.scrollTop = scrollOffsetElement.scrollHeight - scrollOffsetElement.clientHeight;
+            }
         }
     }
 
@@ -29,8 +33,9 @@ class Log extends React.Component {
         return (
             <div className={`log-container ${this.props.visible ? '' : 'invisible'}`}>
                 <div className="component-header">Terminal</div>
-                <div className="log" ref={this.logRef}>
-                {
+
+                <OverlayScrollbarsComponent className="log" ref={this.logRef} defer>
+                    {
                         this.props.visibleSequenceIds.map((sequenceId, index) => {
                             return <LogSection sequenceId={sequenceId}
                                                key={sequenceId}
@@ -39,7 +44,7 @@ class Log extends React.Component {
                             />;
                         })
                     }
-                </div>
+                </OverlayScrollbarsComponent>
                 <div className="log-gradient"/>
             </div>
 

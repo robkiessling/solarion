@@ -21,8 +21,8 @@ class Structure extends React.Component {
 
     render() {
         return (
-            <div className="structure">
-                <div className="header">
+            <div className={`structure ${this.props.structure.id}`}>
+                <div className={`header ${this.props.useComponentHeader ? 'component-header' : ''}`}>
                     <div className="structure-name">
                         {this.props.structure.name}
                         <span className="build-count">
@@ -40,7 +40,6 @@ class Structure extends React.Component {
                      dangerouslySetInnerHTML={{__html: this.props.structure.description}}></div>
 
                 <div className="body">
-                    { this.props.showResourceRates &&
                     <div className="details-area">
                         {
                             this.props.isBuilt && this.props.structure.runnable &&
@@ -74,11 +73,12 @@ class Structure extends React.Component {
                             <DroidCount droidData={this.props.droidData} targetId={this.props.structure.id}
                                         assignTooltip={this.props.droidAssignTooltip} />}
                     </div>
-                    }
 
-                    {this.props.isBuilt && <Abilities structure={this.props.structure}/>}
+                    {this.props.isBuilt && <Abilities structure={this.props.structure} tooltipProps={this.props.tooltipProps}
+                                                      scrollable={this.props.scrollable}/>}
 
-                    {this.props.isBuilt && <Upgrades structure={this.props.structure}/>}
+                    {this.props.isBuilt && <Upgrades structure={this.props.structure} tooltipProps={this.props.tooltipProps}
+                                                     scrollable={this.props.scrollable}/>}
                 </div>
             </div>
         );
@@ -93,7 +93,6 @@ const mapStateToProps = (state, ownProps) => {
         numBuilt: structure.count.total,
         isBuilt: structure.count.total > 0,
         buildable: structure.count.total < structure.count.max,
-        showResourceRates: state.game.showResourceRates,
 
         showDroidsForStructure: showDroidsForStructure(state, structure),
         droidData: structure.droidData,

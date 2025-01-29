@@ -7,7 +7,7 @@ import ResourceAmounts from "../ui/resource_amounts";
 import {getIcon} from "../../redux/modules/resources";
 
 
-export class EnergyBay extends React.Component {
+class EnergyBay extends React.Component {
     constructor(props) {
         super(props);
     }

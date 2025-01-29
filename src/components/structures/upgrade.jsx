@@ -17,6 +17,7 @@ class Upgrade extends React.Component {
             showAsPercent={true}
             className='upgrade'
             tooltipId={`upgrade-${this.props.id}-tip`}
+            tooltipProps={this.props.tooltipProps}
             tooltip={
                 <div>
                     <p className='tooltip-header'>

@@ -12,7 +12,7 @@ class Abilities extends React.Component {
         return <div className="abilities-area">
             {
                 this.props.abilityIds.map(id => {
-                    return <Ability key={id} id={id} />
+                    return <Ability key={id} id={id} tooltipProps={this.props.tooltipProps}/>
                 })
             }
         </div>

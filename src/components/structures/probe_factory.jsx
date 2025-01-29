@@ -7,7 +7,7 @@ import Dropdown from "../ui/dropdown";
 import {aimMirrors, TARGET_LABELS} from "../../redux/modules/star";
 
 
-export class ProbeFactory extends React.Component {
+class ProbeFactory extends React.Component {
     constructor(props) {
         super(props);
     }

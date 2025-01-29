@@ -1,5 +1,5 @@
 import React from 'react';
-import {formatInteger, formatNumber, INFINITY, roundToDecimal} from "../../lib/helpers";
+import {compareNumbers, formatInteger, formatNumber, INFINITY, roundToDecimal} from "../../lib/helpers";
 import {isObject} from "lodash";
 
 /**
@@ -10,6 +10,7 @@ import {isObject} from "lodash";
  *   - icon (optional) icon to show after the resource
  *   - invert (optional) If true, amount will be made negative
  *   - asRate (optional) If true, resource will be shown with +/- sign and /s suffix
+ *   - hideZeroValues (optional) If true, span will be hidden if value is zero
  *   - colorRate (optional) If true (and asRate is also true), the rates will be colored red/green based on +/-
  *   - capacity (optional) If provided, will show "/ {capacity}" after the amount. Only relevant if asRate:false
  */
@@ -33,6 +34,8 @@ export default function ResourceAmount(props) {
 
     let colorClass = '';
 
+    const hiddenClass = props.hideZeroValues && compareNumbers(amount, '===', 0) ? 'hidden' : '';
+
     if (props.asRate) {
         if (amount > 0) {
             if (props.colorRate) { colorClass = 'text-green'; }
@@ -49,7 +52,7 @@ export default function ResourceAmount(props) {
             amountFormatted = amount > 0 ? 1 : -1;
         }
 
-        return <span className={`resource-rate ${colorClass}`}>
+        return <span className={`resource-rate ${colorClass} ${hiddenClass}`}>
             {amountFormatted}{props.icon && <span className={props.icon}/>}/{period}
         </span>;
     }
@@ -57,7 +60,7 @@ export default function ResourceAmount(props) {
         if (!hasEnough) {
             colorClass = 'text-red';
         }
-        return <span className={`resource-amount ${colorClass}`}>
+        return <span className={`resource-amount ${colorClass} ${hiddenClass}`}>
             {amountFormatted}
             {capacityFormatted && <span>/{capacityFormatted}</span>}
             {props.icon && <span className={props.icon}/>}

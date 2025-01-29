@@ -78,7 +78,7 @@ export const calculators = {
         variables: (state, ability) => {
             const variables = {
                 energy: 1,
-                mineralChance: 0.2,
+                mineralChance: 0,
                 mineralBonus: 0
             }
 
@@ -111,7 +111,7 @@ export const calculators = {
         description: (state, ability, variables) => {
             const formattedOre = `${((variables.oreMultiplication - 1)*100).toFixed(0)}%`;
             const formattedEnergy = `${((variables.energyMultiplication - 1)*100).toFixed(0)}%`;
-            return `Overworks the harvester, increasing production by ${formattedOre} but also increasing energy consumption by ${formattedEnergy}.`
+            return `Overworks all harvesters, increasing production by ${formattedOre} but also increasing energy consumption by ${formattedEnergy}.`
         },
         effect: (state, ability, variables) => {
             return {

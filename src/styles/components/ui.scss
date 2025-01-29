@@ -178,7 +178,14 @@ button {
   max-width: 22rem;
   opacity: 1 !important;
   padding: 0 1rem !important;
-  left: $side-column-width !important;
+
+  &.align-left-column {
+    left: $side-column-width !important;
+  }
+  &.align-right-column {
+    left: auto !important;
+    right: calc(#{$side-column-width} + 10px) !important;
+  }
 
   .tooltip-header {
     //color: $ui-text-dim;
@@ -198,6 +205,9 @@ button {
   visibility: hidden;
 }
 
+.scrollable {
+  overflow-y: auto;
+}
 
 .d-flex {
   display: flex;

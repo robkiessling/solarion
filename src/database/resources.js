@@ -40,7 +40,7 @@ export default {
         name: "Droids",
         amount: 0,
         icon: 'icon-vintage-robot',
-        visible: true,
+        visible: false,
         showRate: false
     }),
     buildableLand: _.merge({}, base, {

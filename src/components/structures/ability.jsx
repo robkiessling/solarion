@@ -18,6 +18,7 @@ class Ability extends React.Component {
                 progress={this.props.progress}
                 className={`ability ${this.props.hidden ? 'hidden' : ''}`}
                 tooltipId={`ability-${this.props.id}-tip`}
+                tooltipProps={this.props.tooltipProps}
                 tooltip={
                     <div>
                         <p className='tooltip-header'>

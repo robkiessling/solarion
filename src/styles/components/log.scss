@@ -1,22 +1,17 @@
 @import '../variables';
 
 .log-container {
-  flex: 1 1 auto;
   padding: $component-padding;
+  flex: 0 0 14rem; // static height
 
   overflow: hidden;
 }
 
 .log {
-  flex: 1 0 auto;
-
-  //padding: $panel-padding;
-  //height: calc(100% - 1rem);
-
   height: calc(100% - 2.5rem);
 
   overflow-x: hidden;
-  overflow-y: hidden; // todo enable scroll once we get better scroll bar color. this is required in case window size changes
+  overflow-y: auto;
 
   .log-section {
     &.active {

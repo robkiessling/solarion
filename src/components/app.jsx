@@ -15,6 +15,8 @@ import {connect} from "react-redux";
 import GameOver from "./game_over";
 import Settings from "./settings";
 import Error from "./error";
+import {getStructure} from "../redux/modules/structures";
+import CommandCenter from "./structures/command_center";
 
 class App extends React.Component {
 
@@ -46,21 +48,21 @@ class App extends React.Component {
             <div id="app-container"
                  className={containerClass}>
                 <div className="left-column">
-                    <Structures/>
-                    <PlanetTools/>
-
+                    <ResourceBar/>
+                    {this.props.commandCenterLoaded && <CommandCenter/>}
+                    <Log/>
+                    <Settings/>
                 </div>
                 <div className="center-column">
                     <Outside/>
                     <Planet/>
                     <Star/>
                     <NavigationTabs/>
+                    <PlanetStatus/>
                 </div>
                 <div className="right-column">
-                    <ResourceBar/>
-                    <PlanetStatus/>
-                    <Log/>
-                    <Settings/>
+                    <Structures/>
+                    <PlanetTools/>
                 </div>
                 <div id={"tooltip-container"}></div>
                 <BlockPointerEvents/>
@@ -71,6 +73,7 @@ class App extends React.Component {
 
 const mapStateToProps = state => {
     return {
+        commandCenterLoaded: !!getStructure(state.structures, 'commandCenter'),
         hideUI: state.game.hideUI,
         hideCanvas: state.game.hideCanvas,
         fadeToBlack: state.game.fadeToBlack,
