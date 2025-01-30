@@ -138,7 +138,7 @@ $top-bar-float-padding: 0.875rem;
     width: 100%;
     overflow: hidden;
     margin: 0;
-    border-top: 1px solid $ui-border;
+    border-top: none;
 
     background-color: $ui-bg;
     opacity: 1;
@@ -149,6 +149,7 @@ $top-bar-float-padding: 0.875rem;
   &.shutters-closed {
     #shutters {
       height: 100%;
+      border-top: 1px solid $ui-border;
     }
   }
 

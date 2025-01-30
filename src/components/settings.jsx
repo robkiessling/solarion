@@ -4,10 +4,11 @@ import React from 'react';
 import {connect} from "react-redux";
 import {formattedLastSavedAt, updateSetting} from "../redux/modules/game";
 import {resetState, saveState} from "../lib/local_storage";
-import store from "../redux/store";
+import store, {AUTO_SAVE_INTERVAL} from "../redux/store";
 import Slider from "rc-slider";
-import {createArray} from "../lib/helpers";
+import {createArray, round} from "../lib/helpers";
 import {produce} from "../redux/modules/resources";
+import ReactSwitch from "react-switch";
 
 class Settings extends React.Component {
     constructor(props) {
@@ -37,12 +38,21 @@ class Settings extends React.Component {
                 </div>
                 <div>
                 <div className={'component-header'}>Saving</div>
-                    <p>Auto-save: Every 30 seconds</p>
-                    <p>Last saved at: {this.props.lastSavedAt}</p>
-                    <p>
-                        <button onClick={() => saveState(store.getState())}>Save Now</button>&emsp;
+                    <div className={'br'}>
+                        <label className={'on-off-switch text-center'}>
+                            Auto-save:
+                            <ReactSwitch checked={this.props.autoSaveEnabled}
+                                         onChange={(checked) => this.props.updateSetting('autoSaveEnabled', checked)}
+                                         checkedIcon={false} uncheckedIcon={false} height={12} width={24}
+                            />
+                            { this.props.autoSaveEnabled ? `Enabled (Every ${round(AUTO_SAVE_INTERVAL / 1000.0)} seconds)` : 'Disabled' }
+                        </label>
+                    </div>
+                    <div className={'br'}>Last saved at: {this.props.lastSavedAt}</div>
+                    <div className={'d-flex space-between br'}>
+                        <button onClick={() => saveState(store.getState())}>Save Now</button>
                         <button onClick={() => resetState()}>Clear Saved Data</button>
-                    </p>
+                    </div>
                 </div>
                 <div>
                     <div className={'component-header'}>Src</div>
@@ -76,7 +86,8 @@ const mapStateToProps = state => {
     return {
         settingsModalOpen: state.game.settingsModalOpen,
         lastSavedAt: formattedLastSavedAt(state.game),
-        gameSpeed: state.game.gameSpeed
+        gameSpeed: state.game.gameSpeed,
+        autoSaveEnabled: state.game.autoSaveEnabled
     }
 };
 

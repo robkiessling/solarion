@@ -9,7 +9,14 @@ export const loadState = () => {
         if (serializedState === null) {
             return undefined;
         }
-        return JSON.parse(serializedState);
+        const parsedState = JSON.parse(serializedState);
+
+        // Slightly change the state we are about to load: hide the settings modal since often times it can be saved open
+        if (parsedState && parsedState.game) {
+            parsedState.game.settingsModalOpen = false;
+        }
+
+        return parsedState;
     } catch (err) {
         return undefined;
     }

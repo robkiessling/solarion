@@ -52,6 +52,8 @@ html {
     flex-direction: column;
     position: relative;
     overflow: hidden;
+
+    border: 10px double $black;
   }
 
   &.hide-ui {

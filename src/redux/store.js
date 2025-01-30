@@ -3,15 +3,11 @@ import thunk from 'redux-thunk';
 import reducer from './reducer';
 import {batchedSubscribe} from 'redux-batched-subscribe';
 import {debounce, throttle} from 'lodash';
-import {loadState, resetState, saveState} from "../lib/local_storage";
+import {loadState, saveState} from "../lib/local_storage";
 
-const AUTO_SAVE = false;
-const AUTO_SAVE_INTERVAL = 30 * 1000;
+export const AUTO_SAVE_INTERVAL = 30 * 1000; // 30 seconds
 
 const middleware = [ thunk ];
-// if (process.env.NODE_ENV !== 'production') {
-//     middleware.push(createLogger());
-// }
 
 /*__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ is for https://github.com/zalmoxisus/redux-devtools-extension#usage */
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
@@ -21,26 +17,28 @@ const enhancer = composeEnhancers(
     batchedSubscribe(debounce(notify => notify()))
 )
 
-// resetState();
-const persistedState = loadState();
-
 const store = createStore(
     reducer,
-    persistedState,
+    loadState(),
     enhancer
 );
 
 store.subscribe(throttle(() => {
-    if (!AUTO_SAVE) { return; }
-
     const state = store.getState();
 
-    if (state && state.game && state.game.endGameSequenceStarted) {
-        // Do not auto-save if we're in the end game sequence
+    if (!readSetting(state, 'autoSaveEnabled')) {
         return;
     }
 
-    saveState(store.getState());
+    if (readSetting(state, 'endGameSequenceStarted')) {
+        return; // do not auto-save if we're in the end game sequence
+    }
+
+    saveState(state);
 }, AUTO_SAVE_INTERVAL));
+
+function readSetting(state, setting) {
+    return state && state.game && state.game[setting];
+}
 
 export default store;

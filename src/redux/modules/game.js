@@ -13,20 +13,23 @@ export const NAV_TAB_TITLES = {
 
 const initialState = {
     gameSpeed: 1,
+    lastSavedAt: null,
+    settingsModalOpen: false,
+    autoSaveEnabled: false,
 
-    showTerminal: false,
-    shuttersOpen: false,
-    showPlanetStatus: false,
-    showResourceBar: true,
-    showResourceRates: false,
-    showStructuresList: false, // This setting is just so we can show the harvester outside for a few secs before it shows up in structures
     visibleNavTabs: [],
     currentNavTab: 'outside',
     showStructureTabs: false,
     currentStructureTab: 'all',
 
-    lastSavedAt: null,
-    settingsModalOpen: false,
+    // introduction variables (unlocks various ui components as player goes thru intro)
+    showTerminal: false,
+    shuttersOpen: false,
+    showPlanetStatus: false,
+    showResourceBar: true,
+    showResourceRates: false,
+    showResourceCapacities: false,
+    showStructuresList: false,
 
     // end game variables
     endGameSequenceStarted: false,
