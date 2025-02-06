@@ -3,6 +3,7 @@ import {connect} from "react-redux";
 import {TERRAINS, STATUSES, generateImage} from "../lib/planet_map";
 import {PLANET_FPS} from "../singletons/game_clock";
 import * as fromClock from "../redux/modules/clock";
+import {EXPEDITION_STATUS} from "../redux/modules/planet";
 
 class Planet extends React.Component {
     constructor(props) {
@@ -33,6 +34,7 @@ class Planet extends React.Component {
 
         const planetImage = generateImage(
             this.props.map,
+            this.props.expedition.status === EXPEDITION_STATUS.unstarted ? null : this.props.expedition,
             this.props.fractionOfDay,
             this.props.sunTracking,
             this.props.cookedPct
@@ -81,6 +83,7 @@ const mapStateToProps = state => {
     return {
         visible: state.game.currentNavTab === 'planet',
         map: state.planet.map,
+        expedition: state.planet.expedition,
         fractionOfDay: fromClock.fractionOfDay(state.clock),
         sunTracking: state.planet.sunTracking ? undefined : state.planet.rotation,
         cookedPct: state.planet.cookedPct

@@ -14,6 +14,7 @@ export const PROGRESS = 'upgrades/PROGRESS';
 export const PAUSE = 'upgrades/PAUSE';
 export const RESUME = 'upgrades/RESUME';
 export const FINISH = 'upgrades/FINISH';
+export const SKIP = 'upgrades/SKIP'; // same as finish but no callbacks (used for testing)
 
 // Initial State
 const initialState = {
@@ -59,6 +60,8 @@ export default function reducer(state = initialState, action) {
         case RESUME:
             return setUpgradeState(state, payload.id, STATES.researching);
         case FINISH:
+            return setUpgradeState(state, payload.id, STATES.researched);
+        case SKIP:
             return setUpgradeState(state, payload.id, STATES.researched);
         default:
             return state;
@@ -113,6 +116,15 @@ export function researchForFree(upgradeId) {
     return (dispatch, getState) => {
         batch(() => {
             finishResearch(dispatch, getState, upgradeId)
+        })
+    }
+}
+
+export function skipResearch(upgradeId) {
+    return (dispatch, getState) => {
+        batch(() => {
+            dispatch({ type: SKIP, payload: { id: upgradeId } });
+            dispatch(recalculateState());
         })
     }
 }

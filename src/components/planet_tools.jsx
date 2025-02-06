@@ -4,11 +4,18 @@ import {roundToDecimal} from "../lib/helpers";
 import DroidCount from "./structures/droid_count";
 import Slider from "rc-slider";
 import ReactSwitch from "react-switch";
-import {percentExplored, setRotation, setSunTracking} from "../redux/modules/planet";
+import {
+    EXPEDITION_STATUS,
+    percentExplored,
+    setRotation,
+    setSunTracking,
+    startExpedition
+} from "../redux/modules/planet";
 import {showDroidsUI} from "../redux/reducer";
 import {fractionOfDay} from "../redux/modules/clock";
 import Replication from "./replication";
 import Events from "./events";
+import ProgressButton from "./ui/progress_button";
 
 class PlanetTools extends React.Component {
     constructor(props) {
@@ -67,6 +74,16 @@ class PlanetTools extends React.Component {
                             Lock to Day-Side
                         </label>
                     </div>
+
+                    <div>
+                        <ProgressButton
+                            fullWidth={false}
+                            onClick={() => this.props.startExpedition()}
+                            disabled={this.props.expedition.status !== EXPEDITION_STATUS.unstarted}
+                            className={`ability`}>
+                            Embark
+                        </ProgressButton>
+                    </div>
                 </div>
                 <Replication />
                 <Events/>
@@ -86,13 +103,15 @@ const mapStateToProps = (state, ownProps) => {
         showDroidsUI: showDroidsUI(state),
         droidData: state.planet.droidData,
         rotation: state.planet.rotation,
-        sunTracking: state.planet.sunTracking
+        sunTracking: state.planet.sunTracking,
+
+        expedition: state.planet.expedition,
 
     };
 };
 
 export default connect(
     mapStateToProps,
-    { setRotation, setSunTracking }
+    { setRotation, setSunTracking, startExpedition }
 )(PlanetTools);
 

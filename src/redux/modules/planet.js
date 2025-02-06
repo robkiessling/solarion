@@ -1,15 +1,24 @@
 import update from 'immutability-helper';
 import {recalculateState, withRecalculation} from "../reducer";
 import {
+    canMoveExpedition,
     COOK_TIME,
-    generateRandomMap, getCurrentDevelopmentArea, getNextDevelopmentArea,
+    generateRandomMap,
+    getAdjCoordInDirection,
+    getCurrentDevelopmentArea,
+    getHomeBaseCoord,
+    getMeridianForCoord,
+    getNextDevelopmentArea,
     getNextExplorableSector,
-    mapIsFullyExplored, NUM_SECTORS,
+    isMapFullyExplored,
+    NUM_SECTORS,
     numSectorsMatching,
-    STATUSES, TERRAINS
+    STATUSES,
+    TERRAINS
 } from "../../lib/planet_map";
 import {batch} from "react-redux";
 import {roundToDecimal} from "../../lib/helpers";
+import * as fromKeyboard from "./keyboard";
 
 // Actions
 export const GENERATE_MAP = 'planet/GENERATE_MAP';
@@ -27,10 +36,19 @@ export const SET_EXPLORE_SPEED = 'planet/SET_EXPLORE_SPEED';
 export const START_COOK = 'planet/START_COOK';
 export const INCREMENT_COOK = 'planet/INCREMENT_COOK';
 
+export const START_EXPEDITION = 'planet/START_EXPEDITION';
+export const MOVE_EXPEDITION = 'planet/MOVE_EXPEDITION';
+
 const OVERALL_MAP_STATUS = {
     unstarted: 'unstarted',
     inProgress: 'inProgress',
     finished: 'finished',
+}
+
+export const EXPEDITION_STATUS = {
+    unstarted: 'unstarted',
+    exploring: 'exploring',
+    inEvent: 'inEvent',
 }
 
 const MAX_DROIDS_PER_SECTOR = 5;
@@ -54,6 +72,17 @@ const initialState = {
     coordsInProgress: [], // Coordinates of sectors that are in progress
     numExplored: 0, // Number of explored sectors
     maxDevelopedLand: 0,
+
+    expedition: {
+        droidData: { // This object mirrors 'structure' format so they can be polymorphic
+            numDroidsAssigned: 0,
+            droidAssignmentType: 'planet'
+        },
+        status: EXPEDITION_STATUS.unstarted,
+        backpack: {},
+        battery: 0,
+        position: {},
+    }
 }
 
 // Reducer
@@ -175,6 +204,26 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 cookedPct: { $apply: x => Math.min(x + (payload.timeDelta / COOK_TIME), 1) }
             })
+
+        case START_EXPEDITION:
+            return update(state, {
+                expedition: {
+                    status: { $set: EXPEDITION_STATUS.exploring },
+                    position: {
+                        coord: { $set: payload.startCoord },
+                        meridian: { $set: payload.startMeridian }
+                    }
+                    // position: { $set: payload.startPosition },
+                    // positionLat: { $set: payload.startLat }
+                }
+            })
+        case MOVE_EXPEDITION:
+            console.log(payload)
+            return update(state, {
+                expedition: {
+                    position: { $set: payload }
+                }
+            })
         default:
             return state;
     }
@@ -260,7 +309,7 @@ export function planetTick(timeDelta) {
                 }
             });
 
-            if (mapIsFullyExplored(getState().planet.map)) {
+            if (isMapFullyExplored(getState().planet.map)) {
                 dispatch(finishExploringMap());
             }
             else {
@@ -276,6 +325,34 @@ export function planetTick(timeDelta) {
                 }
             }
         });
+    }
+}
+
+
+
+export function startExpedition() {
+    return function(dispatch, getState) {
+        const startCoord = getHomeBaseCoord(getState().planet.map);
+        const startMeridian = getMeridianForCoord(startCoord);
+        dispatch({ type: START_EXPEDITION, payload: { startCoord, startMeridian } });
+    }
+}
+
+// movement: left/right = getLatitudeForCoord(left/right coord)
+// movement: up/down = same latitude
+export function moveExpedition(direction) {
+    return function(dispatch, getState) {
+        const state = getState().planet;
+
+        if (state.expedition.status !== EXPEDITION_STATUS.exploring) {
+            return;
+        }
+
+        const position = state.expedition.position;
+        const destination = getAdjCoordInDirection(position.coord, direction, position.meridian);
+        if (canMoveExpedition(position.coord, destination.coord)) {
+            dispatch({ type: MOVE_EXPEDITION, payload: destination });
+        }
     }
 }
 

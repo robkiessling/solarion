@@ -11,7 +11,7 @@ export default function ProgressButton(props) {
     }
 
     let progress;
-    if (props.progress > 0) {
+    if (props.progress !== undefined && props.progress > 0) {
         if (props.showAsPercent) {
             progress = <span className={'progress-percent'}> ({Math.floor(props.progress)}%)</span>
         } else {

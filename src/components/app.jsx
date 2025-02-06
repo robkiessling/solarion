@@ -17,6 +17,7 @@ import Settings from "./settings";
 import Error from "./error";
 import {getStructure} from "../redux/modules/structures";
 import CommandCenter from "./structures/command_center";
+import Keyboard from "./ui/keyboard";
 
 class App extends React.Component {
 
@@ -66,6 +67,7 @@ class App extends React.Component {
                 </div>
                 <div id={"tooltip-container"}></div>
                 <BlockPointerEvents/>
+                <Keyboard/>
             </div>
         );
     }

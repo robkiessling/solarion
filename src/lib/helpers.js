@@ -68,6 +68,13 @@ export const roundForComparison = (num) => {
     return roundToDecimal(num, 5);
 };
 
+// This is just like Math.floor, but it handles floating point precision errors
+// E.g. Math.floor(47 / 82 * 82) = 46 (because 47 / 82 * 82 === 46.99999999999999)
+// Whereas this function: floor(47 / 82 * 82) = 47
+export const floor = (num) => {
+    return Math.floor(roundForComparison(num));
+}
+
 export const compareNumbers = (num1, operation, num2) => {
     switch(operation) {
         case '>':

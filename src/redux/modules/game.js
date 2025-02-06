@@ -28,7 +28,7 @@ const initialState = {
     showPlanetStatus: false,
     showResourceBar: true,
     showResourceRates: false,
-    showResourceCapacities: false,
+    showResourceCapacities: false, // todo
     showStructuresList: false,
 
     // end game variables
