@@ -12,6 +12,7 @@ class Planet extends React.Component {
         this.waitTimeMs = 1000.0 / PLANET_FPS; // how long to wait between rendering
     }
 
+    // todo move this to base class. also throw warning if props.elapsedTime undefined
     shouldComponentUpdate(nextProps, nextState) {
         if (this.props.visible !== nextProps.visible) {
             return true;
@@ -83,6 +84,7 @@ const mapStateToProps = state => {
     return {
         visible: state.game.currentNavTab === 'planet',
         map: state.planet.map,
+        elapsedTime: state.clock.elapsedTime,
         expedition: state.planet.expedition,
         fractionOfDay: fromClock.fractionOfDay(state.clock),
         sunTracking: state.planet.sunTracking ? undefined : state.planet.rotation,

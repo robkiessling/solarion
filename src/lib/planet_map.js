@@ -128,7 +128,8 @@ const HOME_STARTING_ROW_RANGE = [5, 5]; // TODO Leaving dead center otherwise fi
 const NUM_MOUNTAIN_RANGES_RANGE = [40, 50];
 const MOUNTAIN_RANGE_SIZE_RANGE = [1, 20];
 
-const NUM_DEBUG_MERIDIANS = 8; // Number of drawn meridians (should be set to 0 for production)
+const SHOW_DEBUG_MERIDIANS = false;
+const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
 const EXPLORE_EVERYTHING = false;
 
@@ -143,10 +144,12 @@ export const TERRAINS = {
     mountain: { key: 'mountain', enum: 4, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
 }
 
-nTimes(NUM_DEBUG_MERIDIANS, i => {
-    const key = `meridian_${i}`;
-    TERRAINS[key] = { key: key, enum: 100 + i, display: (i % 16).toString(16).toUpperCase(), exploreLength: EXPLORATION_TIME_FACTOR }
-})
+if (SHOW_DEBUG_MERIDIANS) {
+    nTimes(NUM_DEBUG_MERIDIANS, i => {
+        const key = `meridian_${i}`;
+        TERRAINS[key] = { key: key, enum: 100 + i, display: (i % 16).toString(16).toUpperCase(), exploreLength: EXPLORATION_TIME_FACTOR }
+    })
+}
 
 const TERRAINS_BY_ENUM = {};
 for (const [key, attributes] of Object.entries(TERRAINS)) {
@@ -207,7 +210,9 @@ export function generateRandomMap() {
         addMountainRanges(map);
     }
 
-    generateDebugMeridians(map);
+    if (SHOW_DEBUG_MERIDIANS) {
+        generateDebugMeridians(map);
+    }
 
     const homeCoord = addHomeBase(map);
 

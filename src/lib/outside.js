@@ -325,10 +325,14 @@ const SUN_RADIUS = '60vh'
 
 const BURN_OUTSIDE_GRADIENT = 'linear-gradient(rgb(75, 10, 1), rgb(255, 69, 0) 40%, rgb(255, 174, 66) 60%, rgb(255, 174, 66) 80%, rgb(255, 226, 155) 100%)'
 
+// Our planet rotates clockwise (this is opposite of earth) meaning the sun should rise in the west.
+// Therefore, we want the sun to make an elliptical path on the screen counter-clockwise
 function sunPosition(fractionOfDay) {
-    // Midnight should be at bottom of the unit circle (instead of at (1,0)), so we have to go back 25% of the circle
-    fractionOfDay = mod(fractionOfDay - 0.25, 1);
-    const radians = fractionOfDay * 2 * Math.PI;
+    // `radians` represents how far along a unit circle we are (starts at 0, ends at 2pi).
+    // Our circle is going counter-clockwise so we multiply by -1.
+    // Also, midnight should be at the bottom of the unit circle (instead of at (1,0)), so move the circle 25% forward
+    fractionOfDay = mod(fractionOfDay + 0.25, 1);
+    const radians = fractionOfDay * 2 * Math.PI * -1;
 
     // Formula for an ellipse centered at (0,0):
     //      x = a*cos(t), where a = radius of x axis
