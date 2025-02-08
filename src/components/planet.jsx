@@ -37,6 +37,7 @@ class Planet extends React.Component {
             this.props.map,
             this.props.expedition.status === EXPEDITION_STATUS.unstarted ? null : this.props.expedition,
             this.props.fractionOfDay,
+            this.props.rotation,
             this.props.sunTracking,
             this.props.cookedPct
         );
@@ -87,8 +88,9 @@ const mapStateToProps = state => {
         elapsedTime: state.clock.elapsedTime,
         expedition: state.planet.expedition,
         fractionOfDay: fromClock.fractionOfDay(state.clock),
-        sunTracking: state.planet.sunTracking ? undefined : state.planet.rotation,
-        cookedPct: state.planet.cookedPct
+        rotation: state.planet.rotation,
+        cookedPct: state.planet.cookedPct,
+        sunTracking: state.planet.sunTracking,
     }
 };
 

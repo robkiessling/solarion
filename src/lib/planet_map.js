@@ -16,7 +16,7 @@ import {
  */
 // const DISPLAY_ROW_LENGTHS = [7, 13, 17, 19, 21, 21, 21, 19, 17, 13, 7];
 // const DISPLAY_ROW_LENGTHS = [7, 17, 23, 29, 33, 35, 37, 39, 41, 41, 41, 41, 41, 39, 37, 35, 33, 29, 23, 17, 7];
-const DISPLAY_ROW_LENGTHS_HALF = [8, 18, 28, 34, 38, 42, 46, 48, 50, 52, 54, 56, 56, 56, 58];
+const DISPLAY_ROW_LENGTHS_HALF = [9, 19, 29, 35, 39, 43, 47, 49, 51, 53, 55, 57, 57, 57, 59]; // odd values
 const DISPLAY_ROW_LENGTHS = (DISPLAY_ROW_LENGTHS_HALF.slice()).concat(DISPLAY_ROW_LENGTHS_HALF.slice().reverse());
 
 const PLANET_ROW_LENGTHS = DISPLAY_ROW_LENGTHS.map(length => length * 2); // Display only shows half of real planet
@@ -131,7 +131,7 @@ const MOUNTAIN_RANGE_SIZE_RANGE = [1, 20];
 const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
-const EXPLORE_EVERYTHING = false;
+const EXPLORE_EVERYTHING = true;
 
 const EXPLORATION_TIME_FACTOR = 10; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = true;
@@ -217,8 +217,17 @@ export function generateRandomMap() {
     const homeCoord = addHomeBase(map);
 
     cacheDistancesToHome(map, homeCoord);
+    cacheCoords(map);
 
     return map;
+}
+
+function cacheCoords(map) {
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            sector.coord = [rowIndex, colIndex];
+        })
+    })
 }
 
 // A 'sector' is one tile on the map. I.e. the map is a 2d array of sectors
@@ -283,7 +292,7 @@ function addMountainRange(map, size, startingRow, startingCol) {
         else { direction = getRandomFromArray(ALL_DIRECTIONS); }
 
         // Move towards the randomly chosen direction (if possible)
-        currentCoord = getAdjCoordInDirection(currentCoord, direction).coord || currentCoord;
+        currentCoord = getAdjCoordInDirection(currentCoord, direction) || currentCoord;
     }
 }
 
@@ -301,8 +310,7 @@ function addHomeBase(map) {
 
     // Explore adjacent sectors to base
     if (START_WITH_ADJ_EXPLORED) {
-        getAdjacentCoords([homeRow, homeCol]).forEach(position => {
-            const [row, col] = position.coord;
+        getAdjacentCoords([homeRow, homeCol]).forEach(([row, col]) => {
             map[row][col].status = STATUSES.explored.enum
         });
     }
@@ -320,7 +328,7 @@ function addHomeBase(map) {
     return [homeRow, homeCol]
 }
 
-export function getHomeBaseCoord(map) {
+export function getHomeBasePosition(map) {
     let coord;
 
     map.forEach((row, rowIndex) => {
@@ -331,17 +339,10 @@ export function getHomeBaseCoord(map) {
         });
     });
 
-    return coord;
-}
-
-// See MERIDIANS definition for more information
-function getColOnMeridian(meridianIndex, rowIndex) {
-    return MERIDIANS[meridianIndex][rowIndex];
-}
-
-// See COORD_TO_MERIDIAN_LOOKUP definition for more information
-export function getMeridianForCoord(coord) {
-    return COORD_TO_MERIDIAN_LOOKUP[coord[0]][coord[1]];
+    return {
+        coord: coord,
+        rotation: HOME_FRACTION - 0.25 // the rotation required to center home base.
+    };
 }
 
 function isSameCoord(coord1, coord2) {
@@ -360,51 +361,78 @@ function getAdjacentCoords(coord) {
         .filter(coord => coord !== null);
 }
 
-// @param currentMeridian is optional: If provided, the meridian will be maintained while moving north/south.
-// This is useful because multiple meridians can pass through the same coord (especially at poles).
-// If you don't know your meridian, going north/south will just choose one of the meridians to follow
-export function getAdjCoordInDirection(currentCoord, direction, currentMeridian = null) {
-    switch(direction) {
-        case DIRECTIONS.north: return getCoordAtOffset(currentCoord, -1, 0, currentMeridian);
-        case DIRECTIONS.northEast: return getCoordAtOffset(currentCoord, -1, 1, currentMeridian);
-        case DIRECTIONS.east: return getCoordAtOffset(currentCoord, 0, 1, currentMeridian);
-        case DIRECTIONS.southEast: return getCoordAtOffset(currentCoord, 1, 1, currentMeridian);
-        case DIRECTIONS.south: return getCoordAtOffset(currentCoord, 1, 0, currentMeridian);
-        case DIRECTIONS.southWest: return getCoordAtOffset(currentCoord, 1, -1, currentMeridian);
-        case DIRECTIONS.west: return getCoordAtOffset(currentCoord, 0, -1, currentMeridian);
-        case DIRECTIONS.northWest: return getCoordAtOffset(currentCoord, -1, -1, currentMeridian);
-    }
-}
+export function getAdjCoordInDirection(currentCoord, direction) {
+    const [rowOffset, colOffset] = directionToOffset(direction);
 
-/**
- * @param currentMeridian is optional -- if provided, the meridian will be maintained while moving north/south.
- *   This is useful because multiple meridians can pass through the same coord (especially near poles), so it is important
- *   to know which meridian to follow as you move over larger distances.
- *   If not provided, the "primary" meridian for the startingCoord will be used (see COORD_TO_MERIDIAN_LOOKUP definition).
- */
-function getCoordAtOffset(startingCoord, rowOffset, colOffset, currentMeridian = null) {
-    let newRow = startingCoord[0];
-    let newCol = startingCoord[1];
-    let newMeridian = currentMeridian || getMeridianForCoord(startingCoord);
+    let newRow = currentCoord[0];
+    let newCol = currentCoord[1];
+    let meridian = COORD_TO_MERIDIAN_LOOKUP[currentCoord[0]][currentCoord[1]]
 
     if (rowOffset !== 0) { // north/south movement -- maintain meridian line
         newRow += rowOffset;
         if (newRow < 0 || newRow >= NUM_PLANET_ROWS) {
-            return { coord: null, meridian: null }; // Cannot pass north/south edge
+            return null; // Cannot pass north/south edge
         }
-        newCol = getColOnMeridian(newMeridian, newRow);
+        newCol = MERIDIANS[meridian][newRow]
     }
 
     if (colOffset !== 0) { // west/east movement -- get coord one column over. find new meridian
         newCol = mod(newCol + colOffset, PLANET_ROW_LENGTHS[newRow]); // column can wrap around globe
-        newMeridian = getMeridianForCoord([newRow, newCol]);
+    }
+
+    return [newRow, newCol]
+}
+
+// Player moves differently than getAdjCoordInDirection -- we do NOT follow meridians
+// When moving left/right, simply increment/decrement column and return the new planet rotation (to keep player at center)
+// When moving up/down, increment/decrement row, and possibly shift column so that they are on the same DISPLAYED column
+export function getAdjCoordForPlayer(currentCoord, currentRotation, direction) {
+    const [rowOffset, colOffset] = directionToOffset(direction);
+
+    let newRow = currentCoord[0];
+    let newCol = currentCoord[1];
+    let newRotation = currentRotation;
+
+    if (rowOffset !== 0) { // north/south movement -- maintain same DISPLAYED column
+        newRow += rowOffset;
+        if (newRow < 0 || newRow >= NUM_PLANET_ROWS) {
+            return { coord: null, rotation: null }; // Cannot pass north/south edge
+        }
+
+        // find the column above the current column according to the current planet rotation
+        const currentDisplayStart = floor(newRotation * PLANET_ROW_LENGTHS[currentCoord[0]]);
+        const currentDisplayIndent = mod(currentCoord[1] - currentDisplayStart, PLANET_ROW_LENGTHS[currentCoord[0]]);
+
+        const destDisplayStart = floor(newRotation * PLANET_ROW_LENGTHS[newRow]);
+        const destDisplayIndent = currentDisplayIndent + Math.round((DISPLAY_ROW_LENGTHS[newRow] - DISPLAY_ROW_LENGTHS[currentCoord[0]]) / 2);
+        newCol = mod(destDisplayStart + destDisplayIndent, PLANET_ROW_LENGTHS[newRow]);
+    }
+
+    if (colOffset !== 0) { // west/east movement -- get coord one column over and update rotation
+        newCol = mod(newCol + colOffset, PLANET_ROW_LENGTHS[newRow]); // column can wrap around globe
+        newRotation = mod(newRotation + colOffset / PLANET_ROW_LENGTHS[newRow], 1);
     }
 
     return {
         coord: [newRow, newCol],
-        meridian: newMeridian,
+        rotation: newRotation,
     }
 }
+
+function directionToOffset(direction) {
+    switch(direction) {
+        case DIRECTIONS.north: return [-1, 0];
+        case DIRECTIONS.northEast: return [-1, 1];
+        case DIRECTIONS.east: return [0, 1];
+        case DIRECTIONS.southEast: return [1, 1];
+        case DIRECTIONS.south: return [1, 0];
+        case DIRECTIONS.southWest: return [1, -1];
+        case DIRECTIONS.west: return [0, -1];
+        case DIRECTIONS.northWest: return [-1, -1];
+    }
+}
+
+
 
 function getDistanceBetweenCoords(coord1, coord2) {
     const coord1Row = coord1[0];
@@ -515,45 +543,36 @@ export function numSectorsMatching(map, status, terrain) {
     return count;
 }
 
-export function generateImage(map, expedition, fractionOfDay, cameraRotation, cookedPct) {
-    let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
-    let nightEnd = (fractionOfDay + NIGHT_END) % 1;
-    let percentRotated;
+// If sunTracking is enabled, the camera is always from the sun's POV; the planet rotates in place
+export function sunTrackingRotation(fractionOfDay) {
+    let rotation;
 
-    if (cameraRotation === undefined) {
-        // sunTracking is enabled: the camera is always from the sun's POV; the planet rotates in place
-
-        if (DISCRETE_ROTATION) {
-            // primeMeridianIndex is where the prime meridian currently is (value of 0 means it is on the left-most side of planet)
-            const primeMeridianIndex = floor(fractionOfDay * WIDEST_PLANET_ROW);
-            percentRotated = primeMeridianIndex / WIDEST_PLANET_ROW;
-        }
-        else {
-            percentRotated = fractionOfDay;
-        }
-
-        percentRotated = mod(percentRotated + SUN_TRACKING_INSET, 1);
+    if (DISCRETE_ROTATION) {
+        // primeMeridianIndex is where the prime meridian currently is (value of 0 means it is on the left-most side of planet)
+        const primeMeridianIndex = floor(fractionOfDay * WIDEST_PLANET_ROW);
+        rotation = primeMeridianIndex / WIDEST_PLANET_ROW;
     }
     else {
-        // sunTracking is disabled: the camera is always centered according to user input (default is centered on home base)
-        percentRotated = cameraRotation;
+        rotation = fractionOfDay;
     }
+
+    return mod(rotation + SUN_TRACKING_INSET, 1);
+}
+
+export function generateImage(map, expedition, fractionOfDay, rotation, sunTracking, cookedPct) {
+    let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
+    let nightEnd = (fractionOfDay + NIGHT_END) % 1;
 
     let asciiImage = map.map((planetRow, rowIndex) => {
         const planetRowLength = PLANET_ROW_LENGTHS[rowIndex];
         const displayRowLength = DISPLAY_ROW_LENGTHS[rowIndex];
 
-        // Cache what index of the planet the sector is at (once we slice it later into a displayRow we can't get this anymore)
-        planetRow = planetRow.map((sector, planetColIndex) => {
-            return Object.assign({}, sector, { planetColIndex: planetColIndex })
-        });
-
-        const displayStart = floor(percentRotated * planetRowLength);
+        const displayStart = floor(rotation * planetRowLength);
         const displayEnd = (displayStart + displayRowLength) % planetRowLength;
         let displayRow = displayStart < displayEnd ? planetRow.slice(displayStart, displayEnd) :
             planetRow.slice(displayStart, planetRowLength).concat(planetRow.slice(0, displayEnd));
 
-        displayRow = displayRow.map((sector, displayColIndex) => { // todo replace sector with coord?
+        displayRow = displayRow.map((sector, displayColIndex) => {
             let char, className, style;
 
             if (sector.status === STATUSES.unknown.enum) {
@@ -565,20 +584,11 @@ export function generateImage(map, expedition, fractionOfDay, cameraRotation, co
                 className = TERRAINS_BY_ENUM[sector.terrain].className;
             }
 
-            if (expedition && isSameCoord(expedition.position.coord, [rowIndex, sector.planetColIndex])) {
-                className += ' exploring'
+            if (expedition) {
+                if (isSameCoord(expedition.position, sector.coord)) {
+                    className += ' exploring'
+                }
             }
-            // if (sector.status === STATUSES.exploring.enum) {
-            //     className += ' exploring'
-            //     const pct = `${sector.exploreProgress / (sector.exploreLength * 1000) * 100}%`
-            //     style = { background: `linear-gradient(90deg, rgba(0,0,0,0) ${pct}, rgba(255,255,255,0.2) ${pct})` }
-            // }
-
-            // if (sector.status !== STATUSES.unknown.enum && getAdjacentCoords([rowIndex, sector.planetColIndex]).some(other => {
-            //     return map[other[0]][other[1]].status === STATUSES.unknown.enum
-            // })) {
-            //     className += ' exploring'
-            // }
 
             if (sector.status === STATUSES.exploring.enum) {
                 // since we are not showing dotted exploring rect, we cannot show tile until finished (otherwise the
@@ -587,7 +597,7 @@ export function generateImage(map, expedition, fractionOfDay, cameraRotation, co
             }
 
             let isDay = true;
-            if (cameraRotation === undefined) {
+            if (sunTracking) {
                 // sunTracking is enabled: shading the far-right side of the planet accordingly
                 // (Ideally, the sunTracking:disabled shading would work for this use case too, but I couldn't get it to
                 //  work without stuttering. So I have to make this special case for sunTracking:enabled)
@@ -608,7 +618,7 @@ export function generateImage(map, expedition, fractionOfDay, cameraRotation, co
             else {
                 // sunTracking is disabled: shading the night side of the planet
                 // TODO This performance is really bad
-                const planetFraction = sector.planetColIndex / planetRowLength; // How far into the planet length the sector is
+                const planetFraction = sector.coord[1] / planetRowLength; // How far into the planet length the sector is
                 const lightClass =
                     getTwilightClass(planetFraction, nightStart, nightEnd) ||
                     getNightClass(planetFraction, nightStart, nightEnd);

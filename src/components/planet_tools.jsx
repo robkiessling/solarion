@@ -62,14 +62,15 @@ class PlanetTools extends React.Component {
 
                     <span>Longitude:</span>
                     <Slider className={'range-slider'}
-                            disabled={this.props.sunTracking}
+                            disabled={this.props.sunTracking || this.props.onExpedition}
                             min={0} max={1} step={0.02} marks={sliderMarks}
                             onChange={(value) => this.props.setRotation(value)}
                             value={this.props.rotation}/>
                     <div className={'d-flex justify-center'}>
                         <label className={'on-off-switch text-center'}>
-                            <ReactSwitch checked={this.props.sunTracking} onChange={this.props.setSunTracking}
+                            <ReactSwitch checked={this.props.sunTracking && !this.props.onExpedition} onChange={this.props.setSunTracking}
                                          checkedIcon={false} uncheckedIcon={false} height={12} width={24}
+                                         disabled={this.props.onExpedition}
                             />
                             Lock to Day-Side
                         </label>
@@ -79,7 +80,7 @@ class PlanetTools extends React.Component {
                         <ProgressButton
                             fullWidth={false}
                             onClick={() => this.props.startExpedition()}
-                            disabled={this.props.expedition.status !== EXPEDITION_STATUS.unstarted}
+                            disabled={this.props.onExpedition}
                             className={`ability`}>
                             Embark
                         </ProgressButton>
@@ -105,8 +106,7 @@ const mapStateToProps = (state, ownProps) => {
         rotation: state.planet.rotation,
         sunTracking: state.planet.sunTracking,
 
-        expedition: state.planet.expedition,
-
+        onExpedition: state.planet.expedition.status !== EXPEDITION_STATUS.unstarted
     };
 };
 

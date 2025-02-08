@@ -62,9 +62,9 @@ $top-bar-float-padding: 0.875rem;
     flex-direction: column;
   }
 
-  .twilight-day { opacity: 0.6; }
-  .twilight-night { opacity: 0.4; }
-  .night { opacity: 0.2; }
+  .twilight-day { opacity: 0.7; }
+  .twilight-night { opacity: 0.5; }
+  .night { opacity: 0.3; }
 
   .home { color: #20d9ff; }
   //.mountain { color: #6b2b2b; }
@@ -75,7 +75,7 @@ $top-bar-float-padding: 0.875rem;
   .developing { color: #d1eeff; }
   //.developed { color: #7220ff; }
   .developed { color: #90EE90; }
-  .exploring { outline: 1px dotted white; }
+  .exploring { outline: 1px solid white; }
 
   .laser-beam { color: yellow !important; }
 

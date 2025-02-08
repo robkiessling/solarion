@@ -3,22 +3,19 @@ import {recalculateState, withRecalculation} from "../reducer";
 import {
     canMoveExpedition,
     COOK_TIME,
-    generateRandomMap,
-    getAdjCoordInDirection,
+    generateRandomMap, getAdjCoordForPlayer,
     getCurrentDevelopmentArea,
-    getHomeBaseCoord,
-    getMeridianForCoord,
+    getHomeBasePosition,
     getNextDevelopmentArea,
     getNextExplorableSector,
     isMapFullyExplored,
     NUM_SECTORS,
     numSectorsMatching,
-    STATUSES,
+    STATUSES, sunTrackingRotation,
     TERRAINS
 } from "../../lib/planet_map";
 import {batch} from "react-redux";
-import {roundToDecimal} from "../../lib/helpers";
-import * as fromKeyboard from "./keyboard";
+import * as fromClock from "./clock";
 
 // Actions
 export const GENERATE_MAP = 'planet/GENERATE_MAP';
@@ -81,7 +78,7 @@ const initialState = {
         status: EXPEDITION_STATUS.unstarted,
         backpack: {},
         battery: 0,
-        position: {},
+        position: null,
     }
 }
 
@@ -129,6 +126,10 @@ export default function reducer(state = initialState, action) {
         case PROGRESS:
             updates = {
                 map: {}
+            }
+
+            if (payload.newRotation) {
+                updates.rotation = { $set: payload.newRotation };
             }
 
             // Assign available droids to various sectors. E.g. if MAX_DROIDS_PER_SECTOR is 5, and there are 12 droids:
@@ -207,21 +208,17 @@ export default function reducer(state = initialState, action) {
 
         case START_EXPEDITION:
             return update(state, {
+                rotation: { $set: payload.startRotation },
                 expedition: {
                     status: { $set: EXPEDITION_STATUS.exploring },
-                    position: {
-                        coord: { $set: payload.startCoord },
-                        meridian: { $set: payload.startMeridian }
-                    }
-                    // position: { $set: payload.startPosition },
-                    // positionLat: { $set: payload.startLat }
+                    position: { $set: payload.startCoord }
                 }
             })
         case MOVE_EXPEDITION:
-            console.log(payload)
             return update(state, {
+                rotation: { $set: payload.rotation },
                 expedition: {
-                    position: { $set: payload }
+                    position: { $set: payload.coord }
                 }
             })
         default:
@@ -292,33 +289,40 @@ export function setExploreSpeed(value) {
 export function planetTick(timeDelta) {
     return (dispatch, getState) => {
         batch(() => {
-            if (getState().planet.cookedPct > 0) {
+            const state = getState().planet;
+
+            if (state.cookedPct > 0) {
                 dispatch({ type: INCREMENT_COOK, payload: { timeDelta } });
             }
-            
-            if (getState().planet.overallStatus !== OVERALL_MAP_STATUS.inProgress) {
-                return;
+
+            // if (state.overallStatus === OVERALL_MAP_STATUS.unstarted) {
+            //     return;
+            // }
+
+            let newRotation;
+            if (state.sunTracking && state.expedition.status === EXPEDITION_STATUS.unstarted) {
+                newRotation = sunTrackingRotation(fromClock.fractionOfDay(getState().clock));
             }
 
-            dispatch({ type: PROGRESS, payload: { timeDelta } });
+            dispatch({ type: PROGRESS, payload: { timeDelta, newRotation } });
 
-            getState().planet.coordsInProgress.forEach(coord => {
-                const sector = getState().planet.map[coord[0]][coord[1]];
+            state.coordsInProgress.forEach(coord => {
+                const sector = state.map[coord[0]][coord[1]];
                 if (sector.exploreProgress >= sector.exploreLength * 1000) {
                     finishExploringSector(dispatch, coord[0], coord[1], sector);
                 }
             });
 
-            if (isMapFullyExplored(getState().planet.map)) {
+            if (isMapFullyExplored(state.map)) {
                 dispatch(finishExploringMap());
             }
             else {
-                const numDroids = getState().planet.droidData.numDroidsAssigned;
-                const droidCapacity = getState().planet.coordsInProgress.length * MAX_DROIDS_PER_SECTOR;
+                const numDroids = state.droidData.numDroidsAssigned;
+                const droidCapacity = state.coordsInProgress.length * MAX_DROIDS_PER_SECTOR;
 
                 if (numDroids > droidCapacity) {
                     // If we're over capacity we're ready to start exploring a new sector
-                    const [nextRowIndex, nextColIndex] = getNextExplorableSector(getState().planet.map);
+                    const [nextRowIndex, nextColIndex] = getNextExplorableSector(state.map);
                     if (nextRowIndex !== undefined) {
                         startExploringSectorUnsafe(dispatch, nextRowIndex, nextColIndex)
                     }
@@ -332,9 +336,8 @@ export function planetTick(timeDelta) {
 
 export function startExpedition() {
     return function(dispatch, getState) {
-        const startCoord = getHomeBaseCoord(getState().planet.map);
-        const startMeridian = getMeridianForCoord(startCoord);
-        dispatch({ type: START_EXPEDITION, payload: { startCoord, startMeridian } });
+        const {coord, rotation} = getHomeBasePosition(getState().planet.map);
+        dispatch({ type: START_EXPEDITION, payload: { startCoord: coord, startRotation: rotation } });
     }
 }
 
@@ -348,9 +351,8 @@ export function moveExpedition(direction) {
             return;
         }
 
-        const position = state.expedition.position;
-        const destination = getAdjCoordInDirection(position.coord, direction, position.meridian);
-        if (canMoveExpedition(position.coord, destination.coord)) {
+        const destination = getAdjCoordForPlayer(state.expedition.position, state.rotation, direction);
+        if (canMoveExpedition(state.map, destination.coord)) {
             dispatch({ type: MOVE_EXPEDITION, payload: destination });
         }
     }

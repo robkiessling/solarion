@@ -11,7 +11,7 @@ import {planetTick} from "../redux/modules/planet";
 const CLOCK_FPS = 30;
 export const OUTSIDE_FPS = 10;
 export const STAR_FPS = 30;
-export const PLANET_FPS = 20;
+export const PLANET_FPS = 10;
 export const ENERGY_BUTTON_FPS = 60;
 
 const STRUCT_FPS = 10;
