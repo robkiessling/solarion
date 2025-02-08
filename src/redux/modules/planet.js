@@ -3,7 +3,7 @@ import {recalculateState, withRecalculation} from "../reducer";
 import {
     canMoveExpedition,
     COOK_TIME,
-    generateRandomMap, getAdjCoordForPlayer,
+    generateRandomMap, getAdjacentCoords, getAdjCoordForPlayer,
     getCurrentDevelopmentArea,
     getHomeBasePosition,
     getNextDevelopmentArea,
@@ -215,12 +215,19 @@ export default function reducer(state = initialState, action) {
                 }
             })
         case MOVE_EXPEDITION:
-            return update(state, {
+            updates = {
                 rotation: { $set: payload.rotation },
                 expedition: {
                     position: { $set: payload.coord }
-                }
+                },
+                map: {}
+            }
+            payload.adjCoords.forEach(coord => {
+                if (updates.map[coord[0]] === undefined) { updates.map[coord[0]] = {} }
+                updates.map[coord[0]][coord[1]] = { status: { $set: STATUSES.explored.enum } }
             })
+
+            return update(state, updates)
         default:
             return state;
     }
@@ -353,7 +360,14 @@ export function moveExpedition(direction) {
 
         const destination = getAdjCoordForPlayer(state.expedition.position, state.rotation, direction);
         if (canMoveExpedition(state.map, destination.coord)) {
-            dispatch({ type: MOVE_EXPEDITION, payload: destination });
+            dispatch({
+                type: MOVE_EXPEDITION,
+                payload: {
+                    rotation: destination.rotation,
+                    coord: destination.coord,
+                    adjCoords: getAdjacentCoords(destination.coord)
+                }
+            });
         }
     }
 }

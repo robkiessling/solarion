@@ -123,6 +123,19 @@ export const DIRECTIONS = {
 }
 const ALL_DIRECTIONS = Object.values(DIRECTIONS);
 
+
+// Ice cap is hardcoded to these values
+const NORTH_ICE_CAP_ROWS = [
+    [20], // row 0 
+    [8, 2, 7, 2, 11, 1, 30], // row 1 (8 sectors of ice, followed by a 2 sector gap, followed by 7 sectors of ice, etc.)
+    [0, 7, 3, 20, 7, 30] // row 2
+]
+const SOUTH_ICE_CAP_ROWS = [
+    [0, 9, 5, 22, 7, 30], // third to last row
+    [0, 2, 16, 2, 30], // second to last row
+    [20] // last row
+]
+
 // const HOME_STARTING_ROW_RANGE = [3, 7];
 const HOME_STARTING_ROW_RANGE = [5, 5]; // TODO Leaving dead center otherwise first 3x3 explored area gets stretched poorly
 const NUM_MOUNTAIN_RANGES_RANGE = [40, 50];
@@ -131,7 +144,7 @@ const MOUNTAIN_RANGE_SIZE_RANGE = [1, 20];
 const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
-const EXPLORE_EVERYTHING = true;
+const EXPLORE_EVERYTHING = false;
 
 const EXPLORATION_TIME_FACTOR = 10; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = true;
@@ -142,6 +155,7 @@ export const TERRAINS = {
     developing: { key: 'developing', enum: 2, display: '+', className: 'developing', label: 'Replicating' },
     developed: { key: 'developed', enum: 3, display: '+', className: 'developed', label: 'Replicated' },
     mountain: { key: 'mountain', enum: 4, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
+    ice: { key: 'ice', enum: 5, display: '*', className: 'ice', label: 'Ice' },
 }
 
 if (SHOW_DEBUG_MERIDIANS) {
@@ -214,6 +228,8 @@ export function generateRandomMap() {
         generateDebugMeridians(map);
     }
 
+    addIceCaps(map);
+
     const homeCoord = addHomeBase(map);
 
     cacheDistancesToHome(map, homeCoord);
@@ -256,6 +272,32 @@ function generateDebugMeridians(map) {
             }
         })
     }
+}
+
+// Adds ice in the top row
+function addIceCaps(map) {
+    NORTH_ICE_CAP_ROWS.forEach((iceLengths, rowIndex) => {
+        addIceRow(map, rowIndex, iceLengths);
+    })
+
+    SOUTH_ICE_CAP_ROWS.forEach((iceLengths, rowIndex) => {
+        rowIndex += (NUM_PLANET_ROWS - SOUTH_ICE_CAP_ROWS.length);
+        addIceRow(map, rowIndex, iceLengths);
+    });
+}
+
+function addIceRow(map, rowIndex, iceLengths) {
+    let colIndex = 0;
+
+    iceLengths.forEach((iceLength, i) => {
+        const isGap = i % 2 === 1;
+        nTimes(iceLength, i => {
+            if (colIndex + i < PLANET_ROW_LENGTHS[rowIndex]) {
+                map[rowIndex][colIndex + i] = createSector(isGap ? TERRAINS.flatland : TERRAINS.ice, STATUSES.unknown);
+            }
+        })
+        colIndex += iceLength;
+    })
 }
 
 function addMountainRanges(map) {
@@ -318,7 +360,7 @@ function addHomeBase(map) {
     if (EXPLORE_EVERYTHING) {
         map.forEach((row, rowIndex) => {
             row.forEach((sector, colIndex) => {
-                if (rowIndex !== map.length - 1) { // leaving 1 unexplored space for triggers
+                if (rowIndex !== map.length) {
                     sector.status = STATUSES.explored.enum
                 }
             });
@@ -351,11 +393,18 @@ function isSameCoord(coord1, coord2) {
 
 export function canMoveExpedition(map, destinationCoord) {
     if (destinationCoord === null) { return false; }
-    // todo add some more checks, like if terrain is impassable
+
+    const destinationSector = map[destinationCoord[0]][destinationCoord[1]];
+
+    if (destinationSector.terrain === TERRAINS.mountain.enum ||
+        destinationSector.terrain === TERRAINS.ice.enum) {
+        return false;
+    }
+
     return true;
 }
 
-function getAdjacentCoords(coord) {
+export function getAdjacentCoords(coord) {
     return ALL_DIRECTIONS
         .map(direction => getAdjCoordInDirection(coord, direction))
         .filter(coord => coord !== null);
