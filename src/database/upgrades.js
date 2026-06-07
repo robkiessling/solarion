@@ -1,3 +1,4 @@
+import _ from 'lodash';
 
 import * as fromResources from "../redux/modules/resources";
 import * as fromStructures from "../redux/modules/structures";

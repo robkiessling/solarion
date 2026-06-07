@@ -7,7 +7,7 @@ import {
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {daylightPercent, windSpeed} from "../redux/modules/clock";
 import {canConsume, getCapacity, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
-import {round} from "lodash";
+import _ from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
 import {formatInteger, INFINITY, redText} from "../lib/helpers";
 import {upgradesAffectingStructure} from "./upgrades";
@@ -215,7 +215,7 @@ export const calculators = {
                 if (hasInsufficientResources(structure)) {
                     return INSUFFICIENT_LABEL;
                 }
-                return `${round(variables.efficiency * 100)}% efficiency`
+                return `${_.round(variables.efficiency * 100)}% efficiency`
             }
         },
     }),
@@ -334,7 +334,7 @@ export const calculators = {
 
             if (wind < variables.ratedSpeed) {
                 const percent = (wind - variables.cutInSpeed) / (variables.ratedSpeed - variables.cutInSpeed);
-                return `${round(percent * 100)}% of rated speed`;
+                return `${_.round(percent * 100)}% of rated speed`;
             }
 
             return '100% rated speed';

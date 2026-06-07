@@ -1,14 +1,13 @@
-@import 'normalize.css';
-@import './variables';
-@import './icon-font';
-@import 'components/computer';
-@import 'components/log';
-@import 'components/outside';
-@import 'components/planet_status';
-@import 'components/resources';
-@import 'components/structures';
-@import 'components/title';
-@import 'components/ui';
+@use './variables' as *;
+@use './icon-font';
+@use 'components/computer';
+@use 'components/log';
+@use 'components/outside';
+@use 'components/planet_status';
+@use 'components/resources';
+@use 'components/structures';
+@use 'components/title';
+@use 'components/ui';
 
 html, body, #app {
   height: 100%;

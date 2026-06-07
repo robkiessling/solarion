@@ -1,3 +1,4 @@
+import _ from 'lodash';
 
 import {getStructure} from "../redux/modules/structures";
 import {getStructureStatistic} from "../redux/reducer";

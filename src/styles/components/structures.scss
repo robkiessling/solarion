@@ -1,4 +1,4 @@
-@import '../variables';
+@use '../variables' as *;
 
 .structures {
   flex: 1 1 auto; // so structure list can scroll when too long for page

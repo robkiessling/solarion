@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import update from 'immutability-helper';
 import {compareNumbers, INFINITY, mapObject, roundToDecimal} from "../../lib/helpers";
 import database, {calculators} from '../../database/resources';

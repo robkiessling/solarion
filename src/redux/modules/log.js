@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import { v4 } from 'node-uuid';
+import { v4 } from 'uuid';
 
 // Actions
 export const LOG = 'log/LOG';

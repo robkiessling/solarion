@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import React from 'react';
 import {connect} from "react-redux";
 import {hasInsufficientResources} from "../../redux/modules/structures";
@@ -112,4 +113,3 @@ export default connect(
     mapStateToProps,
     { buildStructure, researchUpgrade }
 )(Structure);
-

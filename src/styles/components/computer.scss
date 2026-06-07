@@ -1,4 +1,4 @@
-@import '../variables';
+@use '../variables' as *;
 
 .computer-container {
   flex: 0 0 10rem;
