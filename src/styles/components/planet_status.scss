@@ -1,10 +1,11 @@
 @use '../variables' as *;
 
 .planet-status {
-  background: none;
   position: absolute;
   bottom: 0;
   padding: 0.25rem 0.5rem;
   width: calc(100% - 1rem);
+  z-index: 5;
+  background: #3b3b3bbb;
 }
 

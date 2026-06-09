@@ -9,6 +9,8 @@ import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {STANDARD_COST_EXP} from "./structures";
 import {countAllStructuresBuilt} from "../redux/modules/structures";
 
+const DEBUG_FF = false;
+
 export const STATES = {
     ready: 0,
     casting: 1,
@@ -78,7 +80,7 @@ export const calculators = {
     commandCenter_charge: {
         variables: (state, ability) => {
             const variables = {
-                energy: 1,
+                energy: DEBUG_FF ? 10 : 1,
                 mineralChance: 0,
                 mineralBonus: 0
             }

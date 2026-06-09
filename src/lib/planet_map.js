@@ -146,6 +146,8 @@ const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
 const EXPLORE_EVERYTHING = false;
+const MARK_SECTORS = false;
+const LOG_MAP = false;
 
 const EXPLORATION_TIME_FACTOR = 10; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = true;
@@ -156,13 +158,14 @@ export const TERRAINS = {
     developing: { key: 'developing', enum: 2, display: '+', className: 'developing', label: 'Replicating' },
     developed: { key: 'developed', enum: 3, display: '+', className: 'developed', label: 'Replicated' },
     mountain: { key: 'mountain', enum: 4, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
-    ice: { key: 'ice', enum: 5, display: '*', className: 'ice', label: 'Ice' },
+    ice: { key: 'ice', enum: 5, display: 'X', className: 'ice', label: 'Ice', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Frozen poles are as slow to explore as mountains
 }
 
 if (SHOW_DEBUG_MERIDIANS) {
     nTimes(NUM_DEBUG_MERIDIANS, i => {
         const key = `meridian_${i}`;
         TERRAINS[key] = { key: key, enum: 100 + i, display: (i % 16).toString(16).toUpperCase(), exploreLength: EXPLORATION_TIME_FACTOR }
+        // TERRAINS[key] = { key: key, enum: 100 + i, display: '*', exploreLength: EXPLORATION_TIME_FACTOR }
     })
 }
 
@@ -190,7 +193,7 @@ const COOK_COLOR_START = [255, 180, 0]; // rgb ffb400
 const COOK_COLOR_END = [255, 60, 0]; // rgb ff3c00
 
 const LASER_BEAM_WIDTH = 251; // needs to be odd if widest planet width is odd
-const LASER_BEAM_HEIGHT = 27; // needs to be odd if planet height is odd
+const LASER_BEAM_HEIGHT = NUM_PLANET_ROWS + 4; // Laser must be larger than planet height
 const LASER_BEAM_SPEED = 150;
 const LASER_BEAM_CHAR_OPTS = ['-']
 const LASER_BEAM_ARROW_CHAR = '~'
@@ -221,22 +224,39 @@ export function generateRandomMap() {
         map.push(createArray(rowLength, () => createSector(TERRAINS.flatland, STATUSES.unknown)));
     });
 
-    if (ADD_MOUNTAINS) {
-        addMountainRanges(map);
-    }
-
-    if (SHOW_DEBUG_MERIDIANS) {
-        generateDebugMeridians(map);
-    }
+    if (ADD_MOUNTAINS) addMountainRanges(map);
 
     addIceCaps(map);
+
+    if (SHOW_DEBUG_MERIDIANS) generateDebugMeridians(map);
 
     const homeCoord = addHomeBase(map);
 
     cacheDistancesToHome(map, homeCoord);
+
+    if (MARK_SECTORS) markSectors(map);
+
     cacheCoords(map);
 
+    if (LOG_MAP) logMap(map);
+
     return map;
+}
+
+function logMap(map) {
+    let str = '';
+
+    map.forEach((row, rowIndex) => {
+        const rowLength = PLANET_ROW_LENGTHS[rowIndex];
+        const padding = Math.floor((WIDEST_PLANET_ROW - rowLength) / 2);
+        nTimes(padding, () => str += ' ');
+        row.forEach(sector => {
+            str += TERRAINS_BY_ENUM[sector.terrain].display;
+        });
+        nTimes(padding, () => str += ' ');
+        str += '\n'
+    })
+    console.log(str);
 }
 
 function cacheCoords(map) {
@@ -256,6 +276,35 @@ function createSector(terrain, status) {
     }
 }
 
+const NUM_SECTOR_MERIDIANS = 8;
+function markSectors(map) {
+    for (let i = 0; i < NUM_SECTOR_MERIDIANS; i++) {
+        const middleRow = floor(NUM_PLANET_ROWS / 2) - 1
+        const colIndexInMiddleRow = floor(i / NUM_SECTOR_MERIDIANS * PLANET_ROW_LENGTHS[middleRow]);
+        const meridianIndex = COORD_TO_MERIDIAN_LOOKUP[middleRow][colIndexInMiddleRow];
+
+        MERIDIANS[meridianIndex].forEach((colIndex, rowIndex) => {
+            map[rowIndex][colIndex].sectorDividerLeft = true;
+
+            const prevCol = mod(colIndex - 1, PLANET_ROW_LENGTHS[rowIndex]);
+            map[rowIndex][prevCol].sectorDividerRight = true;
+        })
+    }
+
+    // const middleRow = floor(NUM_PLANET_ROWS / 2) - 1
+    // for (let i = 0; i < PLANET_ROW_LENGTHS[middleRow]; i++) {
+    //     map[middleRow][i].sectorDividerBottom = true
+    // }
+    const firstThird = floor(NUM_PLANET_ROWS / 3) - 1
+    for (let i = 0; i < PLANET_ROW_LENGTHS[firstThird]; i++) {
+        map[firstThird][i].sectorDividerBottom = true
+    }
+    const secondThird = floor(NUM_PLANET_ROWS / 3 * 2) - 1
+    for (let i = 0; i < PLANET_ROW_LENGTHS[secondThird]; i++) {
+        map[secondThird][i].sectorDividerBottom = true
+    }
+}
+
 /**
  * Draws some of the meridian lines on the map to help with debugging.
  * We have lots of meridians (equal to the widest row), so note that we are just drawing a subset of them.
@@ -272,6 +321,11 @@ function generateDebugMeridians(map) {
                 map[rowIndex][colIndex] = createSector(TERRAINS[`meridian_${i}`], STATUSES.explored);
             }
         })
+    }
+
+    const middleRow = floor(NUM_PLANET_ROWS / 2)
+    for (let i = 0; i < PLANET_ROW_LENGTHS[middleRow]; i++) {
+        map[middleRow][i] = createSector(TERRAINS[`meridian_${1}`], STATUSES.explored);
     }
 }
 
@@ -353,7 +407,7 @@ function addHomeBase(map) {
 
     // Explore adjacent sectors to base
     if (START_WITH_ADJ_EXPLORED) {
-        getAdjacentCoords([homeRow, homeCol]).forEach(([row, col]) => {
+        getAdjacentCoords2x([homeRow, homeCol]).forEach(([row, col]) => {
             map[row][col].status = STATUSES.explored.enum
         });
     }
@@ -411,8 +465,30 @@ export function getAdjacentCoords(coord) {
         .filter(coord => coord !== null);
 }
 
-export function getAdjCoordInDirection(currentCoord, direction) {
+export function getAdjacentCoords2x(currentCoord) {
+    const coords = []
+
+    for (let rowOffset = -2; rowOffset <= 2; rowOffset++) {
+        for (let colOffset = -2; colOffset <= 2; colOffset++) {
+            if (rowOffset === 0 && colOffset === 0) {
+                continue; // currentCoord
+            }
+            if (Math.abs(rowOffset) === 2 && Math.abs(colOffset) === 2) {
+                continue; // ignore corners
+            }
+            coords.push(getCoordAtOffset(currentCoord, rowOffset, colOffset))
+        }
+    }
+
+    return coords.filter(coord => coord !== null);
+}
+
+function getAdjCoordInDirection(currentCoord, direction) {
     const [rowOffset, colOffset] = directionToOffset(direction);
+    return getCoordAtOffset(currentCoord, rowOffset, colOffset);
+}
+
+function getCoordAtOffset(currentCoord, rowOffset, colOffset) {
 
     let newRow = currentCoord[0];
     let newCol = currentCoord[1];
@@ -639,6 +715,10 @@ export function generateImage(map, expedition, fractionOfDay, rotation, sunTrack
                     className += ' exploring'
                 }
             }
+
+            if (sector.sectorDividerLeft) { className += ' sector-divider-left' }
+            if (sector.sectorDividerRight) { className += ' sector-divider-right' }
+            if (sector.sectorDividerBottom) { className += ' sector-divider-bottom' }
 
             if (sector.status === STATUSES.exploring.enum) {
                 // since we are not showing dotted exploring rect, we cannot show tile until finished (otherwise the

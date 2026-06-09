@@ -31,6 +31,12 @@ class App extends React.Component {
         return { hasError: true };
     }
 
+    componentDidCatch(error, info) {
+        // Log error & react component stack. Without this, the error boundary can swallow the real exception
+        console.error('Caught by App error boundary:', error);
+        console.error('Component stack:', info && info.componentStack);
+    }
+
     render() {
         if (this.state.hasError) {
             return <Error />
@@ -49,9 +55,9 @@ class App extends React.Component {
             <div id="app-container"
                  className={containerClass}>
                 <div className="left-column">
-                    <ResourceBar/>
                     {this.props.commandCenterLoaded && <CommandCenter/>}
                     <Log/>
+                    <ResourceBar/>
                     <Settings/>
                 </div>
                 <div className="center-column">

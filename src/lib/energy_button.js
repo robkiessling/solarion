@@ -91,7 +91,7 @@ export default class EnergyButton {
       this._state.button.y,
       BUTTON_WIDTH, BUTTON_HEIGHT, [10]
     );
-    this.context.fillStyle = 'rgb(202,126,126)';
+    this.context.fillStyle = 'rgb(142,142,142)';
     this.context.fill(base);
 
     // draw button top

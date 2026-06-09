@@ -9,7 +9,8 @@ import {
     percentExplored,
     setRotation,
     setSunTracking,
-    startExpedition
+    startExpedition,
+    stopExpedition
 } from "../redux/modules/planet";
 import {showDroidsUI} from "../redux/reducer";
 import {fractionOfDay} from "../redux/modules/clock";
@@ -76,13 +77,20 @@ class PlanetTools extends React.Component {
                         </label>
                     </div>
 
-                    <div>
+                    <div className="exploration-actions">
                         <ProgressButton
                             fullWidth={false}
                             onClick={() => this.props.startExpedition()}
                             disabled={this.props.onExpedition}
                             className={`ability`}>
                             Embark
+                        </ProgressButton>
+                        <ProgressButton
+                            fullWidth={false}
+                            onClick={() => this.props.stopExpedition()}
+                            disabled={!this.props.onExpedition}
+                            className={`ability`}>
+                            Stop
                         </ProgressButton>
                     </div>
                 </div>
@@ -112,6 +120,6 @@ const mapStateToProps = (state, ownProps) => {
 
 export default connect(
     mapStateToProps,
-    { setRotation, setSunTracking, startExpedition }
+    { setRotation, setSunTracking, startExpedition, stopExpedition }
 )(PlanetTools);
 

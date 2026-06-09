@@ -29,6 +29,9 @@ export default function reducer(state = initialState, action) {
 
     switch (action.type) {
         case LEARN:
+            // If already learned, do nothing (prevents potential error state w/ duplicate visibleIds)
+            if (state.byId[payload.id]) return state;
+
             return update(state, {
                 byId: {
                     [payload.id]: {

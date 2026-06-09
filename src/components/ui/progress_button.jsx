@@ -20,13 +20,19 @@ export default function ProgressButton(props) {
         }
     }
 
+    function onClick() {
+        if (props.onClick && !props.disabled) {
+            props.onClick();
+        }
+    }
+
     if (props.tooltip) {
         if (!props.tooltipId) {
             console.error("ProgressButton: `tooltipId` is required if using `tooltip`.");
         }
         return (
             <div className='progress-button-container'>
-                <div className={className} onClick={() => props.onClick()}
+                <div className={className} onClick={onClick}
                      data-tip data-for={props.tooltipId}>
                     {props.children}
                     {progress}
@@ -39,7 +45,7 @@ export default function ProgressButton(props) {
     }
     else {
         return (
-            <div className={className} onClick={() => props.onClick()}>
+            <div className={className} onClick={onClick}>
                 {props.children}
                 {progress}
             </div>

@@ -6,6 +6,7 @@ import _ from 'lodash';
 import store from './redux/store';
 
 import App from './components/app';
+import './styles/normalize.css';
 import './styles/app.scss';
 
 // Note: Singleton imports are necessary despite not being used in this file; they initialize the singletons

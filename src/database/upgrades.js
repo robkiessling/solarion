@@ -52,7 +52,21 @@ const database = {
             }
         },
         cost: {
-            energy: 15
+            energy: 20
+        }
+    }),
+    commandCenter_showResourceBar: _.merge({}, base, {
+        name: "Turn On 2nd Monitor",
+        structure: 'commandCenter',
+        description: "A dusty monitor shows a blinking power button.",
+        discoverWhen: {
+            upgrades: ['commandCenter_showTerminal'],
+            resources: {
+                energy: 40
+            }
+        },
+        cost: {
+            energy: 30
         }
     }),
     commandCenter_showPlanetStatus: _.merge({}, base, {
@@ -60,27 +74,13 @@ const database = {
         structure: 'commandCenter',
         description: "Gathers information about the planet.",
         discoverWhen: {
-            upgrades: ['commandCenter_showTerminal'],
+            upgrades: ['commandCenter_showResourceBar'],
             resources: {
-                energy: 20
+                energy: 70
             }
         },
         cost: {
-            energy: 15
-        }
-    }),
-    commandCenter_showResourceRates: _.merge({}, base, {
-        name: "Turn on Advanced Stats",
-        structure: 'commandCenter',
-        description: "Allows you to monitor resource collection rates.",
-        discoverWhen: {
-            upgrades: ['commandCenter_showPlanetStatus'],
-            resources: {
-                energy: 35,
-            }
-        },
-        cost: {
-            energy: 10
+            energy: 30
         }
     }),
     commandCenter_openShutters: _.merge({}, base, {
@@ -88,13 +88,27 @@ const database = {
         structure: 'commandCenter',
         description: "The shutters are rusty but appear functional.",
         discoverWhen: {
-            upgrades: ['commandCenter_showResourceRates'],
+            upgrades: ['commandCenter_showPlanetStatus'],
             resources: {
-                energy: 45
+                energy: 100
             }
         },
         cost: {
-            energy: 15
+            energy: 50
+        }
+    }),
+    commandCenter_showResourceRates: _.merge({}, base, {
+        name: "Turn on Advanced Stats",
+        structure: 'commandCenter',
+        description: "Allows you to monitor overall resource collection rates.",
+        discoverWhen: {
+            upgrades: ['commandCenter_openShutters'],
+            resources: {
+                energy: 300,
+            }
+        },
+        cost: {
+            energy: 25
         }
     }),
 
@@ -240,12 +254,13 @@ const database = {
         discoverWhen: {
             resources: {
                 energy: 115,
-                ore: 20
+                ore: 15
             }
         },
         researchTime: 30,
         cost: {
-            energy: 20
+            energy: 30,
+            ore: 30
         }
     }),
     commandCenter_researchWind: _.merge({}, base, {
@@ -255,13 +270,14 @@ const database = {
         discoverWhen: {
             upgrades: ['commandCenter_researchSolar'],
             resources: {
-                energy: 500,
+                energy: 700,
                 ore: 100
             }
         },
         researchTime: 60,
         cost: {
-            energy: 50
+            energy: 50,
+            ore: 75
         }
     }),
     commandCenter_researchEnergyBay: _.merge({}, base, {
@@ -296,12 +312,12 @@ const database = {
         researchTime: 90,
         discoverWhen: {
             resources: {
-                refinedMinerals: 100
+                refinedMinerals: 120
             }
         },
         cost: {
-            energy: 2000,
-            refinedMinerals: 50
+            energy: 2500,
+            refinedMinerals: 100
         }
     }),
     commandCenter_researchProbeFactory: _.merge({}, base, {
@@ -1032,6 +1048,12 @@ export const callbacks = {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showTerminal', true));
             dispatch(fromLog.startLogSequence('turnOnComputer'));
+        }
+    },
+    commandCenter_showResourceBar: {
+        onFinish: (dispatch) => {
+            dispatch(fromGame.updateSetting('showResourceBar', true));
+            dispatch(fromLog.startLogSequence('showResourceBar'));
         }
     },
     commandCenter_showResourceRates: {

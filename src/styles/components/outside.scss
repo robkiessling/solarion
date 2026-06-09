@@ -1,6 +1,6 @@
 @use '../variables' as *;
 
-$shutter-transition: 10s;
+$shutter-transition: 12s;
 $top-bar-float-padding: 0.875rem;
 
 .navigation-tabs {
@@ -66,6 +66,7 @@ $top-bar-float-padding: 0.875rem;
   .twilight-night { opacity: 0.5; }
   .night { opacity: 0.3; }
 
+  .unknown { color: #888; }
   .home { color: #20d9ff; }
   //.mountain { color: #6b2b2b; }
   //.flatland { color: #cc7171; }
@@ -79,6 +80,17 @@ $top-bar-float-padding: 0.875rem;
   .exploring { outline: 1px solid white; }
 
   .laser-beam { color: yellow !important; }
+
+  $sector-divider-color: rgba(62, 192, 218, 0.5);
+  .sector-divider-left {
+    border-left: 1px solid $sector-divider-color;
+  }
+  .sector-divider-right {
+    border-right: 1px solid $sector-divider-color;
+  }
+  .sector-divider-bottom {
+    border-bottom: 1px solid $sector-divider-color;
+  }
 
   .planet-legend {
     position: absolute;
@@ -101,6 +113,11 @@ $top-bar-float-padding: 0.875rem;
   flex-direction: column;
   padding: $component-padding;
 }
+.exploration-actions {
+  display: flex;
+  gap: 1rem;
+}
+
 .replication-status {
   display: flex;
   flex-direction: column;

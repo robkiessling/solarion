@@ -26,7 +26,7 @@ const initialState = {
     showTerminal: false,
     shuttersOpen: false,
     showPlanetStatus: false,
-    showResourceBar: true,
+    showResourceBar: false,
     showResourceRates: false,
     showResourceCapacities: false, // todo
     showStructuresList: false,

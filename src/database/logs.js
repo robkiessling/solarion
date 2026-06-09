@@ -18,7 +18,7 @@ const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE = SKIP_TO_GLOBE; /* Controls overall game mode */
+const GAME_MODE = NORMAL_BOOTUP; /* Controls overall game mode */
 
 
 export default {
@@ -84,10 +84,10 @@ export default {
             ['', 100],
             ['Last login: 73 years, 266 days ago', 3000],
             ['', 100],
-            ['Restoring session...', 1000],
-            ['.', 1000],
-            ['..', 1000],
-            ['...', 1000],
+            // ['Restoring session...', 1000],
+            // ['.', 1000],
+            // ['..', 1000],
+            // ['...', 1000],
             // ['Error: File corrupted', 0, true],
             // ['', 4000],
             // ['Restoring data...', 5000],
@@ -117,22 +117,22 @@ export default {
             // ['0VA8kLarEkErnYs8TkNp', 100],
             // ['Uoiq▓WCg..CTt8║      qZ2WVOeTx', 0],
             // ['tGL6 f889f..e;', 0],
-            ['Qu7h uAvF...xef  9gGUC6ZDSt', 0],
+            // ['Qu7h uAvF...xef  9gGUC6ZDSt', 0],
             // ['QjJo kY4Mjf||EWF  JqvK3jYtQB', 0],
-            ['9Bjf 6aI9pYwZB1k9Ye║▀', 0],
+            // ['9Bjf 6aI9pYwZB1k9Ye║▀', 0],
             // ['JuFZ 9hgp2F       [[[[iUvQvnsAxl', 0],
             // ['[[[ [ |||| =- **▒ ▒ ||    || |]]', 0],
             // ['[-----', 0],
-            ['▒▒▒ ║           |||| X  ▓', 0],
-            ['||', 0],
-            ['▒', 0],
-            ['', 0],
-            ['FATAL ERROR OCCURRED', 4000, true],
+            // ['▒▒▒ ║           |||| X  ▓', 0],
+            // ['||', 0],
+            // ['▒', 0],
+            // ['', 0],
+            // ['FATAL ERROR OCCURRED', 4000, true],
             // ['****************', 0],
             // ['****************', 0],
             // ['****************', 0],
-            ['', 0],
-            ['RECOVERING...', 4000, true],
+            // ['', 0],
+            // ['RECOVERING...', 4000, true],
             // ['Error code: 18589194123098', 0],
             // ['ADDR:', 100],
             // ['[3260 7515 1562]', 0],
@@ -144,13 +144,13 @@ export default {
             // ['[6240 4625 6629]', 0],
             // ['[6433 3822 8854]', 0],
             // ['[0140 5313 1417]', 0],
-            ['', 0],
+            // ['', 0],
             ['#################################', 10],
             ['Safe boot', 10],
             ['***', 10],
             ['*** start.sc', 10],
             ['*** 0x003041 0x000000 0xA03B00', 10],
-            ['*** AE74923 V8.4 2154-04-11', 10],
+            ['*** AE74923 V8.4 2154-04-13', 10],
             // ['', 10],
             // ['AE74923 V8.4 2154-04-11', 10],
             ['', 10],
@@ -158,11 +158,18 @@ export default {
             // ['', 10],
             ['#################################', 5000],
             ['', 10],
-            ['Resources: Low', 1000, true],
+            ['Resources: Critical', 1000, true],
             ['Sensors: Offline', 1000, true],
             ['', 10],
             ['More energy required.', 0, true]
         ],
+    },
+
+    showResourceBar: {
+        text: [
+            ['', 100],
+            ['Resource status activated.', 3000, true],
+        ]
     },
 
     showPlanetStatus: {
@@ -197,14 +204,14 @@ export default {
             ['********************************', 3000, true],
             ['', 100],
             ['Mining:  Operational (1 harvester)', 2000, true],
-            ['Battery: 30e', 2000, true],
+            ['Battery: 20e', 2000, true],
             ['System:  Ready', 1000],
             ['', 100],
-            ['Awaiting input...', 0, true],
+            ['Harvester awaiting input...', 0, true],
         ],
         onFinish: (dispatch) => {
             batch(() => {
-                dispatch(fromResources.produce({ energy: 30 }))
+                dispatch(fromResources.produce({ energy: 20 }))
                 dispatch(fromResources.learn('ore'));
                 dispatch(fromGame.updateSetting('showStructuresList', true));
 

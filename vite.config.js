@@ -10,6 +10,9 @@ export default defineConfig({
 
     server: {
         open: true,
+
+        // Disable hot module replacement / live reload
+        hmr: false,
     },
 
     build: {

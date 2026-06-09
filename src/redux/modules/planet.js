@@ -3,7 +3,7 @@ import {recalculateState, withRecalculation} from "../reducer";
 import {
     canMoveExpedition,
     COOK_TIME,
-    generateRandomMap, getAdjacentCoords, getAdjCoordForPlayer,
+    generateRandomMap, getAdjacentCoords, getAdjacentCoords2x, getAdjCoordForPlayer,
     getCurrentDevelopmentArea,
     getHomeBasePosition,
     getNextDevelopmentArea,
@@ -35,6 +35,7 @@ export const INCREMENT_COOK = 'planet/INCREMENT_COOK';
 
 export const START_EXPEDITION = 'planet/START_EXPEDITION';
 export const MOVE_EXPEDITION = 'planet/MOVE_EXPEDITION';
+export const STOP_EXPEDITION = 'planet/STOP_EXPEDITION';
 
 const OVERALL_MAP_STATUS = {
     unstarted: 'unstarted',
@@ -214,6 +215,12 @@ export default function reducer(state = initialState, action) {
                     position: { $set: payload.startCoord }
                 }
             })
+        case STOP_EXPEDITION:
+            return update(state, {
+                expedition: {
+                    status: { $set: EXPEDITION_STATUS.unstarted },
+                }
+            })
         case MOVE_EXPEDITION:
             updates = {
                 rotation: { $set: payload.rotation },
@@ -347,6 +354,9 @@ export function startExpedition() {
         dispatch({ type: START_EXPEDITION, payload: { startCoord: coord, startRotation: rotation } });
     }
 }
+export function stopExpedition() {
+    return { type: STOP_EXPEDITION, payload: {} };
+}
 
 // movement: left/right = getLatitudeForCoord(left/right coord)
 // movement: up/down = same latitude
@@ -365,7 +375,7 @@ export function moveExpedition(direction) {
                 payload: {
                     rotation: destination.rotation,
                     coord: destination.coord,
-                    adjCoords: getAdjacentCoords(destination.coord)
+                    adjCoords: getAdjacentCoords2x(destination.coord)
                 }
             });
         }
@@ -381,7 +391,18 @@ export function percentExplored(state){
 
     state.coordsInProgress.forEach(coord => {
         const sector = state.map[coord[0]][coord[1]]
-        numExplored += sector.exploreProgress / (sector.exploreLength * 1000)
+        const partialProgress = sector.exploreProgress / (sector.exploreLength * 1000)
+
+        // Guard against a sector with missing/invalid exploreLength/exploreProgress, which ends up causing exploration
+        // progress to be NaN. TODO Can remove this once game is complete and terrain is finished.
+        if (!Number.isFinite(partialProgress)) {
+            console.warn(
+                `percentExplored: skipping sector at [${coord}] with invalid exploreProgress=${sector.exploreProgress}, `+
+                `exploreLength=${sector.exploreLength}`)
+            return
+        }
+
+        numExplored += partialProgress
     })
 
     return numExplored / NUM_SECTORS * 100
