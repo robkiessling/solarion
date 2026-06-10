@@ -4,9 +4,10 @@ import {
     ALL_DIRECTIONS,
     COORD_TO_MERIDIAN_LOOKUP,
     DISPLAY_ROW_LENGTHS,
-    getAdjCoordInDirection,
-    getCoordsWithinSteps,
-    getDistanceBetweenCoords,
+    meridianStepInDirection,
+    getCoordsWithinHops,
+    getApproxDistance,
+    getGraphDistancesFrom,
     MERIDIANS,
     NUM_PLANET_ROWS,
     PLANET_ROW_LENGTHS,
@@ -64,16 +65,22 @@ const EXPLORE_EVERYTHING = false;
 const MARK_SECTORS = false;
 const LOG_MAP = false;
 
-const EXPLORATION_TIME_FACTOR = 10; // The fastest area takes this amount of time to explore
+const EXPLORATION_TIME_FACTOR = 5; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = true;
 
+/**
+ * crossTime: ms for a droid to cross one tile of this terrain (the movement cost / terrain weight).
+ * crossUpgrade: research key that must be unlocked before the terrain can be crossed at all; until then it is impassable,
+ *   but still revealed by line-of-sight so you can see the barrier.
+ * exploreLength: legacy per-tile explore cost used by the old sector-exploration model; removed once droids land.
+ */
 export const TERRAINS = {
-    home: { key: 'home', enum: 0, display: '#', className: 'home', label: 'Command Center' },
-    flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland', exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
-    developing: { key: 'developing', enum: 2, display: '+', className: 'developing', label: 'Replicating' },
-    developed: { key: 'developed', enum: 3, display: '+', className: 'developed', label: 'Replicated' },
-    mountain: { key: 'mountain', enum: 4, display: 'Λ', className: 'mountain', label: 'Mountain', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Take 200% longer to explore, cannot be developed, high chance of mineral caves during expl.
-    ice: { key: 'ice', enum: 5, display: 'X', className: 'ice', label: 'Ice', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Frozen poles are as slow to explore as mountains
+    home: { key: 'home', enum: 0, display: '#', className: 'home', label: 'Command Center', crossTime: EXPLORATION_TIME_FACTOR },
+    flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
+    developing: { key: 'developing', enum: 2, display: '+', className: 'developing', label: 'Replicating', crossTime: EXPLORATION_TIME_FACTOR },
+    developed: { key: 'developed', enum: 3, display: '+', className: 'developed', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
+    mountain: { key: 'mountain', enum: 4, display: 'Λ', className: 'mountain', label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
+    ice: { key: 'ice', enum: 5, display: 'X', className: 'ice', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
 }
 
 if (SHOW_DEBUG_MERIDIANS) {
@@ -304,7 +311,7 @@ function addMountainRange(map, size, startingRow, startingCol) {
         else { direction = getRandomFromArray(ALL_DIRECTIONS); }
 
         // Move towards the randomly chosen direction (if possible)
-        currentCoord = getAdjCoordInDirection(currentCoord, direction) || currentCoord;
+        currentCoord = meridianStepInDirection(currentCoord, direction) || currentCoord;
     }
 }
 
@@ -322,7 +329,7 @@ function addHomeBase(map) {
 
     // Explore adjacent sectors to base
     if (START_WITH_ADJ_EXPLORED) {
-        getCoordsWithinSteps([homeRow, homeCol], 1).forEach(([row, col]) => {
+        getCoordsWithinHops([homeRow, homeCol], 1).forEach(([row, col]) => {
             map[row][col].status = STATUSES.explored.enum
         });
     }
@@ -361,54 +368,29 @@ function isSameCoord(coord1, coord2) {
     return coord1[0] === coord2[0] && coord1[1] === coord2[1];
 }
 
-export function isPassable(map, destinationCoord) {
-    if (destinationCoord === null) { return false; }
+// ms to cross one tile of the given terrain, given the set of unlocked crossing upgrades. Returns Infinity when the
+// terrain is currently blocked (its crossUpgrade hasn't been researched). `unlocks` is a map like { mountaineering: true }.
+export function getCrossTime(terrainEnum, unlocks = {}) {
+    const terrain = TERRAINS_BY_ENUM[terrainEnum];
+    if (terrain.crossUpgrade && !unlocks[terrain.crossUpgrade]) { return Infinity; }
+    return terrain.crossTime;
+}
 
-    const destinationSector = map[destinationCoord[0]][destinationCoord[1]];
-
-    if (destinationSector.terrain === TERRAINS.mountain.enum ||
-        destinationSector.terrain === TERRAINS.ice.enum) {
-        return false;
-    }
-
-    return true;
+export function isPassable(map, coord, unlocks = {}) {
+    if (coord === null) { return false; }
+    return getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) < Infinity;
 }
 
 function cacheDistancesToHome(map, homeCoord) {
+    // graphDistanceHome (BFS hops on the coverage graph) is the unbiased metric used to order exploration; distanceHome
+    // (the centered-column metric) is kept for development ordering. See planet_geometry for the difference.
+    const graphDistances = getGraphDistancesFrom(homeCoord);
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
-            sector.distanceHome = getDistanceBetweenCoords(homeCoord, [rowIndex, colIndex]);
+            sector.distanceHome = getApproxDistance(homeCoord, [rowIndex, colIndex]);
+            sector.graphDistanceHome = graphDistances[rowIndex][colIndex];
         });
     });
-}
-
-// Find an unknown sector adjacent to current explored area
-// todo travel towards nearest unexplored coord (that no one else is going to?)
-//      if multiple, has a bearing that it tends towards (not completely random)?
-export function getNextExplorableSector(map) {
-    // --- Finds any adjacent unexplored space (purely random searching)
-    // const coord = getRandomFromArray(getAdjacentUnknownCoords(map))
-    // return coord === undefined ? [undefined, undefined] : coord;
-
-    // --- Finds closest unexplored space to home
-    let minDistance;
-    let closestCoords = [];
-    map.forEach((row, rowIndex) => {
-        row.forEach((sector, colIndex) => {
-            if (sector.status === STATUSES.unknown.enum) {
-                const distance = sector.distanceHome;
-                if (minDistance === undefined || distance < minDistance) {
-                    minDistance = distance;
-                    closestCoords = [[rowIndex, colIndex]];
-                }
-                else if (distance === minDistance) {
-                    closestCoords.push([rowIndex, colIndex]);
-                }
-            }
-        });
-    });
-    const coord = getRandomFromArray(closestCoords);
-    return coord === undefined ? [undefined, undefined] : coord;
 }
 
 // returns array of coords to develop

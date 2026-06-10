@@ -129,12 +129,12 @@ MERIDIANS.forEach((meridianColumns, meridianIndex) => {
 
 // Steps one tile in a compass direction, following the meridian line for north/south. Single-valued and lossy near
 // the poles. Should be used for generation/visuals only, NOT gameplay adjacency (use getAdjacentCoords for that).
-export function getAdjCoordInDirection(currentCoord, direction) {
+export function meridianStepInDirection(currentCoord, direction) {
     const [rowOffset, colOffset] = directionToOffset(direction);
-    return getCoordAtOffset(currentCoord, rowOffset, colOffset);
+    return meridianStepByOffset(currentCoord, rowOffset, colOffset);
 }
 
-function getCoordAtOffset(currentCoord, rowOffset, colOffset) {
+function meridianStepByOffset(currentCoord, rowOffset, colOffset) {
     let newRow = currentCoord[0];
     let newCol = currentCoord[1];
     let meridian = COORD_TO_MERIDIAN_LOOKUP[currentCoord[0]][currentCoord[1]]
@@ -176,7 +176,7 @@ function directionToOffset(direction) {
  * nav forced one tile per direction and dropped the rest, which left holes and broke symmetry. Keeping every overlap
  * is what makes explored regions fill solid.
  */
-function getVerticalNeighborCols(rowIndex, colIndex, otherRowIndex) {
+function getOverlappingCols(rowIndex, colIndex, otherRowIndex) {
     const rowLength = PLANET_ROW_LENGTHS[rowIndex];
     const otherRowLength = PLANET_ROW_LENGTHS[otherRowIndex];
     const startFraction = colIndex / rowLength;
@@ -204,10 +204,10 @@ const ADJACENT_COORDS = createArray(NUM_PLANET_ROWS, (rowIndex) => {
             [rowIndex, mod(colIndex + 1, rowLength)],
         ];
         if (rowIndex > 0) {
-            getVerticalNeighborCols(rowIndex, colIndex, rowIndex - 1).forEach(c => neighbors.push([rowIndex - 1, c]));
+            getOverlappingCols(rowIndex, colIndex, rowIndex - 1).forEach(c => neighbors.push([rowIndex - 1, c]));
         }
         if (rowIndex < NUM_PLANET_ROWS - 1) {
-            getVerticalNeighborCols(rowIndex, colIndex, rowIndex + 1).forEach(c => neighbors.push([rowIndex + 1, c]));
+            getOverlappingCols(rowIndex, colIndex, rowIndex + 1).forEach(c => neighbors.push([rowIndex + 1, c]));
         }
         return neighbors;
     });
@@ -221,7 +221,7 @@ export function getAdjacentCoords(coord) {
 
 // Flood-fills outward from `coord` along the coverage graph and returns every coord within `steps` hops
 // (excluding `coord` itself). Used to reveal a small contiguous blob, e.g. the area around the home base.
-export function getCoordsWithinSteps(coord, steps = 1) {
+export function getCoordsWithinHops(coord, steps = 1) {
     const visited = new Set([`${coord[0]},${coord[1]}`]);
     let frontier = [coord];
     const result = [];
@@ -252,7 +252,7 @@ export function getCoordsWithinSteps(coord, steps = 1) {
 // NOTE: this measures column distance in a per-row-centered frame, which is only unbiased when the reference point sits
 // at longitude 0.5. For off-center points it skews diagonally, so prefer graph distance (BFS hops on the coverage
 // graph) for anything directional like exploration ordering.
-export function getDistanceBetweenCoords(coord1, coord2) {
+export function getApproxDistance(coord1, coord2) {
     const coord1Row = coord1[0];
     const coord2Row = coord2[0];
     const rowOffset = Math.abs(coord2Row - coord1Row);
@@ -268,4 +268,31 @@ export function getDistanceBetweenCoords(coord1, coord2) {
     // This is not the same as triangular distance (sqrt(a^2 + b^2)); we have to weigh the row distance more heavily
     // because text characters are taller than they are wide. No need to sqrt because we just care about distance ratios
     return roundToDecimal(rowOffset**(1.5) + colOffset, 5);
+}
+
+// BFS hop-distance from `fromCoord` to every tile, over the coverage graph. This is pure topology -- it ignores terrain
+// and passability -- so the graph is fully connected and every tile gets a finite distance. Unlike
+// getApproxDistance it has no directional bias, which makes it the right metric for ordering exploration
+// (closest-to-home first => exploration spreads as a clean ring). Returns a 2D array: distances[row][col].
+export function getGraphDistancesFrom(fromCoord) {
+    const distances = PLANET_ROW_LENGTHS.map(rowLength => createArray(rowLength, () => Infinity));
+    distances[fromCoord[0]][fromCoord[1]] = 0;
+
+    let frontier = [fromCoord];
+    let distance = 0;
+    while (frontier.length > 0) {
+        distance++;
+        const nextFrontier = [];
+        frontier.forEach(coord => {
+            getAdjacentCoords(coord).forEach(([row, col]) => {
+                if (distances[row][col] === Infinity) {
+                    distances[row][col] = distance;
+                    nextFrontier.push([row, col]);
+                }
+            });
+        });
+        frontier = nextFrontier;
+    }
+
+    return distances;
 }

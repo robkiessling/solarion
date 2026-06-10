@@ -6,13 +6,12 @@ import {
     getCurrentDevelopmentArea,
     getHomeBasePosition,
     getNextDevelopmentArea,
-    getNextExplorableSector,
-    isMapFullyExplored,
     NUM_SECTORS,
     numSectorsMatching,
     STATUSES, sunTrackingRotation,
     TERRAINS
 } from "../../lib/planet_map";
+import {getNextExplorableSector, isExplorationComplete} from "../../lib/planet_pathing";
 import {batch} from "react-redux";
 import * as fromClock from "./clock";
 
@@ -311,7 +310,7 @@ export function planetTick(timeDelta) {
                 }
             });
 
-            if (isMapFullyExplored(state.map)) {
+            if (isExplorationComplete(state.map)) {
                 dispatch(finishExploringMap());
             }
             else {
