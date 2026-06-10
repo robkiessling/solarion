@@ -18,7 +18,7 @@ const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE = NORMAL_BOOTUP; /* Controls overall game mode */
+const GAME_MODE = SKIP_TO_GLOBE; /* Controls overall game mode */
 
 
 export default {
@@ -55,6 +55,7 @@ export default {
             dispatch(fromAbilities.learn('commandCenter_charge'));
 
             dispatch(fromUpgrades.researchForFree('commandCenter_showTerminal'));
+            dispatch(fromUpgrades.researchForFree('commandCenter_showResourceBar'));
             dispatch(fromUpgrades.researchForFree('commandCenter_showPlanetStatus'));
             dispatch(fromUpgrades.researchForFree('commandCenter_showResourceRates'));
             dispatch(fromUpgrades.researchForFree('commandCenter_openShutters'));
@@ -259,6 +260,7 @@ export default {
             dispatch(fromStructures.buildForFree('droidFactory', 1));
 
             dispatch(fromUpgrades.skipResearch('commandCenter_showTerminal'));
+            dispatch(fromUpgrades.skipResearch('commandCenter_showResourceBar'));
             dispatch(fromUpgrades.skipResearch('commandCenter_showPlanetStatus'));
             dispatch(fromUpgrades.skipResearch('commandCenter_showResourceRates'));
             dispatch(fromUpgrades.skipResearch('commandCenter_openShutters'));

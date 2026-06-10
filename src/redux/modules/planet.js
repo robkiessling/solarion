@@ -1,9 +1,8 @@
 import update from 'immutability-helper';
 import {recalculateState, withRecalculation} from "../reducer";
 import {
-    canMoveExpedition,
     COOK_TIME,
-    generateRandomMap, getAdjacentCoords, getAdjacentCoords2x, getAdjCoordForPlayer,
+    generateRandomMap,
     getCurrentDevelopmentArea,
     getHomeBasePosition,
     getNextDevelopmentArea,
@@ -34,7 +33,6 @@ export const START_COOK = 'planet/START_COOK';
 export const INCREMENT_COOK = 'planet/INCREMENT_COOK';
 
 export const START_EXPEDITION = 'planet/START_EXPEDITION';
-export const MOVE_EXPEDITION = 'planet/MOVE_EXPEDITION';
 export const STOP_EXPEDITION = 'planet/STOP_EXPEDITION';
 
 const OVERALL_MAP_STATUS = {
@@ -49,7 +47,7 @@ export const EXPEDITION_STATUS = {
     inEvent: 'inEvent',
 }
 
-const MAX_DROIDS_PER_SECTOR = 5;
+const MAX_DROIDS_PER_SECTOR = 1;
 
 // Initial State
 const initialState = {
@@ -221,20 +219,6 @@ export default function reducer(state = initialState, action) {
                     status: { $set: EXPEDITION_STATUS.unstarted },
                 }
             })
-        case MOVE_EXPEDITION:
-            updates = {
-                rotation: { $set: payload.rotation },
-                expedition: {
-                    position: { $set: payload.coord }
-                },
-                map: {}
-            }
-            payload.adjCoords.forEach(coord => {
-                if (updates.map[coord[0]] === undefined) { updates.map[coord[0]] = {} }
-                updates.map[coord[0]][coord[1]] = { status: { $set: STATUSES.explored.enum } }
-            })
-
-            return update(state, updates)
         default:
             return state;
     }
@@ -357,31 +341,6 @@ export function startExpedition() {
 export function stopExpedition() {
     return { type: STOP_EXPEDITION, payload: {} };
 }
-
-// movement: left/right = getLatitudeForCoord(left/right coord)
-// movement: up/down = same latitude
-export function moveExpedition(direction) {
-    return function(dispatch, getState) {
-        const state = getState().planet;
-
-        if (state.expedition.status !== EXPEDITION_STATUS.exploring) {
-            return;
-        }
-
-        const destination = getAdjCoordForPlayer(state.expedition.position, state.rotation, direction);
-        if (canMoveExpedition(state.map, destination.coord)) {
-            dispatch({
-                type: MOVE_EXPEDITION,
-                payload: {
-                    rotation: destination.rotation,
-                    coord: destination.coord,
-                    adjCoords: getAdjacentCoords2x(destination.coord)
-                }
-            });
-        }
-    }
-}
-
 
 // Standard functions
 

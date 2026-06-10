@@ -99,6 +99,57 @@ MERIDIANS.forEach((meridianColumns, meridianIndex) => {
 
 
 /**
+ * GAMEPLAY ADJACENCY -- the "coverage graph".
+ *
+ * Compass directions don't survive rotation on a sphere, so we don't use them for gameplay. Instead, each tile covers a
+ * slice of longitude -- (row, col) spans [col / rowLength, (col + 1) / rowLength) -- and two tiles are neighbors if they
+ * sit side by side in a row (col +/- 1, wrapping) or in adjacent rows with overlapping longitude slices. The result is
+ * symmetric, fully connected, and renders as a solid blob at any angle (exploration reveals ALL overlapping neighbors).
+ *
+ * The catch vs. meridian nav: a tile does NOT have a fixed 4 neighbors. At the equator it does, but near the poles rows
+ * differ in length so one tile sits over MULTIPLE tiles in the next row (e.g. row-0 col 5 covers row-1 cols 10/11/12).
+ * Meridian nav forced one tile per direction and dropped the rest -- which left holes and broke symmetry. Keeping every
+ * overlap is what fills solid; storing it as {up, down, left, right} would re-introduce the lossy single-pick.
+ */
+function getVerticalNeighborCols(rowIndex, colIndex, otherRowIndex) {
+    const rowLength = PLANET_ROW_LENGTHS[rowIndex];
+    const otherRowLength = PLANET_ROW_LENGTHS[otherRowIndex];
+    const startFraction = colIndex / rowLength;
+    const endFraction = (colIndex + 1) / rowLength;
+
+    const neighborCols = [];
+    const firstCol = Math.floor(startFraction * otherRowLength);
+    const lastCol = Math.ceil(endFraction * otherRowLength);
+    for (let otherCol = firstCol; otherCol < lastCol; otherCol++) {
+        const overlap = Math.min(endFraction, (otherCol + 1) / otherRowLength) -
+            Math.max(startFraction, otherCol / otherRowLength);
+        if (overlap > 1e-9) { // strictly overlapping (not merely touching at a boundary)
+            neighborCols.push(mod(otherCol, otherRowLength));
+        }
+    }
+    return neighborCols;
+}
+
+// ADJACENT_COORDS[row][col] => array of [row, col] neighbor coords. Precomputed once since the topology never changes.
+const ADJACENT_COORDS = createArray(NUM_PLANET_ROWS, (rowIndex) => {
+    const rowLength = PLANET_ROW_LENGTHS[rowIndex];
+    return createArray(rowLength, (colIndex) => {
+        const neighbors = [
+            [rowIndex, mod(colIndex - 1, rowLength)],
+            [rowIndex, mod(colIndex + 1, rowLength)],
+        ];
+        if (rowIndex > 0) {
+            getVerticalNeighborCols(rowIndex, colIndex, rowIndex - 1).forEach(c => neighbors.push([rowIndex - 1, c]));
+        }
+        if (rowIndex < NUM_PLANET_ROWS - 1) {
+            getVerticalNeighborCols(rowIndex, colIndex, rowIndex + 1).forEach(c => neighbors.push([rowIndex + 1, c]));
+        }
+        return neighbors;
+    });
+});
+
+
+/**
  * If DISCRETE_ROTATION is true, each rotation step will occur an equal amount of time apart. Only some rows will
  * move though because some rows have farther to move than others.
  *
@@ -226,7 +277,7 @@ export function generateRandomMap() {
 
     if (ADD_MOUNTAINS) addMountainRanges(map);
 
-    addIceCaps(map);
+    // addIceCaps(map);
 
     if (SHOW_DEBUG_MERIDIANS) generateDebugMeridians(map);
 
@@ -407,7 +458,7 @@ function addHomeBase(map) {
 
     // Explore adjacent sectors to base
     if (START_WITH_ADJ_EXPLORED) {
-        getAdjacentCoords2x([homeRow, homeCol]).forEach(([row, col]) => {
+        getCoordsWithinSteps([homeRow, homeCol], 1).forEach(([row, col]) => {
             map[row][col].status = STATUSES.explored.enum
         });
     }
@@ -446,7 +497,7 @@ function isSameCoord(coord1, coord2) {
     return coord1[0] === coord2[0] && coord1[1] === coord2[1];
 }
 
-export function canMoveExpedition(map, destinationCoord) {
+export function isPassable(map, destinationCoord) {
     if (destinationCoord === null) { return false; }
 
     const destinationSector = map[destinationCoord[0]][destinationCoord[1]];
@@ -459,35 +510,45 @@ export function canMoveExpedition(map, destinationCoord) {
     return true;
 }
 
+// Gameplay adjacency: returns the coverage-graph neighbors of a tile (see ADJACENT_COORDS above).
+// NOTE: returns the cached neighbor list -- treat as read-only, do not mutate the returned array or its coords.
 export function getAdjacentCoords(coord) {
-    return ALL_DIRECTIONS
-        .map(direction => getAdjCoordInDirection(coord, direction))
-        .filter(coord => coord !== null);
+    return ADJACENT_COORDS[coord[0]][coord[1]];
 }
 
-export function getAdjacentCoords2x(currentCoord) {
-    const coords = []
+// Flood-fills outward from `coord` along the coverage graph and returns every coord within `steps` hops
+// (excluding `coord` itself). Used to reveal a small contiguous blob, e.g. the area around the home base.
+export function getCoordsWithinSteps(coord, steps = 1) {
+    const visited = new Set([`${coord[0]},${coord[1]}`]);
+    let frontier = [coord];
+    const result = [];
 
-    for (let rowOffset = -2; rowOffset <= 2; rowOffset++) {
-        for (let colOffset = -2; colOffset <= 2; colOffset++) {
-            if (rowOffset === 0 && colOffset === 0) {
-                continue; // currentCoord
-            }
-            if (Math.abs(rowOffset) === 2 && Math.abs(colOffset) === 2) {
-                continue; // ignore corners
-            }
-            coords.push(getCoordAtOffset(currentCoord, rowOffset, colOffset))
-        }
+    for (let step = 0; step < steps; step++) {
+        const nextFrontier = [];
+        frontier.forEach(current => {
+            getAdjacentCoords(current).forEach(neighbor => {
+                const key = `${neighbor[0]},${neighbor[1]}`;
+                if (!visited.has(key)) {
+                    visited.add(key);
+                    nextFrontier.push(neighbor);
+                    result.push(neighbor);
+                }
+            });
+        });
+        frontier = nextFrontier;
     }
 
-    return coords.filter(coord => coord !== null);
+    return result;
 }
 
+// NOTE: meridian-based directional stepping. This is NOT gameplay adjacency (use getAdjacentCoords for that). It is
+// kept only for map generation (mountain ranges walk in a primary direction) and debug/sector visuals.
 function getAdjCoordInDirection(currentCoord, direction) {
     const [rowOffset, colOffset] = directionToOffset(direction);
     return getCoordAtOffset(currentCoord, rowOffset, colOffset);
 }
 
+// See getAdjCoordInDirection note: meridian-based, for generation/visuals only, not gameplay adjacency.
 function getCoordAtOffset(currentCoord, rowOffset, colOffset) {
 
     let newRow = currentCoord[0];
@@ -507,42 +568,6 @@ function getCoordAtOffset(currentCoord, rowOffset, colOffset) {
     }
 
     return [newRow, newCol]
-}
-
-// Player moves differently than getAdjCoordInDirection -- we do NOT follow meridians
-// When moving left/right, simply increment/decrement column and return the new planet rotation (to keep player at center)
-// When moving up/down, increment/decrement row, and possibly shift column so that they are on the same DISPLAYED column
-export function getAdjCoordForPlayer(currentCoord, currentRotation, direction) {
-    const [rowOffset, colOffset] = directionToOffset(direction);
-
-    let newRow = currentCoord[0];
-    let newCol = currentCoord[1];
-    let newRotation = currentRotation;
-
-    if (rowOffset !== 0) { // north/south movement -- maintain same DISPLAYED column
-        newRow += rowOffset;
-        if (newRow < 0 || newRow >= NUM_PLANET_ROWS) {
-            return { coord: null, rotation: null }; // Cannot pass north/south edge
-        }
-
-        // find the column above the current column according to the current planet rotation
-        const currentDisplayStart = floor(newRotation * PLANET_ROW_LENGTHS[currentCoord[0]]);
-        const currentDisplayIndent = mod(currentCoord[1] - currentDisplayStart, PLANET_ROW_LENGTHS[currentCoord[0]]);
-
-        const destDisplayStart = floor(newRotation * PLANET_ROW_LENGTHS[newRow]);
-        const destDisplayIndent = currentDisplayIndent + Math.round((DISPLAY_ROW_LENGTHS[newRow] - DISPLAY_ROW_LENGTHS[currentCoord[0]]) / 2);
-        newCol = mod(destDisplayStart + destDisplayIndent, PLANET_ROW_LENGTHS[newRow]);
-    }
-
-    if (colOffset !== 0) { // west/east movement -- get coord one column over and update rotation
-        newCol = mod(newCol + colOffset, PLANET_ROW_LENGTHS[newRow]); // column can wrap around globe
-        newRotation = mod(newRotation + colOffset / PLANET_ROW_LENGTHS[newRow], 1);
-    }
-
-    return {
-        coord: [newRow, newCol],
-        rotation: newRotation,
-    }
 }
 
 function directionToOffset(direction) {
@@ -685,7 +710,7 @@ export function sunTrackingRotation(fractionOfDay) {
     return mod(rotation + SUN_TRACKING_INSET, 1);
 }
 
-export function generateImage(map, expedition, fractionOfDay, rotation, sunTracking, cookedPct) {
+export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct) {
     let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
     let nightEnd = (fractionOfDay + NIGHT_END) % 1;
 
@@ -710,11 +735,17 @@ export function generateImage(map, expedition, fractionOfDay, rotation, sunTrack
                 className = TERRAINS_BY_ENUM[sector.terrain].className;
             }
 
-            if (expedition) {
-                if (isSameCoord(expedition.position, sector.coord)) {
-                    className += ' exploring'
-                }
+            if (sector.status === STATUSES.exploring.enum) {
+                className += ' exploring'
+                const pct = `${sector.exploreProgress / (sector.exploreLength * 1000) * 100}%`
+                style = { background: `linear-gradient(90deg, rgba(0,0,0,0) ${pct}, rgba(255,255,255,0.2) ${pct})` }
             }
+
+            // if (sector.status !== STATUSES.unknown.enum && getAdjacentCoords([rowIndex, sector.planetColIndex]).some(other => {
+            //     return map[other[0]][other[1]].status === STATUSES.unknown.enum
+            // })) {
+            //     className += ' exploring'
+            // }
 
             if (sector.sectorDividerLeft) { className += ' sector-divider-left' }
             if (sector.sectorDividerRight) { className += ' sector-divider-right' }
@@ -752,7 +783,7 @@ export function generateImage(map, expedition, fractionOfDay, rotation, sunTrack
                 const lightClass =
                     getTwilightClass(planetFraction, nightStart, nightEnd) ||
                     getNightClass(planetFraction, nightStart, nightEnd);
-                className += ` ${lightClass}`;
+                // className += ` ${lightClass}`;
                 if (lightClass.length) { isDay = false; }
             }
 

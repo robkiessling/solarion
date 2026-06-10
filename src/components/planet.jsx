@@ -35,7 +35,6 @@ class Planet extends React.Component {
 
         const planetImage = generateImage(
             this.props.map,
-            this.props.expedition.status === EXPEDITION_STATUS.unstarted ? null : this.props.expedition,
             this.props.fractionOfDay,
             this.props.rotation,
             this.props.sunTracking,
