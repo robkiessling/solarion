@@ -33,12 +33,20 @@ class Planet extends React.Component {
     render() {
         const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.developed];
 
+        const droidCounts = {};
+        (this.props.droids || []).forEach(droid => {
+            if (!droid.coord) return;
+            const key = `${droid.coord[0]},${droid.coord[1]}`;
+            droidCounts[key] = (droidCounts[key] || 0) + 1;
+        });
+
         const planetImage = generateImage(
             this.props.map,
             this.props.fractionOfDay,
             this.props.rotation,
             this.props.sunTracking,
-            this.props.cookedPct
+            this.props.cookedPct,
+            droidCounts
         );
 
         return (
@@ -84,6 +92,7 @@ const mapStateToProps = state => {
     return {
         visible: state.game.currentNavTab === 'planet',
         map: state.planet.map,
+        droids: state.planet.droids,
         elapsedTime: state.clock.elapsedTime,
         expedition: state.planet.expedition,
         fractionOfDay: fromClock.fractionOfDay(state.clock),

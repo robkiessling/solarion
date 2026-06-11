@@ -1,86 +1,67 @@
 import { getRandomFromArray } from "./helpers";
-import { getAdjacentCoords } from "./planet_geometry";
+import { MinHeap } from "./min_heap";
+import { getAdjacentCoords, PLANET_ROW_LENGTHS, WIDEST_PLANET_ROW } from "./planet_geometry";
 import { getCrossTime, isPassable, STATUSES } from "./planet_map";
 
 /**
- * planet_pathing -- where droids decide what to explore next.
+ * planet_pathing.js: where droids decide where to explore and how to get there.
  *
- * Built on the coverage graph from planet_geometry (gameplay adjacency) plus terrain/status from planet_map. The
- * dependency points one way (pathing -> map -> geometry), so planet_map must never import from here.
+ * One-way dependency on planet_geometry and planet_map; they should never import from here.
  *
- * The core idea is the "exploration frontier": exploration can only ever expand into tiles that are (a) still unknown,
- * (b) passable, and (c) adjacent to something already explored. Because every newly-explored tile only opens up its own
- * neighbors, the explored region grows as one contiguous blob and automatically routes around impassable terrain
- * (mountains/ice) -- it never teleports across gaps and never explores behind a barrier it can't reach.
+ * Exploration model: a droid reveals the tiles around wherever it stands (line-of-sight). So to uncover the map it walks
+ * to a "lookout" (an explored, passable tile that still borders an unknown) and standing there reveals that unknown.
+ * Droids don't actually step onto unknown tiles; they survey from known ground.
  */
 
 const UNKNOWN = STATUSES.unknown.enum;
 const EXPLORED = STATUSES.explored.enum;
 
-// Returns every frontier coord: unknown + passable + adjacent to an explored tile. These are the only tiles
-// exploration is allowed to expand into this step.
-export function getExplorationFrontier(map) {
+// True if `coord` borders at least one still-unknown tile.
+function hasUnknownNeighbor(map, coord) {
+    return getAdjacentCoords(coord).some(([r, c]) => map[r][c].status === UNKNOWN);
+}
+
+/**
+ * The "lookout" tiles: explored, passable tiles that still border an unknown. Standing on one reveals that unknown, so
+ * these are the tiles worth visiting (one next to an unknown mountain counts too; visiting it reveals the wall).
+ */
+export function getExplorationFrontier(map, unlocks = {}) {
     const frontier = [];
 
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
-            if (sector.status !== UNKNOWN) return;
-            if (!isPassable(map, [rowIndex, colIndex])) return;
-
-            const touchesExplored = getAdjacentCoords([rowIndex, colIndex])
-                .some(([r, c]) => map[r][c].status === EXPLORED);
-            if (touchesExplored) frontier.push([rowIndex, colIndex]);
+            if (sector.status !== EXPLORED) return;
+            if (!isPassable(map, [rowIndex, colIndex], unlocks)) return;
+            if (hasUnknownNeighbor(map, [rowIndex, colIndex])) frontier.push([rowIndex, colIndex]);
         });
     });
 
     return frontier;
 }
 
-// Picks the next sector to explore: the frontier tile closest to home by GRAPH distance (cached as
-// sector.graphDistanceHome), so exploration spreads as a clean ring outward rather than jumping around the perimeter.
-// Ties are broken randomly. Returns [undefined, undefined] when nothing is reachable (frontier exhausted).
-export function getNextExplorableSector(map) {
-    const frontier = getExplorationFrontier(map);
-    if (frontier.length === 0) return [undefined, undefined];
-
-    let minDistance = Infinity;
-    let closestCoords = [];
-    frontier.forEach(coord => {
-        const distance = map[coord[0]][coord[1]].graphDistanceHome;
-        if (distance < minDistance) {
-            minDistance = distance;
-            closestCoords = [coord];
-        } else if (distance === minDistance) {
-            closestCoords.push(coord);
-        }
-    });
-
-    return getRandomFromArray(closestCoords);
-}
-
-// Exploration is complete when there is nothing left to expand into. Note this can happen before every tile is
-// explored: impassable barriers (mountains/ice, until researched) seal off whatever sits behind them.
-export function isExplorationComplete(map) {
-    return getExplorationFrontier(map).length === 0;
+/**
+ * Done when no lookouts remain. Any unknowns left then can't be viewed from reachable ground (mountain interiors, sealed
+ * pockets) until a crossing upgrade (via `unlocks`) makes that terrain passable and re-opens the frontier.
+ */
+export function isExplorationComplete(map, unlocks = {}) {
+    return getExplorationFrontier(map, unlocks).length === 0;
 }
 
 
 // =====================================================================================================================
-// Pathing
+// Pathing:
 //
-// Weighted shortest-path (Dijkstra) over the coverage graph, using each tile's crossTime as the edge cost. Droids only
-// ever travel over revealed, passable terrain, so paths route around (and -- once researched -- slowly through)
-// barriers automatically.
+// Weighted shortest paths (Dijkstra) over the coverage graph, edge cost = each tile's crossTime. Droids only
+// travel revealed, passable terrain, so paths route around (and, once unlocked, slowly through) barriers for free.
 //
-// findPath() is the generic primitive: a route from A to any destination B. The auto-explorer
-// (findNearestUnknownTarget) is just one caller of the same machinery, so supporting user-CHOSEN destinations later is
-// only a matter of calling findPath() with the chosen coord -- no rework of movement or pathing.
+// findPath() is the generic primitive; findNearestLookout() is just one caller of the same Dijkstra.
 // =====================================================================================================================
 
-// Shortest route from `fromCoord` to a specific destination, as an array of step coords (excludes start, includes
-// destination), or null if unreachable. The destination may itself be an as-yet-unrevealed frontier tile -- it's
-// reached as the final step from an adjacent traversable tile. This is the entry point a future "send droid to a
-// chosen tile" feature would call; the auto-explorer below is just another caller.
+/**
+ * Shortest route from `fromCoord` to a specific `toCoord`, as step coords (excludes start, includes destination), or
+ * null if unreachable. `toCoord` may be an unknown frontier tile; it's reached as the final step off an adjacent
+ * traversable tile. TODO This is the primitive a future "send a droid here" feature would call.
+ */
 export function findPath(map, fromCoord, toCoord, { unlocks = {} } = {}) {
     const { dist, prev } = dijkstra(map, fromCoord, unlocks);
     const toK = coordKey(toCoord);
@@ -108,34 +89,73 @@ export function findPath(map, fromCoord, toCoord, { unlocks = {} } = {}) {
     return [...viaPath, toCoord];
 }
 
-// Auto-explore target: the nearest reachable unknown+passable tile to `fromCoord` by travel time, skipping any already
-// claimed by another droid. Returns { target, path } (path excludes start, ends on target), or null if none reachable.
-// Picking nearest-to-the-DROID (not nearest-to-home) is what makes a droid nibble outward contiguously instead of
-// jumping around the perimeter.
-export function findNearestUnknownTarget(map, fromCoord, { claimed = new Set(), unlocks = {} } = {}) {
-    const { dist, prev } = dijkstra(map, fromCoord, unlocks);
+/**
+ * The auto-explorer's pick: the nearest lookout to `fromCoord` (see getExplorationFrontier), reached over explored
+ * terrain. Returns { target, path, heading } (path excludes start, ends on the lookout) or null when nothing's left to
+ * reveal. Among equidistant lookouts it follows `heading` (random if none) so droids attempt to walk in a straight
+ * direction. This means a fresh batch fans out, and it avoids lookouts already claimed by others (falling back to a
+ * claimed one only when that's all that's reachable).
+ */
+export function findNearestLookout(map, fromCoord, { claimed = new Set(), unlocks = {}, heading = null } = {}) {
+    // Dijkstra outward, but stop once we can't beat the nearest lookout found. Lookouts sit right at the frontier the
+    // droid just revealed, so in the common case this only explores a tiny local radius (not the whole explored map).
+    const startKey = coordKey(fromCoord);
+    const dist = { [startKey]: 0 };
+    const prev = {};
+    const settled = new Set();
+    const heap = new MinHeap();
+    heap.push(0, fromCoord);
 
-    let best = null;
-    let bestCost = Infinity;
-    Object.keys(dist).forEach(k => {
-        const [row, col] = k.split(',').map(Number);
-        getAdjacentCoords([row, col]).forEach(neighbor => {
-            const sector = map[neighbor[0]][neighbor[1]];
-            if (sector.status !== UNKNOWN) return;
-            if (!isPassable(map, neighbor, unlocks)) return;
-            if (claimed.has(coordKey(neighbor))) return;
-            const cost = dist[k] + getCrossTime(sector.terrain, unlocks);
-            if (cost < bestCost) {
-                bestCost = cost;
-                best = { target: neighbor, via: [row, col] };
+    const candidates = [];
+    let minCost = Infinity;
+    // Nearest already-claimed lookout, used only if no unclaimed one is reachable (sparse end-game): head there anyway,
+    // beating the faraway claimer, rather than sit idle.
+    let claimedFallback = null;
+    let claimedFallbackCost = Infinity;
+
+    while (heap.size > 0) {
+        const { priority: distance, value: coord } = heap.pop();
+        if (distance > minCost) break; // nothing reachable from here can tie/beat the nearest unclaimed lookout found
+        const k = coordKey(coord);
+        if (settled.has(k)) continue;
+        settled.add(k);
+
+        // This tile is a lookout if it borders an unknown. Prefer unclaimed; remember the nearest claimed as a fallback.
+        if (k !== startKey && hasUnknownNeighbor(map, coord)) {
+            if (!claimed.has(k)) {
+                candidates.push({ target: coord, cost: distance });
+                if (distance < minCost) minCost = distance;
+            } else if (distance < claimedFallbackCost) {
+                claimedFallbackCost = distance;
+                claimedFallback = coord;
+            }
+        }
+
+        getAdjacentCoords(coord).forEach(neighbor => {
+            if (!isTraversable(map, neighbor, unlocks)) return; // only travel over explored, passable terrain
+            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, unlocks);
+            const nk = coordKey(neighbor);
+            if (newDist < (dist[nk] ?? Infinity)) {
+                dist[nk] = newDist;
+                prev[nk] = coord;
+                heap.push(newDist, neighbor);
             }
         });
-    });
-    if (best === null) return null;
+    }
 
-    const viaPath = coordKey(best.via) === coordKey(fromCoord) ? [] : reconstructPath(prev, fromCoord, best.via);
-    if (viaPath === null) return null;
-    return { target: best.target, path: [...viaPath, best.target] };
+    let chosenTarget;
+    if (candidates.length > 0) {
+        const nearest = candidates.filter(c => c.cost <= minCost + 1e-9);
+        chosenTarget = pickByHeading(nearest, fromCoord, heading).target;
+    } else if (claimedFallback !== null) {
+        chosenTarget = claimedFallback;
+    } else {
+        return null;
+    }
+
+    const path = reconstructPath(prev, fromCoord, chosenTarget);
+    if (path === null) return null;
+    return { target: chosenTarget, path, heading: bearing(fromCoord, chosenTarget) };
 }
 
 
@@ -146,20 +166,19 @@ function isTraversable(map, coord, unlocks) {
     return map[coord[0]][coord[1]].status === EXPLORED && isPassable(map, coord, unlocks);
 }
 
-// Dijkstra from `fromCoord` over all traversable tiles. Returns { dist, prev } keyed by "row,col" (coordKey). The start
-// tile is always seeded even if it weren't otherwise traversable.
+/**
+ * Dijkstra from `fromCoord` over all traversable tiles, using a binary min-heap (min_heap.js) so it runs in O(E log V).
+ * Returns { dist, prev } keyed by "row,col" (coordKey). The start tile is always seeded even if not otherwise traversable.
+ */
 function dijkstra(map, fromCoord, unlocks) {
     const dist = { [coordKey(fromCoord)]: 0 };
     const prev = {};
     const settled = new Set();
-    const queue = [[0, fromCoord]];
+    const heap = new MinHeap();
+    heap.push(0, fromCoord);
 
-    while (queue.length > 0) {
-        let minIndex = 0;
-        for (let i = 1; i < queue.length; i++) {
-            if (queue[i][0] < queue[minIndex][0]) minIndex = i;
-        }
-        const [distance, coord] = queue.splice(minIndex, 1)[0];
+    while (heap.size > 0) {
+        const { priority: distance, value: coord } = heap.pop();
         const k = coordKey(coord);
         if (settled.has(k)) continue;
         settled.add(k);
@@ -171,7 +190,7 @@ function dijkstra(map, fromCoord, unlocks) {
             if (newDist < (dist[nk] ?? Infinity)) {
                 dist[nk] = newDist;
                 prev[nk] = coord;
-                queue.push([newDist, neighbor]);
+                heap.push(newDist, neighbor);
             }
         });
     }
@@ -179,8 +198,10 @@ function dijkstra(map, fromCoord, unlocks) {
     return { dist, prev };
 }
 
-// Walks the `prev` chain back from `toCoord` to `fromCoord`, returning the coords stepped through (excludes the start,
-// includes `toCoord`). Returns null if `toCoord` was never reached.
+/**
+ * Walks the `prev` chain back from `toCoord` to `fromCoord`, returning the coords stepped through (excludes the start,
+ * includes `toCoord`). Returns null if `toCoord` was never reached.
+ */
 function reconstructPath(prev, fromCoord, toCoord) {
     const fromK = coordKey(fromCoord);
     const path = [];
@@ -191,4 +212,39 @@ function reconstructPath(prev, fromCoord, toCoord) {
         if (current === undefined) return null;
     }
     return path;
+}
+
+/**
+ * Of several equidistant candidates, pick the one whose direction best matches `heading` (dot of unit vectors). With no
+ * heading (a just-deployed droid), pick randomly so a batch spreads out instead of all charging the same way.
+ */
+function pickByHeading(candidates, fromCoord, heading) {
+    if (candidates.length === 1) return candidates[0];
+    if (!heading || (heading[0] === 0 && heading[1] === 0)) return getRandomFromArray(candidates);
+
+    const headingMag = Math.hypot(heading[0], heading[1]) || 1;
+    let best = null;
+    let bestScore = -Infinity;
+    candidates.forEach(candidate => {
+        const b = bearing(fromCoord, candidate.target);
+        const bMag = Math.hypot(b[0], b[1]) || 1;
+        const score = (b[0] * heading[0] + b[1] * heading[1]) / (bMag * headingMag);
+        if (score > bestScore) {
+            bestScore = score;
+            best = candidate;
+        }
+    });
+    return best;
+}
+
+/**
+ * Direction from one coord to another in "centered column" space, so a heading reads as roughly straight on the
+ * rendered globe. Column wrap is ignored (this is only ever used for nearby targets).
+ */
+function bearing(fromCoord, toCoord) {
+    const centeredCol = (row, col) => col + (WIDEST_PLANET_ROW - PLANET_ROW_LENGTHS[row]) / 2;
+    return [
+        toCoord[0] - fromCoord[0],
+        centeredCol(toCoord[0], toCoord[1]) - centeredCol(fromCoord[0], fromCoord[1]),
+    ];
 }

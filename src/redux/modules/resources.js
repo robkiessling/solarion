@@ -64,9 +64,9 @@ export default function reducer(state = initialState, action) {
             return produceReducer(state, { standardDroids: payload.amount }, false)
         case fromPlanet.GENERATE_MAP:
             return produceReducer(state, { buildableLand: numSectorsMatching(payload.map, STATUSES.explored.enum, TERRAINS.flatland.enum) })
-        case fromPlanet.FINISH_EXPLORING_SECTOR:
-            const sectorIsFlatland = payload.sector.terrain === TERRAINS.flatland.enum;
-            return sectorIsFlatland ? produceReducer(state, { buildableLand: 1 }) : state;
+        case fromPlanet.PROGRESS:
+            // Droids reveal tiles as they explore; each newly-revealed flatland tile adds buildable land.
+            return payload.revealedFlatland > 0 ? produceReducer(state, { buildableLand: payload.revealedFlatland }) : state;
         default:
             return state;
     }

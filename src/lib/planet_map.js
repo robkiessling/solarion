@@ -65,7 +65,7 @@ const EXPLORE_EVERYTHING = false;
 const MARK_SECTORS = false;
 const LOG_MAP = false;
 
-const EXPLORATION_TIME_FACTOR = 5; // The fastest area takes this amount of time to explore
+const EXPLORATION_TIME_FACTOR = 0.5; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = true;
 
 /**
@@ -463,7 +463,9 @@ export function sunTrackingRotation(fractionOfDay) {
     return mod(rotation + SUN_TRACKING_INSET, 1);
 }
 
-export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct) {
+// droidCounts: { "row,col": numberOfDroidsThere } -- drawn as a solid count glyph over the tile (home tile excluded,
+// since droids are "docked" there).
+export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, droidCounts = {}) {
     let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
     let nightEnd = (fractionOfDay + NIGHT_END) % 1;
 
@@ -510,6 +512,14 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 char = STATUSES.unknown.display;
             }
 
+            // Overlay droids: a tile with N droids shows the count as a solid glyph (terrain is already known/remembered
+            // underneath). Home tile is skipped -- droids docked at base aren't drawn.
+            const droidCount = droidCounts[`${sector.coord[0]},${sector.coord[1]}`];
+            if (droidCount && sector.terrain !== TERRAINS.home.enum) {
+                char = droidCount > 9 ? '+' : `${droidCount}`;
+                className = `${className} droid`;
+            }
+
             let isDay = true;
             if (sunTracking) {
                 // sunTracking is enabled: shading the far-right side of the planet accordingly
@@ -536,7 +546,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 const lightClass =
                     getTwilightClass(planetFraction, nightStart, nightEnd) ||
                     getNightClass(planetFraction, nightStart, nightEnd);
-                // className += ` ${lightClass}`;
+                className += ` ${lightClass}`;
                 if (lightClass.length) { isDay = false; }
             }
 
