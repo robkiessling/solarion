@@ -4,6 +4,7 @@ import reducer from './reducer';
 import {batchedSubscribe} from 'redux-batched-subscribe';
 import {debounce, throttle} from 'lodash';
 import {loadState, saveState} from "../lib/local_storage";
+import {migrateSavedState} from "../lib/save_migration";
 
 export const AUTO_SAVE_INTERVAL = 30 * 1000; // 30 seconds
 
@@ -17,9 +18,13 @@ const enhancer = composeEnhancers(
     batchedSubscribe(debounce(notify => notify()))
 )
 
+// Saves from older versions of the game may be missing newer state fields; migrate them over the
+// current default state instead of loading them raw (which crashes or silently freezes the game).
+const defaultState = reducer(undefined, { type: '@@INIT' });
+
 const store = createStore(
     reducer,
-    loadState(),
+    migrateSavedState(loadState(), defaultState),
     enhancer
 );
 

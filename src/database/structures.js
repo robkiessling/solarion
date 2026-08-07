@@ -563,13 +563,8 @@ function netProbeMirrorBoost(state) {
     return boost;
 }
 function applyMirrorBoost(state, variables, applicableKeys) {
-    variables.energy *= netProbeMirrorBoost(state);
-
     const boost = netProbeMirrorBoost(state);
-
-    if (boost !== 1) {
-        applicableKeys.forEach(key => variables[key] *= boost)
-    }
+    if (boost !== 1) applicableKeys.forEach(key => variables[key] *= boost);
 }
 
 

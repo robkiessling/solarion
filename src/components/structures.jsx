@@ -3,7 +3,7 @@ import {connect} from "react-redux";
 import Structure from "./structures/structure";
 import ProbeFactory from "./structures/probe_factory";
 import EnergyBay from "./structures/energy_bay";
-import {getVisibleIds} from "../redux/modules/structures";
+import {getStructure, getVisibleIds} from "../redux/modules/structures";
 import {TYPES} from "../database/structures";
 import Tabs from "./ui/tabs";
 import {updateSetting} from "../redux/modules/game";
@@ -84,7 +84,7 @@ const mapStateToProps = (state, ownProps) => {
             structureIds = structureIds.filter(structureId => structureId !== 'probeFactory');
             break;
         case 'star':
-            structureIds = ['probeFactory', 'solarPanel']
+            structureIds = ['probeFactory', 'solarPanel'].filter(id => getStructure(state.structures, id))
             break;
     }
 

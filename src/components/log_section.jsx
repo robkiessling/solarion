@@ -11,6 +11,16 @@ class LogSection extends React.Component {
         super(props);
 
         this.logSectionRef = React.createRef();
+        this.pendingTimeouts = new Set();
+    }
+
+    // All timers must go through this helper so componentWillUnmount can cancel them
+    scheduleTimeout(fn, delay) {
+        const id = setTimeout(() => {
+            this.pendingTimeouts.delete(id);
+            fn();
+        }, delay);
+        this.pendingTimeouts.add(id);
     }
 
     componentDidMount() {
@@ -26,13 +36,12 @@ class LogSection extends React.Component {
         // this.unsubscribe = store.subscribe(this.onStoreChange);
     }
 
-    // componentWillUnmount() {
-    //     this.unsubscribe();
-    // }
-    //
-    // onStoreChange() {
-    //     const newState = store.getState();
-    // }
+    componentWillUnmount() {
+        // Cancel any in-flight sequence timers. Without this, a sequence still printing when the app
+        // swaps to the game-over or error screen keeps dispatching endLogSequence/onFinish into the dead game.
+        this.pendingTimeouts.forEach(id => clearTimeout(id));
+        this.pendingTimeouts.clear();
+    }
 
     // Just displaying it for historical purposes; skipping all callbacks
     backfillSequence(databaseRecord) {
@@ -75,13 +84,13 @@ class LogSection extends React.Component {
         //  1: How long to delay after the text is shown
         //  2: If true, briefly flashes the text
         const printNextLine = (delay) => {
-            setTimeout(() => {
+            this.scheduleTimeout(() => {
                 let node = document.createElement('p');
                 node.appendChild(document.createTextNode(text[i][0]));
 
                 if (text[i][2] && text[i][0]) {
                     node.classList.add('flash');
-                    setTimeout(() => {
+                    this.scheduleTimeout(() => {
                         node.classList.add('fade-flash');
                     }, 250)
                 }
@@ -96,7 +105,7 @@ class LogSection extends React.Component {
                     printNextLine(nextDelay);
                 }
                 else {
-                    setTimeout(() => {
+                    this.scheduleTimeout(() => {
                         batch(() => {
                             if (databaseRecord.onFinish) { databaseRecord.onFinish(dispatch); }
                             dispatch(endLogSequence(this.props.logData.sequence));

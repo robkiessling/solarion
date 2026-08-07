@@ -1,0 +1,70 @@
+import _ from 'lodash';
+import structuresDatabase from '../database/structures';
+import resourcesDatabase from '../database/resources';
+import upgradesDatabase from '../database/upgrades';
+import abilitiesDatabase from '../database/abilities';
+import triggersDatabase from '../database/triggers';
+import logsDatabase from '../database/logs';
+
+// lodash merges arrays index-by-index, which would mangle saved maps, droid lists, etc.
+// This customizer makes saved arrays replace default arrays wholesale instead.
+const replaceArrays = (defaultValue, savedValue) => {
+    if (_.isArray(savedValue)) {
+        return savedValue;
+    }
+};
+
+/**
+ * Repairs a saved state (parsed from localStorage) so it can be loaded by newer versions of the game.
+ *
+ * Three repairs are applied:
+ * 1. The save is deep-merged over the current default state, filling in any fields added since the save.
+ * 2. Learned structure/resource/upgrade/ability records are re-merged over their current database
+ *    definitions (these records are snapshotted at LEARN time, so old saves lack newer record fields).
+ * 3. Saved trigger and log entries whose ids no longer exist in the database are dropped (renamed or
+ *    removed content would otherwise crash trigger syncing at boot, or log rendering).
+ *
+ * @param savedState The parsed save (may be undefined if there is no save)
+ * @param defaultState The current initial state (from running the root reducer with an init action)
+ */
+export function migrateSavedState(savedState, defaultState) {
+    if (!savedState) {
+        return undefined;
+    }
+
+    const state = _.mergeWith({}, defaultState, savedState, replaceArrays);
+
+    resyncWithDatabase(state.structures, structuresDatabase);
+    resyncWithDatabase(state.resources, resourcesDatabase);
+    resyncWithDatabase(state.upgrades, upgradesDatabase);
+    resyncWithDatabase(state.abilities, abilitiesDatabase);
+
+    if (state.triggers && state.triggers.byId) {
+        state.triggers.byId = _.pickBy(state.triggers.byId, (trigger, id) => triggersDatabase[id]);
+    }
+
+    if (state.log && state.log.bySequenceId) {
+        state.log.bySequenceId = _.pickBy(state.log.bySequenceId, (entry) => entry && logsDatabase[entry.id]);
+        state.log.visibleSequenceIds = (state.log.visibleSequenceIds || [])
+            .filter(sequenceId => state.log.bySequenceId[sequenceId]);
+    }
+
+    return state;
+}
+
+// Re-merges each saved byId record over its current database definition (mirroring what the LEARN
+// reducers do), and drops records whose id no longer exists in the database.
+function resyncWithDatabase(slice, database) {
+    if (!slice || !slice.byId) {
+        return;
+    }
+
+    slice.byId = _.mapValues(
+        _.pickBy(slice.byId, (record, id) => database[id]),
+        (record, id) => _.mergeWith({}, database[id], record, replaceArrays)
+    );
+
+    if (slice.visibleIds) {
+        slice.visibleIds = slice.visibleIds.filter(id => slice.byId[id]);
+    }
+}

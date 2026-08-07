@@ -106,7 +106,14 @@ class GameClock {
         this.then = this.now; // Reset last tick time
         this.total += this.delta;
 
-        this._iteratePeriodicFns();
+        // An uncaught error here must not break the requestAnimationFrame chain below; if it did, one bad tick
+        // would silently freeze the game forever (the UI keeps rendering but all clocks stop).
+        try {
+            this._iteratePeriodicFns();
+        }
+        catch (err) {
+            console.error('Error during game tick (skipping this frame):', err);
+        }
 
         /*. Run function again as soon as possible without lagging .*/
         window.requestAnimationFrame(() => this.run())

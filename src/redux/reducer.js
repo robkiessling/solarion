@@ -425,6 +425,9 @@ export function energyBeamStrengthEnergy(state) {
     // We divide by the number of solar panels so that the number of solar panels built is irrelevant
     const numSolarPanels = getReplicatedStructureCount(getStructure(state.structures, 'solarPanel'), state);
 
+    // With no solar panels there is nothing to receive the beam; without this guard the division produces Infinity/NaN
+    if (!numSolarPanels) return 0;
+
     return energyBeamStrengthPct(state) * 100 * ENERGY_BEAM_BASE_VALUE / numSolarPanels * numProbes / 50000;
 }
 
