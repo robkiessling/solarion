@@ -22,6 +22,12 @@
     }
   }
 
+  // Inline entries (expedition reports): each is its own paragraph, spaced a blank line's worth from whatever
+  // precedes it. (Scripted sequences handle their own spacing via leading blank lines in the database text.)
+  .log-inline {
+    margin-top: 1.2em;
+  }
+
   p {
     margin: 0;
     white-space: pre-wrap;
@@ -37,6 +43,10 @@
       transition: background 1s;
       background: transparent;
     }
+
+    // Expedition report lines (log.logInline entries); colors override the section's active/inactive gray
+    &.report-success { color: #9be29b; }
+    &.report-failure { color: #ff6b6b; }
   }
 }
 

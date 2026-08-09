@@ -22,6 +22,10 @@ const initialState = {
     showStructureTabs: false,
     currentStructureTab: 'all',
 
+    // Transient UI state: POI row being hovered in the expedition sidebar (highlights its map marker).
+    // Lives here (not planet slice) because the Planet canvas and the sidebar share no common parent below App.
+    hoveredPoiId: null,
+
     // introduction variables (unlocks various ui components as player goes thru intro)
     showTerminal: false,
     shuttersOpen: false,

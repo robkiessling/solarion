@@ -72,6 +72,11 @@ $top-bar-float-padding: 0.875rem;
 }
 
 .planet-tools {
+  flex: 1 1 auto;
+  overflow-y: auto;
+
+  display: flex;
+  flex-direction: column;
 }
 
 .exploration-status {
@@ -90,6 +95,116 @@ $top-bar-float-padding: 0.875rem;
   padding: $component-padding;
 
 }
+
+.expedition-status {
+  display: flex;
+  flex-direction: column;
+  padding: $component-padding;
+
+  .squad-card {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+
+    // All card states render the same three rows (team line / status / actions) at fixed heights, so switching
+    // between at-base, deployed, and holding never shifts the POI list below.
+    .team-line {
+      display: flex;
+      align-items: center;
+      min-height: 1.8rem;
+
+      .key-value-pair {
+        flex: 1;
+      }
+    }
+
+    .team-builder {
+      gap: 0.35rem;
+
+      .idle-count {
+        opacity: 0.7;
+        font-size: 0.85em;
+      }
+    }
+
+    .squad-status-text {
+      font-style: italic;
+      opacity: 0.85;
+
+      // Reserve two lines: longer statuses ("Holding at Hive Nest — hostiles detected") wrap, and pre-allocating
+      // the space keeps the card height identical across all states
+      display: block;
+      min-height: 2.4em;
+    }
+
+    .squad-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+      min-height: 1.75rem;
+    }
+  }
+
+  .stepper {
+    width: 1.5rem;
+  }
+
+  .staged-size {
+    min-width: 1.5rem;
+    text-align: center;
+  }
+
+  .poi-row {
+    display: flex;
+    flex-direction: column;
+    padding: 0.3rem 0.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+    .poi-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+
+    // The row's single verb; revealed on hover of an actionable row
+    .poi-verb {
+      visibility: hidden;
+      color: $blue;
+      white-space: nowrap;
+    }
+
+    &.actionable {
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.07);
+
+        .poi-verb {
+          visibility: visible;
+        }
+      }
+    }
+
+    // No order is currently possible here (team busy, gated, or no idle droids): same layout, just muted
+    &.inert {
+      opacity: 0.55;
+    }
+
+    .poi-distance, .poi-detail {
+      opacity: 0.7;
+      font-size: 0.85em;
+    }
+
+    .poi-requires {
+      color: #ff6b6b;
+      font-size: 0.85em;
+    }
+  }
+}
+
 
 #outside-container {
   flex: 1;

@@ -465,7 +465,9 @@ export function sunTrackingRotation(fractionOfDay) {
 
 // droidCounts: { "row,col": numberOfDroidsThere } -- drawn as a solid count glyph over the tile (home tile excluded,
 // since droids are "docked" there).
-export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, droidCounts = {}) {
+// overlays: { "row,col": { char, colorKey, color? } } -- markers drawn over tiles (POIs, expedition squad, fight
+// effects). Keyed by planet coords like droidCounts, so they ride the same rotation mapping.
+export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, droidCounts = {}, overlays = {}) {
     let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
     let nightEnd = (fractionOfDay + NIGHT_END) % 1;
 
@@ -512,6 +514,15 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 colorKey = 'droid';
             }
 
+            let ping;
+            const overlay = overlays[`${sector.coord[0]},${sector.coord[1]}`];
+            if (overlay) {
+                if (overlay.char) { char = overlay.char; } // color-only overlays keep the terrain glyph (e.g. path highlight)
+                colorKey = overlay.colorKey;
+                if (overlay.color) { color = overlay.color; }
+                ping = overlay.ping; // radar-ping cycle fraction; drawn as expanding rings by planet_render
+            }
+
             let light = 'day';
             if (sunTracking) {
                 // sunTracking is enabled: shading the far-right side of the planet accordingly
@@ -541,7 +552,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 char = (light === 'day') ? COOKED_CHAR : TERRAINS.flatland.display;
             }
 
-            return { char, colorKey, color, light, dividers }
+            return { char, colorKey, color, light, dividers, ping }
         });
 
         const numMissingSpaces = (WIDEST_DISPLAY_ROW - displayRowLength) / 2;

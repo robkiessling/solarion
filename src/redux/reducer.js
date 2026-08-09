@@ -234,6 +234,10 @@ export function getStructureStatistic(state, structure, statistic, includeReplic
 
 
 export function canAssignDroid(state, droidData) {
+    // Planet exploration can also "assign" by turning around a scout that's walking home from a recall
+    if (droidData.droidAssignmentType === 'planet' && state.planet.droids.some(droid => droid.returning)) {
+        return true;
+    }
     return fromResources.canConsume(state.resources, { standardDroids: 1 });
 }
 export function canRemoveDroid(state, droidData) {
@@ -259,19 +263,23 @@ export function assignDroid(droidData, targetId) {
 
 export function assignAllDroids(droidData, targetId) {
     return function(dispatch, getState) {
-        const numDroids = fromResources.getQuantity(fromResources.getResource(getState().resources, 'standardDroids'));
+        let numDroids = fromResources.getQuantity(fromResources.getResource(getState().resources, 'standardDroids'));
 
-        if (numDroids > 0) {
-            switch(droidData.droidAssignmentType) {
-                case 'structure':
+        switch(droidData.droidAssignmentType) {
+            case 'structure':
+                if (numDroids > 0) {
                     dispatch(fromStructures.assignDroidUnsafe(targetId, numDroids));
-                    break;
-                case 'planet':
+                }
+                break;
+            case 'planet':
+                // Returning scouts count too: assigning turns them around in place before spending idle droids
+                numDroids += getState().planet.droids.filter(droid => droid.returning).length;
+                if (numDroids > 0) {
                     dispatch(fromPlanet.assignDroidUnsafe(numDroids));
-                    break;
-                default:
-                    console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
-            }
+                }
+                break;
+            default:
+                console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
         }
     }
 }
@@ -330,6 +338,14 @@ export function numStandardDroids(state) {
 
     // Add in all droids assigned to planet (exploration)
     total += state.planet.droidData.numDroidsAssigned;
+
+    // Add in recalled scouts still walking home (removed from the assigned count, not yet back in the pool)
+    total += state.planet.droids.filter(droid => droid.returning).length;
+
+    // Add in droids away on expedition
+    if (state.planet.squad) {
+        total += state.planet.squad.squadSize;
+    }
 
     // Add in unused droids
     total += fromResources.getQuantity(fromResources.getResource(state.resources, 'standardDroids'));

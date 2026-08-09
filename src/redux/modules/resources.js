@@ -59,14 +59,39 @@ export default function reducer(state = initialState, action) {
         case fromPlanet.ASSIGN_DROID:
             return consumeReducer(state, { standardDroids: payload.amount })
         case fromStructures.REMOVE_DROID:
-        case fromPlanet.REMOVE_DROID:
             // Do not want assigning/removing droids to affect lifetimeTotal
             return produceReducer(state, { standardDroids: payload.amount }, false)
+        case fromPlanet.REMOVE_DROID:
+            // Recalled scouts walk home and credit on arrival (see PROGRESS numArrivedHome below); only droids that
+            // despawned immediately (unplaced/already home) credit now
+            return payload.instantIndices.length > 0
+                ? produceReducer(state, { standardDroids: payload.instantIndices.length }, false)
+                : state;
+        case fromPlanet.DISPATCH_SQUAD:
+            return consumeReducer(state, { standardDroids: payload.squadSize })
+        case fromPlanet.RESOLVE_AT_POI:
+            // Expedition loot on success. Rewards must be already-LEARNed resources (unlearned ids are dropped
+            // silently by produceReducer).
+            return (payload.outcome.success && payload.reward && payload.reward.resources)
+                ? produceReducer(state, payload.reward.resources)
+                : state;
+        case fromPlanet.SQUAD_HOME:
+            // Only survivors return to the idle pool; expedition losses are permanent (never re-credited)
+            return payload.survivors > 0 ? produceReducer(state, { standardDroids: payload.survivors }, false) : state;
         case fromPlanet.GENERATE_MAP:
             return produceReducer(state, { buildableLand: numSectorsMatching(payload.map, STATUSES.explored.enum, TERRAINS.flatland.enum) })
-        case fromPlanet.PROGRESS:
+        case fromPlanet.PROGRESS: {
             // Droids reveal tiles as they explore; each newly-revealed flatland tile adds buildable land.
-            return payload.revealedFlatland > 0 ? produceReducer(state, { buildableLand: payload.revealedFlatland }) : state;
+            let next = state;
+            if (payload.revealedFlatland > 0) {
+                next = produceReducer(next, { buildableLand: payload.revealedFlatland });
+            }
+            // Recalled scouts rejoin the idle pool as they arrive home
+            if (payload.numArrivedHome > 0) {
+                next = produceReducer(next, { standardDroids: payload.numArrivedHome }, false);
+            }
+            return next;
+        }
         default:
             return state;
     }

@@ -24,6 +24,11 @@ class LogSection extends React.Component {
     }
 
     componentDidMount() {
+        if (this.props.logData.entryType === 'inline') {
+            this.renderInline();
+            return;
+        }
+
         const databaseRecord = database[this.props.logData.id]
 
         if (this.props.logData.status === 'completed') {
@@ -34,6 +39,17 @@ class LogSection extends React.Component {
         }
 
         // this.unsubscribe = store.subscribe(this.onStoreChange);
+    }
+
+    // Inline entries carry their own text (dynamic content like expedition reports); always rendered instantly
+    renderInline() {
+        const node = document.createElement('p');
+        node.appendChild(document.createTextNode(this.props.logData.text));
+        if (this.props.logData.className) {
+            node.className = this.props.logData.className;
+        }
+        this.logSectionRef.current.appendChild(node);
+        this.props.onUpdate();
     }
 
     componentWillUnmount() {
@@ -119,8 +135,9 @@ class LogSection extends React.Component {
     }
 
     render() {
+        const inlineClass = this.props.logData.entryType === 'inline' ? 'log-inline' : '';
         return (
-            <div className={`log-section ${this.props.active ? 'active' : 'inactive'}`} ref={this.logSectionRef}/>
+            <div className={`log-section ${inlineClass} ${this.props.active ? 'active' : 'inactive'}`} ref={this.logSectionRef}/>
         );
     }
 }

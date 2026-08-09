@@ -13,7 +13,18 @@ import {
     TERRAINS
 } from "../../lib/planet_map";
 import {getAdjacentCoords} from "../../lib/planet_geometry";
-import {findNearestLookout, isExplorationComplete} from "../../lib/planet_pathing";
+import {findNearestLookout, findPath, isExplorationComplete} from "../../lib/planet_pathing";
+import {
+    advanceSquad,
+    buildReportText,
+    computeOutcome,
+    FIGHT_DURATION_MS,
+    generateDebugPois,
+    POI_STATUS,
+    SQUAD_STATUS
+} from "../../lib/expeditions";
+import {canConsume} from "./resources";
+import {logInline} from "./log";
 import {batch} from "react-redux";
 import * as fromClock from "./clock";
 
@@ -32,19 +43,18 @@ export const UNLOCK_TERRAIN = 'planet/UNLOCK_TERRAIN';
 export const START_COOK = 'planet/START_COOK';
 export const INCREMENT_COOK = 'planet/INCREMENT_COOK';
 
-export const START_EXPEDITION = 'planet/START_EXPEDITION';
-export const STOP_EXPEDITION = 'planet/STOP_EXPEDITION';
+export const DISPATCH_SQUAD = 'planet/DISPATCH_SQUAD';
+export const MOVE_SQUAD = 'planet/MOVE_SQUAD';
+export const ENGAGE_FIGHT = 'planet/ENGAGE_FIGHT';
+export const RECALL_SQUAD = 'planet/RECALL_SQUAD';
+export const ADVANCE_SQUAD = 'planet/ADVANCE_SQUAD';
+export const RESOLVE_AT_POI = 'planet/RESOLVE_AT_POI';
+export const SQUAD_HOME = 'planet/SQUAD_HOME';
 
 const OVERALL_MAP_STATUS = {
     unstarted: 'unstarted',
     inProgress: 'inProgress',
     finished: 'finished',
-}
-
-export const EXPEDITION_STATUS = {
-    unstarted: 'unstarted',
-    exploring: 'exploring',
-    inEvent: 'inEvent',
 }
 
 // Initial State
@@ -69,16 +79,11 @@ const initialState = {
     numExplored: 0, // Number of revealed sectors
     maxDevelopedLand: 0,
 
-    expedition: {
-        droidData: { // This object mirrors 'structure' format so they can be polymorphic
-            numDroidsAssigned: 0,
-            droidAssignmentType: 'planet'
-        },
-        status: EXPEDITION_STATUS.unstarted,
-        backpack: {},
-        battery: 0,
-        position: null,
-    }
+    // Expedition system (see lib/expeditions.js for domain logic and shapes). Reports go to the terminal
+    // (log.logInline), not planet state.
+    pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
+    squad: null   // the single squad: { squadSize, status, coord, path, moveProgress, targetPoiId, atPoiId,
+                  //                     pendingFight, fightRemaining, outcome, recalled }
 }
 
 // Reducer
@@ -92,7 +97,9 @@ export default function reducer(state = initialState, action) {
                 map: { $set: payload.map },
                 homeCoord: { $set: payload.homeCoord },
                 numExplored: { $set: numSectorsMatching(payload.map, STATUSES.explored.enum) },
-                maxDevelopedLand: { $set: numSectorsMatching(payload.map, undefined, TERRAINS.flatland.enum) + 1 } // add 1 for home base
+                maxDevelopedLand: { $set: numSectorsMatching(payload.map, undefined, TERRAINS.flatland.enum) + 1 }, // add 1 for home base
+                pois: { $set: payload.pois },
+                squad: { $set: null }
             })
         case PROGRESS:
             updates = {
@@ -112,6 +119,15 @@ export default function reducer(state = initialState, action) {
                 });
                 updates.numExplored = { $apply: x => x + payload.reveals.length };
                 updates.overallStatus = { $set: OVERALL_MAP_STATUS.inProgress };
+
+                // POI discovery: a hidden POI whose tile just got revealed becomes available (shows on map + sidebar)
+                const revealKeys = new Set(payload.reveals.map(([r, c]) => `${r},${c}`));
+                Object.values(state.pois).forEach(poi => {
+                    if (poi.status === POI_STATUS.hidden && revealKeys.has(`${poi.coord[0]},${poi.coord[1]}`)) {
+                        if (updates.pois === undefined) updates.pois = {};
+                        updates.pois[poi.id] = { status: { $set: POI_STATUS.available } };
+                    }
+                });
             }
 
             return update(state, updates);
@@ -128,21 +144,44 @@ export default function reducer(state = initialState, action) {
                 sunTracking: { $set: payload.value }
             })
         case ASSIGN_DROID: {
-            // Spawn one droid entity per assigned droid, parked at the home base until the tick gives it a target.
+            // payload.amount fresh droids spawn at home base; payload.turnAroundIndices are returning droids that
+            // turn around in place (recall undone) and resume exploring from wherever they stand next tick.
+            const turnAroundSet = new Set(payload.turnAroundIndices || []);
             const spawned = [];
             for (let i = 0; i < payload.amount; i++) {
                 spawned.push({ coord: state.homeCoord, path: [], target: null, moveProgress: 0, heading: null });
             }
             return update(state, {
-                droidData: { numDroidsAssigned: { $apply: (x) => x + payload.amount } },
-                droids: { $push: spawned }
+                droidData: { numDroidsAssigned: { $apply: (x) => x + payload.amount + turnAroundSet.size } },
+                droids: {
+                    $apply: (droids) => droids
+                        .map((droid, i) => turnAroundSet.has(i) ?
+                            { ...droid, returning: false, path: [], target: null, moveProgress: 0, heading: null } :
+                            droid)
+                        .concat(spawned)
+                }
             });
         }
-        case REMOVE_DROID:
+        case REMOVE_DROID: {
+            // Removal is a recall: the droid stops exploring NOW (numDroidsAssigned drops immediately) but walks
+            // home and only rejoins the idle pool on arrival (see numArrivedHome on PROGRESS). Droids with no
+            // position/route (payload.instantIndices) despawn immediately and credit on this action instead.
+            const recallByIndex = {};
+            payload.recalls.forEach(recall => { recallByIndex[recall.index] = recall; });
+            const instantSet = new Set(payload.instantIndices);
+            const numRemoved = payload.recalls.length + payload.instantIndices.length;
+
             return update(state, {
-                droidData: { numDroidsAssigned: { $apply: (x) => x - payload.amount } },
-                droids: { $apply: (droids) => droids.slice(0, Math.max(0, droids.length - payload.amount)) }
+                droidData: { numDroidsAssigned: { $apply: (x) => x - numRemoved } },
+                droids: {
+                    $apply: (droids) => droids
+                        .map((droid, i) => recallByIndex[i] ?
+                            { ...droid, returning: true, target: null, heading: null, path: recallByIndex[i].path, moveProgress: 0 } :
+                            droid)
+                        .filter((droid, i) => !instantSet.has(i))
+                }
             });
+        }
         case START_DEVELOPMENT:
             updates = { map: {} }
             payload.coords.forEach(coord => {
@@ -181,20 +220,93 @@ export default function reducer(state = initialState, action) {
                 cookedPct: { $apply: x => Math.min(x + (payload.timeDelta / COOK_TIME), 1) }
             })
 
-        case START_EXPEDITION:
+        case DISPATCH_SQUAD:
             return update(state, {
-                rotation: { $set: payload.startRotation },
-                expedition: {
-                    status: { $set: EXPEDITION_STATUS.exploring },
-                    position: { $set: payload.startCoord }
+                squad: {
+                    $set: {
+                        squadSize: payload.squadSize,
+                        status: SQUAD_STATUS.traveling,
+                        coord: state.homeCoord,
+                        path: payload.path,
+                        moveProgress: 0,
+                        targetPoiId: payload.targetPoiId,
+                        atPoiId: null,
+                        pendingFight: false,
+                        fightRemaining: null,
+                        outcome: null,
+                        recalled: false
+                    }
                 }
             })
-        case STOP_EXPEDITION:
+        case MOVE_SQUAD:
+            // Push on from a held position to another POI; path starts from the squad's current coord
             return update(state, {
-                expedition: {
-                    status: { $set: EXPEDITION_STATUS.unstarted },
+                squad: {
+                    status: { $set: SQUAD_STATUS.traveling },
+                    targetPoiId: { $set: payload.targetPoiId },
+                    path: { $set: payload.path },
+                    moveProgress: { $set: 0 },
+                    atPoiId: { $set: null },
+                    pendingFight: { $set: false }
                 }
             })
+        case ENGAGE_FIGHT:
+            // Outcome is decided here, up front; the fighting state is a timed animation over a known result
+            return update(state, {
+                squad: {
+                    status: { $set: SQUAD_STATUS.fighting },
+                    pendingFight: { $set: false },
+                    fightRemaining: { $set: FIGHT_DURATION_MS },
+                    outcome: { $set: payload.outcome }
+                }
+            })
+        case RECALL_SQUAD:
+            return update(state, {
+                squad: {
+                    status: { $set: SQUAD_STATUS.returning },
+                    path: { $set: payload.path },
+                    moveProgress: { $set: 0 },
+                    targetPoiId: { $set: null },
+                    atPoiId: { $set: null },
+                    pendingFight: { $set: false },
+                    recalled: { $set: true }
+                }
+            })
+        case ADVANCE_SQUAD:
+            // Wholesale snapshot from the pure advanceSquad (movement + fight countdown + arrival transitions)
+            return update(state, {
+                squad: { $set: payload.squad }
+            })
+        case RESOLVE_AT_POI:
+            updates = {}
+
+            if (payload.outcome.success) {
+                updates.pois = { [payload.poiId]: { status: { $set: POI_STATUS.cleared } } };
+            }
+            else {
+                // Failed assault: the exact strength is now known for the retry
+                updates.pois = { [payload.poiId]: { difficultyKnown: { $set: true } } };
+            }
+
+            if (payload.outcome.survivors > 0) {
+                // Survivors hold at the site awaiting orders (push on or recall)
+                updates.squad = {
+                    status: { $set: SQUAD_STATUS.holding },
+                    squadSize: { $set: payload.outcome.survivors },
+                    pendingFight: { $set: false },
+                    fightRemaining: { $set: null },
+                    outcome: { $set: null }
+                };
+            }
+            else {
+                updates.squad = { $set: null }; // squad wiped; nothing walks home
+            }
+
+            return update(state, updates);
+        case SQUAD_HOME:
+            return update(state, {
+                squad: { $set: null }
+            });
         default:
             return state;
     }
@@ -215,14 +327,65 @@ export function startCooking() {
 export function generateMap() {
     const map = generateRandomMap();
     const homeCoord = getHomeBasePosition(map).coord;
-    return { type: GENERATE_MAP, payload: { map, homeCoord } };
+    const pois = generateDebugPois(map);
+    return { type: GENERATE_MAP, payload: { map, homeCoord, pois } };
 }
 
+// Assigning prefers turning around droids that are currently walking home (farthest from home first -- they save
+// the most walking); only the remainder spawns fresh from the idle pool. payload.amount is the SPAWNED count,
+// which is what the resources reducer debits.
 export function assignDroidUnsafe(amount = 1) {
-    return withRecalculation({ type: ASSIGN_DROID, payload: { amount } });
+    return withRecalculation(function(dispatch, getState) {
+        const planet = getState().planet;
+
+        const turnAroundIndices = planet.droids
+            .map((droid, index) => ({ droid, index }))
+            .filter(({ droid }) => droid.returning)
+            .sort((a, b) => {
+                const distance = ({ droid }) => droid.coord ? planet.map[droid.coord[0]][droid.coord[1]].graphDistanceHome : 0;
+                return distance(b) - distance(a);
+            })
+            .slice(0, amount)
+            .map(({ index }) => index);
+
+        dispatch({ type: ASSIGN_DROID, payload: { amount: amount - turnAroundIndices.length, turnAroundIndices } });
+    });
 }
+
+// Removing scout droids recalls them: nearest-home first, each walking back before rejoining the idle pool.
+// The thunk picks the droids and computes their return paths; the reducer applies flags and despawns instants.
 export function removeDroidUnsafe(amount = 1) {
-    return withRecalculation({ type: REMOVE_DROID, payload: { amount } });
+    return withRecalculation(function(dispatch, getState) {
+        const planet = getState().planet;
+
+        // Only active (non-returning) droids are eligible; recall the ones closest to home first
+        const candidates = planet.droids
+            .map((droid, index) => ({ droid, index }))
+            .filter(({ droid }) => !droid.returning)
+            .sort((a, b) => {
+                const distance = ({ droid }) => droid.coord ? planet.map[droid.coord[0]][droid.coord[1]].graphDistanceHome : -1;
+                return distance(a) - distance(b);
+            })
+            .slice(0, amount);
+
+        const recalls = [];
+        const instantIndices = [];
+        candidates.forEach(({ droid, index }) => {
+            const atHome = droid.coord && planet.homeCoord &&
+                droid.coord[0] === planet.homeCoord[0] && droid.coord[1] === planet.homeCoord[1];
+            const path = (!droid.coord || atHome) ? null :
+                findPath(planet.map, droid.coord, planet.homeCoord, { unlocks: planet.unlockedTerrains });
+
+            if (path && path.length > 0) {
+                recalls.push({ index, path });
+            }
+            else {
+                instantIndices.push(index); // unplaced, already home, or unroutable: despawn + credit immediately
+            }
+        });
+
+        dispatch({ type: REMOVE_DROID, payload: { recalls, instantIndices } });
+    });
 }
 
 // Kept for the log/trigger flow that still references it. Exploration now runs automatically as droids are assigned
@@ -271,24 +434,55 @@ export function planetTick(timeDelta) {
             }
 
             let newRotation;
-            if (state.sunTracking && state.expedition.status === EXPEDITION_STATUS.unstarted) {
+            if (state.sunTracking) {
                 newRotation = sunTrackingRotation(fromClock.fractionOfDay(getState().clock));
             }
+
+            // Advance the expedition squad (movement / fight countdown). This must run BEFORE the finished-map
+            // early-return below, or expeditions would freeze once the map is fully explored.
+            if (state.squad) {
+                const { squad, events } = advanceSquad(
+                    state.map, state.pois, state.squad, timeDelta * state.exploreSpeed, state.unlockedTerrains
+                );
+                dispatch({ type: ADVANCE_SQUAD, payload: { squad } });
+
+                events.forEach(event => {
+                    switch (event.type) {
+                        case 'arrived': // cache/story: auto-resolve on arrival
+                        case 'fightOver': {
+                            const poi = getState().planet.pois[event.poiId];
+                            const outcome = event.type === 'arrived' ? computeOutcome(poi, squad.squadSize) : event.outcome;
+                            resolveAtPoi(dispatch, getState, event.poiId, outcome);
+                            break;
+                        }
+                        case 'home': {
+                            dispatch({ type: SQUAD_HOME, payload: { survivors: event.survivors } });
+                            logReport(dispatch, null, 'returned', { survivors: event.survivors });
+                            dispatch(recalculateState());
+                            break;
+                        }
+                    }
+                });
+            }
+
+            const finished = state.overallStatus === OVERALL_MAP_STATUS.finished;
+            const anyReturning = state.droids.some(droid => droid.returning);
 
             // Once exploration is finished there's nothing to path, so skip the frontier scan + droid work entirely
             // (keeps end-state catch-up after a long tab-away ~free). This is re-armed by ASSIGN_DROID -- and would be by
             // a future terrain-crossing upgrade -- so it never permanently locks out droids that could still do work.
-            if (state.overallStatus === OVERALL_MAP_STATUS.finished) {
+            // Exception: recalled droids still walking home must keep advancing.
+            if (finished && !anyReturning) {
                 if (newRotation) {
-                    dispatch({ type: PROGRESS, payload: { newRotation, droids: state.droids, reveals: [], revealedFlatland: 0 } });
+                    dispatch({ type: PROGRESS, payload: { newRotation, droids: state.droids, reveals: [], revealedFlatland: 0, numArrivedHome: 0 } });
                 }
                 return;
             }
 
             // Don't bother re-targeting idle droids once there's nothing left to reach (avoids a pathfind per idle droid).
-            const complete = isExplorationComplete(state.map, state.unlockedTerrains);
+            const complete = finished || isExplorationComplete(state.map, state.unlockedTerrains);
 
-            const { droids, reveals } = advanceDroids(
+            const { droids, reveals, numArrivedHome } = advanceDroids(
                 state.map, state.droids, timeDelta * state.exploreSpeed, state.unlockedTerrains, !complete
             );
 
@@ -297,9 +491,9 @@ export function planetTick(timeDelta) {
                 ([r, c]) => state.map[r][c].terrain === TERRAINS.flatland.enum
             ).length;
 
-            dispatch({ type: PROGRESS, payload: { newRotation, droids, reveals, revealedFlatland } });
+            dispatch({ type: PROGRESS, payload: { newRotation, droids, reveals, revealedFlatland, numArrivedHome } });
 
-            if (complete) {
+            if (complete && !finished) {
                 dispatch(finishExploringMap());
             }
         });
@@ -308,14 +502,109 @@ export function planetTick(timeDelta) {
 
 
 
-export function startExpedition() {
+/**
+ * --- Expedition thunks ---
+ * Thunks validate; reducers apply. All squad/POI state is serializable, so mid-flight saves resume cleanly.
+ */
+
+// Reports go to the terminal as inline log lines: assemble the structured fields, compose the text once
+// (buildReportText in lib/expeditions.js), and record it. The className colors the line (see log.scss).
+function logReport(dispatch, poi, result, extras = {}) {
+    const report = {
+        poiType: poi ? poi.type : null,
+        poiName: poi ? poi.name : null,
+        result, // 'success' | 'failure' | 'returned' | 'noRoute'
+        ...extras
+    };
+    dispatch(logInline(buildReportText(report), `report-${result}`));
+}
+
+export function dispatchSquad(targetPoiId, squadSize) {
     return function(dispatch, getState) {
-        const {coord, rotation} = getHomeBasePosition(getState().planet.map);
-        dispatch({ type: START_EXPEDITION, payload: { startCoord: coord, startRotation: rotation } });
+        const state = getState();
+        const planet = state.planet;
+        const poi = planet.pois[targetPoiId];
+
+        if (planet.squad) return;
+        if (!poi || poi.status !== POI_STATUS.available) return;
+        if (poi.requires && !planet.unlockedTerrains[poi.requires]) return;
+        if (squadSize < 1 || !canConsume(state.resources, { standardDroids: squadSize })) return;
+
+        const path = findPath(planet.map, planet.homeCoord, poi.coord, { unlocks: planet.unlockedTerrains });
+        if (!path) {
+            logReport(dispatch, poi, 'noRoute');
+            return;
+        }
+
+        dispatch(withRecalculation({ type: DISPATCH_SQUAD, payload: { targetPoiId, squadSize, path } }));
     }
 }
-export function stopExpedition() {
-    return { type: STOP_EXPEDITION, payload: {} };
+
+// Push on: send the held squad onward to another POI from its current position.
+export function moveSquad(targetPoiId) {
+    return function(dispatch, getState) {
+        const planet = getState().planet;
+        const squad = planet.squad;
+        const poi = planet.pois[targetPoiId];
+
+        if (!squad || squad.status !== SQUAD_STATUS.holding) return;
+        if (!poi || poi.status !== POI_STATUS.available || targetPoiId === squad.atPoiId) return;
+        if (poi.requires && !planet.unlockedTerrains[poi.requires]) return;
+
+        const path = findPath(planet.map, squad.coord, poi.coord, { unlocks: planet.unlockedTerrains });
+        if (!path) {
+            logReport(dispatch, poi, 'noRoute');
+            return;
+        }
+
+        dispatch({ type: MOVE_SQUAD, payload: { targetPoiId, path } });
+    }
+}
+
+export function engageFight() {
+    return function(dispatch, getState) {
+        const planet = getState().planet;
+        const squad = planet.squad;
+
+        if (!squad || squad.status !== SQUAD_STATUS.holding || !squad.pendingFight) return;
+        const poi = planet.pois[squad.atPoiId];
+        if (!poi) return;
+
+        dispatch({ type: ENGAGE_FIGHT, payload: { outcome: computeOutcome(poi, squad.squadSize) } });
+    }
+}
+
+export function recallSquad() {
+    return function(dispatch, getState) {
+        const planet = getState().planet;
+        const squad = planet.squad;
+
+        // Not recallable mid-fight; a pending (un-engaged) fight is fine to walk away from
+        if (!squad) return;
+        if (squad.status !== SQUAD_STATUS.traveling && squad.status !== SQUAD_STATUS.holding) return;
+
+        const path = findPath(planet.map, squad.coord, planet.homeCoord, { unlocks: planet.unlockedTerrains });
+        if (!path) return; // cannot happen in practice (they walked out on explored ground), but never strand state
+
+        dispatch({ type: RECALL_SQUAD, payload: { path } });
+    }
+}
+
+// Applies an 'arrived' (cache/story auto-resolve) or 'fightOver' event from advanceSquad.
+function resolveAtPoi(dispatch, getState, poiId, outcome) {
+    const poi = getState().planet.pois[poiId];
+    const reward = outcome.success ? poi.reward : null;
+
+    dispatch({ type: RESOLVE_AT_POI, payload: { poiId, outcome, reward } });
+    logReport(dispatch, poi, outcome.success ? 'success' : 'failure', {
+        squadSize: outcome.survivors + outcome.losses,
+        losses: outcome.losses,
+        survivors: outcome.survivors,
+        reward: reward && reward.resources ? reward.resources : null,
+        storyId: outcome.success ? (poi.storyId || null) : null,
+        difficulty: poi.difficulty
+    });
+    dispatch(recalculateState());
 }
 
 // Standard functions
@@ -326,6 +615,8 @@ export function percentExplored(state) {
 
 // Advances every droid one tick: spend `moveAmount` ms of travel, stepping along the path (cost per tile = crossTime),
 // revealing each arrived-at tile's neighbors (line-of-sight), and re-targeting idle droids toward the nearest lookout.
+// Recalled (returning) droids just walk their path home and despawn on arrival (counted in numArrivedHome; the
+// resources reducer credits the idle pool from it).
 // Pure: reads `map` but never mutates it -- returns the new droid array plus the list of newly-revealed coords.
 function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget) {
     const reveals = new Set();
@@ -343,8 +634,34 @@ function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget) {
     // Targets currently spoken for, so two droids don't walk to the same tile.
     const claimed = new Set(droids.map(d => d.target).filter(Boolean).map(t => `${t[0]},${t[1]}`));
 
-    const nextDroids = droids.map(droid => {
-        if (!droid.coord) return droid; // not yet placed (assigned before a map existed)
+    let numArrivedHome = 0;
+
+    const nextDroids = [];
+    droids.forEach(droid => {
+        if (!droid.coord) { nextDroids.push(droid); return; } // not yet placed (assigned before a map existed)
+
+        if (droid.returning) {
+            let coord = droid.coord;
+            let path = droid.path ? droid.path.slice() : [];
+            let moveProgress = (droid.moveProgress || 0) + moveAmount;
+
+            while (path.length > 0) {
+                const next = path[0];
+                const tileCrossMs = getCrossTime(map[next[0]][next[1]].terrain, unlocks) * 1000;
+                if (moveProgress < tileCrossMs) break;
+                moveProgress -= tileCrossMs;
+                coord = next;
+                path = path.slice(1);
+            }
+
+            if (path.length === 0) {
+                numArrivedHome++; // reached home base: despawn (not pushed) and rejoin the idle pool
+                return;
+            }
+
+            nextDroids.push({ ...droid, coord, path, moveProgress });
+            return;
+        }
 
         let coord = droid.coord;
         let path = droid.path ? droid.path.slice() : [];
@@ -390,11 +707,12 @@ function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget) {
             target = null;
         }
 
-        return { coord, path, target, moveProgress, heading };
+        nextDroids.push({ coord, path, target, moveProgress, heading });
     });
 
     return {
         droids: nextDroids,
-        reveals: Array.from(reveals).map(key => key.split(',').map(Number))
+        reveals: Array.from(reveals).map(key => key.split(',').map(Number)),
+        numArrivedHome
     };
 }

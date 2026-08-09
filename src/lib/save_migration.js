@@ -44,7 +44,9 @@ export function migrateSavedState(savedState, defaultState) {
     }
 
     if (state.log && state.log.bySequenceId) {
-        state.log.bySequenceId = _.pickBy(state.log.bySequenceId, (entry) => entry && logsDatabase[entry.id]);
+        // Inline entries carry their own text and have no database id; only database-backed entries are pruned
+        state.log.bySequenceId = _.pickBy(state.log.bySequenceId,
+            (entry) => entry && (entry.entryType === 'inline' || logsDatabase[entry.id]));
         state.log.visibleSequenceIds = (state.log.visibleSequenceIds || [])
             .filter(sequenceId => state.log.bySequenceId[sequenceId]);
     }

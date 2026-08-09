@@ -13,7 +13,17 @@ export const PLANET_COLORS = {
     mountain: '#bd0707',
     ice: '#ffffff',
     droid: '#ffe14d',
-    laserBeam: '#ffff00'
+    laserBeam: '#ffff00',
+
+    // Expedition overlays (POI markers, squad, skirmish effect)
+    poiCache: '#ffd700',
+    poiNest: '#ff4d4d',
+    poiStory: '#c58fff',
+    poiHighlight: '#ffffff',
+    pathHighlight: '#2e7d8c',       // dim base of the hovered-path marching-ants shimmer
+    pathHighlightBright: '#7fe3f5', // crawling bright segments
+    squad: '#ffe14d',
+    battle: '#ff6b35'
 };
 
 // Day/night shading levels (was CSS opacity on .night/.twilight-* classes)
@@ -25,6 +35,13 @@ const LIGHT_ALPHA = {
 };
 
 const SECTOR_DIVIDER_COLOR = 'rgba(62,192,218,0.5)';
+
+// Radar pings: expanding, fading rings around a cell. 'hover' is the loud attention ping on a hovered POI
+// marker; 'squad' is the quiet always-on locator pulse that lets you follow a deployed expedition team.
+const PING_VARIANTS = {
+    hover: { color: '#7fe3f5', maxRadiusCells: 2.2, lineWidth: 1.5, rings: 2, maxAlpha: 1 },
+    squad: { color: '#ffe14d', maxRadiusCells: 1.5, lineWidth: 1, rings: 1, maxAlpha: 0.45 }
+};
 
 /**
  * Draws a planet image onto the canvas, centered on the char grid. The image may be larger than the grid
@@ -50,6 +67,8 @@ export function drawPlanetImage(canvasManager, image) {
     // fillStyle/globalAlpha changes are canvas state churn; neighboring cells usually share them, so only set on change
     let currentColor = null;
     let currentAlpha = null;
+
+    const pings = []; // collected during the cell pass, drawn last so rings sit on top of everything
 
     // Baseline sits at the cell bottom (same offset AsciiCanvas.drawImage uses), shifted up by half of any leading
     // (fontHeight minus fontSize) so glyphs are vertically centered when rows have extra spacing
@@ -77,6 +96,10 @@ export function drawPlanetImage(canvasManager, image) {
 
             context.fillText(cell.char, x, baseline);
 
+            if (cell.ping !== undefined) {
+                pings.push({ x: x + fontWidth / 2, y: top + fontHeight / 2, ping: cell.ping });
+            }
+
             if (cell.dividers) {
                 context.strokeStyle = SECTOR_DIVIDER_COLOR;
                 context.beginPath();
@@ -96,6 +119,26 @@ export function drawPlanetImage(canvasManager, image) {
             }
         });
     });
+
+    // Radar pings: rings expand from the cell center and fade as they grow; multiple rings stagger evenly
+    if (pings.length > 0) {
+        pings.forEach(({ x, y, ping }) => {
+            const variant = PING_VARIANTS[ping.variant] || PING_VARIANTS.hover;
+            const maxRadius = variant.maxRadiusCells * fontHeight;
+            context.strokeStyle = variant.color;
+            context.lineWidth = variant.lineWidth;
+
+            for (let i = 0; i < variant.rings; i++) {
+                const ringFraction = (ping.fraction + i / variant.rings) % 1;
+                context.globalAlpha = (1 - ringFraction) * variant.maxAlpha;
+                context.beginPath();
+                context.arc(x, y, fontHeight * 0.4 + ringFraction * maxRadius, 0, 2 * Math.PI);
+                context.stroke();
+            }
+        });
+
+        context.lineWidth = 1;
+    }
 
     context.globalAlpha = 1;
 }

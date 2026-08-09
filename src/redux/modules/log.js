@@ -23,7 +23,16 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 bySequenceId: {
                     [payload.sequence]: {
-                        $set: { id: payload.id, sequence: payload.sequence, timestamp: payload.timestamp, status: 'completed' }
+                        $set: {
+                            id: payload.id,
+                            sequence: payload.sequence,
+                            timestamp: payload.timestamp,
+                            status: 'completed',
+                            // Inline entries (see logInline) carry their own text instead of a database id
+                            entryType: payload.entryType,
+                            text: payload.text,
+                            className: payload.className
+                        }
                     }
                 },
                 visibleSequenceIds: { $push: [payload.sequence] }
@@ -58,6 +67,13 @@ export default function reducer(state = initialState, action) {
 // sequence is a random uuid, just has to be unique: https://egghead.io/lessons/javascript-redux-persisting-the-state-to-the-local-storage
 export function logMessage(id) {
     return { type: LOG, payload: { id: id, sequence: v4(), timestamp: null } };
+}
+
+// Logs a one-off line of dynamic text (e.g. expedition reports). Unlike logMessage, the text lives on the
+// entry itself rather than in the logs database, so it can contain runtime values ("lost 2 of 6 droids").
+// The text is stored in the save -- terminal history is a record, so old lines keeping their old copy is correct.
+export function logInline(text, className = '') {
+    return { type: LOG, payload: { id: null, entryType: 'inline', text, className, sequence: v4(), timestamp: null } };
 }
 
 // Starts a log sequence (outputs the text over time)

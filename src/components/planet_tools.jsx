@@ -4,19 +4,13 @@ import {roundToDecimal} from "../lib/helpers";
 import DroidCount from "./structures/droid_count";
 import Slider from "rc-slider";
 import ReactSwitch from "react-switch";
-import {
-    EXPEDITION_STATUS,
-    percentExplored,
-    setRotation,
-    setSunTracking,
-    startExpedition,
-    stopExpedition
-} from "../redux/modules/planet";
+import {percentExplored, setRotation, setSunTracking} from "../redux/modules/planet";
 import {showDroidsUI} from "../redux/reducer";
 import {fractionOfDay} from "../redux/modules/clock";
 import Replication from "./replication";
-import Events from "./events";
-import ProgressButton from "./ui/progress_button";
+import Expedition from "./expedition";
+import 'overlayscrollbars/styles/overlayscrollbars.css';
+import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 
 class PlanetTools extends React.Component {
     constructor(props) {
@@ -39,6 +33,7 @@ class PlanetTools extends React.Component {
 
         return (
             <div className={`planet-tools ${this.props.visible ? '' : 'hidden'}`}>
+                <OverlayScrollbarsComponent className="planet-tools-scroll" defer>
                 <div className="exploration-status">
                     <span className='component-header'>Exploration</span>
                     <span className="key-value-pair">
@@ -63,39 +58,22 @@ class PlanetTools extends React.Component {
 
                     <span>Longitude:</span>
                     <Slider className={'range-slider'}
-                            disabled={this.props.sunTracking || this.props.onExpedition}
+                            disabled={this.props.sunTracking}
                             min={0} max={1} step={0.02} marks={sliderMarks}
                             onChange={(value) => this.props.setRotation(value)}
                             value={this.props.rotation}/>
                     <div className={'d-flex justify-center'}>
                         <label className={'on-off-switch text-center'}>
-                            <ReactSwitch checked={this.props.sunTracking && !this.props.onExpedition} onChange={this.props.setSunTracking}
+                            <ReactSwitch checked={this.props.sunTracking} onChange={this.props.setSunTracking}
                                          checkedIcon={false} uncheckedIcon={false} height={12} width={24}
-                                         disabled={this.props.onExpedition}
                             />
                             Lock to Day-Side
                         </label>
                     </div>
-
-                    <div className="exploration-actions">
-                        <ProgressButton
-                            fullWidth={false}
-                            onClick={() => this.props.startExpedition()}
-                            disabled={this.props.onExpedition}
-                            className={`ability`}>
-                            Embark
-                        </ProgressButton>
-                        <ProgressButton
-                            fullWidth={false}
-                            onClick={() => this.props.stopExpedition()}
-                            disabled={!this.props.onExpedition}
-                            className={`ability`}>
-                            Stop
-                        </ProgressButton>
-                    </div>
                 </div>
                 <Replication />
-                <Events/>
+                <Expedition />
+                </OverlayScrollbarsComponent>
             </div>
         );
     }
@@ -112,14 +90,12 @@ const mapStateToProps = (state, ownProps) => {
         showDroidsUI: showDroidsUI(state),
         droidData: state.planet.droidData,
         rotation: state.planet.rotation,
-        sunTracking: state.planet.sunTracking,
-
-        onExpedition: state.planet.expedition.status !== EXPEDITION_STATUS.unstarted
+        sunTracking: state.planet.sunTracking
     };
 };
 
 export default connect(
     mapStateToProps,
-    { setRotation, setSunTracking, startExpedition, stopExpedition }
+    { setRotation, setSunTracking }
 )(PlanetTools);
 
