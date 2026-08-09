@@ -5,6 +5,7 @@ import {updateSetting} from "../redux/modules/game";
 import {getQuantity, getResource} from "../redux/modules/resources";
 import {
     estimateDifficultyRange,
+    formatResourceList,
     POI_COLOR_KEYS,
     POI_GLYPHS,
     POI_STATUS,
@@ -55,6 +56,7 @@ class Expedition extends React.Component {
                         <span className="idle-count">({idleDroids} idle)</span>
                     </div>
                     <span className="squad-status-text">Status: At base</span>
+                    <span className="cargo-line">Cargo: —</span>
                     <div className="squad-actions"></div>
                 </div>
             );
@@ -92,6 +94,7 @@ class Expedition extends React.Component {
                     </span>
                 </div>
                 <span className="squad-status-text">{statusText}</span>
+                <span className="cargo-line">Cargo: {formatResourceList(squad.cargo) || '—'}</span>
                 <div className="squad-actions">
                     {squad.pendingFight && squad.status === SQUAD_STATUS.holding &&
                         <button className="engage-button" onClick={() => this.props.engageFight()}>Engage</button>}

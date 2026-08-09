@@ -13,6 +13,7 @@ export const PLANET_COLORS = {
     mountain: '#bd0707',
     ice: '#ffffff',
     droid: '#ffe14d',
+    droidReturning: '#9a9a9a', // recalled scouts walking home ("off duty")
     laserBeam: '#ffff00',
 
     // Expedition overlays (POI markers, squad, skirmish effect)
@@ -83,7 +84,9 @@ export function drawPlanetImage(canvasManager, image) {
 
             const x = originX + colIndex * fontWidth;
             const color = cell.color || PLANET_COLORS[cell.colorKey] || '#ffffff';
-            const alpha = LIGHT_ALPHA[cell.light] !== undefined ? LIGHT_ALPHA[cell.light] : 1;
+            // Day/night shading, multiplied by any per-cell alpha (e.g. the scouts' pulse animation)
+            let alpha = LIGHT_ALPHA[cell.light] !== undefined ? LIGHT_ALPHA[cell.light] : 1;
+            if (cell.alpha !== undefined) { alpha *= cell.alpha; }
 
             if (alpha !== currentAlpha) {
                 context.globalAlpha = alpha;

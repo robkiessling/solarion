@@ -463,11 +463,18 @@ export function sunTrackingRotation(fractionOfDay) {
     return mod(rotation + SUN_TRACKING_INSET, 1);
 }
 
-// droidCounts: { "row,col": numberOfDroidsThere } -- drawn as a solid count glyph over the tile (home tile excluded,
-// since droids are "docked" there).
-// overlays: { "row,col": { char, colorKey, color? } } -- markers drawn over tiles (POIs, expedition squad, fight
-// effects). Keyed by planet coords like droidCounts, so they ride the same rotation mapping.
-export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, droidCounts = {}, overlays = {}) {
+// Returns the rotation that horizontally centers `coord` in the display window (the follow-team camera).
+// displayStart = floor(rotation * rowLength), so centering means starting half a display-window before the column.
+export function centeringRotation(coord) {
+    const [row, col] = coord;
+    const planetRowLength = PLANET_ROW_LENGTHS[row];
+    const displayRowLength = DISPLAY_ROW_LENGTHS[row];
+    return mod(col - floor(displayRowLength / 2), planetRowLength) / planetRowLength;
+}
+
+// overlays: { "row,col": { char, colorKey, color?, ping? } } -- markers drawn over tiles (scout droids, POIs,
+// expedition squad, fight effects, path highlights). Keyed by planet coords, so they ride the rotation mapping.
+export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, overlays = {}) {
     let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
     let nightEnd = (fractionOfDay + NIGHT_END) % 1;
 
@@ -506,21 +513,14 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 }
             }
 
-            // Overlay droids: a tile with N droids shows the count as a solid glyph (terrain is already known/remembered
-            // underneath). Home tile is skipped; droids docked at base aren't drawn.
-            const droidCount = droidCounts[`${sector.coord[0]},${sector.coord[1]}`];
-            if (droidCount && sector.terrain !== TERRAINS.home.enum) {
-                char = droidCount > 9 ? '+' : `${droidCount}`;
-                colorKey = 'droid';
-            }
-
-            let ping;
+            let ping, alpha;
             const overlay = overlays[`${sector.coord[0]},${sector.coord[1]}`];
             if (overlay) {
                 if (overlay.char) { char = overlay.char; } // color-only overlays keep the terrain glyph (e.g. path highlight)
                 colorKey = overlay.colorKey;
                 if (overlay.color) { color = overlay.color; }
-                ping = overlay.ping; // radar-ping cycle fraction; drawn as expanding rings by planet_render
+                ping = overlay.ping;   // radar-ping cycle; drawn as expanding rings by planet_render
+                alpha = overlay.alpha; // per-cell brightness (e.g. scout pulse), multiplied with day/night shading
             }
 
             let light = 'day';
@@ -552,7 +552,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 char = (light === 'day') ? COOKED_CHAR : TERRAINS.flatland.display;
             }
 
-            return { char, colorKey, color, light, dividers, ping }
+            return { char, colorKey, color, light, dividers, ping, alpha }
         });
 
         const numMissingSpaces = (WIDEST_DISPLAY_ROW - displayRowLength) / 2;

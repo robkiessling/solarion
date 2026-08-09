@@ -3,14 +3,20 @@ import {connect} from "react-redux";
 import {roundToDecimal} from "../lib/helpers";
 import DroidCount from "./structures/droid_count";
 import Slider from "rc-slider";
-import ReactSwitch from "react-switch";
-import {percentExplored, setRotation, setSunTracking} from "../redux/modules/planet";
+import {percentExplored, ROTATION_MODES, setRotation, setRotationMode} from "../redux/modules/planet";
 import {showDroidsUI} from "../redux/reducer";
 import {fractionOfDay} from "../redux/modules/clock";
 import Replication from "./replication";
 import Expedition from "./expedition";
 import 'overlayscrollbars/styles/overlayscrollbars.css';
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
+
+// Camera segmented control: [mode, label]. 'Team' follows the expedition squad (or centers home base when idle).
+const CAMERA_MODE_OPTIONS = [
+    [ROTATION_MODES.manual, 'Manual'],
+    [ROTATION_MODES.sun, 'Daytime'],
+    [ROTATION_MODES.squad, 'Team']
+];
 
 class PlanetTools extends React.Component {
     constructor(props) {
@@ -56,20 +62,29 @@ class PlanetTools extends React.Component {
 
                     <div className={'half-br'}></div>
 
+                    <div className="camera-modes">
+                        <span className="camera-modes-label">Camera:</span>
+                        <div className="camera-mode-options">
+                            {CAMERA_MODE_OPTIONS.map(([mode, label]) =>
+                                <a key={mode}
+                                   className={`camera-mode ${mode === this.props.rotationMode ? 'current' : ''}`}
+                                   onClick={() => this.props.setRotationMode(mode)}>
+                                    <span className={mode !== this.props.rotationMode ? 'invisible' : ''}>[[</span>
+                                    {label}
+                                    <span className={mode !== this.props.rotationMode ? 'invisible' : ''}>]]</span>
+                                </a>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className={'half-br'}></div>
+
                     <span>Longitude:</span>
                     <Slider className={'range-slider'}
-                            disabled={this.props.sunTracking}
+                            disabled={this.props.rotationMode !== ROTATION_MODES.manual}
                             min={0} max={1} step={0.02} marks={sliderMarks}
                             onChange={(value) => this.props.setRotation(value)}
                             value={this.props.rotation}/>
-                    <div className={'d-flex justify-center'}>
-                        <label className={'on-off-switch text-center'}>
-                            <ReactSwitch checked={this.props.sunTracking} onChange={this.props.setSunTracking}
-                                         checkedIcon={false} uncheckedIcon={false} height={12} width={24}
-                            />
-                            Lock to Day-Side
-                        </label>
-                    </div>
                 </div>
                 <Replication />
                 <Expedition />
@@ -90,12 +105,12 @@ const mapStateToProps = (state, ownProps) => {
         showDroidsUI: showDroidsUI(state),
         droidData: state.planet.droidData,
         rotation: state.planet.rotation,
-        sunTracking: state.planet.sunTracking
+        rotationMode: state.planet.rotationMode
     };
 };
 
 export default connect(
     mapStateToProps,
-    { setRotation, setSunTracking }
+    { setRotation, setRotationMode }
 )(PlanetTools);
 

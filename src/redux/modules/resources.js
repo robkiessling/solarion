@@ -69,15 +69,19 @@ export default function reducer(state = initialState, action) {
                 : state;
         case fromPlanet.DISPATCH_SQUAD:
             return consumeReducer(state, { standardDroids: payload.squadSize })
-        case fromPlanet.RESOLVE_AT_POI:
-            // Expedition loot on success. Rewards must be already-LEARNed resources (unlearned ids are dropped
-            // silently by produceReducer).
-            return (payload.outcome.success && payload.reward && payload.reward.resources)
-                ? produceReducer(state, payload.reward.resources)
-                : state;
-        case fromPlanet.SQUAD_HOME:
-            // Only survivors return to the idle pool; expedition losses are permanent (never re-credited)
-            return payload.survivors > 0 ? produceReducer(state, { standardDroids: payload.survivors }, false) : state;
+        case fromPlanet.SQUAD_HOME: {
+            // Only survivors return to the idle pool; expedition losses are permanent (never re-credited).
+            // Cargo (loot loaded at sites) is delivered here -- it rides home with the team and dies with it on a
+            // wipe. Rewards must be already-LEARNed resources (unlearned ids are dropped silently by produceReducer).
+            let next = state;
+            if (payload.survivors > 0) {
+                next = produceReducer(next, { standardDroids: payload.survivors }, false);
+            }
+            if (payload.cargo && Object.keys(payload.cargo).length > 0) {
+                next = produceReducer(next, payload.cargo);
+            }
+            return next;
+        }
         case fromPlanet.GENERATE_MAP:
             return produceReducer(state, { buildableLand: numSectorsMatching(payload.map, STATUSES.explored.enum, TERRAINS.flatland.enum) })
         case fromPlanet.PROGRESS: {

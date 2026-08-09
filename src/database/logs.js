@@ -606,7 +606,7 @@ export default {
             ['Goodbye.', 10000, true], // star animation
         ],
         onFinish: dispatch => {
-            dispatch(fromPlanet.setSunTracking(true));
+            dispatch(fromPlanet.setRotationMode('sun'));
             dispatch(fromGame.updateSetting('hideUI', true));
             dispatch(fromGame.updateSetting('currentNavTab', 'planet'))
             dispatch(fromLog.startLogSequence('finalSequence_planet2'))

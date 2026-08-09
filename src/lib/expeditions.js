@@ -114,36 +114,47 @@ export function generateDebugPois(map) {
     return pois;
 }
 
+// "500 ore, 200 energy" (empty string when there's nothing)
+export function formatResourceList(resources) {
+    if (!resources) return '';
+    return Object.entries(resources).map(([resource, amount]) => `${amount} ${resource}`).join(', ');
+}
+
 /**
  * Composes the terminal line for an expedition report. Reports are structured objects (built in planet.js);
  * the text is composed once here and logged via log.logInline.
+ *
+ * Resource rewards stored as cargo: carried by the team, delivered only when it reaches home (and lost on wipe).
  */
 export function buildReportText(report) {
+    const loaded = report.loaded && Object.keys(report.loaded).length > 0 ?
+        ` Loaded ${formatResourceList(report.loaded)}.` : '';
+
     switch (report.result) {
         case 'success':
             if (report.poiType === POI_TYPES.nest) {
-                return `Cleared ${report.poiName} — lost ${report.losses} of ${report.squadSize} droids.${rewardText(report)}`;
+                return `Cleared ${report.poiName} — lost ${report.losses} of ${report.squadSize} droids.${loaded}`;
             }
             if (report.poiType === POI_TYPES.storySite) {
                 const story = STORY_TEXTS[report.storyId] || 'Site explored.';
-                return `${report.poiName} explored: "${story}"${rewardText(report)}`;
+                return `${report.poiName} explored: "${story}"${loaded}`;
             }
-            return `Recovered ${report.poiName}.${rewardText(report)}`;
-        case 'failure':
-            return `Team lost assaulting ${report.poiName}. Hostile strength confirmed: ${report.difficulty}.`;
-        case 'returned':
-            return `Team returned to base (${report.survivors} droids).`;
+            return `Recovered ${report.poiName}.${loaded}`;
+        case 'failure': {
+            const cargoLost = report.cargoLost && Object.keys(report.cargoLost).length > 0 ?
+                ` Cargo lost: ${formatResourceList(report.cargoLost)}.` : '';
+            return `Team lost assaulting ${report.poiName}. Hostile strength confirmed: ${report.difficulty}.${cargoLost}`;
+        }
+        case 'returned': {
+            const delivered = report.cargo && Object.keys(report.cargo).length > 0 ?
+                ` Delivered ${formatResourceList(report.cargo)}.` : '';
+            return `Team returned to base (${report.survivors} droids).${delivered}`;
+        }
         case 'noRoute':
             return `No route to ${report.poiName}.`;
         default:
             return '';
     }
-}
-
-function rewardText(report) {
-    if (!report.reward) return '';
-    const parts = Object.entries(report.reward).map(([resource, amount]) => `${amount} ${resource}`);
-    return ` Salvaged ${parts.join(', ')}.`;
 }
 
 // Difficulty shown as a band until a squad has made contact (first fight reveals the exact number).

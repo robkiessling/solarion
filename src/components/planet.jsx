@@ -19,6 +19,10 @@ const PATH_ANTS_STEP_MS = 180; // marching-ants crawl speed for the hovered-path
 const PATH_ANTS_SPACING = 6;  // 1 bright tile every N path tiles (higher = sparser ants)
 const POI_PING_PERIOD_MS = 1200; // one full expand-and-fade cycle of the hovered marker's radar ping
 const SQUAD_PING_PERIOD_MS = 2200; // slower, subtler locator pulse on the deployed squad
+const DROID_GLYPH = '♦'; // a scout; small filled diamond pairs with the squad's big hollow '◊' (droids are diamonds)
+                         // and can't be confused with '·' unknown
+const SHOW_DROID_STACK_COUNTS = false; // when true, tiles with 2+ scouts show the count (2-9, '+') instead of the glyph
+const SCOUT_PULSE_PERIOD_MS = 1800; // scouts breathe between dim and full brightness, phase-offset per tile
 import {PLANET_FPS} from "../singletons/game_clock";
 import * as fromClock from "../redux/modules/clock";
 
@@ -75,20 +79,12 @@ class Planet extends React.Component {
             this.canvasManager.resize();
         }
 
-        const droidCounts = {};
-        (this.props.droids || []).forEach(droid => {
-            if (!droid.coord) return;
-            const key = `${droid.coord[0]},${droid.coord[1]}`;
-            droidCounts[key] = (droidCounts[key] || 0) + 1;
-        });
-
         const planetImage = generateImage(
             this.props.map,
             this.props.fractionOfDay,
             this.props.rotation,
             this.props.sunTracking,
             this.props.cookedPct,
-            droidCounts,
             this.buildOverlays()
         );
 
@@ -138,6 +134,34 @@ class Planet extends React.Component {
             });
         }
 
+        // Scout droids: a lone droid draws as a glyph, stacks show their count. Active scouts are yellow; recalled
+        // ones walking home go gray (any active droid on a shared tile wins the color). Docked droids (home tile)
+        // aren't drawn.
+        const droidTiles = {};
+        (this.props.droids || []).forEach(droid => {
+            if (!droid.coord) return;
+            const key = `${droid.coord[0]},${droid.coord[1]}`;
+            const entry = droidTiles[key] || (droidTiles[key] = { count: 0, anyActive: false });
+            entry.count++;
+            if (!droid.returning) entry.anyActive = true;
+        });
+        const homeKey = this.props.homeCoord ? `${this.props.homeCoord[0]},${this.props.homeCoord[1]}` : null;
+        Object.entries(droidTiles).forEach(([key, { count, anyActive }]) => {
+            if (key === homeKey) return;
+
+            // Slow brightness pulse (0.6..1.0), phase-offset by tile position so scouts twinkle out of sync
+            const [r, c] = key.split(',').map(Number);
+            const phase = ((r * 13 + c * 7) % 10) / 10;
+            const pulse = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(2 * Math.PI * (this.props.elapsedTime / SCOUT_PULSE_PERIOD_MS + phase)));
+
+            const stackChar = count > 9 ? '+' : `${count}`;
+            overlays[key] = {
+                char: (SHOW_DROID_STACK_COUNTS && count > 1) ? stackChar : DROID_GLYPH,
+                colorKey: anyActive ? 'droid' : 'droidReturning',
+                alpha: pulse
+            };
+        });
+
         Object.values(this.props.pois || {}).forEach(poi => {
             if (poi.status !== POI_STATUS.available) return;
             const hovered = poi.id === this.props.hoveredPoiId;
@@ -172,6 +196,13 @@ class Planet extends React.Component {
     render() {
         const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.developed];
 
+        if ((this.props.droids || []).length > 0) {
+            legend.push({ key: 'droid', display: DROID_GLYPH, label: 'Scout' });
+            if (SHOW_DROID_STACK_COUNTS) {
+                legend.push({ key: 'droidStack', colorKey: 'droid', display: '2+', label: 'Scouts (stacked)' });
+            }
+        }
+
         // POI/squad legend entries only appear once relevant (any POI discovered)
         const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== POI_STATUS.hidden);
         if (anyPoiVisible) {
@@ -189,7 +220,7 @@ class Planet extends React.Component {
                     {
                         legend.map((attributes) => {
                             return <span key={attributes.key}>
-                                <span style={{color: PLANET_COLORS[attributes.key]}}>
+                                <span style={{color: PLANET_COLORS[attributes.colorKey || attributes.key]}}>
                                     {attributes.display} {attributes.label}
                                 </span>
                             </span>
@@ -216,7 +247,7 @@ const mapStateToProps = state => {
         fractionOfDay: fromClock.fractionOfDay(state.clock),
         rotation: state.planet.rotation,
         cookedPct: state.planet.cookedPct,
-        sunTracking: state.planet.sunTracking,
+        sunTracking: state.planet.rotationMode === 'sun', // generateImage's shading special-case
     }
 };
 

@@ -83,6 +83,36 @@ $top-bar-float-padding: 0.875rem;
   display: flex;
   flex-direction: column;
   padding: $component-padding;
+
+  // Tri-state camera control, styled like miniature nav tabs (active mode in blue with the [[ ]] convention)
+  .camera-modes {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+
+    .camera-modes-label {
+      opacity: 0.8;
+    }
+
+    .camera-mode-options {
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .camera-mode {
+      cursor: pointer;
+      color: $ui-text;
+
+      &:hover {
+        color: white;
+      }
+
+      &.current {
+        color: $blue;
+      }
+    }
+  }
 }
 .exploration-actions {
   display: flex;
@@ -137,6 +167,12 @@ $top-bar-float-padding: 0.875rem;
       // the space keeps the card height identical across all states
       display: block;
       min-height: 2.4em;
+    }
+
+    .cargo-line {
+      opacity: 0.8;
+      font-size: 0.9em;
+      min-height: 1.2em; // fixed row in the card skeleton
     }
 
     .squad-actions {

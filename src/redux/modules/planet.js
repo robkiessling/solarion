@@ -1,6 +1,7 @@
 import update from 'immutability-helper';
 import {recalculateState, withRecalculation} from "../reducer";
 import {
+    centeringRotation,
     COOK_TIME,
     generateRandomMap,
     getCrossTime,
@@ -33,7 +34,7 @@ export const GENERATE_MAP = 'planet/GENERATE_MAP';
 export const PROGRESS = 'planet/PROGRESS';
 export const FINISH_EXPLORING_MAP = 'planet/FINISH_EXPLORING_MAP';
 export const SET_ROTATION = 'planet/SET_ROTATION';
-export const SET_SUN_TRACKING = 'planet/SET_SUN_TRACKING';
+export const SET_ROTATION_MODE = 'planet/SET_ROTATION_MODE';
 export const ASSIGN_DROID = 'planet/ASSIGN_DROID';
 export const REMOVE_DROID = 'planet/REMOVE_DROID';
 export const START_DEVELOPMENT = 'planet/START_DEVELOPMENT';
@@ -57,13 +58,21 @@ const OVERALL_MAP_STATUS = {
     finished: 'finished',
 }
 
+// Who drives the planet rotation. manual: the longitude slider. sun: camera locks to the day side.
+// squad: camera follows the expedition team (or centers home base when no team is deployed).
+export const ROTATION_MODES = {
+    manual: 'manual',
+    sun: 'sun',
+    squad: 'squad'
+}
+
 // Initial State
 const initialState = {
     map: [],
     homeCoord: null, // [row, col] of the command center; droids spawn here
     overallStatus: OVERALL_MAP_STATUS.unstarted,
     rotation: 0.5,
-    sunTracking: false, // TODO need to fix twilight shading if going to use this
+    rotationMode: 'manual', // see ROTATION_MODES: who drives the camera (longitude slider / sun / expedition team)
     droidData: { // This object mirrors 'structure' format so they can be polymorphic
         numDroidsAssigned: 0,
         droidAssignmentType: 'planet'
@@ -139,9 +148,9 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 rotation: { $set: payload.value }
             })
-        case SET_SUN_TRACKING:
+        case SET_ROTATION_MODE:
             return update(state, {
-                sunTracking: { $set: payload.value }
+                rotationMode: { $set: payload.mode }
             })
         case ASSIGN_DROID: {
             // payload.amount fresh droids spawn at home base; payload.turnAroundIndices are returning droids that
@@ -234,7 +243,8 @@ export default function reducer(state = initialState, action) {
                         pendingFight: false,
                         fightRemaining: null,
                         outcome: null,
-                        recalled: false
+                        recalled: false,
+                        cargo: {} // resources loaded at sites, delivered on reaching home (lost with the team)
                     }
                 }
             })
@@ -289,17 +299,27 @@ export default function reducer(state = initialState, action) {
             }
 
             if (payload.outcome.survivors > 0) {
-                // Survivors hold at the site awaiting orders (push on or recall)
+                // Survivors hold at the site awaiting orders (push on or recall), loading any resource reward as cargo
                 updates.squad = {
                     status: { $set: SQUAD_STATUS.holding },
                     squadSize: { $set: payload.outcome.survivors },
                     pendingFight: { $set: false },
                     fightRemaining: { $set: null },
-                    outcome: { $set: null }
+                    outcome: { $set: null },
+                    cargo: {
+                        $apply: (cargo) => {
+                            if (!(payload.reward && payload.reward.resources)) return cargo || {};
+                            const next = { ...(cargo || {}) };
+                            Object.entries(payload.reward.resources).forEach(([id, amount]) => {
+                                next[id] = (next[id] || 0) + amount;
+                            });
+                            return next;
+                        }
+                    }
                 };
             }
             else {
-                updates.squad = { $set: null }; // squad wiped; nothing walks home
+                updates.squad = { $set: null }; // squad wiped; nothing walks home (cargo dies with it)
             }
 
             return update(state, updates);
@@ -317,8 +337,8 @@ export default function reducer(state = initialState, action) {
 export function setRotation(value) {
     return { type: SET_ROTATION, payload: { value } }
 }
-export function setSunTracking(value) {
-    return { type: SET_SUN_TRACKING, payload: { value } }
+export function setRotationMode(mode) {
+    return { type: SET_ROTATION_MODE, payload: { mode } }
 }
 export function startCooking() {
     return { type: START_COOK }
@@ -434,8 +454,15 @@ export function planetTick(timeDelta) {
             }
 
             let newRotation;
-            if (state.sunTracking) {
+            if (state.rotationMode === ROTATION_MODES.sun) {
                 newRotation = sunTrackingRotation(fromClock.fractionOfDay(getState().clock));
+            }
+            else if (state.rotationMode === ROTATION_MODES.squad) {
+                // Follow the team; with nobody deployed, center home base instead
+                const focusCoord = (state.squad && state.squad.coord) ? state.squad.coord : state.homeCoord;
+                if (focusCoord) {
+                    newRotation = centeringRotation(focusCoord);
+                }
             }
 
             // Advance the expedition squad (movement / fight countdown). This must run BEFORE the finished-map
@@ -456,8 +483,9 @@ export function planetTick(timeDelta) {
                             break;
                         }
                         case 'home': {
-                            dispatch({ type: SQUAD_HOME, payload: { survivors: event.survivors } });
-                            logReport(dispatch, null, 'returned', { survivors: event.survivors });
+                            const cargo = squad.cargo || {};
+                            dispatch({ type: SQUAD_HOME, payload: { survivors: event.survivors, cargo } });
+                            logReport(dispatch, null, 'returned', { survivors: event.survivors, cargo });
                             dispatch(recalculateState());
                             break;
                         }
@@ -595,12 +623,17 @@ function resolveAtPoi(dispatch, getState, poiId, outcome) {
     const poi = getState().planet.pois[poiId];
     const reward = outcome.success ? poi.reward : null;
 
+    // Snapshot cargo before the reducer runs: on a wipe the squad (and its cargo) is gone afterward
+    const squad = getState().planet.squad;
+    const cargoLost = outcome.survivors === 0 && squad ? (squad.cargo || {}) : null;
+
     dispatch({ type: RESOLVE_AT_POI, payload: { poiId, outcome, reward } });
     logReport(dispatch, poi, outcome.success ? 'success' : 'failure', {
         squadSize: outcome.survivors + outcome.losses,
         losses: outcome.losses,
         survivors: outcome.survivors,
-        reward: reward && reward.resources ? reward.resources : null,
+        loaded: reward && reward.resources ? reward.resources : null,
+        cargoLost,
         storyId: outcome.success ? (poi.storyId || null) : null,
         difficulty: poi.difficulty
     });
