@@ -75,12 +75,12 @@ const START_WITH_ADJ_EXPLORED = true;
  * exploreLength: legacy per-tile explore cost used by the old sector-exploration model; removed once droids land.
  */
 export const TERRAINS = {
-    home: { key: 'home', enum: 0, display: '#', className: 'home', label: 'Command Center', crossTime: EXPLORATION_TIME_FACTOR },
-    flatland: { key: 'flatland', enum: 1, display: '*', className: 'flatland', label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
-    developing: { key: 'developing', enum: 2, display: '+', className: 'developing', label: 'Replicating', crossTime: EXPLORATION_TIME_FACTOR },
-    developed: { key: 'developed', enum: 3, display: '+', className: 'developed', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
-    mountain: { key: 'mountain', enum: 4, display: 'Λ', className: 'mountain', label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
-    ice: { key: 'ice', enum: 5, display: 'X', className: 'ice', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
+    home: { key: 'home', enum: 0, display: '#', label: 'Command Center', crossTime: EXPLORATION_TIME_FACTOR },
+    flatland: { key: 'flatland', enum: 1, display: '*', label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
+    developing: { key: 'developing', enum: 2, display: '+', label: 'Replicating', crossTime: EXPLORATION_TIME_FACTOR },
+    developed: { key: 'developed', enum: 3, display: '+', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
+    mountain: { key: 'mountain', enum: 4, display: 'Λ', label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
+    ice: { key: 'ice', enum: 5, display: 'X', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
 }
 
 if (SHOW_DEBUG_MERIDIANS) {
@@ -97,7 +97,7 @@ for (const [key, attributes] of Object.entries(TERRAINS)) {
 }
 
 export const STATUSES = {
-    unknown: { key: 'unknown', enum: 0, display: '·', className: 'unknown', label: 'Unknown' },
+    unknown: { key: 'unknown', enum: 0, display: '·', label: 'Unknown' },
     exploring: { key: 'exploring', enum: 1, label: 'Exploring' },
     explored: { key: 'explored', enum: 2, label: 'Explored' }
 }
@@ -479,96 +479,69 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
             planetRow.slice(displayStart, planetRowLength).concat(planetRow.slice(0, displayEnd));
 
         displayRow = displayRow.map((sector, displayColIndex) => {
-            let char, className, style;
+            // Cell fields (consumed by planet_render's drawPlanetImage):
+            //   char: the glyph
+            //   colorKey: key into PLANET_COLORS (terrain/status key, 'droid', 'laserBeam')
+            //   color: explicit color string; overrides colorKey (used by the cook sequence)
+            //   light: 'day' | 'twilightDay' | 'twilightNight' | 'night' (shading level)
+            //   dividers: { left, right, bottom } debug sector borders
+            let char, colorKey, color, dividers;
 
             if (sector.status === STATUSES.unknown.enum) {
                 char = STATUSES.unknown.display;
-                className = STATUSES.unknown.className;
+                colorKey = STATUSES.unknown.key;
             }
             else {
                 char = TERRAINS_BY_ENUM[sector.terrain].display;
-                className = TERRAINS_BY_ENUM[sector.terrain].className;
+                colorKey = TERRAINS_BY_ENUM[sector.terrain].key;
             }
 
-            if (sector.status === STATUSES.exploring.enum) {
-                className += ' exploring'
-                const pct = `${sector.exploreProgress / (sector.exploreLength * 1000) * 100}%`
-                style = { background: `linear-gradient(90deg, rgba(0,0,0,0) ${pct}, rgba(255,255,255,0.2) ${pct})` }
-            }
-
-            // if (sector.status !== STATUSES.unknown.enum && getAdjacentCoords([rowIndex, sector.planetColIndex]).some(other => {
-            //     return map[other[0]][other[1]].status === STATUSES.unknown.enum
-            // })) {
-            //     className += ' exploring'
-            // }
-
-            if (sector.sectorDividerLeft) { className += ' sector-divider-left' }
-            if (sector.sectorDividerRight) { className += ' sector-divider-right' }
-            if (sector.sectorDividerBottom) { className += ' sector-divider-bottom' }
-
-            if (sector.status === STATUSES.exploring.enum) {
-                // since we are not showing dotted exploring rect, we cannot show tile until finished (otherwise the
-                // number of explored flatlands won't match up)
-                char = STATUSES.unknown.display;
+            if (sector.sectorDividerLeft || sector.sectorDividerRight || sector.sectorDividerBottom) {
+                dividers = {
+                    left: sector.sectorDividerLeft,
+                    right: sector.sectorDividerRight,
+                    bottom: sector.sectorDividerBottom
+                }
             }
 
             // Overlay droids: a tile with N droids shows the count as a solid glyph (terrain is already known/remembered
-            // underneath). Home tile is skipped -- droids docked at base aren't drawn.
+            // underneath). Home tile is skipped; droids docked at base aren't drawn.
             const droidCount = droidCounts[`${sector.coord[0]},${sector.coord[1]}`];
             if (droidCount && sector.terrain !== TERRAINS.home.enum) {
                 char = droidCount > 9 ? '+' : `${droidCount}`;
-                className = `${className} droid`;
+                colorKey = 'droid';
             }
 
-            let isDay = true;
+            let light = 'day';
             if (sunTracking) {
                 // sunTracking is enabled: shading the far-right side of the planet accordingly
                 // (Ideally, the sunTracking:disabled shading would work for this use case too, but I couldn't get it to
                 //  work without stuttering. So I have to make this special case for sunTracking:enabled)
                 const displayFraction = displayColIndex / displayRowLength; // How far into the display length the sector is
                 if (displayFraction >= SUN_TRACKING_NIGHT_CUTOFF) {
-                    className += ' night';
-                    isDay = false;
+                    light = 'night';
                 }
                 else if (displayFraction >= SUN_TRACKING_TWI_NIGHT_CUTOFF) {
-                    className += ' twilight-night';
-                    isDay = false;
+                    light = 'twilightNight';
                 }
                 else if (displayFraction >= SUN_TRACKING_TWI_DAY_CUTOFF) {
-                    className += ' twilight-day';
-                    isDay = false;
+                    light = 'twilightDay';
                 }
             }
             else {
                 // sunTracking is disabled: shading the night side of the planet
-                // TODO This performance is really bad
                 const planetFraction = sector.coord[1] / planetRowLength; // How far into the planet length the sector is
-                const lightClass =
-                    getTwilightClass(planetFraction, nightStart, nightEnd) ||
-                    getNightClass(planetFraction, nightStart, nightEnd);
-                className += ` ${lightClass}`;
-                if (lightClass.length) { isDay = false; }
+                light = getTwilightLight(planetFraction, nightStart, nightEnd) ||
+                    getNightLight(planetFraction, nightStart, nightEnd) ||
+                    'day';
             }
 
             if (cookedPct) {
-                const cookedColor = getIntermediateColor(COOK_COLOR_START, COOK_COLOR_END, cookedPct)
-                if (isDay) {
-                    // if (char !== TERRAINS.mountain.display) {
-                        char = COOKED_CHAR;
-                        style = { color: cookedColor }
-                    // }
-                }
-                else {
-                    char = TERRAINS.flatland.display
-                    style = { color: cookedColor }
-                }
+                color = getIntermediateColor(COOK_COLOR_START, COOK_COLOR_END, cookedPct)
+                char = (light === 'day') ? COOKED_CHAR : TERRAINS.flatland.display;
             }
 
-            return {
-                char: char,
-                className: className,
-                style: style
-            }
+            return { char, colorKey, color, light, dividers }
         });
 
         const numMissingSpaces = (WIDEST_DISPLAY_ROW - displayRowLength) / 2;
@@ -584,7 +557,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
 }
 
 // There are 2 levels of twilight: a darker section is shaded towards night and a lighter section is shaded towards day.
-function getTwilightClass(planetFraction, nightStart, nightEnd) {
+function getTwilightLight(planetFraction, nightStart, nightEnd) {
     /**
      * nightStart is the meridian at the boundary between day and night, when night is to the right:
      *   .-----.
@@ -594,10 +567,10 @@ function getTwilightClass(planetFraction, nightStart, nightEnd) {
      * If we are within range to the left, we shade it lighter. If within range to the right, shade it darker:
      */
     if (isWithinRange(planetFraction, [nightStart - TWILIGHT_LENGTH, nightStart])) {
-        return 'twilight-day';
+        return 'twilightDay';
     }
     if (isWithinRange(planetFraction, [nightStart, nightStart + TWILIGHT_LENGTH])) {
-        return 'twilight-night';
+        return 'twilightNight';
     }
 
     /**
@@ -609,17 +582,17 @@ function getTwilightClass(planetFraction, nightStart, nightEnd) {
      * If we are within range to the left, we shade it darker. If within range to the right, shade it lighter:
      */
     if (isWithinRange(planetFraction, [nightEnd - TWILIGHT_LENGTH, nightEnd])) {
-        return 'twilight-night';
+        return 'twilightNight';
     }
     if (isWithinRange(planetFraction, [nightEnd, nightEnd + TWILIGHT_LENGTH])) {
-        return 'twilight-day';
+        return 'twilightDay';
     }
 
     return ''
 }
 
 
-function getNightClass(planetFraction, nightStart, nightEnd) {
+function getNightLight(planetFraction, nightStart, nightEnd) {
     if (nightStart <= nightEnd) {
         if (planetFraction >= nightStart && planetFraction < nightEnd) {
             return 'night';
@@ -686,7 +659,7 @@ function addLaserBeams(planetImage, fractionOfDay) {
         const row = createArray(LASER_BEAM_WIDTH, () => {
             return {
                 char: char,
-                className: 'laser-beam'
+                colorKey: 'laserBeam'
             }
         });
 
@@ -716,7 +689,7 @@ function addLaserBeams(planetImage, fractionOfDay) {
     // apply the planet image on top of the 2d beam array
     planetImage.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
-            const {char, className, style} = sector;
+            const { char } = sector;
             const netRowIndex = heightPadding + rowIndex;
 
             if (char === ' ') { return; }

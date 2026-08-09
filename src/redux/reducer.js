@@ -15,7 +15,6 @@ import planet, * as fromPlanet from "./modules/planet";
 import star, * as fromStar from "./modules/star";
 import {mapObject, roundToDecimal} from "../lib/helpers";
 import {STATUSES} from "../database/structures";
-import {generateImage} from "../lib/planet_map";
 import {getQuantity, getResource} from "./modules/resources";
 import {aimMirrors, isTargetingPlanet, startEnergyBeam, TARGETS} from "./modules/star";
 import {HYPER_BEAM_CHARGE_TIME} from "../lib/star";

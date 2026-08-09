@@ -10,9 +10,18 @@ export const QUEUE_TYPES = {
 }
 
 export default class AsciiCanvas {
-    constructor(container, canvas, numRows, numCols, cachedCanvas) {
+    // options.fillContainer: the canvas covers the whole container and the char grid is contain-fit (fully visible,
+    // scaled to the largest size that fits) and centered inside it. The letterbox area around the grid is still
+    // drawable. Default mode: canvas is sized to the grid itself, fit to container height (sides may crop).
+    // options.padding: (fillContainer only) minimum px between the char grid and the container edges.
+    // options.charRatio: width/height of one grid cell. Defaults to the glyph's natural ratio (FONT_RATIO). Smaller
+    // values add vertical leading between rows (like CSS line-height), stretching the image taller; the font is
+    // shrunk to fit the narrower cell so glyphs never overlap horizontally.
+    constructor(container, canvas, numRows, numCols, cachedCanvas, options = {}) {
         this.container = container;
         this.canvas = canvas;
+        this.options = options;
+        this.charRatio = options.charRatio || FONT_RATIO;
 
         // Turn off alpha for performance boost:
         // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas#turn_off_transparency
@@ -46,6 +55,19 @@ export default class AsciiCanvas {
         const outerWidth = this.container.getBoundingClientRect().width;
         const outerHeight = this.container.getBoundingClientRect().height;
 
+        if (this.options.fillContainer) {
+            const padding = this.options.padding || 0;
+            const availWidth = Math.max(outerWidth - padding * 2, 0);
+            const availHeight = Math.max(outerHeight - padding * 2, 0);
+
+            this.width = outerWidth;
+            this.height = outerHeight;
+            this.fontHeight = Math.min(availHeight / this.numRows, availWidth / (this.numCols * this.charRatio));
+            this.fontWidth = this.fontHeight * this.charRatio;
+            this._setFontSize();
+            return;
+        }
+
         // This makes it so the canvas size is maximized to fit in rectangular region
         // const maxCharWidth = outerWidth / this.numCols;
         // const maxCharHeight = outerHeight / this.numRows;
@@ -58,19 +80,45 @@ export default class AsciiCanvas {
         if (smallerDimension === 'height') {
             this.height = outerHeight;
             this.fontHeight = this.height / this.numRows
-            this.fontWidth = this.fontHeight * FONT_RATIO
+            this.fontWidth = this.fontHeight * this.charRatio
             this.width = this.fontWidth * this.numCols;
         }
         else {
             this.width = outerWidth;
             this.fontWidth = this.width / this.numCols;
-            this.fontHeight = this.fontWidth / FONT_RATIO;
+            this.fontHeight = this.fontWidth / this.charRatio;
             this.height = this.fontHeight * this.numRows
         }
+
+        this._setFontSize();
+    }
+
+    // The font is sized so a glyph's natural advance width fits the cell width. When charRatio equals FONT_RATIO
+    // this is exactly fontHeight; narrower cells shrink the font, leaving vertical leading between rows.
+    _setFontSize() {
+        this.fontSize = Math.min(this.fontHeight, this.fontWidth / FONT_RATIO);
     }
 
     center() {
         return [this.width / 2, this.height / 2]
+    }
+
+    // Top-left pixel of the char grid. [0, 0] unless fillContainer mode centers the grid within a larger canvas.
+    gridOrigin() {
+        if (!this.options.fillContainer) {
+            return [0, 0];
+        }
+        return [
+            (this.width - this.fontWidth * this.numCols) / 2,
+            (this.height - this.fontHeight * this.numRows) / 2
+        ];
+    }
+
+    // Inverse of the grid drawing math: returns fractional [row, col] for a pixel coordinate (e.g. from a mouse
+    // event relative to the canvas). Callers floor the values and bounds-check against the grid.
+    xyToGrid(x, y) {
+        const [originX, originY] = this.gridOrigin();
+        return [(y - originY) / this.fontHeight, (x - originX) / this.fontWidth];
     }
 
     /**
@@ -280,10 +328,10 @@ export default class AsciiCanvas {
             this._convertCanvasToHiDPI(this.cachedCanvas, this.cachedContext);
         }
 
-        this.context.font = this.fontHeight + 'px monospace';
+        this.context.font = this.fontSize + 'px monospace';
 
         if (this.cachedCanvas) {
-            this.cachedContext.font = this.fontHeight + 'px monospace';
+            this.cachedContext.font = this.fontSize + 'px monospace';
         }
 
         // TODO Have to immediately redraw the current frame
