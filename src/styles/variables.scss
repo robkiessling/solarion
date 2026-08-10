@@ -50,6 +50,7 @@ $blue: #3ec0da;
 
 // https://lospec.com/palette-list/galaxy-flame
 $ui-bg: $black-muted;
+$ui-bg-veil: rgba($ui-bg, 0.9); // panels sitting over the ascii decor; translucent so it ghosts through
 $ui-text: #f0e7e7;
 $ui-text-dim: #9a9f87;
 $ui-border: #314e3f;

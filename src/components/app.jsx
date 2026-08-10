@@ -17,7 +17,146 @@ import Settings from "./settings";
 import Error from "./error";
 import {getStructure} from "../redux/modules/structures";
 import CommandCenter from "./structures/command_center";
+import PlanetPanels from "./planet_panels";
 import Keyboard from "./ui/keyboard";
+
+// Dead equipment glimpsed in the dark before the facility powers up. Both pieces stay permanently,
+// sitting behind the column UI (z-index -1) as background texture; they show wherever the panels
+// leave empty space (e.g. below the terminal's text on the left).
+// const DECOR_DEAD_MONITOR =
+// `┌──────────────┐
+// │ ░▒           │
+// │        ▒░░   │
+// │   ░          │
+// └──────┬───────┘
+//        │
+//   ─────┴─────`;
+const DECOR_DEAD_MONITOR =
+`┌──◆───────◆──────◆┬─────────◆┬─────────┐
+│══╗      ╔╪╗      └┐         └┐        │
+│  ╚══════╝│║       └┐         └┐       │
+│  │       │║        └┐         └─┐     ║
+│  │       │║        ╔═╦══════════╗  ╔═╗║
+│  │       │║║       ║▒║▓▓▓▓▓▓▓▓▓▓╬══╣‗╠╬
+└──◆───────◆╫╫───────╚═╩══════════╝  ╚╬╝■
+            ║║                        ║  
+           ═╬╬════╗                   ║  
+            ║╚═╦═╦╝                   ║  
+          ╔════╝ ║                    □  
+          ║ ║    ║                       
+          ║ ║    ║                       
+          ╠═╩════╗                       
+          ║░░░░░░║                       
+          ║░░░░░░║                       
+          ╚══════╝                       `;
+
+// const DECOR_BROKEN_PANELS =
+// `┌────────┬────────┐
+// │        │  ░     │
+// │   ░    │      ▒ │
+// ├────────┼──╥─────┤
+// │        │  ║     │
+// │  ▒     │  ╚═╗   │
+// └────────┴────║───┘
+//               ║
+//               ╚═╕`;
+
+const DECOR_BROKEN_PANELS =
+`               ━━━━━━━   
+                 ║║║     
+                 ║║║     
+    ┃            ║║║     
+  ┌┏┻┓───────────╨╨╨──┐  
+  ━┫ ┣━               │  
+  │┗┳┛            ○○○ │  
+  │ ┃                 │  
+  │                   │  
+  │        ║          │  
+  │        ║ ║        │  
+  │        ║ ║        │  
+  │ ┃      ║ ║        │  
+  │ ┃      ║ ║        │  
+  │┏┛      ║ ║        │  
+  └┃───────║─║────────┘  
+   ┃       ╚╗║           
+   ┃        ║║           
+   ┃        ║║           
+   ┃        ║║           
+   ┃        ║║           
+   ┃        ║╚═══════╗   
+   ┃        ════════╗║   
+   ┃                ║║   
+   ┃                ║║   
+   ┃             ╔══╝║   
+   ┃             ║   ║   
+ ┏━━━━━━┓        ║   ║   
+ ┃ ┃  ┃ ┃        ║   ║   
+ ┃┏┻┓┏┻┓┃        +   ║   
+ ┃┃ ┃┃ ┃┃━┓      ║   ║┃┃┃
+ ┃┃ ┃┃ ┃┃ ┗┓     ╚╗  ║┃┃┃
+ ┃┗┳┛┗┳┛┃  ┗━┓    ║  ║┃┃┃
+ ┃ ┃  ┃ ┃    ┗━━┓ ║  ║┃┃┃
+ ┗━━━━━━┛       ┗━━━━━┛  
+   ┃                     
+   ┃                     
+   ┃                     
+   ┃                     
+   ┃                     
+   ┃                     
+   ━━━┓ ┏━┓              
+   ┃┏━━━━┏┛              
+━━━┛━━┗━━┛━━┏┓━          
+         ┏━━┃┃━━━━━━━━┓  
+         ┃  ┃┃        ┃  
+         ┃  ┃┃        ┃  
+         ┃  ┃┃        ┃  
+         ┗━━┃┃┏┓━━━━━┏┓  
+         ┏━━┃┃┃┃━━━━━┃┃  
+         ┗━━┃┃┃┃━━━━━┃┃  
+         ┏━━┃┃┃┃━━━━━┃┃  
+         ┗━━┃┛┗┃━━━━━┗┛  
+           ┃┃  ┗━━━┃┃┃   
+           ┗┛      ┃┃┃   
+╔ ═ ═╔═╗          ┏━┃┛   
+     ║ ║          ┃┃┃    
+║ ╔═ ║═║╗         ┃┃┃    
+     ║ ║║         ┃┃┃    
+║ ║  ║ ║          ┃┃┃    
+  ║  ║ ║║         ┃┃┃    
+╚    ║ ║║         #┃┃    
+  ║  ║╔╝           ┃┃    
+  ╚ ═║║────────━┓  ┃┃    
+  │  ╚═╗ │────┛ ┗┓ ║║    
+  │    ╚╗│ ╔════════╝    
+  │     ╚│═╝ ┗┓ ┏┛       
+  │      │    ┗━┛        
+  │      │               
+┌─+┐     │               
+│┌─│     │               
+││││     │    ┏━┓  ┏━┓   
+││└│     └──━━┫ ┣━━┫ ┣━  
+││││          ┗━┛  ┗━┛   
+││││                     
+└┘ │                     
+   │┐                    
+   ││                    
+   ╭║──╮                 
+   │║  │───╮             
+   │║  │   │             
+   ╰║──╯   │             
+  ╭─║╭─────╮             
+  │ ║│║║═══│             
+  │ ║│║║═══│             
+  ╰─║╰─────╯             
+    ═║║║════╗            
+    ═║║║═════╗           
+            ║║           
+            ║║           
+         ┏━══════━┓      
+         ┃  ▲▲ ▲  ┃      
+         ┃  ║║ ║  ┃      
+         ┃  ▼▼ ▼  ┃      `
+
 
 class App extends React.Component {
 
@@ -54,22 +193,36 @@ class App extends React.Component {
         return (
             <div id="app-container"
                  className={containerClass}>
-                <div className="left-column">
-                    {this.props.commandCenterLoaded && <CommandCenter/>}
-                    <Log/>
+                {/* Bar chrome (background + border) always shows; the contents reveal themselves progressively */}
+                <div className="top-bar">
                     <ResourceBar/>
+                    <PlanetStatus/>
                     <Settings/>
                 </div>
-                <div className="center-column">
-                    <Outside/>
-                    <Planet/>
-                    <Star/>
-                    <NavigationTabs/>
-                    <PlanetStatus/>
-                </div>
-                <div className="right-column">
-                    <Structures/>
-                    <PlanetTools/>
+                <div className="main-columns">
+                    <div className="left-column">
+                        {
+                            // CSS-hidden (not unmounted) off the base tab so the energy button canvas survives tab switches
+                            this.props.commandCenterLoaded &&
+                            <div className={`command-center-slot ${this.props.currentNavTab === 'planet' ? 'hidden' : ''}`}>
+                                <CommandCenter/>
+                            </div>
+                        }
+                        <PlanetPanels/>
+                        <Log/>
+                        <pre className="ascii-decor decor-left">{DECOR_DEAD_MONITOR}</pre>
+                    </div>
+                    <div className="center-column">
+                        <Outside/>
+                        <Planet/>
+                        <Star/>
+                        <NavigationTabs/>
+                    </div>
+                    <div className="right-column">
+                        <Structures/>
+                        <PlanetTools/>
+                        <pre className="ascii-decor decor-right">{DECOR_BROKEN_PANELS}</pre>
+                    </div>
                 </div>
                 <div id={"tooltip-container"}></div>
                 <BlockPointerEvents/>
@@ -82,6 +235,7 @@ class App extends React.Component {
 const mapStateToProps = state => {
     return {
         commandCenterLoaded: !!getStructure(state.structures, 'commandCenter'),
+        currentNavTab: state.game.currentNavTab,
         hideUI: state.game.hideUI,
         hideCanvas: state.game.hideCanvas,
         fadeToBlack: state.game.fadeToBlack,

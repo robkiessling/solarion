@@ -39,6 +39,18 @@ export function migrateSavedState(savedState, defaultState) {
     resyncWithDatabase(state.upgrades, upgradesDatabase);
     resyncWithDatabase(state.abilities, abilitiesDatabase);
 
+    // Resource display flags are database-driven, not player progress: refresh `visible` from the database and
+    // add any learned-but-newly-visible resources to visibleIds (records snapshot the flag at LEARN time, so
+    // e.g. droids joining the resource bar would otherwise stay hidden in old saves).
+    if (state.resources && state.resources.byId) {
+        Object.entries(state.resources.byId).forEach(([id, record]) => {
+            record.visible = resourcesDatabase[id].visible;
+            if (record.visible && !state.resources.visibleIds.includes(id)) {
+                state.resources.visibleIds.push(id);
+            }
+        });
+    }
+
     if (state.triggers && state.triggers.byId) {
         state.triggers.byId = _.pickBy(state.triggers.byId, (trigger, id) => triggersDatabase[id]);
     }

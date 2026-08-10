@@ -382,6 +382,22 @@ export function resourcesTick(time) {
     }
 }
 
+// Droid census for the resource bar. `idle` is the unassigned pool (the raw resource quantity); `total` adds
+// every assignment site: structure workers, exploration scouts (including recalled scouts still walking home,
+// which are out of the pool until they arrive), and the expedition squad.
+export function getDroidCounts(state) {
+    const idle = Math.floor(getQuantity(getResource(state.resources, 'standardDroids')));
+
+    let assigned = 0;
+    for (const structure of Object.values(state.structures.byId)) {
+        if (structure.droidData) { assigned += structure.droidData.numDroidsAssigned; }
+    }
+    assigned += (state.planet.droids || []).length;
+    if (state.planet.squad) { assigned += state.planet.squad.squadSize; }
+
+    return { total: idle + assigned, idle };
+}
+
 export function getNetResourceRates(state) {
     let result = Object.fromEntries(Object.keys(state.resources.byId).map((resourceId) => [resourceId, 0]));
 

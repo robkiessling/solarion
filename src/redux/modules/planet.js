@@ -25,8 +25,8 @@ import {
     SQUAD_STATUS
 } from "../../lib/expeditions";
 import {canConsume} from "./resources";
-import {logInline} from "./log";
 import {batch} from "react-redux";
+import { v4 } from 'uuid';
 import * as fromClock from "./clock";
 
 // Actions
@@ -51,6 +51,10 @@ export const RECALL_SQUAD = 'planet/RECALL_SQUAD';
 export const ADVANCE_SQUAD = 'planet/ADVANCE_SQUAD';
 export const RESOLVE_AT_POI = 'planet/RESOLVE_AT_POI';
 export const SQUAD_HOME = 'planet/SQUAD_HOME';
+export const ADD_FIELD_REPORT = 'planet/ADD_FIELD_REPORT';
+
+// Oldest stored field reports fall off past this cap (the Expeditions panel shows only the tail anyway)
+const MAX_FIELD_REPORTS = 30;
 
 const OVERALL_MAP_STATUS = {
     unstarted: 'unstarted',
@@ -88,11 +92,11 @@ const initialState = {
     numExplored: 0, // Number of revealed sectors
     maxDevelopedLand: 0,
 
-    // Expedition system (see lib/expeditions.js for domain logic and shapes). Reports go to the terminal
-    // (log.logInline), not planet state.
+    // Expedition system (see lib/expeditions.js for domain logic and shapes)
     pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
-    squad: null   // the single squad: { squadSize, status, coord, path, moveProgress, targetPoiId, atPoiId,
+    squad: null,  // the single squad: { squadSize, status, coord, path, moveProgress, targetPoiId, atPoiId,
                   //                     pendingFight, fightRemaining, outcome, recalled }
+    fieldReports: [] // expedition telemetry feed, capped at MAX_FIELD_REPORTS: { id, text, result }
 }
 
 // Reducer
@@ -327,6 +331,12 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 squad: { $set: null }
             });
+        case ADD_FIELD_REPORT:
+            return update(state, {
+                fieldReports: {
+                    $apply: (reports) => [...(reports || []), payload].slice(-MAX_FIELD_REPORTS)
+                }
+            });
         default:
             return state;
     }
@@ -535,8 +545,9 @@ export function planetTick(timeDelta) {
  * Thunks validate; reducers apply. All squad/POI state is serializable, so mid-flight saves resume cleanly.
  */
 
-// Reports go to the terminal as inline log lines: assemble the structured fields, compose the text once
-// (buildReportText in lib/expeditions.js), and record it. The className colors the line (see log.scss).
+// Reports are expedition telemetry: assemble the structured fields, compose the text once (buildReportText in
+// lib/expeditions.js), and record it on planet state. The Expeditions panel renders the feed (see expedition.jsx);
+// the result key colors the line. Narrative sequences stay in the terminal.
 function logReport(dispatch, poi, result, extras = {}) {
     const report = {
         poiType: poi ? poi.type : null,
@@ -544,7 +555,7 @@ function logReport(dispatch, poi, result, extras = {}) {
         result, // 'success' | 'failure' | 'returned' | 'noRoute'
         ...extras
     };
-    dispatch(logInline(buildReportText(report), `report-${result}`));
+    dispatch({ type: ADD_FIELD_REPORT, payload: { id: v4(), text: buildReportText(report), result } });
 }
 
 export function dispatchSquad(targetPoiId, squadSize) {

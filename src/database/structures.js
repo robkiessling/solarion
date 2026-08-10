@@ -32,6 +32,10 @@ const INSUFFICIENT_LABEL = redText('Insufficient Resources')
 
 export const STANDARD_COST_EXP = 1.5; // Default exponential growth of structure costs
 
+// Before the terminal boots, the room is too dark (and dusty) to read the facility's label
+const COMMAND_CENTER_NAME = 'Command Center';
+const COMMAND_CENTER_NAME_GARBLED = 'C◌░▒▓▓█▒░░░▒▓█';
+
 const base = {
     name: 'Unknown',
     description: '',
@@ -60,7 +64,7 @@ const base = {
 
 export default {
     commandCenter: _.merge({}, base, {
-        name: "Command Center",
+        name: COMMAND_CENTER_NAME_GARBLED,
         // description: "A twisted mass of cables, switches and monitors surround a large device.",
         types: TYPES.generator,
         count: {
@@ -144,6 +148,11 @@ const baseCalculator = {
  * third parameter (that way many functions can be built off the same variables)
  */
 export const calculators = {
+    commandCenter: {
+        name: (state, structure) => {
+            return state.game.showTerminal ? COMMAND_CENTER_NAME : COMMAND_CENTER_NAME_GARBLED;
+        }
+    },
     // commandCenter: _.merge({}, baseCalculator, {
     //     variables: (state, structure) => {
     //         const variables = {

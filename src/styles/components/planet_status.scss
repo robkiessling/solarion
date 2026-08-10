@@ -1,11 +1,29 @@
 @use '../variables' as *;
 
+// Day/time, temperature, and wind readout on the right side of the top bar (see .top-bar in app.scss).
+// Two-line cells inverting the resource cells: dim label on top, value underneath.
 .planet-status {
-  position: absolute;
-  bottom: 0;
-  padding: 0.25rem 0.5rem;
-  width: calc(100% - 1rem);
-  z-index: 5;
-  background: #3b3b3bbb;
-}
+  margin-left: auto; // pushes against the resource cells to hug the bar's right edge
+  padding-right: 1.5rem;
 
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+
+  .status-cell {
+    font-size: 1rem;
+
+    display: flex;
+    flex-direction: column;
+    align-items: end; // right-aligned like the resource cells, so changing values don't shift the layout
+  }
+
+  // Styled as tiny table headers (uppercase, tracked out) so the row reads as a readout panel
+  // rather than a mirrored resource cell
+  .cell-label {
+    font-size: 0.8rem;
+    //letter-spacing: 0.1em;
+    //text-transform: uppercase;
+    color: $ui-text-dim;
+  }
+}

@@ -121,8 +121,8 @@ export function formatResourceList(resources) {
 }
 
 /**
- * Composes the terminal line for an expedition report. Reports are structured objects (built in planet.js);
- * the text is composed once here and logged via log.logInline.
+ * Composes the display line for an expedition report. Reports are structured objects (built in planet.js);
+ * the text is composed once here and stored on planet.fieldReports for the Expeditions panel feed.
  *
  * Resource rewards stored as cargo: carried by the team, delivered only when it reaches home (and lost on wipe).
  */

@@ -41,8 +41,7 @@ export default {
         name: "Droids",
         amount: 0,
         icon: 'icon-vintage-robot',
-        visible: false,
-        showRate: false
+        showRate: false // the resource bar shows the idle count in the rate slot instead
     }),
     buildableLand: _.merge({}, base, {
         name: "Land",

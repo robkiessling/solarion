@@ -79,6 +79,11 @@ $top-bar-float-padding: 0.875rem;
   flex-direction: column;
 }
 
+// Left-column status panels on the Planet tab (Exploration + Replication); the terminal fills the space below
+.planet-panels {
+  flex: 0 0 auto;
+}
+
 .exploration-status {
   display: flex;
   flex-direction: column;
@@ -192,6 +197,39 @@ $top-bar-float-padding: 0.875rem;
     text-align: center;
   }
 
+  // Expedition telemetry feed (newest first). Sits between the team card and the POI list -- right where the
+  // player is already looking when reports arrive.
+  .field-reports {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+
+    .field-reports-header {
+      color: $ui-text-dim;
+      font-size: 0.85em;
+      letter-spacing: 1px;
+    }
+
+    .field-report {
+      font-size: 0.9em;
+      padding: 0.15rem 0;
+      opacity: 0.65; // older reports recede...
+
+      &.latest {
+        opacity: 1; // ...the newest reads at full strength
+        animation: report-arrive 1.5s ease-out;
+      }
+
+      &.report-success { color: #9be29b; }
+      &.report-failure { color: #ff6b6b; }
+    }
+  }
+
+  .no-sites {
+    color: $ui-text-dim;
+    font-style: italic;
+  }
+
   .poi-row {
     display: flex;
     flex-direction: column;
@@ -242,6 +280,11 @@ $top-bar-float-padding: 0.875rem;
 }
 
 
+@keyframes report-arrive {
+  0% { background: rgba(255, 255, 255, 0.3); }
+  100% { background: transparent; }
+}
+
 #outside-container {
   flex: 1;
   position: relative;
@@ -277,8 +320,50 @@ $top-bar-float-padding: 0.875rem;
 
     background-color: $ui-bg;
     opacity: 1;
-    background-size: 17px 17px;
-    background-image: repeating-linear-gradient(45deg, $ui-border 0, $ui-border 1.7000000000000002px, $ui-bg 0, $ui-bg 50%);
+    // Horizontal slats (thin highlight on each slat's top edge, dark seam below) so the closed
+    // shield reads as lowered metal shutters rather than a placeholder hatch
+    background-image: repeating-linear-gradient(
+      180deg,
+      #202833 0px,
+      #202833 1px,
+      $ui-bg 1px,
+      $ui-bg 25px,
+      $black-inset 25px,
+      $black-inset 28px
+    );
+
+    .shutter-decor {
+      position: absolute;
+      margin: 0;
+      font-family: $font-family;
+      line-height: 1.05;
+      color: $ui-border;
+      pointer-events: none;
+      user-select: none;
+    }
+    // Anchored to the TOP edge in fixed (vh) units: the shutter opens by shrinking its height,
+    // so the top edge descends and top-anchored content rides down with it at the same speed as
+    // the slat background. Percent offsets would move at a fraction of the door's speed, and
+    // bottom-anchored content wouldn't move at all.
+    .crack-main {
+      top: 8vh;
+      left: 15%;
+      font-size: 1.2rem;
+      opacity: 0.6;
+    }
+    .crack-small {
+      top: 48vh;
+      right: 17%;
+      font-size: 0.9rem;
+      opacity: 0.45;
+    }
+    .shutter-scrape {
+      top: 80vh;
+      left: 34%;
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      opacity: 0.35;
+    }
   }
 
   &.shutters-closed {

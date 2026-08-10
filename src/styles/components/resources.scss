@@ -1,31 +1,50 @@
 @use '../variables' as *;
 
+// Resource cells on the left of the top bar (see .top-bar in app.scss for the bar chrome). Each resource is
+// its own bordered section, two lines: right-aligned amount with the icon to its right, rate dimmed
+// underneath. Cells are fixed-width, so a value gaining a digit never shifts neighboring cells.
 .resource-bar {
-  padding: $component-padding;
+  display: flex;
+  align-items: center;
 
-  flex: 0 0 8rem; // static height
+  .resource-cell {
+    // Fixed width (not min-width) so cells never resize as their numbers change; sized to fit the widest
+    // realistic amount line ("999.9k/999.9k" plus icon)
+    flex: 0 0 12.5rem;
+    width: 12.5rem;
+    box-sizing: border-box;
+    //padding: 0 1rem;
+    padding-left: 1rem;
+    border-right: 1px solid $ui-border;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
 
-  //position: absolute;
-  //top: 1rem;
-  //left: 1rem;
-  //z-index: 3;
-  //background-color: $black-muted;
-  //border: 1px solid white;
-  //padding: 0.5rem;
-  //width: 20rem;
+    &:first-child {
+      //border-left: none;
+      padding-left: 0;
+    }
 
-  table {
-    width: 100%;
-    table-layout: fixed;
+    .cell-icon {
+      font-size: 1.5rem;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+    }
 
-    tr {
-      td:not(:first-child) {
-        text-align: right;
-      }
+    .cell-amount {
+      font-size: 1rem;
 
-      td {
-        vertical-align: top;
-      }
+      display: flex;
+      flex-direction: column;
+      align-items: end;
+    }
+
+    .cell-rate {
+      font-size: 0.8rem;
+      color: $ui-text-dim;
+      min-height: 1.2em; // keep cell height stable when a resource has no rate to show
+      text-align: right;
     }
   }
 }

@@ -154,6 +154,17 @@
   }
 }
 
+// Base-tab wrapper for the command center (hidden on the Planet tab, where planet-panels takes this slot).
+// Content-sized so the terminal below gets the column's spare height; when the command center's content
+// outgrows the column, the slot shrinks (down to the terminal's min-height) and the body scrolls internally.
+.command-center-slot {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 21.75rem; // Chosen to match the height of Exploration+Replication panels, so terminal doesn't shift between tabs
+  overflow: hidden;
+}
+
 .structure.commandCenter {
   padding: $component-padding;
   border-bottom: none;

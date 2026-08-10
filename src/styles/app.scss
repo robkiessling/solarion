@@ -31,13 +31,36 @@ html {
   color: $ui-text;
 
   display: flex;
-  flex-direction: row;
+  flex-direction: column; // top bar (resources + planet status) on top, then the three columns
+
+  .top-bar {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    min-height: 3.2rem;
+    padding: 0.45rem $component-padding;
+
+    display: flex;
+    align-items: center;
+
+    background: $top-bar-background;
+    border-bottom: 1px solid $ui-border;
+  }
+
+  .main-columns {
+    flex: 1 1 auto;
+    min-height: 0; // columns own their scrolling; never grow the page
+    display: flex;
+    flex-direction: row;
+  }
 
   .left-column {
     flex: 0 0 $side-column-width;
     display: flex;
     flex-direction: column;
     background: $ui-bg;
+    overflow: hidden; // the decor may run past the column bottom on short viewports
+    position: relative; // anchors .ascii-decor
+    z-index: 0; // stacking context, so the decor's z-index -1 sits behind the panels but above this background
   }
   .right-column {
     flex: 0 0 $side-column-width;
@@ -45,6 +68,8 @@ html {
     flex-direction: column;
     background: $ui-bg;
     overflow: hidden; // children own their scrolling (OverlayScrollbars); the page never grows
+    position: relative; // anchors .ascii-decor
+    z-index: 0; // stacking context, so the decor's z-index -1 sits behind the panels but above this background
   }
   .center-column {
     flex: 1 1 auto;
@@ -58,7 +83,7 @@ html {
 
   &.hide-ui {
     background: $burn;
-    .left-column, .right-column, .navigation-tabs, .planet-legend {
+    .left-column, .right-column, .top-bar, .navigation-tabs, .planet-legend {
       display: none;
     }
   }
@@ -101,6 +126,43 @@ html {
   display: none !important;
 }
 
+// Panel content blocks (the scroll containers, which size to their content) sit over the ascii
+// decor. The right-column blocks are slightly translucent so the decor ghosts through them, matching
+// the terminal's treatment on the left; the decor still shows at full (dim) strength in leftover
+// column space, e.g. below a short structure list. The log container is deliberately unpainted:
+// it stretches to fill the left column, and its sections carry the translucent band instead.
+.structure-list, .planet-tools-scroll, .structures .tabs {
+  background: $ui-bg-veil;
+}
+.command-center-slot, .planet-panels {
+  background: $ui-bg;
+}
+
+// Dead-equipment ASCII dressing showing through wherever the column UI leaves empty space.
+// Absolutely positioned; the columns' empty flex children still stretch and would push it around otherwise.
+.ascii-decor {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.15;
+  color: $ui-border;
+  pointer-events: none;
+  user-select: none;
+
+  &.decor-left {
+    bottom: 1.25rem;
+    opacity: 0.75;
+    z-index: -1; // permanently visible; sits behind the panels and the terminal's text
+  }
+  &.decor-right {
+    top: 1rem;
+    opacity: 0.6;
+    z-index: -1; // permanently visible; sits behind the structures UI once it appears
+  }
+}
+
 #block-pointer-events {
   position: absolute;
   top: 0;
@@ -111,9 +173,8 @@ html {
 }
 
 #open-settings-div {
-  position: absolute;
-  top: $component-padding;
-  left: calc(#{$side-column-width} - 36px);
+  // Last flex item in the top bar; planet-status's margin-left:auto pushes it against the right edge
+  flex: 0 0 auto;
 
   a {
     cursor: pointer;

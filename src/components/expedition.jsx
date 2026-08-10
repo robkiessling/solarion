@@ -15,6 +15,7 @@ import {
 import {PLANET_COLORS} from "../lib/planet_render";
 
 const DEFAULT_TEAM_SIZE = 5;
+const MAX_VISIBLE_REPORTS = 5;
 
 /**
  * Expedition sidebar. There is one team to assemble/deploy. Clicking on a point of interest (POI) row performs
@@ -159,19 +160,40 @@ class Expedition extends React.Component {
         );
     }
 
+    // Telemetry feed, newest first. Rows keep stable keys so only the newly-arrived report mounts (and plays
+    // its arrival flash); older rows just dim.
+    renderFieldReports() {
+        const reports = this.props.fieldReports;
+        if (reports.length === 0) return null;
+
+        return (
+            <div className="field-reports">
+                <div className="field-reports-header">Field Reports</div>
+                {reports.slice(-MAX_VISIBLE_REPORTS).reverse().map((report, index) =>
+                    <div key={report.id}
+                         className={`field-report report-${report.result} ${index === 0 ? 'latest' : ''}`}>
+                        {report.text}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     render() {
         const available = Object.values(this.props.pois)
             .filter(poi => poi.status === POI_STATUS.available)
             .sort((a, b) => a.distance - b.distance);
 
-        // Nothing discovered yet: stay out of the sidebar entirely
-        if (available.length === 0 && !this.props.squad) return null;
-
         return (
             <div className="expedition-status">
                 <div className="component-header">Expeditions</div>
                 {this.renderTeamCard()}
+                {this.renderFieldReports()}
                 {available.map(poi => this.renderPoiRow(poi))}
+                {
+                    available.length === 0 && !this.props.squad &&
+                    <span className="no-sites">No sites of interest discovered. Scouts may locate targets as they explore.</span>
+                }
             </div>
         );
     }
@@ -181,6 +203,7 @@ const mapStateToProps = (state, ownProps) => {
     return {
         pois: state.planet.pois,
         squad: state.planet.squad,
+        fieldReports: state.planet.fieldReports || [],
         unlockedTerrains: state.planet.unlockedTerrains,
         idleDroids: Math.floor(getQuantity(getResource(state.resources, 'standardDroids'))),
         hoveredPoiId: state.game.hoveredPoiId

@@ -2,9 +2,26 @@
 
 .log-container {
   padding: $component-padding;
-  flex: 0 0 17rem; // static height
+  // Fills the leftover column height below the status panels (Command Center or Exploration/Replication).
+  // Basis MUST be 0, not auto: with auto, the log's content height enters the flex shrink math and a long
+  // history squashes the panels above instead of scrolling.
+  flex: 1 1 0;
+  min-height: 13rem; // guaranteed floor; a content-heavy panel above scrolls internally rather than squashing this
 
   overflow: hidden;
+
+  // Pulses when a new narrative sequence starts (see log.jsx); telemetry lives elsewhere, so any
+  // pulse means the terminal has something worth reading.
+  &.terminal-flash .component-header {
+    animation: terminal-pulse 0.9s ease-in-out 3;
+  }
+}
+
+@keyframes terminal-pulse {
+  50% {
+    background: rgba(62, 192, 218, 0.3);
+    color: white;
+  }
 }
 
 .log {
@@ -14,6 +31,10 @@
   overflow-y: auto;
 
   .log-section {
+    // The left column's ascii decor sits behind the terminal; a translucent band over the text
+    // knocks it back further there while leaving it at full (dim) strength in the empty space below.
+    background: $ui-bg-veil;
+
     &.active {
       color: #fff;
     }
@@ -24,8 +45,9 @@
 
   // Inline entries (expedition reports): each is its own paragraph, spaced a blank line's worth from whatever
   // precedes it. (Scripted sequences handle their own spacing via leading blank lines in the database text.)
+  // Padding rather than margin, so the sections' dimming band stays continuous across the gap.
   .log-inline {
-    margin-top: 1.2em;
+    padding-top: 1.2em;
   }
 
   p {

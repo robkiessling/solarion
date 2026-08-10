@@ -26,15 +26,18 @@ class PlanetStatus extends React.Component {
         const minutes = _.padStart(Math.round((secondsOfDay % (60 * 60)) / 60), 2, '0');
 
         return (
-            <div className={`planet-status ${this.props.visible ? '' : 'invisible'} d-flex space-between`}>
-                <div>
-                    <span>Day {this.props.dayNumber} {hour}:{minutes} ({timePeriod})</span>
+            <div className={`planet-status ${this.props.visible ? '' : 'invisible'}`}>
+                <div className="status-cell">
+                    <div className="cell-label">{timePeriod}</div>
+                    <span>Day {this.props.dayNumber} {hour}:{minutes}</span>
                 </div>
-                <div>
-                    <span>Temperature: {_.round(this.props.temperature)}°C</span>
+                <div className="status-cell" title="Surface temperature">
+                    <div className="cell-label">Temperature</div>
+                    <span>{_.round(this.props.temperature)}°C</span>
                 </div>
-                <div>
-                    <span>Wind: {_.round(this.props.windSpeed)} kph</span>
+                <div className="status-cell" title="Wind speed">
+                    <div className="cell-label">Wind</div>
+                    <span>{_.round(this.props.windSpeed)} kph</span>
                 </div>
                 {/*<div style={{'marginTop': '1rem'}}>*/}
                 {/*    [DEBUG] Game speed:*/}

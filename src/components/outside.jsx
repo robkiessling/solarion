@@ -7,6 +7,27 @@ import {connect} from "react-redux";
 import {generateImage, getSkyColorAndOpacity, NUM_COLS, NUM_ROWS} from "../lib/outside";
 import {animationData} from "../redux/modules/structures";
 
+// Decorative damage on the closed blast shield; slides away with the shutter when it opens
+// const SHUTTER_CRACK_MAIN =
+// `╲
+//  ╲
+//   ╲__
+//      ╲
+//       ╲
+//       ╱╲
+//      ╱  ╲
+//     ╱    ╲`;
+//
+// const SHUTTER_CRACK_SMALL =
+// `╲
+//  ╲___
+//      ╲
+//       ╲`;
+//
+// const SHUTTER_SCRAPE =
+// `░▒░░  ▒░
+//  ▒░░▒`;
+
 class Outside extends React.Component {
     constructor(props) {
         super(props);
@@ -67,7 +88,11 @@ class Outside extends React.Component {
 
         return (
             <div id="outside-container" ref={this.canvasContainer} className={containerClass}>
-                <div id="shutters"></div>
+                <div id="shutters">
+                    {/*<pre className="shutter-decor crack-main">{SHUTTER_CRACK_MAIN}</pre>*/}
+                    {/*<pre className="shutter-decor crack-small">{SHUTTER_CRACK_SMALL}</pre>*/}
+                    {/*<pre className="shutter-decor shutter-scrape">{SHUTTER_SCRAPE}</pre>*/}
+                </div>
                 <canvas id="sky-color" ref={this.skyCanvas} style={{background: skyColor, opacity: skyOpacity}}/>
                 <canvas id="outside-canvas" ref={this.canvas}></canvas>
             </div>
