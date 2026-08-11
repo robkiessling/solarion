@@ -10,8 +10,8 @@
   .resource-cell {
     // Fixed width (not min-width) so cells never resize as their numbers change; sized to fit the widest
     // realistic amount line ("999.9k/999.9k" plus icon)
-    flex: 0 0 12.5rem;
-    width: 12.5rem;
+    flex: 0 0 11rem;
+    width: 11rem;
     box-sizing: border-box;
     //padding: 0 1rem;
     padding-left: 1rem;

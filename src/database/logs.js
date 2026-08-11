@@ -18,7 +18,7 @@ const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE = NORMAL_BOOTUP; /* Controls overall game mode */
+const GAME_MODE = SKIP_TO_GLOBE; /* Controls overall game mode */
 
 
 export default {
