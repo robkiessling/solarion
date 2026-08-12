@@ -273,14 +273,21 @@ function addMountainRange(map, size, startingRow, startingCol) {
 
     let currentCoord = [startingRow, startingCol];
 
+    // Mountains never overwrite ice: the home-adjacent range is stamped AFTER the ice caps, and it must not
+    // punch holes in the polar walls.
+    const raise = ([row, col]) => {
+        if (map[row][col].terrain !== TERRAINS.ice.enum) {
+            map[row][col] = createSector(TERRAINS.mountain, STATUSES.unknown);
+        }
+    };
+
     for (let step = 0; step < size; step++) {
-        map[currentCoord[0]][currentCoord[1]] = createSector(TERRAINS.mountain, STATUSES.unknown);
+        raise(currentCoord);
 
         // Widen the range: sometimes raise a neighboring tile too, so ranges read as 2-cell-thick massifs
         // instead of 1-cell strings (thin diagonal strings look crossable and read poorly during travel).
         if (Math.random() < MOUNTAIN_WIDEN_CHANCE) {
-            const side = getRandomFromArray(getAdjacentCoords(currentCoord));
-            map[side[0]][side[1]] = createSector(TERRAINS.mountain, STATUSES.unknown);
+            raise(getRandomFromArray(getAdjacentCoords(currentCoord)));
         }
 
         // Choose next direction
@@ -306,6 +313,16 @@ function addHomeBase(map) {
 
     // Add home
     map[homeRow][homeCol] = createSector(TERRAINS.home, STATUSES.explored);
+
+    // Home must never spawn walled in (the squad couldn't leave until mountaineering): if the scenery range
+    // enclosed it, flatten one neighbor as an opening.
+    const neighbors = getAdjacentCoords([homeRow, homeCol]);
+    if (!neighbors.some(([row, col]) => map[row][col].terrain === TERRAINS.flatland.enum)) {
+        const opening = getRandomFromArray(neighbors.filter(([row, col]) => map[row][col].terrain !== TERRAINS.ice.enum));
+        if (opening) {
+            map[opening[0]][opening[1]] = createSector(TERRAINS.flatland, STATUSES.unknown);
+        }
+    }
 
     // Explore adjacent sectors to base
     if (START_WITH_ADJ_EXPLORED) {
@@ -348,6 +365,69 @@ function isSameCoord(coord1, coord2) {
     return coord1[0] === coord2[0] && coord1[1] === coord2[1];
 }
 
+// The powered grid: home base plus replicated land. The squad recharges here, cargo banks here, the survey
+// halo radiates from here, and development grows from here. Mid-replication ('developing') tiles are still
+// under construction -- not powered until the cast finishes. (They also never exist when development picks
+// its next batch: replicate is single-flight and the previous batch completes before the next cast starts.)
+export const GRID_TERRAINS = new Set([TERRAINS.home.enum, TERRAINS.developed.enum]);
+
+export function isOnGrid(map, coord) {
+    return GRID_TERRAINS.has(map[coord[0]][coord[1]].terrain);
+}
+
+// Halo radius at Survey Automation unlock (in hops; the design's R). Comms upgrades will raise the live
+// value (planet state's haloRadius) later; this is just its starting point.
+export const SURVEY_HALO_RADIUS = 7;
+
+/**
+ * The grid halo: every tile within `radius` hops of any powered tile, via
+ * multi-source BFS on pure topology (terrain is ignored -- the halo is uplink range, not walkability).
+ * Scouts only target unknown tiles inside it, and it's drawn as a faint ring so automation's reach is
+ * legible at a glance.
+ *
+ * Returns { halo, ring }: halo is a Set of "row,col" keys (grid tiles included), ring is the subset at
+ * exactly `radius` hops (the drawn boundary). Memoized on the map reference: any map change (reveal,
+ * development) produces a new array from immutability-helper, so identity is a correct cache key.
+ */
+let gridHaloCache = null;
+export function getGridHalo(map, radius) {
+    if (gridHaloCache && gridHaloCache.map === map && gridHaloCache.radius === radius) {
+        return gridHaloCache.result;
+    }
+
+    const halo = new Set();
+    const ring = new Set();
+    let frontier = [];
+
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            if (GRID_TERRAINS.has(sector.terrain)) {
+                halo.add(`${rowIndex},${colIndex}`);
+                frontier.push([rowIndex, colIndex]);
+            }
+        });
+    });
+
+    for (let distance = 1; distance <= radius && frontier.length > 0; distance++) {
+        const nextFrontier = [];
+        frontier.forEach(coord => {
+            getAdjacentCoords(coord).forEach(([row, col]) => {
+                const key = `${row},${col}`;
+                if (!halo.has(key)) {
+                    halo.add(key);
+                    nextFrontier.push([row, col]);
+                    if (distance === radius) ring.add(key);
+                }
+            });
+        });
+        frontier = nextFrontier;
+    }
+
+    const result = { halo, ring };
+    gridHaloCache = { map, radius, result };
+    return result;
+}
+
 // ms to cross one tile of the given terrain, given the set of unlocked crossing upgrades. Returns Infinity when the
 // terrain is currently blocked (its crossUpgrade hasn't been researched). `unlocks` is a map like { mountaineering: true }.
 export function getCrossTime(terrainEnum, unlocks = {}) {
@@ -373,23 +453,61 @@ function cacheDistancesToHome(map, homeCoord) {
     });
 }
 
-// returns array of coords to develop
-export function getNextDevelopmentArea(map, size) {
-    let closestCoords = [];
+/**
+ * Returns the coords to develop next. Candidates are explored from the frontier towards `anchorCoord` (if given),
+ * otherwise it expands equally in all directions. Will not pass through walls/ice.
+ */
+export function getNextDevelopmentArea(map, size, anchorCoord) {
+    const distanceTo = (coord) => anchorCoord ?
+        getApproxDistance(anchorCoord, coord) : map[coord[0]][coord[1]].distanceHome;
+
+    const isCandidate = ([row, col]) =>
+        map[row][col].terrain === TERRAINS.flatland.enum &&
+        map[row][col].status === STATUSES.explored.enum;
+
+    const seen = new Set(); // candidate or chosen already (never re-added)
+    const candidates = [];
+    const addCandidatesAround = (coord) => {
+        getAdjacentCoords(coord).forEach(neighbor => {
+            const key = `${neighbor[0]},${neighbor[1]}`;
+            if (!seen.has(key) && isCandidate(neighbor)) {
+                seen.add(key);
+                candidates.push(neighbor);
+            }
+        });
+    };
+
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
-            if (sector.terrain === TERRAINS.flatland.enum) {
-                closestCoords.push({
-                    coord: [rowIndex, colIndex],
-                    distanceHome: sector.distanceHome
-                })
-            }
+            if (GRID_TERRAINS.has(sector.terrain)) addCandidatesAround([rowIndex, colIndex]);
         });
     });
 
-    return _.sortBy(closestCoords, [coordWithDistance => coordWithDistance.distanceHome])
-        .slice(0, size)
-        .map(coordWithDistance => coordWithDistance.coord)
+    const chosen = [];
+    while (chosen.length < size && candidates.length > 0) {
+        let bestIndex = 0;
+        for (let i = 1; i < candidates.length; i++) {
+            if (distanceTo(candidates[i]) < distanceTo(candidates[bestIndex])) bestIndex = i;
+        }
+        const pick = candidates.splice(bestIndex, 1)[0];
+        chosen.push(pick);
+        addCandidatesAround(pick); // the blob just grew; its new neighbors join the frontier
+    }
+
+    if (chosen.length < size) {
+        const leftovers = [];
+        map.forEach((row, rowIndex) => {
+            row.forEach((sector, colIndex) => {
+                const coord = [rowIndex, colIndex];
+                if (!seen.has(`${rowIndex},${colIndex}`) && isCandidate(coord)) leftovers.push(coord);
+            });
+        });
+        _.sortBy(leftovers, distanceTo)
+            .slice(0, size - chosen.length)
+            .forEach(coord => chosen.push(coord));
+    }
+
+    return chosen;
 }
 
 export function getCurrentDevelopmentArea(map) {
@@ -459,6 +577,11 @@ export const DISPLAY_MASK = createArray(NUM_PLANET_ROWS, (rowIndex) => {
     });
 });
 
+// Whether a display cell is inside the planet silhouette (clicks on the masked corners should be ignored).
+export function isDisplayCellVisible(imageRow, imageCol) {
+    return DISPLAY_MASK[imageRow] !== undefined && (DISPLAY_MASK[imageRow][imageCol] || 0) > 0;
+}
+
 /**
  * Maps a planet coord to its cell in the generated image (the same windowing + centering math as generateImage):
  * returns [imageRow, imageCol], or null when the coord is outside the current display window. The inverse,
@@ -523,16 +646,17 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 }
             }
 
-            let ping, alpha, offsetX, offsetY;
+            let ping, alpha, offsetX, offsetY, haloEdges;
             const overlay = overlays[`${sector.coord[0]},${sector.coord[1]}`];
             if (overlay) {
                 if (overlay.char) { char = overlay.char; } // color-only overlays keep the terrain glyph (e.g. path highlight)
-                colorKey = overlay.colorKey;
+                if (overlay.colorKey) { colorKey = overlay.colorKey; } // edge-only overlays keep the terrain color too
                 if (overlay.color) { color = overlay.color; }
                 ping = overlay.ping;   // radar-ping cycle; drawn as expanding rings by planet_render
                 alpha = overlay.alpha; // per-cell brightness (e.g. scout pulse), multiplied with day/night shading
                 offsetX = overlay.offsetX; // sub-cell nudge in cell units (squad slide/bump; see planet_render)
                 offsetY = overlay.offsetY;
+                haloEdges = overlay.haloEdges; // survey-boundary segments on this cell's edges (see planet_render)
             }
 
             let light = 'day';
@@ -568,7 +692,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 alpha = (alpha === undefined ? 1 : alpha) * maskFactor; // soft limb fade
             }
 
-            return { char, colorKey, color, light, dividers, ping, alpha, offsetX, offsetY }
+            return { char, colorKey, color, light, dividers, ping, alpha, offsetX, offsetY, haloEdges }
         });
 
         return displayRow;

@@ -1,21 +1,28 @@
 import update from 'immutability-helper';
-import {recalculateState, withRecalculation} from "../reducer";
+import {recalculateState, surveyAutomationUnlocked, withRecalculation} from "../reducer";
 import {
     centeringRotation,
     COOK_TIME,
     generateRandomMap,
     getCrossTime,
     getCurrentDevelopmentArea,
+    getGridHalo,
     getHomeBasePosition,
     getNextDevelopmentArea,
     isPassable,
     NUM_SECTORS,
     numSectorsMatching,
     STATUSES, sunTrackingRotation,
+    SURVEY_HALO_RADIUS,
     TERRAINS
 } from "../../lib/planet_map";
 import {getAdjacentCoords} from "../../lib/planet_geometry";
-import {findNearestLookout, findPath, isExplorationComplete} from "../../lib/planet_pathing";
+import {
+    findNearestLookout,
+    findNearestLookoutFromGrid,
+    findPathToGrid,
+    isExplorationComplete
+} from "../../lib/planet_pathing";
 import {
     buildReportText,
     computeOutcome,
@@ -41,13 +48,14 @@ export const REMOVE_DROID = 'planet/REMOVE_DROID';
 export const START_DEVELOPMENT = 'planet/START_DEVELOPMENT';
 export const FINISH_DEVELOPMENT = 'planet/FINISH_DEVELOPMENT';
 export const SET_EXPLORE_SPEED = 'planet/SET_EXPLORE_SPEED';
+export const SET_BEACON = 'planet/SET_BEACON';
 export const UNLOCK_TERRAIN = 'planet/UNLOCK_TERRAIN';
 export const START_COOK = 'planet/START_COOK';
 export const INCREMENT_COOK = 'planet/INCREMENT_COOK';
 
 export const ADD_FIELD_REPORT = 'planet/ADD_FIELD_REPORT';
 
-// The player-driven squad (lib/squad.js; design-2.0 Addendum 2.1)
+// The player-driven squad (see lib/squad.js)
 export const DEPLOY_SQUAD = 'planet/DEPLOY_SQUAD';
 export const DISBAND_SQUAD = 'planet/DISBAND_SQUAD';
 export const SQUAD_SET_PATH = 'planet/SQUAD_SET_PATH';
@@ -88,10 +96,14 @@ const initialState = {
         numDroidsAssigned: 0,
         droidAssignmentType: 'planet'
     },
-    // One entity per assigned droid: { coord: [row,col], path: [[row,col],...], target: [row,col]|null, moveProgress: ms }
-    // Kept in lockstep with droidData.numDroidsAssigned (assign spawns at home, remove despawns).
+    // One entity per assigned droid: { coord: [row,col]|null, path, target, moveProgress, heading, docked?,
+    // docking?, returning? }. Kept in lockstep with droidData.numDroidsAssigned. Scouts are grid remotes:
+    // they start docked (no coord; "in the grid"), surface on the powered tile nearest their work, and walk
+    // back into the nearest powered tile when the sweep is done (docking) or they're unassigned (returning).
     droids: [],
     unlockedTerrains: {}, // e.g. { mountaineering: true } once researched; gates which terrain droids can cross
+    haloRadius: SURVEY_HALO_RADIUS, // scout uplink range in hops from the powered grid; comms upgrades raise it
+    beaconCoord: null, // [row, col] growth beacon: replication grows toward it (nearest home when null)
     exploreSpeed: 1,
     cookedPct: 0, // How much of the entire planet is on fire :P
 
@@ -118,7 +130,8 @@ export default function reducer(state = initialState, action) {
                 numExplored: { $set: numSectorsMatching(payload.map, STATUSES.explored.enum) },
                 maxDevelopedLand: { $set: numSectorsMatching(payload.map, undefined, TERRAINS.flatland.enum) + 1 }, // add 1 for home base
                 pois: { $set: payload.pois },
-                squad: { $set: null }
+                squad: { $set: null },
+                beaconCoord: { $set: null }
             })
         case PROGRESS:
             updates = {
@@ -145,12 +158,13 @@ export default function reducer(state = initialState, action) {
                 rotationMode: { $set: payload.mode }
             })
         case ASSIGN_DROID: {
-            // payload.amount fresh droids spawn at home base; payload.turnAroundIndices are returning droids that
-            // turn around in place (recall undone) and resume exploring from wherever they stand next tick.
+            // payload.amount fresh droids spawn docked (in the grid; they surface wherever there's work);
+            // payload.turnAroundIndices are returning droids that turn around in place (recall undone) and
+            // resume exploring from wherever they stand next tick.
             const turnAroundSet = new Set(payload.turnAroundIndices || []);
             const spawned = [];
             for (let i = 0; i < payload.amount; i++) {
-                spawned.push({ coord: state.homeCoord, path: [], target: null, moveProgress: 0, heading: null });
+                spawned.push({ docked: true, coord: null, path: [], target: null, moveProgress: 0, heading: null });
             }
             return update(state, {
                 droidData: { numDroidsAssigned: { $apply: (x) => x + payload.amount + turnAroundSet.size } },
@@ -177,7 +191,8 @@ export default function reducer(state = initialState, action) {
                 droids: {
                     $apply: (droids) => droids
                         .map((droid, i) => recallByIndex[i] ?
-                            { ...droid, returning: true, target: null, heading: null, path: recallByIndex[i].path, moveProgress: 0 } :
+                            // docking cleared: a recall outranks docking (and must not be re-tasked as one)
+                            { ...droid, returning: true, docking: false, target: null, heading: null, path: recallByIndex[i].path, moveProgress: 0 } :
                             droid)
                         .filter((droid, i) => !instantSet.has(i))
                 }
@@ -193,7 +208,12 @@ export default function reducer(state = initialState, action) {
             })
             return update(state, updates);
         case FINISH_DEVELOPMENT:
-            updates = { map: {} }
+            // Construction complete: the tiles power up NOW, extending the survey halo. Clear any 'finished'
+            // status: freshly in-range ground may be sweepable again.
+            updates = {
+                map: {},
+                overallStatus: { $set: OVERALL_MAP_STATUS.inProgress }
+            }
             payload.coords.forEach(coord => {
                 if (updates.map[coord[0]] === undefined) { updates.map[coord[0]] = {} }
                 updates.map[coord[0]][coord[1]] = {
@@ -204,6 +224,10 @@ export default function reducer(state = initialState, action) {
         case SET_EXPLORE_SPEED:
             return update(state, {
                 exploreSpeed: { $set: payload.value }
+            })
+        case SET_BEACON:
+            return update(state, {
+                beaconCoord: { $set: payload.coord }
             })
         case UNLOCK_TERRAIN:
             // A terrain-crossing upgrade (e.g. mountaineering) makes that terrain passable, which re-opens frontier.
@@ -382,13 +406,15 @@ export function assignDroidUnsafe(amount = 1) {
     });
 }
 
-// Removing scout droids recalls them: nearest-home first, each walking back before rejoining the idle pool.
-// The thunk picks the droids and computes their return paths; the reducer applies flags and despawns instants.
+// Removing scout droids recalls them: docked ones despawn instantly (they're already in the grid), fielded
+// ones walk to the NEAREST powered tile before rejoining the idle pool (the grid is one base; there's no
+// reason to trek to the command center specifically). The thunk picks the droids and computes their return
+// paths; the reducer applies flags and despawns instants.
 export function removeDroidUnsafe(amount = 1) {
     return withRecalculation(function(dispatch, getState) {
         const planet = getState().planet;
 
-        // Only active (non-returning) droids are eligible; recall the ones closest to home first
+        // Only active (non-returning) droids are eligible; recall the cheapest first (docked, then nearest home)
         const candidates = planet.droids
             .map((droid, index) => ({ droid, index }))
             .filter(({ droid }) => !droid.returning)
@@ -401,16 +427,14 @@ export function removeDroidUnsafe(amount = 1) {
         const recalls = [];
         const instantIndices = [];
         candidates.forEach(({ droid, index }) => {
-            const atHome = droid.coord && planet.homeCoord &&
-                droid.coord[0] === planet.homeCoord[0] && droid.coord[1] === planet.homeCoord[1];
-            const path = (!droid.coord || atHome) ? null :
-                findPath(planet.map, droid.coord, planet.homeCoord, { unlocks: planet.unlockedTerrains });
+            const path = droid.coord ?
+                findPathToGrid(planet.map, droid.coord, { unlocks: planet.unlockedTerrains }) : null;
 
             if (path && path.length > 0) {
                 recalls.push({ index, path });
             }
             else {
-                instantIndices.push(index); // unplaced, already home, or unroutable: despawn + credit immediately
+                instantIndices.push(index); // docked, already on powered ground, or unroutable: despawn + credit immediately
             }
         });
 
@@ -429,7 +453,10 @@ function finishExploringMap() {
 }
 
 export function startDevelopment(dispatch, getState, size) {
-    const coords = getNextDevelopmentArea(getState().planet.map, size);
+    const planet = getState().planet;
+    // Growth flows toward the beacon when one is set, otherwise stays huddled around home
+    const anchorCoord = planet.beaconCoord || planet.homeCoord;
+    const coords = getNextDevelopmentArea(planet.map, size, anchorCoord);
     dispatch({ type: START_DEVELOPMENT, payload: { coords } })
     dispatch(recalculateState());
 }
@@ -441,6 +468,22 @@ export function finishDevelopment(dispatch, getState) {
 
 export function setExploreSpeed(value) {
     return { type: SET_EXPLORE_SPEED, payload: { value } }
+}
+
+// Growth beacon (ships with Survey Automation): one optional map click sets the expansion vector; replication
+// then consumes frontier tiles nearest it (nearest home when unset). Clicking the beacon's own tile clears it.
+export function setBeaconAt(coord) {
+    return function(dispatch, getState) {
+        if (!surveyAutomationUnlocked(getState())) return;
+
+        const current = getState().planet.beaconCoord;
+        const clearing = current && current[0] === coord[0] && current[1] === coord[1];
+        dispatch({ type: SET_BEACON, payload: { coord: clearing ? null : coord } });
+    }
+}
+
+export function clearBeacon() {
+    return { type: SET_BEACON, payload: { coord: null } };
 }
 
 // Marks a terrain-crossing upgrade as researched (e.g. 'mountaineering'), making that terrain passable and resuming
@@ -498,24 +541,28 @@ export function planetTick(timeDelta) {
             }
 
             const finished = planetState.overallStatus === OVERALL_MAP_STATUS.finished;
-            const anyReturning = planetState.droids.some(droid => droid.returning);
+            // Settled = docked (or never fielded); returning/docking walkers still need ticks to reach the grid
+            const allSettled = planetState.droids.every(droid => droid.docked || !droid.coord);
 
             // Once exploration is finished there's nothing to path, so skip the frontier scan + droid work entirely
-            // (keeps end-state catch-up after a long tab-away ~free). This is re-armed by ASSIGN_DROID -- and would be by
-            // a future terrain-crossing upgrade -- so it never permanently locks out droids that could still do work.
-            // Exception: recalled droids still walking home must keep advancing.
-            if (finished && !anyReturning) {
+            // (keeps end-state catch-up after a long tab-away ~free). This is re-armed by ASSIGN_DROID and by
+            // FINISH_DEVELOPMENT (halo growth) -- so it never permanently locks out droids that could still do work.
+            // Exception: droids still walking to the grid (recalled or docking) must keep advancing.
+            if (finished && allSettled) {
                 if (newRotation) {
                     dispatch({ type: PROGRESS, payload: { newRotation, droids: planetState.droids, reveals: [], revealedFlatland: 0, numArrivedHome: 0 } });
                 }
                 return;
             }
 
+            // Scouts sweep coverage, never frontier: their targets are bounded to the grid halo (see getGridHalo).
+            const { halo } = getGridHalo(planetState.map, planetState.haloRadius);
+
             // Don't bother re-targeting idle droids once there's nothing left to reach (avoids a pathfind per idle droid).
-            const complete = finished || isExplorationComplete(planetState.map, planetState.unlockedTerrains);
+            const complete = finished || isExplorationComplete(planetState.map, planetState.unlockedTerrains, halo);
 
             const { droids, reveals, numArrivedHome } = advanceDroids(
-                planetState.map, planetState.droids, timeDelta * planetState.exploreSpeed, planetState.unlockedTerrains, !complete
+                planetState.map, planetState.droids, timeDelta * planetState.exploreSpeed, planetState.unlockedTerrains, !complete, halo
             );
 
             // Newly-revealed flatland becomes buildable land (resources reducer listens for this on PROGRESS).
@@ -752,12 +799,15 @@ export function percentExplored(state) {
     return state.numExplored / NUM_SECTORS * 100;
 }
 
-// Advances every droid one tick: spend `moveAmount` ms of travel, stepping along the path (cost per tile = crossTime),
-// revealing each arrived-at tile's neighbors (line-of-sight), and re-targeting idle droids toward the nearest lookout.
-// Recalled (returning) droids just walk their path home and despawn on arrival (counted in numArrivedHome; the
-// resources reducer credits the idle pool from it).
+// Advances every droid one tick. Scouts are grid remotes with a lifecycle:
+//   docked (no coord, invisible)  --work exists-->  surface on the grid tile nearest an unclaimed lookout
+//   active                        --sweep + walk, revealing line-of-sight per tile arrived at
+//   nothing left to sweep         --docking-->      walk to the nearest powered tile, fold back into docked
+//   unassigned (returning)        --walk to the nearest powered tile, despawn into the idle pool on arrival
+//     (counted in numArrivedHome; the resources reducer credits the pool from it)
+// Targeting is bounded to `halo`, the scouts' sweep area (see getGridHalo).
 // Pure: reads `map` but never mutates it -- returns the new droid array plus the list of newly-revealed coords.
-function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget) {
+function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget, halo = null) {
     const reveals = new Set();
     const isRevealed = (row, col) => map[row][col].status !== STATUSES.unknown.enum || reveals.has(`${row},${col}`);
     const reveal = (row, col) => {
@@ -768,33 +818,76 @@ function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget) {
         reveal(origin[0], origin[1]);
         getAdjacentCoords(origin).forEach(([r, c]) => reveal(r, c));
     };
-    // A lookout target is only worth heading to while it still has an unknown neighbor left to reveal.
-    const isUsefulLookout = (coord) => getAdjacentCoords(coord).some(([r, c]) => !isRevealed(r, c));
+    // A lookout target is only worth heading to while it still has an IN-HALO unknown neighbor left to reveal.
+    const isUsefulLookout = (coord) => getAdjacentCoords(coord)
+        .some(([r, c]) => !isRevealed(r, c) && (!halo || halo.has(`${r},${c}`)));
     // Targets currently spoken for, so two droids don't walk to the same tile.
     const claimed = new Set(droids.map(d => d.target).filter(Boolean).map(t => `${t[0]},${t[1]}`));
+    const claim = (target) => claimed.add(`${target[0]},${target[1]}`);
+
+    const dockedDroid = () => ({ docked: true, coord: null, path: [], target: null, moveProgress: 0, heading: null });
+
+    // Walk a returning/docking droid's path over known ground (no reveals); returns the moved fields.
+    const walkPath = (droid) => {
+        let coord = droid.coord;
+        let path = droid.path ? droid.path.slice() : [];
+        let moveProgress = (droid.moveProgress || 0) + moveAmount;
+
+        while (path.length > 0) {
+            const next = path[0];
+            const tileCrossMs = getCrossTime(map[next[0]][next[1]].terrain, unlocks) * 1000;
+            if (moveProgress < tileCrossMs) break;
+            moveProgress -= tileCrossMs;
+            coord = next;
+            path = path.slice(1);
+        }
+
+        return { coord, path, moveProgress };
+    };
 
     let numArrivedHome = 0;
 
     const nextDroids = [];
     droids.forEach(droid => {
-        if (!droid.coord) { nextDroids.push(droid); return; } // not yet placed (assigned before a map existed)
-
-        if (droid.returning) {
-            let coord = droid.coord;
-            let path = droid.path ? droid.path.slice() : [];
-            let moveProgress = (droid.moveProgress || 0) + moveAmount;
-
-            while (path.length > 0) {
-                const next = path[0];
-                const tileCrossMs = getCrossTime(map[next[0]][next[1]].terrain, unlocks) * 1000;
-                if (moveProgress < tileCrossMs) break;
-                moveProgress -= tileCrossMs;
-                coord = next;
-                path = path.slice(1);
+        // Docked scouts live in the grid. When there's work, one surfaces on the powered tile nearest an
+        // unclaimed lookout (the base is replicated across all developed land, so every powered tile is a
+        // deploy point) and sweeps from there. Coordless legacy droids are treated as docked.
+        if (droid.docked || !droid.coord) {
+            if (allowRetarget) {
+                const result = findNearestLookoutFromGrid(map, { claimed, unlocks, halo });
+                if (result) {
+                    const [emergence, ...path] = result.path;
+                    claim(result.target);
+                    revealFrom(emergence); // line-of-sight from where it surfaced
+                    nextDroids.push({ coord: emergence, path, target: result.target, moveProgress: 0, heading: result.heading });
+                    return;
+                }
             }
+            nextDroids.push(droid.docked ? droid : dockedDroid());
+            return;
+        }
+
+        // A docking scout is still assigned: if work reappeared (the halo grew), re-task it where it stands.
+        if (droid.docking && allowRetarget) {
+            const result = findNearestLookout(map, droid.coord, { claimed, unlocks, heading: droid.heading, halo });
+            if (result) {
+                claim(result.target);
+                nextDroids.push({ coord: droid.coord, path: result.path, target: result.target, moveProgress: 0, heading: result.heading });
+                return;
+            }
+        }
+
+        // Walkers heading for the grid: recalled scouts despawn into the idle pool on arrival; docking
+        // scouts fold back into the docked state (still assigned).
+        if (droid.returning || droid.docking) {
+            const { coord, path, moveProgress } = walkPath(droid);
 
             if (path.length === 0) {
-                numArrivedHome++; // reached home base: despawn (not pushed) and rejoin the idle pool
+                if (droid.returning) {
+                    numArrivedHome++;
+                    return;
+                }
+                nextDroids.push(dockedDroid());
                 return;
             }
 
@@ -815,17 +908,29 @@ function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget) {
             path = [];
         }
 
-        // Acquire a target when idle, following the droid's heading so it holds a course.
-        if (path.length === 0 && allowRetarget) {
-            const result = findNearestLookout(map, coord, { claimed, unlocks, heading });
+        // Acquire a target when idle, following the droid's heading so it holds a course. When there's no
+        // work to acquire (sweep complete, or nothing reachable), head for the nearest powered tile and dock.
+        if (path.length === 0) {
+            const result = allowRetarget ? findNearestLookout(map, coord, { claimed, unlocks, heading, halo }) : null;
             if (result) {
                 target = result.target;
                 path = result.path;
                 heading = result.heading;
-                claimed.add(`${target[0]},${target[1]}`);
-            } else {
-                target = null;
-                moveProgress = 0;
+                claim(target);
+            }
+            else {
+                const dockPath = findPathToGrid(map, coord, { unlocks });
+                if (dockPath === null) {
+                    // The grid is unreachable from here (walled off): hold position
+                    nextDroids.push({ coord, path: [], target: null, moveProgress: 0, heading });
+                }
+                else if (dockPath.length === 0) {
+                    nextDroids.push(dockedDroid()); // already standing on powered ground
+                }
+                else {
+                    nextDroids.push({ coord, path: dockPath, target: null, moveProgress: 0, heading: null, docking: true });
+                }
+                return;
             }
         }
 

@@ -252,10 +252,10 @@ export default {
             dispatch(fromStructures.learn('droidFactory'));
             dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
 
-            dispatch(fromStructures.buildForFree('harvester', 5));
-            dispatch(fromStructures.buildForFree('solarPanel', 7));
-            dispatch(fromStructures.buildForFree('windTurbine', 6));
-            dispatch(fromStructures.buildForFree('energyBay', 9));
+            dispatch(fromStructures.buildForFree('harvester', 7));
+            dispatch(fromStructures.buildForFree('solarPanel', 10));
+            dispatch(fromStructures.buildForFree('windTurbine', 10));
+            dispatch(fromStructures.buildForFree('energyBay', 13));
             dispatch(fromStructures.buildForFree('refinery', 2));
             dispatch(fromStructures.buildForFree('droidFactory', 1));
 
@@ -284,6 +284,7 @@ export default {
             dispatch(fromUpgrades.researchForFree('solarPanel_ambientLight'));
             dispatch(fromUpgrades.researchForFree('solarPanel_production2'));
             dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity'));
+            dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity2'));
             dispatch(fromUpgrades.researchForFree('energyBay_production1'));
             dispatch(fromUpgrades.researchForFree('energyBay_production2'));
             dispatch(fromUpgrades.researchForFree('windTurbine_largerBlades'));
@@ -298,10 +299,10 @@ export default {
             dispatch(fromGame.updateSetting('currentNavTab', 'planet'))
 
             dispatch(fromResources.produce({
-                energy: 10,
+                energy: 9999999,
                 ore: 999999999,
-                // refinedMinerals: 999999999,
-                refinedMinerals: 1000,
+                refinedMinerals: 999999999,
+                // refinedMinerals: 1000,
                 standardDroids: 10
             }));
 
@@ -491,6 +492,17 @@ export default {
             dispatch(addTrigger('solarPanel_global'))
             dispatch(fromPlanet.startExploringMap());
         }
+    },
+
+    surveyAutomationOnline: {
+        text: [
+            ['', 0],
+            ['Survey Automation: ONLINE', 0, true],
+            ['', 0],
+            ['Scout remotes draw power and guidance from the grid uplink.', 1000, true],
+            ['Assigned scouts will survey unexplored ground within uplink range (shown on the map).', 1500, true],
+            ['Growth beacon enabled: click the map to aim replication.', 1500, true],
+        ],
     },
 
     researchedProbeFactory: {

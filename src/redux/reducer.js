@@ -233,10 +233,21 @@ export function getStructureStatistic(state, structure, statistic, includeReplic
 }
 
 
+// Scout sweeps are the Survey Automation unlock; until it's researched the
+// player-driven squad is the only exploration. Gates scout assignment, the halo ring, and the growth beacon.
+export function surveyAutomationUnlocked(state) {
+    return fromUpgrades.isResearched(fromUpgrades.getUpgrade(state.upgrades, 'droidFactory_surveyAutomation'));
+}
+
 export function canAssignDroid(state, droidData) {
-    // Planet exploration can also "assign" by turning around a scout that's walking home from a recall
-    if (droidData.droidAssignmentType === 'planet' && state.planet.droids.some(droid => droid.returning)) {
-        return true;
+    if (droidData.droidAssignmentType === 'planet') {
+        if (!surveyAutomationUnlocked(state)) {
+            return false;
+        }
+        // Planet exploration can also "assign" by turning around a scout that's walking home from a recall
+        if (state.planet.droids.some(droid => droid.returning)) {
+            return true;
+        }
     }
     return fromResources.canConsume(state.resources, { standardDroids: 1 });
 }
@@ -272,6 +283,9 @@ export function assignAllDroids(droidData, targetId) {
                 }
                 break;
             case 'planet':
+                if (!surveyAutomationUnlocked(getState())) {
+                    break;
+                }
                 // Returning scouts count too: assigning turns them around in place before spending idle droids
                 numDroids += getState().planet.droids.filter(droid => droid.returning).length;
                 if (numDroids > 0) {

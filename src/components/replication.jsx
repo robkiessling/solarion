@@ -3,7 +3,8 @@ import {connect} from "react-redux";
 import Ability from "./structures/ability";
 import {getAbility} from "../redux/modules/abilities";
 import {getIcon, getQuantity, getResource} from "../redux/modules/resources";
-import {planetDevelopmentProgress} from "../redux/reducer";
+import {clearBeacon} from "../redux/modules/planet";
+import {planetDevelopmentProgress, surveyAutomationUnlocked} from "../redux/reducer";
 
 class Replication extends React.Component {
     constructor(props) {
@@ -30,6 +31,16 @@ class Replication extends React.Component {
                     <span>Replication Multiplier:</span>
                     <span>{this.props.developedLand}x</span>
                 </span>
+                {
+                    // The growth beacon (ships with Survey Automation): replication grows toward it
+                    this.props.surveyUnlocked &&
+                    <span className="key-value-pair">
+                        <span>Growth Beacon:</span>
+                        {this.props.beaconCoord ?
+                            <a onClick={() => this.props.clearBeacon()}>Set [[clear]]</a> :
+                            <span>None (click map)</span>}
+                    </span>
+                }
 
                 {this.props.replicateAbility && !this.props.finishedReplicating && <Ability id={this.props.replicateAbility.id} />}
 
@@ -45,12 +56,14 @@ const mapStateToProps = (state, ownProps) => {
         buildableLandIcon: getIcon('buildableLand'),
         developedLand: getQuantity(getResource(state.resources, 'developedLand')),
         replicateAbility: getAbility(state.abilities, 'replicate'),
-        finishedReplicating: planetDevelopmentProgress(state) === 1.0
+        finishedReplicating: planetDevelopmentProgress(state) === 1.0,
+        surveyUnlocked: surveyAutomationUnlocked(state),
+        beaconCoord: state.planet.beaconCoord
     };
 };
 
 export default connect(
     mapStateToProps,
-    {}
+    { clearBeacon }
 )(Replication);
 

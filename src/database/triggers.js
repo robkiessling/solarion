@@ -25,9 +25,10 @@ export default {
         condition: (slice) => slice.amount >= slice.capacity * 0.9,
         action: () => store.dispatch(fromLog.startLogSequence('energyAlmostFull'))
     },
+    // "Exploration begins": fires on the first squad deployment (scouts arrive much later, with Survey Automation)
     startExploringMap: {
-        selector: (state) => state.planet.droidData,
-        condition: (slice) => slice.numDroidsAssigned > 0,
+        selector: (state) => state.planet.squad,
+        condition: (slice) => !!slice,
         action: () => store.dispatch(fromLog.startLogSequence('startExploringMap'))
     },
     windTurbine_global: {

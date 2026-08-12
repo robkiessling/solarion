@@ -46,6 +46,14 @@ export default class EnergyButton {
   }
 
   drawState(state, elapsedTime, newAnimationValues) {
+    // Resize whenever the container changed size underneath us. The canvas can mount at 0x0 (it lives in a
+    // display:none slot whenever the app is on the Planet tab, including at boot in skip modes), and tab
+    // switches don't fire the window resize listener.
+    const rect = this.container.getBoundingClientRect();
+    if (rect.width !== this.width || rect.height !== this.height) {
+      this.resize();
+    }
+
     this.clearAll();
 
     this._state.elapsedTime = elapsedTime;
@@ -273,6 +281,13 @@ export default class EnergyButton {
     this._setDimensions();
 
     this._convertCanvasToHiDPI(this.canvas, this.context);
+
+    // Re-center the button: its position is stored state (not derived per-draw), so every resize must
+    // recompute it. Guarded because the constructor calls resize() before _state exists.
+    if (this._state) {
+      this._state.button.x = this.width / 2 - BUTTON_WIDTH / 2;
+      this._state.button.y = this.height / 2 - BUTTON_HEIGHT / 2;
+    }
   }
 
   _setDimensions() {

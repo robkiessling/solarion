@@ -1,7 +1,7 @@
 import { getRandomFromArray } from "./helpers";
 import { MinHeap } from "./min_heap";
 import { getAdjacentCoords } from "./planet_geometry";
-import { getCrossTime, isPassable, STATUSES } from "./planet_map";
+import { getCrossTime, GRID_TERRAINS, isPassable, STATUSES } from "./planet_map";
 
 /**
  * planet_pathing.js: where droids decide where to explore and how to get there.
@@ -11,28 +11,35 @@ import { getCrossTime, isPassable, STATUSES } from "./planet_map";
  * Exploration model: a droid reveals the tiles around wherever it stands (line-of-sight). So to uncover the map it walks
  * to a "lookout" (an explored, passable tile that still borders an unknown) and standing there reveals that unknown.
  * Droids don't actually step onto unknown tiles; they survey from known ground.
+ *
+ * Halo bound: scouts sweep COVERAGE, never frontier. When a `halo` Set ("row,col"
+ * keys; see getGridHalo) is given, a lookout only counts if it sits inside the halo AND still borders an
+ * in-halo unknown. Unknown ground beyond the halo is the player-driven squad's to discover; incidental
+ * line-of-sight spill past the ring is fine (you can see from where you stand), it's the TARGETING that's bounded.
  */
 
 const UNKNOWN = STATUSES.unknown.enum;
 const EXPLORED = STATUSES.explored.enum;
 
-// True if `coord` borders at least one still-unknown tile.
-function hasUnknownNeighbor(map, coord) {
-    return getAdjacentCoords(coord).some(([r, c]) => map[r][c].status === UNKNOWN);
+// True if `coord` borders at least one still-unknown tile (inside the halo, when one is given).
+export function hasUnknownNeighbor(map, coord, halo = null) {
+    return getAdjacentCoords(coord).some(([r, c]) =>
+        map[r][c].status === UNKNOWN && (!halo || halo.has(`${r},${c}`)));
 }
 
 /**
  * The "lookout" tiles: explored, passable tiles that still border an unknown. Standing on one reveals that unknown, so
  * these are the tiles worth visiting (one next to an unknown mountain counts too; visiting it reveals the wall).
  */
-export function getExplorationFrontier(map, unlocks = {}) {
+export function getExplorationFrontier(map, unlocks = {}, halo = null) {
     const frontier = [];
 
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
             if (sector.status !== EXPLORED) return;
+            if (halo && !halo.has(`${rowIndex},${colIndex}`)) return;
             if (!isPassable(map, [rowIndex, colIndex], unlocks)) return;
-            if (hasUnknownNeighbor(map, [rowIndex, colIndex])) frontier.push([rowIndex, colIndex]);
+            if (hasUnknownNeighbor(map, [rowIndex, colIndex], halo)) frontier.push([rowIndex, colIndex]);
         });
     });
 
@@ -40,11 +47,12 @@ export function getExplorationFrontier(map, unlocks = {}) {
 }
 
 /**
- * Done when no lookouts remain. Any unknowns left then can't be viewed from reachable ground (mountain interiors, sealed
- * pockets) until a crossing upgrade (via `unlocks`) makes that terrain passable and re-opens the frontier.
+ * Done when no lookouts remain. Any unknowns left then are out of the scouts' reach: beyond the halo (the squad's
+ * job), or unviewable from reachable ground (mountain interiors, sealed pockets) until a crossing upgrade (via
+ * `unlocks`) re-opens the frontier. Development growth re-arms this by extending the halo.
  */
-export function isExplorationComplete(map, unlocks = {}) {
-    return getExplorationFrontier(map, unlocks).length === 0;
+export function isExplorationComplete(map, unlocks = {}, halo = null) {
+    return getExplorationFrontier(map, unlocks, halo).length === 0;
 }
 
 
@@ -96,7 +104,7 @@ export function findPath(map, fromCoord, toCoord, { unlocks = {} } = {}) {
  * direction. This means a fresh batch fans out, and it avoids lookouts already claimed by others (falling back to a
  * claimed one only when that's all that's reachable).
  */
-export function findNearestLookout(map, fromCoord, { claimed = new Set(), unlocks = {}, heading = null } = {}) {
+export function findNearestLookout(map, fromCoord, { claimed = new Set(), unlocks = {}, heading = null, halo = null } = {}) {
     // Dijkstra outward, but stop once we can't beat the nearest lookout found. Lookouts sit right at the frontier the
     // droid just revealed, so in the common case this only explores a tiny local radius (not the whole explored map).
     const startKey = coordKey(fromCoord);
@@ -120,8 +128,9 @@ export function findNearestLookout(map, fromCoord, { claimed = new Set(), unlock
         if (settled.has(k)) continue;
         settled.add(k);
 
-        // This tile is a lookout if it borders an unknown. Prefer unclaimed; remember the nearest claimed as a fallback.
-        if (k !== startKey && hasUnknownNeighbor(map, coord)) {
+        // This tile is a lookout if it borders an unknown (both inside the halo, when bounded). Prefer
+        // unclaimed; remember the nearest claimed as a fallback.
+        if (k !== startKey && (!halo || halo.has(k)) && hasUnknownNeighbor(map, coord, halo)) {
             if (!claimed.has(k)) {
                 candidates.push({ target: coord, cost: distance });
                 if (distance < minCost) minCost = distance;
@@ -156,6 +165,110 @@ export function findNearestLookout(map, fromCoord, { claimed = new Set(), unlock
     const path = reconstructPath(prev, fromCoord, chosenTarget);
     if (path === null) return null;
     return { target: chosenTarget, path, heading: bearing(fromCoord, chosenTarget) };
+}
+
+
+/**
+ * The docked scout's deploy search: the nearest lookout to the powered grid AS A WHOLE. Dijkstra seeded with
+ * every grid tile at cost 0, so the returned path BEGINS on the grid tile the scout should surface on and
+ * ends on the lookout (the two can be the same tile). Unlike findNearestLookout there is no claimed
+ * fallback: with nothing unclaimed left, scouts stay docked rather than pile onto another scout's target.
+ * Returns { target, path, heading } or null.
+ */
+export function findNearestLookoutFromGrid(map, { claimed = new Set(), unlocks = {}, halo = null } = {}) {
+    const dist = {};
+    const prev = {};
+    const settled = new Set();
+    const heap = new MinHeap();
+
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            if (GRID_TERRAINS.has(sector.terrain)) {
+                dist[`${rowIndex},${colIndex}`] = 0;
+                heap.push(0, [rowIndex, colIndex]);
+            }
+        });
+    });
+
+    const candidates = [];
+    let minCost = Infinity;
+
+    while (heap.size > 0) {
+        const { priority: distance, value: coord } = heap.pop();
+        if (distance > minCost) break;
+        const k = coordKey(coord);
+        if (settled.has(k)) continue;
+        settled.add(k);
+
+        if (!claimed.has(k) && (!halo || halo.has(k)) && hasUnknownNeighbor(map, coord, halo)) {
+            candidates.push({ target: coord, cost: distance });
+            if (distance < minCost) minCost = distance;
+        }
+
+        getAdjacentCoords(coord).forEach(neighbor => {
+            if (!isTraversable(map, neighbor, unlocks)) return;
+            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, unlocks);
+            const nk = coordKey(neighbor);
+            if (newDist < (dist[nk] ?? Infinity)) {
+                dist[nk] = newDist;
+                prev[nk] = coord;
+                heap.push(newDist, neighbor);
+            }
+        });
+    }
+
+    if (candidates.length === 0) return null;
+    // Random among nearest so a batch of docked scouts fans out (a fresh emergence has no heading to follow)
+    const nearest = candidates.filter(c => c.cost <= minCost + 1e-9);
+    const target = getRandomFromArray(nearest).target;
+
+    // Multi-source path reconstruction: walk prev back until a seed (no prev entry), INCLUDING the seed
+    const path = [];
+    let current = target;
+    while (current !== undefined) {
+        path.unshift(current);
+        current = prev[coordKey(current)];
+    }
+    return { target, path, heading: path.length > 1 ? bearing(path[0], target) : null };
+}
+
+/**
+ * Route from `fromCoord` to the nearest powered-grid tile (a finished scout going to dock, or a recalled one
+ * despawning into the pool). Returns the step coords (excludes start, ends on the grid tile), [] when
+ * already standing on powered ground, or null when the grid is unreachable from here.
+ */
+export function findPathToGrid(map, fromCoord, { unlocks = {} } = {}) {
+    if (GRID_TERRAINS.has(map[fromCoord[0]][fromCoord[1]].terrain)) return [];
+
+    const dist = { [coordKey(fromCoord)]: 0 };
+    const prev = {};
+    const settled = new Set();
+    const heap = new MinHeap();
+    heap.push(0, fromCoord);
+
+    while (heap.size > 0) {
+        const { priority: distance, value: coord } = heap.pop();
+        const k = coordKey(coord);
+        if (settled.has(k)) continue;
+        settled.add(k);
+
+        if (GRID_TERRAINS.has(map[coord[0]][coord[1]].terrain)) {
+            return reconstructPath(prev, fromCoord, coord);
+        }
+
+        getAdjacentCoords(coord).forEach(neighbor => {
+            if (!isTraversable(map, neighbor, unlocks)) return;
+            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, unlocks);
+            const nk = coordKey(neighbor);
+            if (newDist < (dist[nk] ?? Infinity)) {
+                dist[nk] = newDist;
+                prev[nk] = coord;
+                heap.push(newDist, neighbor);
+            }
+        });
+    }
+
+    return null;
 }
 
 

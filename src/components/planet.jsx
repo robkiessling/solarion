@@ -1,8 +1,17 @@
 import React from 'react';
 import {connect} from "react-redux";
 import AsciiCanvas from "../lib/ascii_canvas";
-import {TERRAINS, STATUSES, generateImage, coordToImageCell} from "../lib/planet_map";
-import {NUM_PLANET_ROWS, DISPLAY_COLS} from "../lib/planet_geometry";
+import {
+    TERRAINS,
+    STATUSES,
+    generateImage,
+    coordToImageCell,
+    imageCellToCoord,
+    isDisplayCellVisible,
+    getGridHalo
+} from "../lib/planet_map";
+import {NUM_PLANET_ROWS, DISPLAY_COLS, PLANET_COLS} from "../lib/planet_geometry";
+import {mod} from "../lib/helpers";
 import {drawPlanetImage, PLANET_COLORS} from "../lib/planet_render";
 import {
     FIGHT_EFFECT_CHARS,
@@ -12,7 +21,8 @@ import {
     POI_STATUS
 } from "../lib/expeditions";
 import {stepInDirection, squadCrossMs, SQUAD_GLYPH} from "../lib/squad";
-import {squadInteract, squadStepInto} from "../redux/modules/planet";
+import {setBeaconAt, squadInteract, squadStepInto} from "../redux/modules/planet";
+import {surveyAutomationUnlocked} from "../redux/reducer";
 
 const POI_PING_PERIOD_MS = 1200; // one full expand-and-fade cycle of the hovered marker's radar ping
 const SQUAD_PING_PERIOD_MS = 2200; // slower, subtler locator pulse on the deployed squad
@@ -20,6 +30,8 @@ const DROID_GLYPH = '♦'; // a scout; small filled diamond pairs with the squad
                          // and can't be confused with '·' unknown
 const SHOW_DROID_STACK_COUNTS = false; // when true, tiles with 2+ scouts show the count (2-9, '+') instead of the glyph
 const SCOUT_PULSE_PERIOD_MS = 1800; // scouts breathe between dim and full brightness, phase-offset per tile
+const BEACON_GLYPH = '◎'; // the growth beacon: replication flows toward it
+const BEACON_PING_PERIOD_MS = 2600; // slow locator pulse on the placed beacon
 import {PLANET_FPS} from "../singletons/game_clock";
 import * as fromClock from "../redux/modules/clock";
 
@@ -53,6 +65,7 @@ class Planet extends React.Component {
 
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleKeyUp = this.handleKeyUp.bind(this);
+        this.handleCanvasClick = this.handleCanvasClick.bind(this);
     }
 
     componentDidMount() {
@@ -170,6 +183,22 @@ class Planet extends React.Component {
         this.bump = { dx: dir[0], dy: dir[1], target, at: this.props.elapsedTime };
     }
 
+    // A map click places (or, on its own tile, clears) the growth beacon -- the one click the map accepts.
+    // Movement stays keyboard-only (click-to-move was built, playtested, and cut).
+    handleCanvasClick(event) {
+        if (!this.props.surveyUnlocked) return; // the beacon ships with Survey Automation
+
+        const rect = this.canvas.current.getBoundingClientRect();
+        const [gridRow, gridCol] = this.canvasManager.xyToGrid(event.clientX - rect.left, event.clientY - rect.top);
+        const imageRow = Math.floor(gridRow);
+        const imageCol = Math.floor(gridCol);
+        if (!isDisplayCellVisible(imageRow, imageCol)) return; // outside the planet silhouette (masked corners)
+        const coord = imageCellToCoord(imageRow, imageCol, this.props.rotation);
+        if (!coord) return; // letterbox padding
+
+        this.props.setBeaconAt(coord);
+    }
+
     drawPlanet() {
         if (!this.props.visible) {
             return;
@@ -195,20 +224,20 @@ class Planet extends React.Component {
     }
 
     // Expedition markers, keyed by planet "row,col". Later entries overwrite earlier ones, so precedence is
-    // path highlight < POI marker < squad glyph < fight effect (squad/fight sit on the POI's tile when there).
+    // POI marker < beacon < squad glyph < fight effect (squad/fight sit on the POI's tile when there).
     buildOverlays() {
         const overlays = {};
 
-        // Scout droids: a lone droid draws as a glyph, stacks show their count. Active scouts are yellow; recalled
-        // ones walking home go gray (any active droid on a shared tile wins the color). Docked droids (home tile)
-        // aren't drawn.
+        // Scout droids: a lone droid draws as a glyph, stacks show their count. Active scouts are yellow;
+        // ones walking to the grid (recalled or docking) go gray (any active droid on a shared tile wins the
+        // color). Docked scouts have no coord and aren't drawn; ones passing over the home tile are hidden too.
         const droidTiles = {};
         (this.props.droids || []).forEach(droid => {
             if (!droid.coord) return;
             const key = `${droid.coord[0]},${droid.coord[1]}`;
             const entry = droidTiles[key] || (droidTiles[key] = { count: 0, anyActive: false });
             entry.count++;
-            if (!droid.returning) entry.anyActive = true;
+            if (!droid.returning && !droid.docking) entry.anyActive = true;
         });
         const homeKey = this.props.homeCoord ? `${this.props.homeCoord[0]},${this.props.homeCoord[1]}` : null;
         Object.entries(droidTiles).forEach(([key, { count, anyActive }]) => {
@@ -240,13 +269,48 @@ class Planet extends React.Component {
             };
         });
 
+        // The growth beacon: placed by map click, replication grows toward it (wins over a POI marker on the
+        // same tile -- the player put it there and can move it)
+        const beacon = this.props.beaconCoord;
+        if (beacon) {
+            overlays[`${beacon[0]},${beacon[1]}`] = {
+                char: BEACON_GLYPH,
+                colorKey: 'beacon',
+                ping: { fraction: (this.props.elapsedTime % BEACON_PING_PERIOD_MS) / BEACON_PING_PERIOD_MS, variant: 'beacon' }
+            };
+        }
+
         this.addSquadOverlays(overlays);
+
+        this.addHaloBoundary(overlays);
 
         return overlays;
     }
 
-    // The squad: remaining route as a dim highlight, the team glyph sliding smoothly between tiles (sub-cell
-    // offset from moveProgress), skirmish effect on the nest while fighting, and bump/wall-flash feedback.
+    // Survey-range boundary: canvas line segments along cell edges (drawn by planet_render), NOT a tinted
+    // char -- a row of tinted glyphs reads as terrain (a river). Every boundary tile is a ring tile (a
+    // closer tile's neighbors are all within R), so only the ring needs its neighbors checked. Runs last
+    // and MERGES into existing overlays, so markers keep their glyphs and the ring has no gaps under them.
+    addHaloBoundary(overlays) {
+        if (!this.props.surveyUnlocked) return;
+
+        const { halo, ring } = getGridHalo(this.props.map, this.props.haloRadius);
+        ring.forEach(key => {
+            const [r, c] = key.split(',').map(Number);
+            const edges = {
+                top: r === 0 || !halo.has(`${r - 1},${c}`),
+                bottom: r === NUM_PLANET_ROWS - 1 || !halo.has(`${r + 1},${c}`),
+                left: !halo.has(`${r},${mod(c - 1, PLANET_COLS)}`),
+                right: !halo.has(`${r},${mod(c + 1, PLANET_COLS)}`)
+            };
+            if (edges.top || edges.bottom || edges.left || edges.right) {
+                overlays[key] = { ...(overlays[key] || {}), haloEdges: edges };
+            }
+        });
+    }
+
+    // The squad: the team glyph sliding smoothly between tiles (sub-cell offset from moveProgress),
+    // skirmish effect on the nest while fighting, and bump/wall-flash feedback.
     addSquadOverlays(overlays) {
         const squad = this.props.squad;
         if (!squad) return;
@@ -259,10 +323,6 @@ class Planet extends React.Component {
                 overlays[`${poi.coord[0]},${poi.coord[1]}`] = { char: FIGHT_EFFECT_CHARS[frame], colorKey: 'battle' };
             }
         }
-
-        (squad.path || []).forEach(([r, c]) => {
-            if (!overlays[`${r},${c}`]) overlays[`${r},${c}`] = { colorKey: 'pathHighlight' };
-        });
 
         let offsetX = 0;
         let offsetY = 0;
@@ -319,6 +379,13 @@ class Planet extends React.Component {
             legend.push({ key: 'squad', colorKey: 'squad', display: SQUAD_GLYPH, label: 'Squad' });
         }
 
+        if (this.props.surveyUnlocked) {
+            legend.push({ key: 'haloRing', display: '╌', label: 'Survey range' });
+        }
+        if (this.props.beaconCoord) {
+            legend.push({ key: 'beacon', display: BEACON_GLYPH, label: 'Growth beacon' });
+        }
+
         // POI legend entries only appear once relevant (any POI discovered)
         const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== POI_STATUS.hidden);
         if (anyPoiVisible) {
@@ -329,7 +396,7 @@ class Planet extends React.Component {
 
         return (
             <div id="planet" ref={this.canvasContainer} className={`${this.props.visible ? '' : 'hidden'}`}>
-                <canvas id="planet-canvas" ref={this.canvas}></canvas>
+                <canvas id="planet-canvas" ref={this.canvas} onClick={this.handleCanvasClick}></canvas>
                 <div className="planet-legend">
                     <span className='d-flex justify-center underline'>Legend</span>
                     {
@@ -358,6 +425,9 @@ const mapStateToProps = state => {
         homeCoord: state.planet.homeCoord,
         numExplored: state.planet.numExplored,
         unlockedTerrains: state.planet.unlockedTerrains,
+        surveyUnlocked: surveyAutomationUnlocked(state),
+        haloRadius: state.planet.haloRadius,
+        beaconCoord: state.planet.beaconCoord,
         elapsedTime: state.clock.elapsedTime,
         fractionOfDay: fromClock.fractionOfDay(state.clock),
         rotation: state.planet.rotation,
@@ -368,5 +438,5 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadStepInto, squadInteract }
+    { squadStepInto, squadInteract, setBeaconAt }
 )(Planet);

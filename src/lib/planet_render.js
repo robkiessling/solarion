@@ -21,11 +21,13 @@ export const PLANET_COLORS = {
     poiNest: '#ff4d4d',
     poiStory: '#c58fff',
     poiHighlight: '#ffffff',
-    pathHighlight: '#2e7d8c',       // dim base of the hovered-path marching-ants shimmer
-    pathHighlightBright: '#7fe3f5', // crawling bright segments
     squad: '#ffe14d',
-    battle: '#ff6b35'
+    battle: '#ff6b35',
+    haloRing: '#3ec0da', // survey-range boundary (stroked cell-edge segments, not a char tint)
+    beacon: '#90EE90'    // growth beacon; matches developed land, which grows toward it
 };
+
+const HALO_EDGE_ALPHA = 0.45; // how faint the survey-range boundary line is
 
 // Day/night shading levels (was CSS opacity on .night/.twilight-* classes)
 const LIGHT_ALPHA = {
@@ -41,7 +43,8 @@ const SECTOR_DIVIDER_COLOR = 'rgba(62,192,218,0.5)';
 // marker; 'squad' is the quiet always-on locator pulse that lets you follow a deployed expedition team.
 const PING_VARIANTS = {
     hover: { color: '#7fe3f5', maxRadiusCells: 2.2, lineWidth: 1.5, rings: 2, maxAlpha: 1 },
-    squad: { color: '#ffe14d', maxRadiusCells: 1.5, lineWidth: 1, rings: 1, maxAlpha: 0.45 }
+    squad: { color: '#ffe14d', maxRadiusCells: 1.5, lineWidth: 1, rings: 1, maxAlpha: 0.45 },
+    beacon: { color: '#90EE90', maxRadiusCells: 1.8, lineWidth: 1, rings: 1, maxAlpha: 0.5 }
 };
 
 /**
@@ -70,6 +73,7 @@ export function drawPlanetImage(canvasManager, image) {
     let currentAlpha = null;
 
     const pings = []; // collected during the cell pass, drawn last so rings sit on top of everything
+    const haloEdges = []; // survey-boundary segments, batched into one stroke after the cell pass
 
     // Baseline sits at the cell bottom (same offset AsciiCanvas.drawImage uses), shifted up by half of any leading
     // (fontHeight minus fontSize) so glyphs are vertically centered when rows have extra spacing
@@ -106,6 +110,12 @@ export function drawPlanetImage(canvasManager, image) {
                 pings.push({ x: x + fontWidth / 2, y: top + offsetY + fontHeight / 2, ping: cell.ping });
             }
 
+            if (cell.haloEdges !== undefined) {
+                // Anchored to the cell itself (no offsetX/offsetY): the boundary belongs to the tile, not to
+                // a marker glyph sliding across it
+                haloEdges.push({ x: originX + colIndex * fontWidth, y: top, edges: cell.haloEdges });
+            }
+
             if (cell.dividers) {
                 context.strokeStyle = SECTOR_DIVIDER_COLOR;
                 context.beginPath();
@@ -125,6 +135,34 @@ export function drawPlanetImage(canvasManager, image) {
             }
         });
     });
+
+    // Survey-range boundary: line segments along the cell edges where the halo ends -- drawn between the
+    // chars rather than as tinted glyphs (a tinted line of chars reads as terrain)
+    if (haloEdges.length > 0) {
+        context.strokeStyle = PLANET_COLORS.haloRing;
+        context.globalAlpha = HALO_EDGE_ALPHA;
+        context.lineWidth = 1;
+        context.beginPath();
+        haloEdges.forEach(({ x, y, edges }) => {
+            if (edges.top) {
+                context.moveTo(x, y);
+                context.lineTo(x + fontWidth, y);
+            }
+            if (edges.bottom) {
+                context.moveTo(x, y + fontHeight);
+                context.lineTo(x + fontWidth, y + fontHeight);
+            }
+            if (edges.left) {
+                context.moveTo(x, y);
+                context.lineTo(x, y + fontHeight);
+            }
+            if (edges.right) {
+                context.moveTo(x + fontWidth, y);
+                context.lineTo(x + fontWidth, y + fontHeight);
+            }
+        });
+        context.stroke();
+    }
 
     // Radar pings: rings expand from the cell center and fade as they grow; multiple rings stagger evenly
     if (pings.length > 0) {

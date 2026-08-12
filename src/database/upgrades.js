@@ -963,7 +963,7 @@ const database = {
     droidFactory_longerComm: _.merge({}, base, {
         name: "Long-range Communication",
         structure: 'droidFactory',
-        description: 'Allows droids to explore the planet\'s surface.',
+        description: 'Opens an uplink to the planet\'s surface, revealing the planetary map.',
         discoverWhen: {
             resources: {
                 standardDroids: 5,
@@ -972,6 +972,24 @@ const database = {
         },
         cost: {
             refinedMinerals: 500,
+        },
+        affects: {
+            type: EFFECT_TARGETS.misc
+        },
+    }),
+    droidFactory_surveyAutomation: _.merge({}, base, {
+        name: "Survey Automation",
+        structure: 'droidFactory',
+        description: 'Scout droids autonomously survey unexplored ground within uplink range of the powered grid.',
+        discoverWhen: {
+            // upgrades: ['droidFactory_longerComm'],
+            resources: {
+                developedLand: 3
+            }
+        },
+        cost: {
+            // refinedMinerals: 2500,
+            refinedMinerals: 1,
         },
         affects: {
             type: EFFECT_TARGETS.misc
@@ -1124,6 +1142,11 @@ export const callbacks = {
             dispatch(fromAbilities.learn('replicate'));
 
             dispatch(fromLog.startLogSequence('globeUnlocked'));
+        }
+    },
+    droidFactory_surveyAutomation: {
+        onFinish: (dispatch) => {
+            dispatch(fromLog.startLogSequence('surveyAutomationOnline'));
         }
     },
     droidFactory_fasterExplore: {

@@ -1,10 +1,10 @@
 import {getAdjacentCoords, NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
-import {getCrossTime, STATUSES, TERRAINS} from "./planet_map";
+import {getCrossTime, isOnGrid, STATUSES} from "./planet_map";
 import {mod} from "./helpers";
 import {POI_STATUS} from "./expeditions";
 
 /**
- * The player-driven squad that IS act-2 exploration (see design-2.0.md Addendum 2.1). Owns the
+ * The player-driven squad that IS act-2 exploration. Owns the
  * pure movement/charge/reveal/fight simulation plus routing; input handling lives in the planet component and
  * redux thunks. POI *resolution* math (computeOutcome etc.) stays in expeditions.js.
  *
@@ -25,7 +25,8 @@ export const SQUAD_MAX_CHARGE = 100;
 export const SQUAD_DRAIN_PER_TILE = 2;
 export const RESERVE_SPEED_PENALTY = 2;
 
-const GRID_TERRAINS = new Set([TERRAINS.home.enum, TERRAINS.developing.enum, TERRAINS.developed.enum]);
+// isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
+export {isOnGrid} from "./planet_map";
 
 export function createSquad(homeCoord, squadSize) {
     return {
@@ -45,11 +46,6 @@ export function poiAtCoord(pois, coord) {
     return Object.values(pois || {}).find(poi =>
         poi.status === POI_STATUS.available && poi.coord[0] === coord[0] && poi.coord[1] === coord[1]
     ) || null;
-}
-
-// The powered grid: home base and replicated land. Standing here recharges instantly.
-export function isOnGrid(map, coord) {
-    return GRID_TERRAINS.has(map[coord[0]][coord[1]].terrain);
 }
 
 export function squadCrossMs(map, coord, unlocks, charge) {

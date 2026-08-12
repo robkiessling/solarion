@@ -4,7 +4,7 @@ import {roundToDecimal} from "../lib/helpers";
 import DroidCount from "./structures/droid_count";
 import Slider from "rc-slider";
 import {percentExplored, ROTATION_MODES, setRotation, setRotationMode} from "../redux/modules/planet";
-import {showDroidsUI} from "../redux/reducer";
+import {showDroidsUI, surveyAutomationUnlocked} from "../redux/reducer";
 
 // Camera segmented control: [mode, label]. 'Team' follows the expedition squad (or centers home base when idle).
 const CAMERA_MODE_OPTIONS = [
@@ -34,9 +34,10 @@ class Exploration extends React.Component {
                 <div className={'half-br'}></div>
 
                 {
-                    this.props.showDroidsUI &&
+                    // Scout assignment is the Survey Automation unlock; before it, the squad is the only exploration
+                    this.props.showDroidsUI && this.props.surveyUnlocked &&
                     <DroidCount droidData={this.props.droidData}
-                                assignTooltip={`Assigned droids will explore the planet surface. Each assigned droid increases the exploration rate.`}/>
+                                assignTooltip={`Assigned scouts automatically survey unexplored ground within uplink range of the powered grid.`}/>
                 }
 
                 <div className={'half-br'}></div>
@@ -73,6 +74,7 @@ const mapStateToProps = (state, ownProps) => {
     return {
         percentExplored: percentExplored(state.planet),
         showDroidsUI: showDroidsUI(state),
+        surveyUnlocked: surveyAutomationUnlocked(state),
         droidData: state.planet.droidData,
         rotation: state.planet.rotation,
         rotationMode: state.planet.rotationMode

@@ -3,7 +3,7 @@ import {TERRAINS} from "./planet_map";
 
 /**
  * This module owns the point-of-interest (POI) domain logic: POI generation, encounter resolution math, and
- * report text. Squad movement/driving lives in squad.js (the squad is player-driven; see Addendum 2.1).
+ * report text. Squad movement/driving lives in squad.js (the squad is player-driven).
  */
 
 export const POI_TYPES = {
