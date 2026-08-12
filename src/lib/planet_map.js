@@ -747,6 +747,21 @@ export function isDisplayCellVisible(imageRow, imageCol) {
 }
 
 /**
+ * Fake-sphere terminator math. On a real globe seen face-on, a meridian projects to x = sin(lon)cos(lat), so
+ * the day/night boundary bows toward the disc's vertical axis as latitude grows (the crescent). The cylinder
+ * maps longitude to x linearly, which left the terminator a straight vertical band. To fake the projection,
+ * stretch each cell's horizontal distance from the display center by 1/cos(lat) before the day/night
+ * comparison; boundaries then render pulled toward the center column by cos(lat), curving into a crescent.
+ * Uses the same normalized-row coordinate as DISPLAY_MASK. The clamp caps the stretch on the pole rows
+ * (cos(lat) ~ 0); those cells are mostly masked off anyway, and visible ones stay within a quarter turn of
+ * the display center, so the stretched fraction never wraps to the far side of the planet.
+ */
+const ROW_CURVE_SCALE = createArray(NUM_PLANET_ROWS, (rowIndex) => {
+    const ny = (rowIndex + 0.5) / NUM_PLANET_ROWS * 2 - 1;
+    return 1 / Math.sqrt(Math.max(1 - ny * ny, 0.01));
+});
+
+/**
  * Maps a planet coord to its cell in the generated image (the same windowing + centering math as generateImage):
  * returns [imageRow, imageCol], or null when the coord is outside the current display window. The inverse,
  * imageCellToCoord, turns a clicked image cell back into a planet coord (null for letterbox padding / off-planet).
@@ -773,6 +788,9 @@ export function imageCellToCoord(imageRow, imageCol, rotation) {
 export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, overlays = {}) {
     let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
     let nightEnd = (fractionOfDay + NIGHT_END) % 1;
+
+    // Anchor of the fake-sphere projection (see ROW_CURVE_SCALE): the planet fraction at the disc's center column
+    const displayCenterFraction = (floor(rotation * PLANET_COLS) + DISPLAY_COLS / 2) / PLANET_COLS;
 
     let asciiImage = map.map((planetRow, rowIndex) => {
         const displayStart = floor(rotation * PLANET_COLS);
@@ -830,7 +848,8 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 // sunTracking is enabled: shading the far-right side of the planet accordingly
                 // (Ideally, the sunTracking:disabled shading would work for this use case too, but I couldn't get it to
                 //  work without stuttering. So I have to make this special case for sunTracking:enabled)
-                const displayFraction = displayColIndex / DISPLAY_COLS; // How far into the display length the sector is
+                // How far into the display length the sector is, curved by row so the cutoffs arc like a sphere's limb
+                const displayFraction = 0.5 + (displayColIndex / DISPLAY_COLS - 0.5) * ROW_CURVE_SCALE[rowIndex];
                 if (displayFraction >= SUN_TRACKING_NIGHT_CUTOFF) {
                     light = 'night';
                 }
@@ -842,10 +861,14 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 }
             }
             else {
-                // sunTracking is disabled: shading the night side of the planet
+                // sunTracking is disabled: shading the night side of the planet. The cell's planet fraction is
+                // curved by row (stretched away from the display center; see ROW_CURVE_SCALE) so the world-fixed
+                // night band renders with a crescent-shaped terminator instead of straight vertical edges.
                 const planetFraction = sector.coord[1] / PLANET_COLS; // How far into the planet length the sector is
-                light = getTwilightLight(planetFraction, nightStart, nightEnd) ||
-                    getNightLight(planetFraction, nightStart, nightEnd) ||
+                const centerOffset = mod(planetFraction - displayCenterFraction + 0.5, 1) - 0.5; // signed, wrap-aware
+                const curvedFraction = mod(displayCenterFraction + centerOffset * ROW_CURVE_SCALE[rowIndex], 1);
+                light = getTwilightLight(curvedFraction, nightStart, nightEnd) ||
+                    getNightLight(curvedFraction, nightStart, nightEnd) ||
                     'day';
             }
 

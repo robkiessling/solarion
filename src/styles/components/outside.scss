@@ -56,6 +56,7 @@ $top-bar-float-padding: 0.875rem;
     position: absolute;
     top: 0;
     left: 0;
+    cursor: grab; // the globe is draggable (pans the camera); flips to 'grabbing' inline mid-drag
   }
 
   .planet-legend {

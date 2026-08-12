@@ -30,7 +30,7 @@ class Structures extends React.Component {
         const onTabClick = (tabId) => { this.props.updateSetting('currentStructureTab', tabId) }
 
         return (
-            <div className={`structures ${this.props.visible ? '' : 'hidden'}`}>
+            <div className={`structures ${this.props.onPlanetTab ? 'planet-tab' : ''} ${this.props.visible ? '' : 'hidden'}`}>
                 {
                     this.props.structureIds.length ?
                         (
@@ -86,13 +86,19 @@ const mapStateToProps = (state, ownProps) => {
         case 'star':
             structureIds = ['probeFactory', 'solarPanel'].filter(id => getStructure(state.structures, id))
             break;
+        case 'planet':
+            // The droid factory's outputs (droids, drill, survey automation) all live on the planet, so its
+            // card also shows here (same pattern as the solar panel appearing on both Base and Star)
+            structureIds = getVisibleIds(state.structures).filter(id => id === 'droidFactory');
+            break;
     }
 
     // commandCenter structure is shown on its own in the left column; never show it on the right column
     structureIds = structureIds.filter(structureId => structureId !== 'commandCenter');
 
     return {
-        visible: state.game.currentNavTab === 'outside' || state.game.currentNavTab === 'star',
+        visible: ['outside', 'star', 'planet'].includes(state.game.currentNavTab) && (state.game.currentNavTab !== 'planet' || structureIds.length > 0),
+        onPlanetTab: state.game.currentNavTab === 'planet',
         showStructureTabs: state.game.showStructureTabs && state.game.currentNavTab === 'outside',
         currentStructureTab: state.game.currentStructureTab,
         structureIds: structureIds,

@@ -24,7 +24,7 @@ export const PLANET_COLORS = {
     poiStory: '#c58fff',
     poiGate: '#e0c060',
     poiHighlight: '#ffffff',
-    squad: '#ffe14d',
+    squad: '#20d9ff',    // friendly cyan like home base; keeps the squad readable next to yellow scouts
     battle: '#ff6b35',
     haloRing: '#3ec0da', // survey-range boundary (stroked cell-edge segments, not a char tint)
     beacon: '#90EE90'    // growth beacon; matches developed land, which grows toward it
@@ -46,7 +46,7 @@ const SECTOR_DIVIDER_COLOR = 'rgba(62,192,218,0.5)';
 // marker; 'squad' is the quiet always-on locator pulse that lets you follow a deployed expedition team.
 const PING_VARIANTS = {
     hover: { color: '#7fe3f5', maxRadiusCells: 2.2, lineWidth: 1.5, rings: 2, maxAlpha: 1 },
-    squad: { color: '#ffe14d', maxRadiusCells: 1.5, lineWidth: 1, rings: 1, maxAlpha: 0.45 },
+    squad: { color: '#20d9ff', maxRadiusCells: 1.5, lineWidth: 1, rings: 1, maxAlpha: 0.45 },
     beacon: { color: '#90EE90', maxRadiusCells: 1.8, lineWidth: 1, rings: 1, maxAlpha: 0.5 }
 };
 
