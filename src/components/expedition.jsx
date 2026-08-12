@@ -12,8 +12,10 @@ import {
     POI_STATUS,
     POI_TYPES
 } from "../lib/expeditions";
-import {isOnGrid, SQUAD_MAX_CHARGE} from "../lib/squad";
+import {isOnGrid, RESERVE_SPEED_PENALTY, SQUAD_DRAIN_PER_TILE, SQUAD_MAX_CHARGE} from "../lib/squad";
+import {getCrossTime, getTerrain, TERRAINS} from "../lib/planet_map";
 import {PLANET_COLORS} from "../lib/planet_render";
+import Tooltip from "./ui/tooltip";
 
 const DEFAULT_TEAM_SIZE = 5;
 const MAX_VISIBLE_REPORTS = 5;
@@ -58,6 +60,7 @@ class Expedition extends React.Component {
                         <span className="idle-count">({idleDroids} idle)</span>
                     </div>
                     <span className="squad-status-text">Status: At base</span>
+                    <div className="field-telemetry"/>
                     <span className="cargo-line">Cargo: —</span>
                     <div className="squad-actions">
                         <button disabled={idleDroids < 1} onClick={() => this.props.deploySquad(size)}>Deploy</button>
@@ -65,10 +68,6 @@ class Expedition extends React.Component {
                 </div>
             );
         }
-
-        const reserve = squad.charge <= 0;
-        const lowCharge = !reserve && squad.charge <= SQUAD_MAX_CHARGE * 0.25;
-        const chargeStyle = reserve ? {color: '#ff4d4d'} : lowCharge ? {color: '#ffd700'} : undefined;
 
         const promptPoi = squad.prompt ? this.props.pois[squad.prompt.poiId] : null;
 
@@ -95,12 +94,7 @@ class Expedition extends React.Component {
                     </span>
                 </div>
                 <span className="squad-status-text">{statusText}</span>
-                <span className="key-value-pair">
-                    <span>Charge:</span>
-                    <span style={chargeStyle}>
-                        {reserve ? 'RESERVE POWER' : `${Math.ceil(squad.charge)} / ${SQUAD_MAX_CHARGE}`}
-                    </span>
-                </span>
+                {this.renderTelemetry()}
                 <span className="cargo-line">Cargo: {formatResourceList(squad.cargo) || '—'}</span>
                 {promptPoi &&
                     <div className="squad-prompt">
@@ -123,6 +117,48 @@ class Expedition extends React.Component {
                             title={onGrid ? undefined : 'Return to powered ground to disband'}
                             onClick={() => this.props.disbandSquad()}>Disband</button>
                 </div>
+            </div>
+        );
+    }
+
+    // Deployed-squad telemetry: the charge bar and a readout of the terrain underfoot. The bar's color carries
+    // the charge state (gold under the 25% tick, red on reserve power); the exact number lives in a tooltip.
+    renderTelemetry() {
+        const { squad, sector, onGrid, unlockedTerrains } = this.props;
+        if (!sector) return <div className="field-telemetry"/>;
+
+        const terrain = getTerrain(sector.terrain);
+        const reserve = squad.charge <= 0;
+        const low = !reserve && squad.charge <= SQUAD_MAX_CHARGE * 0.25;
+        const chargePct = Math.max(0, Math.min(100, (squad.charge / SQUAD_MAX_CHARGE) * 100));
+
+        // Speed relative to flatland (integer multiples by construction; reserve power doubles it)
+        const speed = (getCrossTime(sector.terrain, unlockedTerrains) / TERRAINS.flatland.crossTime) *
+            (reserve ? RESERVE_SPEED_PENALTY : 1);
+        const effectsText = onGrid ? 'on the grid · charge full' :
+            `speed ×${speed} · charge −${SQUAD_DRAIN_PER_TILE} / tile`;
+
+        return (
+            <div className="field-telemetry">
+                <div className="charge-row" data-tip data-for="squad-charge-tip">
+                    <span>Charge:</span>
+                    <div className={`charge-bar${reserve ? ' reserve' : low ? ' low' : ''}`}>
+                        <span className="fill" style={{width: `${chargePct}%`}}/>
+                        <span className="tick"/>
+                    </div>
+                    {reserve && <span className="reserve-label">RESERVE</span>}
+                </div>
+                <Tooltip id="squad-charge-tip">
+                    {reserve ?
+                        'Reserve power: crossings take twice as long. Recharges on the grid.' :
+                        `${Math.ceil(squad.charge)} / ${SQUAD_MAX_CHARGE}`}
+                </Tooltip>
+                <span className="terrain-line">
+                    <span className="terrain-key">Terrain:</span>{' '}
+                    <span style={{color: PLANET_COLORS[terrain.key]}}>{terrain.display} {terrain.label}</span>
+                </span>
+                <span className="terrain-effects">{effectsText}</span>
+                <span className="terrain-warn">{sector.infestedBy ? '⚠ Hive territory' : ''}</span>
             </div>
         );
     }
@@ -206,6 +242,7 @@ const mapStateToProps = (state, ownProps) => {
         pois: state.planet.pois,
         squad,
         onGrid: !!(squad && state.planet.map.length > 0 && isOnGrid(state.planet.map, squad.coord)),
+        sector: squad && state.planet.map.length > 0 ? state.planet.map[squad.coord[0]][squad.coord[1]] : null,
         fieldReports: state.planet.fieldReports || [],
         unlockedTerrains: state.planet.unlockedTerrains,
         idleDroids: Math.floor(getQuantity(getResource(state.resources, 'standardDroids'))),

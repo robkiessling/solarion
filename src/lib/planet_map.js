@@ -53,7 +53,7 @@ const MOUNTAIN_WIDEN_CHANCE = 0.6; // per step, chance of a second mountain besi
 const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
-const EXPLORE_EVERYTHING = true;
+const EXPLORE_EVERYTHING = false;
 const MARK_SECTORS = false;
 const LOG_MAP = false;
 
@@ -579,6 +579,11 @@ export function getGridHalo(map, radius) {
     const result = { halo, ring };
     gridHaloCache = { map, radius, result };
     return result;
+}
+
+// The TERRAINS attributes object for a sector's terrain enum (display char, label, colorKey, crossTime).
+export function getTerrain(terrainEnum) {
+    return TERRAINS_BY_ENUM[terrainEnum];
 }
 
 // ms to cross one tile of the given terrain, given the set of unlocked crossing upgrades. Returns Infinity when the

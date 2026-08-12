@@ -182,6 +182,73 @@ $top-bar-float-padding: 0.875rem;
       min-height: 1.2em; // fixed row in the card skeleton
     }
 
+    // Deployed-squad telemetry: charge bar + terrain underfoot. The at-base card renders the block empty;
+    // every row reserves its height, so deploying (or an infestation warning appearing) never shifts the
+    // POI list below.
+    .field-telemetry {
+      display: flex;
+      flex-direction: column;
+      min-height: 5.4em;
+
+      .charge-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 1.5em;
+      }
+
+      .charge-bar {
+        flex: 1;
+        position: relative;
+        height: 8px;
+        background: $black-inset;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+
+        .fill {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          background: #20d9ff; // squad cyan (PLANET_COLORS.squad)
+        }
+
+        // Marks the 25% low-charge threshold where the fill turns gold
+        .tick {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 25%;
+          width: 1px;
+          background: rgba(255, 255, 255, 0.25);
+        }
+
+        &.low .fill { background: #ffd700; }
+        &.reserve .fill { background: #ff4d4d; }
+      }
+
+      .reserve-label {
+        color: #ff4d4d;
+        font-size: 0.8em;
+        letter-spacing: 1px;
+      }
+
+      .terrain-line { min-height: 1.5em; }
+
+      .terrain-key { color: $ui-text-dim; }
+
+      .terrain-effects {
+        min-height: 1.2em;
+        font-size: 0.85em;
+        color: $ui-text-dim;
+      }
+
+      .terrain-warn {
+        min-height: 1.2em;
+        font-size: 0.85em;
+        color: #a06bc9; // infested purple (PLANET_COLORS.infested)
+      }
+    }
+
     .squad-actions {
       display: flex;
       gap: 0.5rem;
