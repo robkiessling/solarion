@@ -7,7 +7,7 @@ import * as fromUpgrades from "./upgrades";
 import * as fromAbilities from "./abilities";
 import * as fromPlanet from "./planet";
 import {withRecalculation} from "../reducer";
-import {numSectorsMatching, STATUSES, TERRAINS} from "../../lib/planet_map";
+import {STATUSES, TERRAINS} from "../../lib/planet_map";
 
 export { calculators };
 
@@ -85,8 +85,23 @@ export default function reducer(state = initialState, action) {
         case fromPlanet.SQUAD_DELIVER_CARGO:
             // The squad touched the powered grid: cargo banks (lost on a wipe, so this is the payoff moment)
             return produceReducer(state, payload.cargo)
-        case fromPlanet.GENERATE_MAP:
-            return produceReducer(state, { buildableLand: numSectorsMatching(payload.map, STATUSES.explored.enum, TERRAINS.flatland.enum) })
+        case fromPlanet.GENERATE_MAP: {
+            // Starting land: the already-explored flatland around home. Infested flatland never counts until
+            // its nest is cleared (see SQUAD_FIGHT_WON below).
+            let startingLand = 0;
+            payload.map.forEach(row => row.forEach(sector => {
+                if (sector.status === STATUSES.explored.enum &&
+                    sector.terrain === TERRAINS.flatland.enum && !sector.infestedBy) {
+                    startingLand++;
+                }
+            }));
+            return produceReducer(state, { buildableLand: startingLand });
+        }
+        case fromPlanet.SQUAD_FIGHT_WON:
+            // A cleared nest retracts its infestation; the revealed flatland under it credits as one chunk
+            return payload.landCredit > 0
+                ? produceReducer(state, { buildableLand: payload.landCredit })
+                : state;
         case fromPlanet.ADVANCE_SQUAD:
             // The driven squad reveals tiles just like scouts do; same land credit.
             return payload.revealedFlatland > 0

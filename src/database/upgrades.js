@@ -977,6 +977,24 @@ const database = {
             type: EFFECT_TARGETS.misc
         },
     }),
+    droidFactory_drill: _.merge({}, base, {
+        name: "Plasma Drill",
+        structure: 'droidFactory',
+        description: 'A vehicle-mounted plasma drill. Cuts through rockfall the squad cannot cross.',
+        discoverWhen: {
+            upgrades: ['droidFactory_longerComm'],
+            resources: {
+                refinedMinerals: 400
+            }
+        },
+        cost: {
+            ore: 2000,
+            refinedMinerals: 800,
+        },
+        affects: {
+            type: EFFECT_TARGETS.misc
+        },
+    }),
     droidFactory_surveyAutomation: _.merge({}, base, {
         name: "Survey Automation",
         structure: 'droidFactory',
@@ -1142,6 +1160,12 @@ export const callbacks = {
             dispatch(fromAbilities.learn('replicate'));
 
             dispatch(fromLog.startLogSequence('globeUnlocked'));
+        }
+    },
+    droidFactory_drill: {
+        onFinish: (dispatch) => {
+            // unlockedTerrains doubles as the capability set; 'drill' satisfies the cave gate's `requires`
+            dispatch(fromPlanet.unlockTerrain('drill'));
         }
     },
     droidFactory_surveyAutomation: {

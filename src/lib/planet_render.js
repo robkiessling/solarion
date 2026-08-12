@@ -12,6 +12,8 @@ export const PLANET_COLORS = {
     developed: '#90EE90',
     mountain: '#bd0707',
     ice: '#ffffff',
+    acid: '#9acd32',     // the mid-world belt
+    infested: '#a06bc9', // hive-tainted ground around a nest; retracts when the nest is cleared
     droid: '#ffe14d',
     droidReturning: '#9a9a9a', // recalled scouts walking home ("off duty")
     laserBeam: '#ffff00',
@@ -20,6 +22,7 @@ export const PLANET_COLORS = {
     poiCache: '#ffd700',
     poiNest: '#ff4d4d',
     poiStory: '#c58fff',
+    poiGate: '#e0c060',
     poiHighlight: '#ffffff',
     squad: '#ffe14d',
     battle: '#ff6b35',

@@ -1,5 +1,6 @@
 import _ from 'lodash';
 import {createArray, getIntermediateColor, getRandomFromArray, getRandomIntInclusive, mod, floor, nTimes} from "./helpers";
+import {MinHeap} from "./min_heap";
 import {
     ALL_DIRECTIONS,
     DISPLAY_COLS,
@@ -52,7 +53,7 @@ const MOUNTAIN_WIDEN_CHANCE = 0.6; // per step, chance of a second mountain besi
 const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
-const EXPLORE_EVERYTHING = false;
+const EXPLORE_EVERYTHING = true;
 const MARK_SECTORS = false;
 const LOG_MAP = false;
 
@@ -72,6 +73,7 @@ export const TERRAINS = {
     developed: { key: 'developed', enum: 3, display: '+', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
     mountain: { key: 'mountain', enum: 4, display: 'Λ', label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
     ice: { key: 'ice', enum: 5, display: 'X', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
+    acid: { key: 'acid', enum: 6, display: '~', label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // The mid-world belt; binary gate (Sealed Chassis or no)
 }
 
 if (SHOW_DEBUG_MERIDIANS) {
@@ -146,6 +148,8 @@ export function generateRandomMap() {
     const homeCoord = addHomeBase(map);
 
     cacheDistancesToHome(map, homeCoord);
+
+    stampRegions(map, homeCoord);
 
     if (MARK_SECTORS) markSectors(map);
 
@@ -344,6 +348,155 @@ function addHomeBase(map) {
     return [homeRow, homeCol]
 }
 
+/**
+ * --- The region stamp pass ---
+ * Three concentric regions, defined by hop distance (pure topology, so the boundaries are unbreakable rings):
+ *   R1 "the bowl": inside a mountain ring around home, with ONE gate tile (the cave; opens with the drill).
+ *   R3 "the antipode": inside a ring around the point opposite home, with one gate tile (the sealed door;
+ *      opens with the override module).
+ *   R2 "the scarred belt": everything else, cut in half by a band of acid at mid-distance (crossable only
+ *      with the sealed chassis). The band converts mountains too: mountains have their own cross upgrade,
+ *      and a crossable mountain inside the belt would leak a path around the acid gate.
+ * Ice is never overwritten (the polar walls complete every ring), and ring/band tiles that are already
+ * mountains just stay mountains.
+ *
+ * Because neighboring tiles differ by at most 1 in hop distance, making every tile AT the ring distance
+ * impassable (except the gate) fully seals the interior; single-tile thickness is enough.
+ */
+export const REGIONS = { bowl: 1, belt: 2, antipode: 3 };
+export const BOWL_RING_DISTANCE = 8;       // ring at this hop distance from home; interior is R1
+export const ANTIPODE_RING_DISTANCE = 7;   // ring around the antipode; interior is R3
+export const ACID_BAND_DISTANCES = [38, 40]; // inclusive hop-distance band of acid (the mid-world gate)
+export const GATE_KINDS = { cave: 'cave', door: 'door' };
+
+function stampRegions(map, homeCoord) {
+    const antipodeCoord = [
+        NUM_PLANET_ROWS - 1 - homeCoord[0],
+        mod(homeCoord[1] + PLANET_COLS / 2, PLANET_COLS)
+    ];
+    const antipodeDistances = getGraphDistancesFrom(antipodeCoord);
+    const isStampable = (sector) => // ice (the polar walls) and home are never restamped
+        sector.terrain !== TERRAINS.ice.enum && sector.terrain !== TERRAINS.home.enum;
+
+    const bowlRing = [];
+    const antipodeRing = [];
+
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            const homeDist = sector.graphDistanceHome;
+            const antipodeDist = antipodeDistances[rowIndex][colIndex];
+
+            sector.region = homeDist < BOWL_RING_DISTANCE ? REGIONS.bowl :
+                (antipodeDist < ANTIPODE_RING_DISTANCE ? REGIONS.antipode : REGIONS.belt);
+
+            if (!isStampable(sector)) return;
+
+            if (homeDist === BOWL_RING_DISTANCE) {
+                bowlRing.push({ sector, coord: [rowIndex, colIndex] });
+            }
+            else if (antipodeDist === ANTIPODE_RING_DISTANCE) {
+                antipodeRing.push({ sector, coord: [rowIndex, colIndex] });
+            }
+            else if (homeDist >= ACID_BAND_DISTANCES[0] && homeDist <= ACID_BAND_DISTANCES[1]) {
+                sector.terrain = TERRAINS.acid.enum; // mutate in place: cached distances/coords must survive
+            }
+        });
+    });
+
+    const caveCoord = stampRingWithGate(map, bowlRing, BOWL_RING_DISTANCE,
+        (r, c) => map[r][c].graphDistanceHome, GATE_KINDS.cave);
+    const doorCoord = stampRingWithGate(map, antipodeRing, ANTIPODE_RING_DISTANCE,
+        (r, c) => antipodeDistances[r][c], GATE_KINDS.door);
+
+    // Guarantee the critical path. Scenery mountain ranges can otherwise pocket a gate or the antipode
+    // interior, leaving the seed unfinishable. Carve the cheapest corridors (converting only scenery
+    // mountains -- never ice, never ring tiles) so home -> cave -> door -> antipode are always connected
+    // for a fully-tooled squad. Usually carves nothing: existing flat ground costs 0, so open routes win.
+    const isRingTile = ([r, c]) =>
+        map[r][c].graphDistanceHome === BOWL_RING_DISTANCE || antipodeDistances[r][c] === ANTIPODE_RING_DISTANCE;
+    if (caveCoord && doorCoord) {
+        carveCorridor(map, homeCoord, caveCoord, isRingTile);
+        carveCorridor(map, caveCoord, doorCoord, isRingTile);
+        carveCorridor(map, doorCoord, antipodeCoord, isRingTile);
+    }
+}
+
+// Dijkstra from `fromCoord` to `toCoord` where existing squad-walkable ground (with all tools) is free and
+// scenery mountains cost 1; ice and ring tiles (except the endpoints) are walls. Converts the mountains on
+// the winning path to flatland. Generation-time only.
+function carveCorridor(map, fromCoord, toCoord, isRingTile) {
+    const key = ([r, c]) => `${r},${c}`;
+    const fromK = key(fromCoord);
+    const toK = key(toCoord);
+
+    const dist = { [fromK]: 0 };
+    const prev = {};
+    const settled = new Set();
+    const heap = new MinHeap();
+    heap.push(0, fromCoord);
+
+    while (heap.size > 0) {
+        const { priority: distance, value: coord } = heap.pop();
+        const k = key(coord);
+        if (k === toK) break;
+        if (settled.has(k)) continue;
+        settled.add(k);
+
+        getAdjacentCoords(coord).forEach(neighbor => {
+            const nk = key(neighbor);
+            const sector = map[neighbor[0]][neighbor[1]];
+            if (sector.terrain === TERRAINS.ice.enum) return;
+            if (nk !== toK && nk !== fromK && isRingTile(neighbor)) return;
+
+            const stepCost = sector.terrain === TERRAINS.mountain.enum ? 1 : 0;
+            const newDist = distance + stepCost;
+            if (newDist < (dist[nk] ?? Infinity)) {
+                dist[nk] = newDist;
+                prev[nk] = coord;
+                heap.push(newDist, neighbor);
+            }
+        });
+    }
+
+    let current = toCoord;
+    while (current !== undefined && key(current) !== fromK) {
+        const sector = map[current[0]][current[1]];
+        if (sector.terrain === TERRAINS.mountain.enum) {
+            sector.terrain = TERRAINS.flatland.enum;
+        }
+        current = prev[key(current)];
+    }
+}
+
+// Turns a ring's tiles to mountain, keeping exactly one as the flat gate tile (sector.gated blocks scouts
+// and marks where the gate POI goes; the squad opens it through the POI flow, which clears the flag).
+// Prefers a gate whose interior and exterior neighbors are both flat, so scenery mountains can't leave the
+// opened gate facing a wall; falls back to any flat ring tile, then to converting a mountain one.
+function stampRingWithGate(map, ringEntries, ringDistance, distAt, gateKind) {
+    const isFlat = ([r, c]) => map[r][c].terrain === TERRAINS.flatland.enum;
+
+    const openable = ringEntries.filter(({ coord }) =>
+        isFlat(coord) &&
+        getAdjacentCoords(coord).some(([r, c]) => distAt(r, c) < ringDistance && isFlat([r, c])) &&
+        getAdjacentCoords(coord).some(([r, c]) => distAt(r, c) > ringDistance && isFlat([r, c])));
+    const flat = ringEntries.filter(({ coord }) => isFlat(coord));
+    const pool = openable.length > 0 ? openable : (flat.length > 0 ? flat : ringEntries);
+    const gate = getRandomFromArray(pool);
+
+    ringEntries.forEach(({ sector }) => {
+        if (gate && sector === gate.sector) {
+            sector.terrain = TERRAINS.flatland.enum;
+            sector.gated = true;
+            sector.gateKind = gateKind;
+        }
+        else {
+            sector.terrain = TERRAINS.mountain.enum;
+        }
+    });
+
+    return gate ? gate.coord : null;
+}
+
 export function getHomeBasePosition(map) {
     let coord;
 
@@ -441,6 +594,15 @@ export function isPassable(map, coord, unlocks = {}) {
     return getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) < Infinity;
 }
 
+// Scout passability: beyond raw terrain, infested ground (sector.infestedBy, stamped around nests) and
+// unopened gate tiles (sector.gated) stop the dumb remotes. The player-driven squad ignores both -- it can
+// cross infestation freely and opens gates through the POI flow.
+export function isScoutPassable(map, coord, unlocks = {}) {
+    if (!isPassable(map, coord, unlocks)) { return false; }
+    const sector = map[coord[0]][coord[1]];
+    return !sector.infestedBy && !sector.gated;
+}
+
 function cacheDistancesToHome(map, homeCoord) {
     // graphDistanceHome (BFS hops on the coverage graph) is the unbiased metric used to order exploration; distanceHome
     // (the centered-column metric) is kept for development ordering. See planet_geometry for the difference.
@@ -461,9 +623,11 @@ export function getNextDevelopmentArea(map, size, anchorCoord) {
     const distanceTo = (coord) => anchorCoord ?
         getApproxDistance(anchorCoord, coord) : map[coord[0]][coord[1]].distanceHome;
 
+    // Infested ground isn't developable until its nest is cleared; an unopened gate tile isn't either.
     const isCandidate = ([row, col]) =>
         map[row][col].terrain === TERRAINS.flatland.enum &&
-        map[row][col].status === STATUSES.explored.enum;
+        map[row][col].status === STATUSES.explored.enum &&
+        !map[row][col].infestedBy && !map[row][col].gated;
 
     const seen = new Set(); // candidate or chosen already (never re-added)
     const candidates = [];
@@ -636,6 +800,8 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
             else {
                 char = TERRAINS_BY_ENUM[sector.terrain].display;
                 colorKey = TERRAINS_BY_ENUM[sector.terrain].key;
+                // Infested ground reads as a sick tint on the terrain glyph; retracts when its nest is cleared
+                if (sector.infestedBy) { colorKey = 'infested'; }
             }
 
             if (sector.sectorDividerLeft || sector.sectorDividerRight || sector.sectorDividerBottom) {

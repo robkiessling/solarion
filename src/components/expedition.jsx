@@ -4,6 +4,7 @@ import {deploySquad, disbandSquad, squadInteract, squadLeavePrompt} from "../red
 import {updateSetting} from "../redux/modules/game";
 import {getQuantity, getResource} from "../redux/modules/resources";
 import {
+    CAPABILITY_LABELS,
     estimateDifficultyRange,
     formatResourceList,
     POI_COLOR_KEYS,
@@ -104,14 +105,15 @@ class Expedition extends React.Component {
                 {promptPoi &&
                     <div className="squad-prompt">
                         <span className="prompt-text">
-                            {promptPoi.type === POI_TYPES.cache ?
-                                `Supply cache found${promptPoi.reward && promptPoi.reward.resources ?
-                                    ` — ${formatResourceList(promptPoi.reward.resources)}` : ''}. Take it?` :
-                                'Structure of unknown origin. Investigate?'}
+                            {promptPoi.promptText ||
+                                (promptPoi.type === POI_TYPES.cache ?
+                                    `Supply cache found${promptPoi.reward && promptPoi.reward.resources ?
+                                        ` — ${formatResourceList(promptPoi.reward.resources)}` : ''}. Take it?` :
+                                    'Structure of unknown origin. Investigate?')}
                         </span>
                         <div className="squad-actions">
                             <button onClick={() => this.props.squadInteract()}>
-                                {promptPoi.type === POI_TYPES.cache ? 'Take' : 'Explore'}
+                                {promptPoi.actionLabel || (promptPoi.type === POI_TYPES.cache ? 'Take' : 'Explore')}
                             </button>
                             <button onClick={() => this.props.squadLeavePrompt()}>Leave</button>
                         </div>
@@ -154,7 +156,7 @@ class Expedition extends React.Component {
                     </span>
                 </div>
                 {difficultyText && <span className="poi-detail">{difficultyText}</span>}
-                {requiresUnmet && <span className="poi-requires">Requires: {poi.requires}</span>}
+                {requiresUnmet && <span className="poi-requires">Requires: {CAPABILITY_LABELS[poi.requires] || poi.requires}</span>}
             </div>
         );
     }

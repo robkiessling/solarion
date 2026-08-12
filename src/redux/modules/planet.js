@@ -16,7 +16,7 @@ import {
     SURVEY_HALO_RADIUS,
     TERRAINS
 } from "../../lib/planet_map";
-import {getAdjacentCoords} from "../../lib/planet_geometry";
+import {getAdjacentCoords, getCoordsWithinHops} from "../../lib/planet_geometry";
 import {
     findNearestLookout,
     findNearestLookoutFromGrid,
@@ -27,7 +27,7 @@ import {
     buildReportText,
     computeOutcome,
     FIGHT_DURATION_MS,
-    generateDebugPois,
+    generatePois,
     POI_STATUS,
     POI_TYPES
 } from "../../lib/expeditions";
@@ -293,29 +293,59 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 squad: { prompt: { $set: null } }
             });
-        case SQUAD_FIGHT_WON:
-            return update(state, {
+        case SQUAD_FIGHT_WON: {
+            updates = {
                 pois: { [payload.poiId]: { status: { $set: POI_STATUS.cleared } } },
                 squad: {
                     squadSize: { $set: payload.outcome.survivors },
                     cargo: { $apply: (cargo) => mergeCargo(cargo, payload.reward) }
                 }
-            });
+            };
+
+            // The nest is dead: its infestation stamp retracts (the land becomes sweepable and developable
+            // again, so any 'finished' exploration status is cleared too)
+            const nest = state.pois[payload.poiId];
+            if (nest && nest.infestRadius != null) {
+                updates.map = {};
+                [nest.coord, ...getCoordsWithinHops(nest.coord, nest.infestRadius)].forEach(([r, c]) => {
+                    if (state.map[r][c].infestedBy === payload.poiId) {
+                        if (updates.map[r] === undefined) updates.map[r] = {};
+                        updates.map[r][c] = { infestedBy: { $set: null } };
+                    }
+                });
+                updates.overallStatus = { $set: OVERALL_MAP_STATUS.inProgress };
+            }
+
+            return update(state, updates);
+        }
         case SQUAD_WIPED:
             // Failed assault: squad and cargo are gone; the exact strength is now known for the retry
             return update(state, {
                 pois: { [payload.poiId]: { difficultyKnown: { $set: true } } },
                 squad: { $set: null }
             });
-        case SQUAD_RESOLVE_POI:
-            // Player chose to take/explore the site: clear it and load any reward as cargo
-            return update(state, {
+        case SQUAD_RESOLVE_POI: {
+            // Player chose to take/explore/open the site: clear it and load any reward as cargo
+            updates = {
                 pois: { [payload.poiId]: { status: { $set: POI_STATUS.cleared } } },
                 squad: {
                     prompt: { $set: null },
                     cargo: { $apply: (cargo) => mergeCargo(cargo, payload.reward) }
                 }
-            });
+            };
+
+            // Opening a gate unblocks its tile (scouts can pass, land can develop through) and may put new
+            // ground in reach, so any 'finished' exploration status is cleared
+            const poi = state.pois[payload.poiId];
+            if (poi && poi.type === POI_TYPES.gate) {
+                updates.map = {
+                    [poi.coord[0]]: { [poi.coord[1]]: { gated: { $set: false } } }
+                };
+                updates.overallStatus = { $set: OVERALL_MAP_STATUS.inProgress };
+            }
+
+            return update(state, updates);
+        }
         case SQUAD_DELIVER_CARGO:
             return update(state, {
                 squad: { cargo: { $set: {} } }
@@ -381,7 +411,7 @@ export function startCooking() {
 export function generateMap() {
     const map = generateRandomMap();
     const homeCoord = getHomeBasePosition(map).coord;
-    const pois = generateDebugPois(map);
+    const pois = generatePois(map); // also stamps infestation flags onto the map
     return { type: GENERATE_MAP, payload: { map, homeCoord, pois } };
 }
 
@@ -526,7 +556,7 @@ export function planetTick(timeDelta) {
                     state.map, state.pois, state.squad, timeDelta, state.unlockedTerrains
                 );
                 const revealedFlatland = reveals.filter(
-                    ([r, c]) => state.map[r][c].terrain === TERRAINS.flatland.enum
+                    ([r, c]) => state.map[r][c].terrain === TERRAINS.flatland.enum && !state.map[r][c].infestedBy
                 ).length;
                 dispatch({ type: ADVANCE_SQUAD, payload: { squad, reveals, revealedFlatland } });
                 if (revealedFlatland > 0) {
@@ -566,8 +596,9 @@ export function planetTick(timeDelta) {
             );
 
             // Newly-revealed flatland becomes buildable land (resources reducer listens for this on PROGRESS).
+            // Infested flatland doesn't count -- it credits later, when its nest is cleared.
             const revealedFlatland = reveals.filter(
-                ([r, c]) => planetState.map[r][c].terrain === TERRAINS.flatland.enum
+                ([r, c]) => planetState.map[r][c].terrain === TERRAINS.flatland.enum && !planetState.map[r][c].infestedBy
             ).length;
 
             dispatch({ type: PROGRESS, payload: { newRotation, droids, reveals, revealedFlatland, numArrivedHome } });
@@ -707,10 +738,14 @@ export function squadInteract() {
         }
 
         dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward: poi.reward } });
+        if (poi.reward && poi.reward.capability) {
+            dispatch(unlockTerrain(poi.reward.capability)); // salvaged tool: permanent, instant (not cargo)
+        }
         logReport(dispatch, poi, 'success', {
             squadSize: squad.squadSize,
             survivors: squad.squadSize,
             losses: 0,
+            capability: (poi.reward && poi.reward.capability) || null,
             loaded: poi.reward && poi.reward.resources ? poi.reward.resources : null,
             storyId: poi.storyId || null
         });
@@ -757,16 +792,35 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
             const outcome = event.outcome;
             const reward = outcome.success ? poi.reward : null;
 
+            // Reclaimed land: the stamp's already-revealed flatland credits NOW (counted before the reducer
+            // retracts the flags); still-unknown stamp tiles credit later through the normal reveal path.
+            let landCredit = 0;
+            if (outcome.success && poi.infestRadius != null) {
+                const planetMap = getState().planet.map;
+                [poi.coord, ...getCoordsWithinHops(poi.coord, poi.infestRadius)].forEach(([r, c]) => {
+                    const sector = planetMap[r][c];
+                    if (sector.infestedBy === event.poiId && sector.status === STATUSES.explored.enum &&
+                        sector.terrain === TERRAINS.flatland.enum) {
+                        landCredit++;
+                    }
+                });
+            }
+
             if (outcome.survivors > 0) {
-                dispatch({ type: SQUAD_FIGHT_WON, payload: { poiId: event.poiId, outcome, reward } });
+                dispatch({ type: SQUAD_FIGHT_WON, payload: { poiId: event.poiId, outcome, reward, landCredit } });
             }
             else {
                 dispatch({ type: SQUAD_WIPED, payload: { poiId: event.poiId } });
+            }
+            if (outcome.success && reward && reward.capability) {
+                dispatch(unlockTerrain(reward.capability));
             }
             logReport(dispatch, poi, outcome.success ? 'success' : 'failure', {
                 squadSize: outcome.survivors + outcome.losses,
                 losses: outcome.losses,
                 survivors: outcome.survivors,
+                landCredit,
+                capability: reward ? reward.capability : null,
                 loaded: reward && reward.resources ? reward.resources : null,
                 cargoLost: outcome.survivors === 0 ? (squad.cargo || {}) : null,
                 difficulty: poi.difficulty

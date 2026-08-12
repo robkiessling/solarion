@@ -1,7 +1,7 @@
 import { getRandomFromArray } from "./helpers";
 import { MinHeap } from "./min_heap";
 import { getAdjacentCoords } from "./planet_geometry";
-import { getCrossTime, GRID_TERRAINS, isPassable, STATUSES } from "./planet_map";
+import { getCrossTime, GRID_TERRAINS, isScoutPassable, STATUSES } from "./planet_map";
 
 /**
  * planet_pathing.js: where droids decide where to explore and how to get there.
@@ -38,7 +38,7 @@ export function getExplorationFrontier(map, unlocks = {}, halo = null) {
         row.forEach((sector, colIndex) => {
             if (sector.status !== EXPLORED) return;
             if (halo && !halo.has(`${rowIndex},${colIndex}`)) return;
-            if (!isPassable(map, [rowIndex, colIndex], unlocks)) return;
+            if (!isScoutPassable(map, [rowIndex, colIndex], unlocks)) return;
             if (hasUnknownNeighbor(map, [rowIndex, colIndex], halo)) frontier.push([rowIndex, colIndex]);
         });
     });
@@ -274,9 +274,10 @@ export function findPathToGrid(map, fromCoord, { unlocks = {} } = {}) {
 
 const coordKey = ([row, col]) => `${row},${col}`;
 
-// A droid may travel over a tile if it is revealed (explored) and currently passable.
+// A droid may travel over a tile if it is revealed (explored) and currently scout-passable (terrain the
+// scout can cross, not infested, not an unopened gate).
 function isTraversable(map, coord, unlocks) {
-    return map[coord[0]][coord[1]].status === EXPLORED && isPassable(map, coord, unlocks);
+    return map[coord[0]][coord[1]].status === EXPLORED && isScoutPassable(map, coord, unlocks);
 }
 
 /**

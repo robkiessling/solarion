@@ -366,7 +366,7 @@ class Planet extends React.Component {
     }
 
     render() {
-        const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.developed];
+        const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.acid, TERRAINS.developed];
 
         if ((this.props.droids || []).length > 0) {
             legend.push({ key: 'droid', display: DROID_GLYPH, label: 'Scout' });
@@ -389,9 +389,10 @@ class Planet extends React.Component {
         // POI legend entries only appear once relevant (any POI discovered)
         const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== POI_STATUS.hidden);
         if (anyPoiVisible) {
-            ['cache', 'nest', 'storySite'].forEach(type => {
+            ['cache', 'nest', 'storySite', 'gate'].forEach(type => {
                 legend.push({ key: POI_COLOR_KEYS[type], display: POI_GLYPHS[type], label: POI_LABELS[type] });
             });
+            legend.push({ key: 'infested', display: TERRAINS.flatland.display, label: 'Infested' });
         }
 
         return (
