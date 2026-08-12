@@ -342,9 +342,9 @@ export function numStandardDroids(state) {
     // Add in recalled scouts still walking home (removed from the assigned count, not yet back in the pool)
     total += state.planet.droids.filter(droid => droid.returning).length;
 
-    // Add in droids away on expedition
-    if (state.planet.squad) {
-        total += state.planet.squad.squadSize;
+    // Add in droids away with the sortie squad
+    if (state.planet.sortie) {
+        total += state.planet.sortie.squadSize;
     }
 
     // Add in unused droids
@@ -393,7 +393,7 @@ export function getDroidCounts(state) {
         if (structure.droidData) { assigned += structure.droidData.numDroidsAssigned; }
     }
     assigned += (state.planet.droids || []).length;
-    if (state.planet.squad) { assigned += state.planet.squad.squadSize; }
+    if (state.planet.sortie) { assigned += state.planet.sortie.squadSize; }
 
     return { total: idle + assigned, idle };
 }

@@ -3,15 +3,7 @@ import {connect} from "react-redux";
 import {roundToDecimal} from "../lib/helpers";
 import DroidCount from "./structures/droid_count";
 import Slider from "rc-slider";
-import {
-    deploySortie,
-    disbandSortie,
-    percentExplored,
-    ROTATION_MODES,
-    setRotation,
-    setRotationMode
-} from "../redux/modules/planet";
-import {SORTIE_MAX_CHARGE} from "../lib/sortie";
+import {percentExplored, ROTATION_MODES, setRotation, setRotationMode} from "../redux/modules/planet";
 import {showDroidsUI} from "../redux/reducer";
 
 // Camera segmented control: [mode, label]. 'Team' follows the expedition squad (or centers home base when idle).
@@ -22,37 +14,6 @@ const CAMERA_MODE_OPTIONS = [
 ];
 
 class Exploration extends React.Component {
-    // Sortie prototype controls: deploy/disband the directly-driven squad, plus its charge readout.
-    // Charge drains per tile off the powered grid and snaps full back on it; at zero the team limps
-    // ("reserve power", half speed) but is never stranded.
-    renderSortie() {
-        const sortie = this.props.sortie;
-
-        if (!sortie) {
-            return (
-                <div className="sortie-controls">
-                    <a onClick={() => this.props.deploySortie()}>[[ Deploy Sortie ]]</a>
-                    <span className="sortie-hint"> prototype: drive a team manually</span>
-                </div>
-            );
-        }
-
-        const reserve = sortie.charge <= 0;
-        const low = !reserve && sortie.charge <= SORTIE_MAX_CHARGE * 0.25;
-        return (
-            <div className="sortie-controls">
-                <span className="key-value-pair">
-                    <span>Sortie charge:</span>
-                    <span style={reserve ? {color: '#ff4d4d'} : low ? {color: '#ffd700'} : undefined}>
-                        {reserve ? 'RESERVE POWER' : `${Math.ceil(sortie.charge)} / ${SORTIE_MAX_CHARGE}`}
-                    </span>
-                </span>
-                <span className="sortie-hint">click map or arrows/wasd to move</span>
-                <a onClick={() => this.props.disbandSortie()}>[[ Disband ]]</a>
-            </div>
-        );
-    }
-
     render() {
         const sliderMarks = {
             0: '0°',
@@ -77,10 +38,6 @@ class Exploration extends React.Component {
                     <DroidCount droidData={this.props.droidData}
                                 assignTooltip={`Assigned droids will explore the planet surface. Each assigned droid increases the exploration rate.`}/>
                 }
-
-                <div className={'half-br'}></div>
-
-                {this.renderSortie()}
 
                 <div className={'half-br'}></div>
 
@@ -118,12 +75,11 @@ const mapStateToProps = (state, ownProps) => {
         showDroidsUI: showDroidsUI(state),
         droidData: state.planet.droidData,
         rotation: state.planet.rotation,
-        rotationMode: state.planet.rotationMode,
-        sortie: state.planet.sortie
+        rotationMode: state.planet.rotationMode
     };
 };
 
 export default connect(
     mapStateToProps,
-    { setRotation, setRotationMode, deploySortie, disbandSortie }
+    { setRotation, setRotationMode }
 )(Exploration);

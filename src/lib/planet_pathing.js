@@ -60,7 +60,7 @@ export function isExplorationComplete(map, unlocks = {}) {
 /**
  * Shortest route from `fromCoord` to a specific `toCoord`, as step coords (excludes start, includes destination), or
  * null if unreachable. `toCoord` may be an unknown frontier tile; it's reached as the final step off an adjacent
- * traversable tile. TODO This is the primitive a future "send a droid here" feature would call.
+ * traversable tile.
  */
 export function findPath(map, fromCoord, toCoord, { unlocks = {} } = {}) {
     const { dist, prev } = dijkstra(map, fromCoord, unlocks);

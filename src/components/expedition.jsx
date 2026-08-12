@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {dispatchSquad, engageFight, moveSquad, recallSquad} from "../redux/modules/planet";
+import {deploySortie, disbandSortie, sortieInteract, sortieLeavePrompt} from "../redux/modules/planet";
 import {updateSetting} from "../redux/modules/game";
 import {getQuantity, getResource} from "../redux/modules/resources";
 import {
@@ -9,24 +9,24 @@ import {
     POI_COLOR_KEYS,
     POI_GLYPHS,
     POI_STATUS,
-    POI_TYPES,
-    SQUAD_STATUS
+    POI_TYPES
 } from "../lib/expeditions";
+import {isOnGrid, SORTIE_MAX_CHARGE} from "../lib/sortie";
 import {PLANET_COLORS} from "../lib/planet_render";
 
 const DEFAULT_TEAM_SIZE = 5;
 const MAX_VISIBLE_REPORTS = 5;
 
 /**
- * Expedition sidebar. There is one team to assemble/deploy. Clicking on a point of interest (POI) row performs
- * a single contextual action: E.g. "Send Team" from base, "Move Here" while holding forward. Hovering a row highlights
- * its map marker.
+ * Squad sidebar. One player-driven squad (the sortie): assemble and deploy it here, drive it on the map
+ * (arrows/WASD at the frontier, click to route over known ground). POI rows are intel plus a one-click route
+ * order; fights start by deliberately stepping into a nest (bump-to-attack), never from this panel.
  */
 class Expedition extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            teamSize: DEFAULT_TEAM_SIZE // staged size; droids only leave the pool at Send
+            teamSize: DEFAULT_TEAM_SIZE // staged size; droids only leave the pool at Deploy
         };
     }
 
@@ -41,9 +41,9 @@ class Expedition extends React.Component {
     }
 
     renderTeamCard() {
-        const { squad, pois, idleDroids } = this.props;
+        const { sortie, idleDroids, onGrid } = this.props;
 
-        if (!squad) {
+        if (!sortie) {
             const size = this.teamSize();
             return (
                 <div className="squad-card">
@@ -58,56 +58,75 @@ class Expedition extends React.Component {
                     </div>
                     <span className="squad-status-text">Status: At base</span>
                     <span className="cargo-line">Cargo: —</span>
-                    <div className="squad-actions"></div>
+                    <div className="squad-actions">
+                        <button disabled={idleDroids < 1} onClick={() => this.props.deploySortie(size)}>Deploy</button>
+                    </div>
                 </div>
             );
         }
 
-        const targetPoi = squad.targetPoiId ? pois[squad.targetPoiId] : null;
-        const atPoi = squad.atPoiId ? pois[squad.atPoiId] : null;
+        const reserve = sortie.charge <= 0;
+        const lowCharge = !reserve && sortie.charge <= SORTIE_MAX_CHARGE * 0.25;
+        const chargeStyle = reserve ? {color: '#ff4d4d'} : lowCharge ? {color: '#ffd700'} : undefined;
+
+        const promptPoi = sortie.prompt ? this.props.pois[sortie.prompt.poiId] : null;
 
         let statusText;
-        switch (squad.status) {
-            case SQUAD_STATUS.traveling:
-                statusText = `En route to ${targetPoi ? targetPoi.name : '...'}`;
-                break;
-            case SQUAD_STATUS.fighting:
-                statusText = 'Engaging hostiles...';
-                break;
-            case SQUAD_STATUS.returning:
-                statusText = 'Returning home';
-                break;
-            case SQUAD_STATUS.holding:
-            default:
-                statusText = squad.pendingFight ?
-                    `Holding at ${atPoi ? atPoi.name : '...'} — hostiles detected` :
-                    `Holding at ${atPoi ? atPoi.name : '...'} — awaiting orders`;
+        if (sortie.fighting) {
+            statusText = 'Engaging hostiles...';
         }
-
-        const canRecall = squad.status === SQUAD_STATUS.traveling || squad.status === SQUAD_STATUS.holding;
+        else if (promptPoi) {
+            statusText = `At ${promptPoi.name}`;
+        }
+        else if (onGrid) {
+            statusText = 'On the grid';
+        }
+        else {
+            statusText = sortie.path.length > 0 ? 'In the field — moving' : 'In the field';
+        }
 
         return (
             <div className="squad-card">
                 <div className="team-line">
                     <span className="key-value-pair">
                         <span>Team:</span>
-                        <span>{squad.squadSize} droids</span>
+                        <span>{sortie.squadSize} droids</span>
                     </span>
                 </div>
                 <span className="squad-status-text">{statusText}</span>
-                <span className="cargo-line">Cargo: {formatResourceList(squad.cargo) || '—'}</span>
+                <span className="key-value-pair">
+                    <span>Charge:</span>
+                    <span style={chargeStyle}>
+                        {reserve ? 'RESERVE POWER' : `${Math.ceil(sortie.charge)} / ${SORTIE_MAX_CHARGE}`}
+                    </span>
+                </span>
+                <span className="cargo-line">Cargo: {formatResourceList(sortie.cargo) || '—'}</span>
+                {promptPoi &&
+                    <div className="squad-prompt">
+                        <span className="prompt-text">
+                            {promptPoi.type === POI_TYPES.cache ?
+                                `Supply cache found${promptPoi.reward && promptPoi.reward.resources ?
+                                    ` — ${formatResourceList(promptPoi.reward.resources)}` : ''}. Take it?` :
+                                'Structure of unknown origin. Investigate?'}
+                        </span>
+                        <div className="squad-actions">
+                            <button onClick={() => this.props.sortieInteract()}>
+                                {promptPoi.type === POI_TYPES.cache ? 'Take' : 'Explore'}
+                            </button>
+                            <button onClick={() => this.props.sortieLeavePrompt()}>Leave</button>
+                        </div>
+                    </div>}
                 <div className="squad-actions">
-                    {squad.pendingFight && squad.status === SQUAD_STATUS.holding &&
-                        <button className="engage-button" onClick={() => this.props.engageFight()}>Engage</button>}
-                    {canRecall &&
-                        <button onClick={() => this.props.recallSquad()}>Recall</button>}
+                    <button disabled={!onGrid || !!sortie.fighting}
+                            title={onGrid ? undefined : 'Return to powered ground to disband'}
+                            onClick={() => this.props.disbandSortie()}>Disband</button>
                 </div>
             </div>
         );
     }
 
     renderPoiRow(poi) {
-        const { squad, unlockedTerrains, idleDroids } = this.props;
+        const { unlockedTerrains } = this.props;
 
         const requiresUnmet = poi.requires && !unlockedTerrains[poi.requires];
         const glyphColor = PLANET_COLORS[POI_COLOR_KEYS[poi.type]];
@@ -123,27 +142,9 @@ class Expedition extends React.Component {
             }
         }
 
-        // Any held squad can move on -- including one facing a pending fight (holding is no-commitment; only
-        // Engage locks you in). Moving away leaves the nest available for later.
-        const teamIdleForward = squad && squad.status === SQUAD_STATUS.holding;
-        const isTeamHere = squad && squad.atPoiId === poi.id;
-
-        // The whole row is the action; there is exactly one verb per row, shown as a hover chip. Rows keep their
-        // layout regardless of team state -- they only gain/lose clickability -- so embarking causes no layout jump.
-        let verb = null;
-        let onActivate = null;
-        if (!squad && !requiresUnmet && idleDroids >= 1) {
-            verb = 'Send ▸';
-            onActivate = () => this.props.dispatchSquad(poi.id, this.teamSize());
-        }
-        else if (teamIdleForward && !isTeamHere && !requiresUnmet) {
-            verb = 'Move ▸';
-            onActivate = () => this.props.moveSquad(poi.id);
-        }
-
+        // Rows are pure intel: hovering highlights the map marker; you reach sites by driving there.
         return (
-            <div key={poi.id} className={`poi-row ${onActivate ? 'actionable' : 'inert'}`}
-                 onClick={onActivate || undefined}
+            <div key={poi.id} className="poi-row inert"
                  onMouseEnter={() => this.props.updateSetting('hoveredPoiId', poi.id)}
                  onMouseLeave={() => this.props.updateSetting('hoveredPoiId', null)}>
                 <div className="poi-head">
@@ -151,11 +152,9 @@ class Expedition extends React.Component {
                         <span style={{color: glyphColor}}>{POI_GLYPHS[poi.type]}</span> {poi.name}
                         <span className="poi-distance"> ({poi.distance} tiles)</span>
                     </span>
-                    {verb && <span className="poi-verb">{verb}</span>}
                 </div>
                 {difficultyText && <span className="poi-detail">{difficultyText}</span>}
                 {requiresUnmet && <span className="poi-requires">Requires: {poi.requires}</span>}
-                {isTeamHere && <span className="poi-detail">Team on site</span>}
             </div>
         );
     }
@@ -191,8 +190,8 @@ class Expedition extends React.Component {
                 {this.renderFieldReports()}
                 {available.map(poi => this.renderPoiRow(poi))}
                 {
-                    available.length === 0 && !this.props.squad &&
-                    <span className="no-sites">No sites of interest discovered. Scouts may locate targets as they explore.</span>
+                    available.length === 0 && !this.props.sortie &&
+                    <span className="no-sites">No sites of interest discovered. Deploy the squad and drive it into the unknown.</span>
                 }
             </div>
         );
@@ -200,9 +199,11 @@ class Expedition extends React.Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
+    const sortie = state.planet.sortie;
     return {
         pois: state.planet.pois,
-        squad: state.planet.squad,
+        sortie,
+        onGrid: !!(sortie && state.planet.map.length > 0 && isOnGrid(state.planet.map, sortie.coord)),
         fieldReports: state.planet.fieldReports || [],
         unlockedTerrains: state.planet.unlockedTerrains,
         idleDroids: Math.floor(getQuantity(getResource(state.resources, 'standardDroids'))),
@@ -212,5 +213,5 @@ const mapStateToProps = (state, ownProps) => {
 
 export default connect(
     mapStateToProps,
-    { dispatchSquad, moveSquad, engageFight, recallSquad, updateSetting }
+    { deploySortie, disbandSortie, sortieInteract, sortieLeavePrompt, updateSetting }
 )(Expedition);

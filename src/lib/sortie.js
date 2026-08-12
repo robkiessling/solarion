@@ -1,12 +1,16 @@
 import {getAdjacentCoords, NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
 import {getCrossTime, STATUSES, TERRAINS} from "./planet_map";
 import {mod} from "./helpers";
+import {POI_STATUS} from "./expeditions";
 
 /**
- * Sortie prototype: a directly-driven squad for testing manual exploration feel (click-to-move and keyboard
- * steps). Owns the pure movement/charge/reveal simulation; input handling lives in the planet component and
- * redux thunks. Deliberately separate from expeditions.js so the POI expedition loop is untouched while the
- * prototype is evaluated.
+ * The sortie: the directly-driven squad that IS act-2 exploration (see design-2.0.md Addendum 2.1). Owns the
+ * pure movement/charge/reveal/fight simulation plus routing; input handling lives in the planet component and
+ * redux thunks. POI *resolution* math (computeOutcome etc.) stays in expeditions.js.
+ *
+ * Contact model (roguelike bump-to-attack): uncleared nests and capability-gated POIs are impassable to the
+ * squad. A deliberate keyboard tap into a nest starts the fight; held-key continuation and click-routes stop
+ * at contact like a wall. Caches/story sites are walkable and resolve on entry.
  */
 
 export const SORTIE_GLYPH = '◈';
@@ -23,13 +27,24 @@ export const RESERVE_SPEED_PENALTY = 2;
 
 const GRID_TERRAINS = new Set([TERRAINS.home.enum, TERRAINS.developing.enum, TERRAINS.developed.enum]);
 
-export function createSortie(homeCoord) {
+export function createSortie(homeCoord, squadSize) {
     return {
         coord: homeCoord,
         path: [],
         moveProgress: 0,
-        charge: SORTIE_MAX_CHARGE
+        charge: SORTIE_MAX_CHARGE,
+        squadSize,
+        cargo: {},               // loot collected at POIs; banks whenever the squad touches the grid, dies on a wipe
+        fighting: null,          // null | { poiId, remainingMs, outcome } -- outcome decided at initiation
+        prompt: null             // null | { poiId } -- standing on a cache/story tile, awaiting the player's choice
     };
+}
+
+// The available (discovered, unresolved) POI standing on `coord`, or null.
+export function poiAtCoord(pois, coord) {
+    return Object.values(pois || {}).find(poi =>
+        poi.status === POI_STATUS.available && poi.coord[0] === coord[0] && poi.coord[1] === coord[1]
+    ) || null;
 }
 
 // The powered grid: home base and replicated land. Standing here recharges instantly.
@@ -43,11 +58,26 @@ export function sortieCrossMs(map, coord, unlocks, charge) {
 }
 
 /**
- * Advances the sortie one tick along its path. Per tile entered: line-of-sight reveal (the tile + its
- * neighbors, same rule as scouts), charge drain off-grid / snap-to-full on-grid. Pure; returns the next
- * sortie plus the coords newly revealed this tick (still-unknown tiles only).
+ * Advances the sortie one tick: fight countdown when fighting (movement is locked), otherwise movement along
+ * its path. Per tile entered: line-of-sight reveal (the tile + its neighbors, same rule as scouts), charge
+ * drain off-grid / snap-to-full on-grid, and contact events. Pure; returns the next sortie, the coords newly
+ * revealed this tick (still-unknown tiles only), and events for the caller to resolve:
+ *   { type: 'fightOver', poiId, outcome }  (timed skirmish finished; outcome was decided at initiation)
+ *   { type: 'enteredPoi', poiId }          (stepped onto an available cache/story tile: resolve it)
+ *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)
  */
-export function advanceSortie(map, sortie, moveAmountMs, unlocks) {
+export function advanceSortie(map, pois, sortie, moveAmountMs, unlocks) {
+    const events = [];
+
+    if (sortie.fighting) {
+        const remainingMs = sortie.fighting.remainingMs - moveAmountMs;
+        if (remainingMs > 0) {
+            return { sortie: {...sortie, fighting: {...sortie.fighting, remainingMs}}, reveals: [], events };
+        }
+        events.push({ type: 'fightOver', poiId: sortie.fighting.poiId, outcome: sortie.fighting.outcome });
+        return { sortie: {...sortie, fighting: null}, reveals: [], events };
+    }
+
     let {coord, path, moveProgress, charge} = sortie;
     path = path ? path.slice() : [];
     moveProgress = (moveProgress || 0) + moveAmountMs;
@@ -68,16 +98,30 @@ export function advanceSortie(map, sortie, moveAmountMs, unlocks) {
         reveal(coord);
         getAdjacentCoords(coord).forEach(reveal);
 
-        charge = isOnGrid(map, coord) ?
-            SORTIE_MAX_CHARGE :
-            Math.max(0, charge - SORTIE_DRAIN_PER_TILE);
+        if (isOnGrid(map, coord)) {
+            charge = SORTIE_MAX_CHARGE;
+            events.push({ type: 'onGrid' });
+        }
+        else {
+            charge = Math.max(0, charge - SORTIE_DRAIN_PER_TILE);
+        }
+
+        const poi = poiAtCoord(pois, coord);
+        if (poi) {
+            // Contact interrupts: stop here and let the caller raise the interaction prompt (any remaining
+            // route is abandoned -- the world just got more interesting than the destination)
+            events.push({ type: 'enteredPoi', poiId: poi.id });
+            path = [];
+            break;
+        }
     }
 
     if (path.length === 0) moveProgress = 0;
 
     return {
         sortie: {...sortie, coord, path, moveProgress, charge},
-        reveals: [...reveals].map(key => key.split(',').map(Number))
+        reveals: [...reveals].map(key => key.split(',').map(Number)),
+        events
     };
 }
 

@@ -459,11 +459,6 @@ export const DISPLAY_MASK = createArray(NUM_PLANET_ROWS, (rowIndex) => {
     });
 });
 
-// Whether a display cell is inside the planet silhouette (clicks on the masked corners should be ignored).
-export function isDisplayCellVisible(imageRow, imageCol) {
-    return DISPLAY_MASK[imageRow] !== undefined && (DISPLAY_MASK[imageRow][imageCol] || 0) > 0;
-}
-
 /**
  * Maps a planet coord to its cell in the generated image (the same windowing + centering math as generateImage):
  * returns [imageRow, imageCol], or null when the coord is outside the current display window. The inverse,

@@ -1,7 +1,7 @@
 import React from 'react';
 import {connect} from "react-redux";
 import AsciiCanvas from "../lib/ascii_canvas";
-import {TERRAINS, STATUSES, generateImage, coordToImageCell, imageCellToCoord, isDisplayCellVisible} from "../lib/planet_map";
+import {TERRAINS, STATUSES, generateImage, coordToImageCell} from "../lib/planet_map";
 import {NUM_PLANET_ROWS, DISPLAY_COLS} from "../lib/planet_geometry";
 import {drawPlanetImage, PLANET_COLORS} from "../lib/planet_render";
 import {
@@ -9,16 +9,11 @@ import {
     POI_COLOR_KEYS,
     POI_GLYPHS,
     POI_LABELS,
-    POI_STATUS,
-    SQUAD_GLYPH,
-    SQUAD_STATUS
+    POI_STATUS
 } from "../lib/expeditions";
 import {stepInDirection, sortieCrossMs, SORTIE_GLYPH} from "../lib/sortie";
-import {sortieMoveTo, sortieStep} from "../redux/modules/planet";
-import {findPath} from "../lib/planet_pathing";
+import {sortieInteract, sortieStepInto} from "../redux/modules/planet";
 
-const PATH_ANTS_STEP_MS = 180; // marching-ants crawl speed for the hovered-path highlight
-const PATH_ANTS_SPACING = 6;  // 1 bright tile every N path tiles (higher = sparser ants)
 const POI_PING_PERIOD_MS = 1200; // one full expand-and-fade cycle of the hovered marker's radar ping
 const SQUAD_PING_PERIOD_MS = 2200; // slower, subtler locator pulse on the deployed squad
 const DROID_GLYPH = '♦'; // a scout; small filled diamond pairs with the squad's big hollow '◊' (droids are diamonds)
@@ -58,7 +53,6 @@ class Planet extends React.Component {
 
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleKeyUp = this.handleKeyUp.bind(this);
-        this.handleCanvasClick = this.handleCanvasClick.bind(this);
     }
 
     componentDidMount() {
@@ -109,8 +103,17 @@ class Planet extends React.Component {
      */
 
     handleKeyDown(event) {
+        if (!this.props.visible || !this.props.sortie) return;
+
+        // Enter/Space accepts an open interaction prompt (take the cache / explore the site)
+        if ((event.key === 'Enter' || event.key === ' ') && this.props.sortie.prompt) {
+            event.preventDefault();
+            if (!event.repeat) this.props.sortieInteract();
+            return;
+        }
+
         const dir = KEY_DIRS[event.key];
-        if (!dir || !this.props.visible || !this.props.sortie) return;
+        if (!dir) return;
         event.preventDefault();
         if (event.repeat) return; // we do our own repeat (re-step on arrival), OS keyrepeat only jitters it
 
@@ -120,7 +123,7 @@ class Planet extends React.Component {
             this.bufferedDir = dir; // mid-slide: queue the turn for arrival
         }
         else {
-            this.tryStep(dir);
+            this.tryStep(dir, true);
         }
     }
 
@@ -128,18 +131,23 @@ class Planet extends React.Component {
         this.heldKeys = this.heldKeys.filter(held => held.key !== event.key);
     }
 
-    // On arrival (path just emptied), continue: a buffered tap wins once, then any still-held key takes over.
+    // When the squad becomes free again (arrival, fight resolved, prompt answered), continue: a buffered tap
+    // wins once, then any still-held key takes over. An OPEN prompt suppresses continuation -- held-walk stops
+    // at the site until the player chooses (or releases and taps onward, which walks away).
     maybeContinueMovement(prevProps) {
         const sortie = this.props.sortie;
-        if (!sortie || sortie.path.length > 0) return;
-        if (!prevProps.sortie || prevProps.sortie.path.length === 0) return; // wasn't moving
+        if (!sortie || sortie.path.length > 0 || sortie.fighting || sortie.prompt) return;
+
+        const prev = prevProps.sortie;
+        const wasBusy = prev && (prev.path.length > 0 || prev.fighting || prev.prompt);
+        if (!wasBusy) return;
 
         const next = this.bufferedDir || (this.heldKeys.length > 0 ? this.heldKeys[this.heldKeys.length - 1].dir : null);
         this.bufferedDir = null;
-        if (next) this.tryStep(next);
+        if (next) this.tryStep(next, false);
     }
 
-    tryStep(dir) {
+    tryStep(dir, tap) {
         const sortie = this.props.sortie;
         if (!sortie || sortie.path.length > 0) return;
 
@@ -149,30 +157,17 @@ class Planet extends React.Component {
             return;
         }
 
-        // sortieStep returns false when the tile is impassable (revealing it if it was unknown -- probing a
-        // hidden wall teaches the map). Either way a rejection renders as a bump toward the target.
-        if (!this.props.sortieStep(target)) {
+        // The thunk applies the contact rules (move / bump-to-attack on tap / blocked, revealing hidden
+        // walls and POIs as probed). A rejection renders as a bump toward the target; 'busy' (mid-fight,
+        // no squad) is silently ignored.
+        const result = this.props.sortieStepInto(target, tap);
+        if (result === 'blocked') {
             this.startBump(dir, target);
         }
     }
 
     startBump(dir, target) {
         this.bump = { dx: dir[0], dy: dir[1], target, at: this.props.elapsedTime };
-    }
-
-    handleCanvasClick(event) {
-        if (!this.props.sortie) return; // clicks only drive the sortie; POI dispatch stays panel-driven
-
-        const rect = this.canvas.current.getBoundingClientRect();
-        const [gridRow, gridCol] = this.canvasManager.xyToGrid(event.clientX - rect.left, event.clientY - rect.top);
-        const imageRow = Math.floor(gridRow);
-        const imageCol = Math.floor(gridCol);
-        if (!isDisplayCellVisible(imageRow, imageCol)) return; // outside the planet silhouette (masked corners)
-        const coord = imageCellToCoord(imageRow, imageCol, this.props.rotation);
-        if (!coord) return; // letterbox padding
-
-        this.bufferedDir = null; // a click overrides any queued keyboard turn
-        this.props.sortieMoveTo(coord);
     }
 
     drawPlanet() {
@@ -199,47 +194,10 @@ class Planet extends React.Component {
         drawPlanetImage(this.canvasManager, planetImage);
     }
 
-    // The route the squad would take to the hovered POI, from wherever the next order would start (home base, or
-    // the squad's held position). Only shown when an order is actually possible. Cached per hover/origin/map state
-    // so the 30fps redraw doesn't re-run Dijkstra.
-    hoverPath() {
-        const { hoveredPoiId, pois, squad, homeCoord, map, numExplored, unlockedTerrains } = this.props;
-
-        const poi = hoveredPoiId && pois[hoveredPoiId];
-        if (!poi) return null;
-
-        let origin = null;
-        if (!squad) {
-            origin = homeCoord;
-        }
-        else if (squad.status === SQUAD_STATUS.holding) {
-            origin = squad.coord; // held squads can always move on, even with a fight pending (Engage is the commitment)
-        }
-        if (!origin) return null; // squad busy (traveling/fighting/returning): marker highlight only
-
-        const cacheKey = `${hoveredPoiId}|${origin[0]},${origin[1]}|${numExplored}`;
-        if (this.hoverPathKey !== cacheKey) {
-            this.hoverPathKey = cacheKey;
-            this.cachedHoverPath = findPath(map, origin, poi.coord, { unlocks: unlockedTerrains });
-        }
-        return this.cachedHoverPath;
-    }
-
     // Expedition markers, keyed by planet "row,col". Later entries overwrite earlier ones, so precedence is
     // path highlight < POI marker < squad glyph < fight effect (squad/fight sit on the POI's tile when there).
     buildOverlays() {
         const overlays = {};
-
-        // Marching-ants shimmer: every third tile is bright, and the bright pattern crawls toward the destination
-        // (the path array runs origin -> destination). Color-only overlays: terrain glyphs stay.
-        const hoverPath = this.hoverPath();
-        if (hoverPath) {
-            const phase = Math.floor(this.props.elapsedTime / PATH_ANTS_STEP_MS);
-            hoverPath.forEach(([r, c], i) => {
-                const bright = ((i - phase) % PATH_ANTS_SPACING + PATH_ANTS_SPACING) % PATH_ANTS_SPACING === 0;
-                overlays[`${r},${c}`] = { colorKey: bright ? 'pathHighlightBright' : 'pathHighlight' };
-            });
-        }
 
         // Scout droids: a lone droid draws as a glyph, stacks show their count. Active scouts are yellow; recalled
         // ones walking home go gray (any active droid on a shared tile wins the color). Docked droids (home tile)
@@ -284,29 +242,23 @@ class Planet extends React.Component {
 
         this.addSortieOverlays(overlays);
 
-        const squad = this.props.squad;
-        if (squad && squad.coord) {
-            const key = `${squad.coord[0]},${squad.coord[1]}`;
-            // Quiet locator pulse so the deployed team is followable at a glance
-            const squadPing = { fraction: (this.props.elapsedTime % SQUAD_PING_PERIOD_MS) / SQUAD_PING_PERIOD_MS, variant: 'squad' };
-
-            if (squad.status === SQUAD_STATUS.fighting) {
-                const frame = Math.floor(squad.fightRemaining / 250) % FIGHT_EFFECT_CHARS.length;
-                overlays[key] = { char: FIGHT_EFFECT_CHARS[frame], colorKey: 'battle', ping: squadPing };
-            }
-            else {
-                overlays[key] = { char: SQUAD_GLYPH, colorKey: 'squad', ping: squadPing };
-            }
-        }
-
         return overlays;
     }
 
-    // Sortie prototype: remaining route as a dim highlight, the team glyph sliding smoothly between tiles
-    // (sub-cell offset from moveProgress), and the bump/wall-flash feedback for rejected steps.
+    // The squad: remaining route as a dim highlight, the team glyph sliding smoothly between tiles (sub-cell
+    // offset from moveProgress), skirmish effect on the nest while fighting, and bump/wall-flash feedback.
     addSortieOverlays(overlays) {
         const sortie = this.props.sortie;
         if (!sortie) return;
+
+        // Skirmish animation: effect chars churn on the nest tile; the squad stands its ground beside it
+        if (sortie.fighting) {
+            const poi = this.props.pois[sortie.fighting.poiId];
+            if (poi) {
+                const frame = Math.floor(sortie.fighting.remainingMs / 250) % FIGHT_EFFECT_CHARS.length;
+                overlays[`${poi.coord[0]},${poi.coord[1]}`] = { char: FIGHT_EFFECT_CHARS[frame], colorKey: 'battle' };
+            }
+        }
 
         (sortie.path || []).forEach(([r, c]) => {
             if (!overlays[`${r},${c}`]) overlays[`${r},${c}`] = { colorKey: 'pathHighlight' };
@@ -347,7 +299,9 @@ class Planet extends React.Component {
             char: SORTIE_GLYPH,
             colorKey: 'squad',
             offsetX,
-            offsetY
+            offsetY,
+            // Quiet locator pulse so the deployed team is followable at a glance
+            ping: { fraction: (this.props.elapsedTime % SQUAD_PING_PERIOD_MS) / SQUAD_PING_PERIOD_MS, variant: 'squad' }
         };
     }
 
@@ -362,22 +316,20 @@ class Planet extends React.Component {
         }
 
         if (this.props.sortie) {
-            legend.push({ key: 'sortie', colorKey: 'squad', display: SORTIE_GLYPH, label: 'Sortie team' });
+            legend.push({ key: 'sortie', colorKey: 'squad', display: SORTIE_GLYPH, label: 'Squad' });
         }
 
-        // POI/squad legend entries only appear once relevant (any POI discovered)
+        // POI legend entries only appear once relevant (any POI discovered)
         const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== POI_STATUS.hidden);
         if (anyPoiVisible) {
             ['cache', 'nest', 'storySite'].forEach(type => {
                 legend.push({ key: POI_COLOR_KEYS[type], display: POI_GLYPHS[type], label: POI_LABELS[type] });
             });
-            legend.push({ key: 'squad', display: SQUAD_GLYPH, label: 'Squad' });
         }
 
         return (
             <div id="planet" ref={this.canvasContainer} className={`${this.props.visible ? '' : 'hidden'}`}>
-                <canvas id="planet-canvas" ref={this.canvas} onClick={this.handleCanvasClick}
-                        style={this.props.sortie ? {cursor: 'crosshair'} : undefined}></canvas>
+                <canvas id="planet-canvas" ref={this.canvas}></canvas>
                 <div className="planet-legend">
                     <span className='d-flex justify-center underline'>Legend</span>
                     {
@@ -401,7 +353,6 @@ const mapStateToProps = state => {
         map: state.planet.map,
         droids: state.planet.droids,
         pois: state.planet.pois,
-        squad: state.planet.squad,
         sortie: state.planet.sortie,
         hoveredPoiId: state.game.hoveredPoiId,
         homeCoord: state.planet.homeCoord,
@@ -417,5 +368,5 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { sortieMoveTo, sortieStep }
+    { sortieStepInto, sortieInteract }
 )(Planet);

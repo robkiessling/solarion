@@ -119,26 +119,6 @@ $top-bar-float-padding: 0.875rem;
     }
   }
 
-  // Sortie prototype controls (deploy/disband + charge readout)
-  .sortie-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-
-    a {
-      cursor: pointer;
-      color: $ui-text;
-
-      &:hover {
-        color: white;
-      }
-    }
-
-    .sortie-hint {
-      opacity: 0.6;
-      font-size: 0.85em;
-    }
-  }
 }
 .exploration-actions {
   display: flex;
@@ -206,6 +186,18 @@ $top-bar-float-padding: 0.875rem;
       gap: 0.5rem;
       margin-top: 0.25rem;
       min-height: 1.75rem;
+    }
+
+    // Interaction prompt: the squad is standing on a site, waiting for a decision (Enter/Space also accepts)
+    .squad-prompt {
+      margin-top: 0.35rem;
+      padding: 0.35rem 0.4rem;
+      border: 1px solid rgba(127, 227, 245, 0.5);
+
+      .prompt-text {
+        display: block;
+        margin-bottom: 0.25rem;
+      }
     }
   }
 

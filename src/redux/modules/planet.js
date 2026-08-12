@@ -17,16 +17,15 @@ import {
 import {getAdjacentCoords} from "../../lib/planet_geometry";
 import {findNearestLookout, findPath, isExplorationComplete} from "../../lib/planet_pathing";
 import {
-    advanceSquad,
     buildReportText,
     computeOutcome,
     FIGHT_DURATION_MS,
     generateDebugPois,
     POI_STATUS,
-    SQUAD_STATUS
+    POI_TYPES
 } from "../../lib/expeditions";
 import {canConsume} from "./resources";
-import {advanceSortie, createSortie} from "../../lib/sortie";
+import {advanceSortie, createSortie, isOnGrid} from "../../lib/sortie";
 import {batch} from "react-redux";
 import { v4 } from 'uuid';
 import * as fromClock from "./clock";
@@ -46,20 +45,20 @@ export const UNLOCK_TERRAIN = 'planet/UNLOCK_TERRAIN';
 export const START_COOK = 'planet/START_COOK';
 export const INCREMENT_COOK = 'planet/INCREMENT_COOK';
 
-export const DISPATCH_SQUAD = 'planet/DISPATCH_SQUAD';
-export const MOVE_SQUAD = 'planet/MOVE_SQUAD';
-export const ENGAGE_FIGHT = 'planet/ENGAGE_FIGHT';
-export const RECALL_SQUAD = 'planet/RECALL_SQUAD';
-export const ADVANCE_SQUAD = 'planet/ADVANCE_SQUAD';
-export const RESOLVE_AT_POI = 'planet/RESOLVE_AT_POI';
-export const SQUAD_HOME = 'planet/SQUAD_HOME';
 export const ADD_FIELD_REPORT = 'planet/ADD_FIELD_REPORT';
 
-// Sortie prototype (directly-driven squad; see lib/sortie.js)
+// The sortie: the player-driven squad (lib/sortie.js; design-2.0 Addendum 2.1)
 export const DEPLOY_SORTIE = 'planet/DEPLOY_SORTIE';
 export const DISBAND_SORTIE = 'planet/DISBAND_SORTIE';
 export const SORTIE_SET_PATH = 'planet/SORTIE_SET_PATH';
 export const ADVANCE_SORTIE = 'planet/ADVANCE_SORTIE';
+export const SORTIE_START_FIGHT = 'planet/SORTIE_START_FIGHT';
+export const SORTIE_FIGHT_WON = 'planet/SORTIE_FIGHT_WON';
+export const SORTIE_WIPED = 'planet/SORTIE_WIPED';
+export const SORTIE_PROMPT = 'planet/SORTIE_PROMPT';
+export const SORTIE_LEAVE_PROMPT = 'planet/SORTIE_LEAVE_PROMPT';
+export const SORTIE_RESOLVE_POI = 'planet/SORTIE_RESOLVE_POI';
+export const SORTIE_DELIVER_CARGO = 'planet/SORTIE_DELIVER_CARGO';
 
 // Oldest stored field reports fall off past this cap (the Expeditions panel shows only the tail anyway)
 const MAX_FIELD_REPORTS = 30;
@@ -102,9 +101,7 @@ const initialState = {
 
     // Expedition system (see lib/expeditions.js for domain logic and shapes)
     pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
-    squad: null,  // the single squad: { squadSize, status, coord, path, moveProgress, targetPoiId, atPoiId,
-                  //                     pendingFight, fightRemaining, outcome, recalled }
-    sortie: null, // prototype directly-driven squad: { coord, path, moveProgress, charge } (lib/sortie.js)
+    sortie: null, // the player-driven squad: { coord, path, moveProgress, charge, squadSize, cargo, fighting }
     fieldReports: [] // expedition telemetry feed, capped at MAX_FIELD_REPORTS: { id, text, result }
 }
 
@@ -121,7 +118,6 @@ export default function reducer(state = initialState, action) {
                 numExplored: { $set: numSectorsMatching(payload.map, STATUSES.explored.enum) },
                 maxDevelopedLand: { $set: numSectorsMatching(payload.map, undefined, TERRAINS.flatland.enum) + 1 }, // add 1 for home base
                 pois: { $set: payload.pois },
-                squad: { $set: null },
                 sortie: { $set: null }
             })
         case PROGRESS:
@@ -225,104 +221,6 @@ export default function reducer(state = initialState, action) {
                 cookedPct: { $apply: x => Math.min(x + (payload.timeDelta / COOK_TIME), 1) }
             })
 
-        case DISPATCH_SQUAD:
-            return update(state, {
-                squad: {
-                    $set: {
-                        squadSize: payload.squadSize,
-                        status: SQUAD_STATUS.traveling,
-                        coord: state.homeCoord,
-                        path: payload.path,
-                        moveProgress: 0,
-                        targetPoiId: payload.targetPoiId,
-                        atPoiId: null,
-                        pendingFight: false,
-                        fightRemaining: null,
-                        outcome: null,
-                        recalled: false,
-                        cargo: {} // resources loaded at sites, delivered on reaching home (lost with the team)
-                    }
-                }
-            })
-        case MOVE_SQUAD:
-            // Push on from a held position to another POI; path starts from the squad's current coord
-            return update(state, {
-                squad: {
-                    status: { $set: SQUAD_STATUS.traveling },
-                    targetPoiId: { $set: payload.targetPoiId },
-                    path: { $set: payload.path },
-                    moveProgress: { $set: 0 },
-                    atPoiId: { $set: null },
-                    pendingFight: { $set: false }
-                }
-            })
-        case ENGAGE_FIGHT:
-            // Outcome is decided here, up front; the fighting state is a timed animation over a known result
-            return update(state, {
-                squad: {
-                    status: { $set: SQUAD_STATUS.fighting },
-                    pendingFight: { $set: false },
-                    fightRemaining: { $set: FIGHT_DURATION_MS },
-                    outcome: { $set: payload.outcome }
-                }
-            })
-        case RECALL_SQUAD:
-            return update(state, {
-                squad: {
-                    status: { $set: SQUAD_STATUS.returning },
-                    path: { $set: payload.path },
-                    moveProgress: { $set: 0 },
-                    targetPoiId: { $set: null },
-                    atPoiId: { $set: null },
-                    pendingFight: { $set: false },
-                    recalled: { $set: true }
-                }
-            })
-        case ADVANCE_SQUAD:
-            // Wholesale snapshot from the pure advanceSquad (movement + fight countdown + arrival transitions)
-            return update(state, {
-                squad: { $set: payload.squad }
-            })
-        case RESOLVE_AT_POI:
-            updates = {}
-
-            if (payload.outcome.success) {
-                updates.pois = { [payload.poiId]: { status: { $set: POI_STATUS.cleared } } };
-            }
-            else {
-                // Failed assault: the exact strength is now known for the retry
-                updates.pois = { [payload.poiId]: { difficultyKnown: { $set: true } } };
-            }
-
-            if (payload.outcome.survivors > 0) {
-                // Survivors hold at the site awaiting orders (push on or recall), loading any resource reward as cargo
-                updates.squad = {
-                    status: { $set: SQUAD_STATUS.holding },
-                    squadSize: { $set: payload.outcome.survivors },
-                    pendingFight: { $set: false },
-                    fightRemaining: { $set: null },
-                    outcome: { $set: null },
-                    cargo: {
-                        $apply: (cargo) => {
-                            if (!(payload.reward && payload.reward.resources)) return cargo || {};
-                            const next = { ...(cargo || {}) };
-                            Object.entries(payload.reward.resources).forEach(([id, amount]) => {
-                                next[id] = (next[id] || 0) + amount;
-                            });
-                            return next;
-                        }
-                    }
-                };
-            }
-            else {
-                updates.squad = { $set: null }; // squad wiped; nothing walks home (cargo dies with it)
-            }
-
-            return update(state, updates);
-        case SQUAD_HOME:
-            return update(state, {
-                squad: { $set: null }
-            });
         case ADD_FIELD_REPORT:
             return update(state, {
                 fieldReports: {
@@ -332,18 +230,71 @@ export default function reducer(state = initialState, action) {
 
         case DEPLOY_SORTIE:
             return update(state, {
-                sortie: { $set: createSortie(state.homeCoord) }
+                sortie: { $set: createSortie(state.homeCoord, payload.squadSize) }
             });
         case DISBAND_SORTIE:
             return update(state, {
                 sortie: { $set: null }
             });
         case SORTIE_SET_PATH:
+            // Moving dismisses any open interaction prompt (walking away IS the "leave" choice)
             return update(state, {
                 sortie: {
                     path: { $set: payload.path },
-                    moveProgress: { $set: 0 }
+                    moveProgress: { $set: 0 },
+                    prompt: { $set: null }
                 }
+            });
+        case SORTIE_START_FIGHT:
+            // Walked into a nest: outcome decided NOW (deterministic); the fighting state is a timed animation
+            // over a known result. Movement locks until it resolves.
+            return update(state, {
+                sortie: {
+                    path: { $set: [] },
+                    moveProgress: { $set: 0 },
+                    prompt: { $set: null },
+                    fighting: { $set: { poiId: payload.poiId, remainingMs: FIGHT_DURATION_MS, outcome: payload.outcome } }
+                }
+            });
+        case SORTIE_PROMPT:
+            // Standing on a cache/story tile: wait for the player's choice (take/explore or walk away)
+            return update(state, {
+                sortie: {
+                    path: { $set: [] },
+                    moveProgress: { $set: 0 },
+                    prompt: { $set: { poiId: payload.poiId } }
+                }
+            });
+        case SORTIE_LEAVE_PROMPT:
+            return update(state, {
+                sortie: { prompt: { $set: null } }
+            });
+        case SORTIE_FIGHT_WON:
+            return update(state, {
+                pois: { [payload.poiId]: { status: { $set: POI_STATUS.cleared } } },
+                sortie: {
+                    squadSize: { $set: payload.outcome.survivors },
+                    cargo: { $apply: (cargo) => mergeCargo(cargo, payload.reward) }
+                }
+            });
+        case SORTIE_WIPED:
+            // Failed assault: squad and cargo are gone; the exact strength is now known for the retry
+            return update(state, {
+                pois: { [payload.poiId]: { difficultyKnown: { $set: true } } },
+                sortie: { $set: null }
+            });
+        case SORTIE_RESOLVE_POI:
+            // Player chose to take/explore the site: clear it and load any reward as cargo
+            return update(state, {
+                pois: { [payload.poiId]: { status: { $set: POI_STATUS.cleared } } },
+                sortie: {
+                    prompt: { $set: null },
+                    cargo: { $apply: (cargo) => mergeCargo(cargo, payload.reward) }
+                }
+            });
+        case SORTIE_DELIVER_CARGO:
+            return update(state, {
+                sortie: { cargo: { $set: {} } }
             });
         case ADVANCE_SORTIE:
             // Wholesale snapshot from the pure advanceSortie, plus its line-of-sight reveals (same treatment
@@ -356,6 +307,16 @@ export default function reducer(state = initialState, action) {
         default:
             return state;
     }
+}
+
+// Folds a POI reward's resources into the squad's cargo (pure).
+function mergeCargo(cargo, reward) {
+    if (!(reward && reward.resources)) return cargo || {};
+    const next = { ...(cargo || {}) };
+    Object.entries(reward.resources).forEach(([id, amount]) => {
+        next[id] = (next[id] || 0) + amount;
+    });
+    return next;
 }
 
 // Shared by PROGRESS (scout reveals) and ADVANCE_SORTIE (sortie reveals): mutates `updates` to mark the given
@@ -507,47 +468,20 @@ export function planetTick(timeDelta) {
                 newRotation = sunTrackingRotation(fromClock.fractionOfDay(getState().clock));
             }
             else if (state.rotationMode === ROTATION_MODES.squad) {
-                // Follow the team (sortie first, then expedition squad); with nobody deployed, center home base
-                const focusCoord = (state.sortie && state.sortie.coord) ? state.sortie.coord :
-                    (state.squad && state.squad.coord) ? state.squad.coord : state.homeCoord;
+                // Follow the squad; with nobody deployed, center home base instead
+                const focusCoord = (state.sortie && state.sortie.coord) ? state.sortie.coord : state.homeCoord;
                 if (focusCoord) {
                     newRotation = centeringRotation(focusCoord);
                 }
             }
 
-            // Advance the expedition squad (movement / fight countdown). This must run BEFORE the finished-map
-            // early-return below, or expeditions would freeze once the map is fully explored.
-            if (state.squad) {
-                const { squad, events } = advanceSquad(
-                    state.map, state.pois, state.squad, timeDelta * state.exploreSpeed, state.unlockedTerrains
-                );
-                dispatch({ type: ADVANCE_SQUAD, payload: { squad } });
-
-                events.forEach(event => {
-                    switch (event.type) {
-                        case 'arrived': // cache/story: auto-resolve on arrival
-                        case 'fightOver': {
-                            const poi = getState().planet.pois[event.poiId];
-                            const outcome = event.type === 'arrived' ? computeOutcome(poi, squad.squadSize) : event.outcome;
-                            resolveAtPoi(dispatch, getState, event.poiId, outcome);
-                            break;
-                        }
-                        case 'home': {
-                            const cargo = squad.cargo || {};
-                            dispatch({ type: SQUAD_HOME, payload: { survivors: event.survivors, cargo } });
-                            logReport(dispatch, null, 'returned', { survivors: event.survivors, cargo });
-                            dispatch(recalculateState());
-                            break;
-                        }
-                    }
-                });
-            }
-
-            // Advance the sortie prototype (movement + line-of-sight reveals + charge). Like the squad, this
-            // runs before the finished-map early-return so driving keeps working on a fully-explored map.
+            // Advance the sortie (movement or fight countdown + line-of-sight reveals + charge). Runs before
+            // the finished-map early-return so driving keeps working on a fully-explored map.
             let planetState = state;
-            if (state.sortie && state.sortie.path.length > 0) {
-                const { sortie, reveals } = advanceSortie(state.map, state.sortie, timeDelta, state.unlockedTerrains);
+            if (state.sortie && (state.sortie.path.length > 0 || state.sortie.fighting)) {
+                const { sortie, reveals, events } = advanceSortie(
+                    state.map, state.pois, state.sortie, timeDelta, state.unlockedTerrains
+                );
                 const revealedFlatland = reveals.filter(
                     ([r, c]) => state.map[r][c].terrain === TERRAINS.flatland.enum
                 ).length;
@@ -555,6 +489,9 @@ export function planetTick(timeDelta) {
                 if (revealedFlatland > 0) {
                     dispatch(recalculateState());
                 }
+
+                events.forEach(event => resolveSortieEvent(dispatch, getState, sortie, event));
+
                 // Scouts below must see the sortie's reveals as already-applied, or a tile revealed by both in
                 // the same tick would double-count numExplored.
                 planetState = getState().planet;
@@ -598,8 +535,10 @@ export function planetTick(timeDelta) {
 
 
 /**
- * --- Expedition thunks ---
- * Thunks validate; reducers apply. All squad/POI state is serializable, so mid-flight saves resume cleanly.
+ * --- Sortie thunks ---
+ * Thunks validate; reducers apply. All sortie/POI state is serializable, so mid-flight saves resume cleanly.
+ * Movement thunks return booleans so the planet component can distinguish "order accepted" from "blocked"
+ * (which it renders as a bump).
  */
 
 // Reports are expedition telemetry: assemble the structured fields, compose the text once (buildReportText in
@@ -609,126 +548,48 @@ function logReport(dispatch, poi, result, extras = {}) {
     const report = {
         poiType: poi ? poi.type : null,
         poiName: poi ? poi.name : null,
-        result, // 'success' | 'failure' | 'returned' | 'noRoute'
+        result, // 'success' | 'failure' | 'returned' | 'delivered' | 'blocked' | 'noRoute'
         ...extras
     };
     dispatch({ type: ADD_FIELD_REPORT, payload: { id: v4(), text: buildReportText(report), result } });
 }
 
-export function dispatchSquad(targetPoiId, squadSize) {
+export function deploySortie(squadSize) {
     return function(dispatch, getState) {
         const state = getState();
         const planet = state.planet;
-        const poi = planet.pois[targetPoiId];
-
-        if (planet.squad) return;
-        if (!poi || poi.status !== POI_STATUS.available) return;
-        if (poi.requires && !planet.unlockedTerrains[poi.requires]) return;
+        if (planet.sortie || !planet.homeCoord) return;
         if (squadSize < 1 || !canConsume(state.resources, { standardDroids: squadSize })) return;
 
-        const path = findPath(planet.map, planet.homeCoord, poi.coord, { unlocks: planet.unlockedTerrains });
-        if (!path) {
-            logReport(dispatch, poi, 'noRoute');
-            return;
-        }
-
-        dispatch(withRecalculation({ type: DISPATCH_SQUAD, payload: { targetPoiId, squadSize, path } }));
-    }
-}
-
-// Push on: send the held squad onward to another POI from its current position.
-export function moveSquad(targetPoiId) {
-    return function(dispatch, getState) {
-        const planet = getState().planet;
-        const squad = planet.squad;
-        const poi = planet.pois[targetPoiId];
-
-        if (!squad || squad.status !== SQUAD_STATUS.holding) return;
-        if (!poi || poi.status !== POI_STATUS.available || targetPoiId === squad.atPoiId) return;
-        if (poi.requires && !planet.unlockedTerrains[poi.requires]) return;
-
-        const path = findPath(planet.map, squad.coord, poi.coord, { unlocks: planet.unlockedTerrains });
-        if (!path) {
-            logReport(dispatch, poi, 'noRoute');
-            return;
-        }
-
-        dispatch({ type: MOVE_SQUAD, payload: { targetPoiId, path } });
-    }
-}
-
-export function engageFight() {
-    return function(dispatch, getState) {
-        const planet = getState().planet;
-        const squad = planet.squad;
-
-        if (!squad || squad.status !== SQUAD_STATUS.holding || !squad.pendingFight) return;
-        const poi = planet.pois[squad.atPoiId];
-        if (!poi) return;
-
-        dispatch({ type: ENGAGE_FIGHT, payload: { outcome: computeOutcome(poi, squad.squadSize) } });
-    }
-}
-
-export function recallSquad() {
-    return function(dispatch, getState) {
-        const planet = getState().planet;
-        const squad = planet.squad;
-
-        // Not recallable mid-fight; a pending (un-engaged) fight is fine to walk away from
-        if (!squad) return;
-        if (squad.status !== SQUAD_STATUS.traveling && squad.status !== SQUAD_STATUS.holding) return;
-
-        const path = findPath(planet.map, squad.coord, planet.homeCoord, { unlocks: planet.unlockedTerrains });
-        if (!path) return; // cannot happen in practice (they walked out on explored ground), but never strand state
-
-        dispatch({ type: RECALL_SQUAD, payload: { path } });
-    }
-}
-
-/**
- * --- Sortie prototype thunks ---
- * Free to deploy/disband (it's a feel-test harness, not an economy feature). Thunks return booleans so the
- * planet component can distinguish "order accepted" from "blocked" (which it renders as a bump).
- */
-
-export function deploySortie() {
-    return function(dispatch, getState) {
-        const planet = getState().planet;
-        if (planet.sortie || !planet.homeCoord) return;
-
-        dispatch({ type: DEPLOY_SORTIE });
+        dispatch(withRecalculation({ type: DEPLOY_SORTIE, payload: { squadSize } }));
         dispatch(setRotationMode(ROTATION_MODES.squad)); // follow-cam makes driving feel right immediately
     }
 }
 
+// Disbanding requires standing on the powered grid (walk home first); survivors and cargo credit there.
 export function disbandSortie() {
-    return { type: DISBAND_SORTIE };
-}
-
-// Click-to-move: route to any revealed tile (or an unknown tile adjacent to revealed ground -- findPath
-// reaches those as a final step). Returns false when there's no route.
-export function sortieMoveTo(coord) {
     return function(dispatch, getState) {
         const planet = getState().planet;
         const sortie = planet.sortie;
-        if (!sortie) return false;
+        if (!sortie || sortie.fighting) return;
+        if (!isOnGrid(planet.map, sortie.coord)) return;
 
-        const path = findPath(planet.map, sortie.coord, coord, { unlocks: planet.unlockedTerrains });
-        if (!path || path.length === 0) return false;
-
-        dispatch({ type: SORTIE_SET_PATH, payload: { path } });
-        return true;
+        dispatch(withRecalculation({
+            type: DISBAND_SORTIE,
+            payload: { survivors: sortie.squadSize, cargo: sortie.cargo || {} }
+        }));
+        logReport(dispatch, null, 'returned', { survivors: sortie.squadSize, cargo: sortie.cargo || {} });
     }
 }
 
 // Keyboard step onto an adjacent tile. Stepping into an unknown impassable tile reveals it (you probed the
 // wall and learned something) but does not move -- the caller shows a bump either way on `false`.
+// POI blocking (nests, sealed sites) is the component's concern: it decides bump-vs-attack per input rules.
 export function sortieStep(coord) {
     return function(dispatch, getState) {
         const planet = getState().planet;
         const sortie = planet.sortie;
-        if (!sortie) return false;
+        if (!sortie || sortie.fighting) return false;
 
         if (!isPassable(planet.map, coord, planet.unlockedTerrains)) {
             if (planet.map[coord[0]][coord[1]].status === STATUSES.unknown.enum) {
@@ -743,26 +604,146 @@ export function sortieStep(coord) {
     }
 }
 
-// Applies an 'arrived' (cache/story auto-resolve) or 'fightOver' event from advanceSquad.
-function resolveAtPoi(dispatch, getState, poiId, outcome) {
-    const poi = getState().planet.pois[poiId];
-    const reward = outcome.success ? poi.reward : null;
+/**
+ * The single keyboard entry point: attempt to step onto `coord`. Returns what happened so the component can
+ * render it: 'moved' | 'attacked' | 'blocked' (bump) | 'busy' (no sortie / mid-fight: ignore silently).
+ *
+ * Contact rules: stepping into an available nest starts the fight -- tapped OR held (running headlong into a
+ * nest is a fight, Pokemon-grass style; the posted difficulty was your warning). Sealed sites bump (with a
+ * report on deliberate taps only, so held keys don't spam it). Hidden blocking POIs reveal on the bump, same
+ * as probing an unknown wall -- you discover the danger, and the NEXT step in commits.
+ */
+export function sortieStepInto(coord, tap) {
+    return function(dispatch, getState) {
+        const planet = getState().planet;
+        const sortie = planet.sortie;
+        if (!sortie || sortie.fighting) return 'busy';
 
-    // Snapshot cargo before the reducer runs: on a wipe the squad (and its cargo) is gone afterward
-    const squad = getState().planet.squad;
-    const cargoLost = outcome.survivors === 0 && squad ? (squad.cargo || {}) : null;
+        const blockingPoi = Object.values(planet.pois).find(poi =>
+            poi.status !== POI_STATUS.cleared &&
+            poi.coord[0] === coord[0] && poi.coord[1] === coord[1] &&
+            (poi.type === POI_TYPES.nest || (poi.requires && !planet.unlockedTerrains[poi.requires]))
+        );
 
-    dispatch({ type: RESOLVE_AT_POI, payload: { poiId, outcome, reward } });
-    logReport(dispatch, poi, outcome.success ? 'success' : 'failure', {
-        squadSize: outcome.survivors + outcome.losses,
-        losses: outcome.losses,
-        survivors: outcome.survivors,
-        loaded: reward && reward.resources ? reward.resources : null,
-        cargoLost,
-        storyId: outcome.success ? (poi.storyId || null) : null,
-        difficulty: poi.difficulty
-    });
-    dispatch(recalculateState());
+        if (blockingPoi) {
+            if (blockingPoi.status === POI_STATUS.hidden) {
+                // Probing the dark found something: reveal it (tile reveal flips the POI to available)
+                dispatch({ type: ADVANCE_SORTIE, payload: { sortie, reveals: [coord], revealedFlatland: 0 } });
+                return 'blocked';
+            }
+            if (blockingPoi.requires && !planet.unlockedTerrains[blockingPoi.requires]) {
+                if (tap) logReport(dispatch, blockingPoi, 'blocked', { requires: blockingPoi.requires });
+                return 'blocked';
+            }
+            if (dispatch(sortieAttack(blockingPoi.id))) {
+                return 'attacked';
+            }
+            return 'blocked';
+        }
+
+        return dispatch(sortieStep(coord)) ? 'moved' : 'blocked';
+    }
+}
+
+// Player accepts the open interaction prompt (take the cache / explore the site): resolve the POI, load any
+// reward as cargo, file the report.
+export function sortieInteract() {
+    return function(dispatch, getState) {
+        const planet = getState().planet;
+        const sortie = planet.sortie;
+        if (!sortie || !sortie.prompt) return false;
+
+        const poi = planet.pois[sortie.prompt.poiId];
+        if (!poi || poi.status !== POI_STATUS.available) {
+            dispatch({ type: SORTIE_LEAVE_PROMPT });
+            return false;
+        }
+
+        dispatch({ type: SORTIE_RESOLVE_POI, payload: { poiId: poi.id, reward: poi.reward } });
+        logReport(dispatch, poi, 'success', {
+            squadSize: sortie.squadSize,
+            survivors: sortie.squadSize,
+            losses: 0,
+            loaded: poi.reward && poi.reward.resources ? poi.reward.resources : null,
+            storyId: poi.storyId || null
+        });
+        return true;
+    }
+}
+
+// Player declines the prompt without moving. (Walking away does the same thing implicitly.)
+export function sortieLeavePrompt() {
+    return { type: SORTIE_LEAVE_PROMPT };
+}
+
+// Bump-to-attack: a deliberate tap into an adjacent uncleared nest starts the fight. The outcome is decided
+// here (deterministic strength check); the fighting state is a timed animation over that known result.
+export function sortieAttack(poiId) {
+    return function(dispatch, getState) {
+        const planet = getState().planet;
+        const sortie = planet.sortie;
+        const poi = planet.pois[poiId];
+
+        if (!sortie || sortie.fighting) return false;
+        if (!poi || poi.status === POI_STATUS.cleared) return false;
+        if (poi.requires && !planet.unlockedTerrains[poi.requires]) {
+            logReport(dispatch, poi, 'blocked', { requires: poi.requires });
+            return false;
+        }
+        // Must be standing next to it -- the tap that initiated this was a step onto the nest tile
+        const adjacent = getAdjacentCoords(sortie.coord)
+            .some(([r, c]) => r === poi.coord[0] && c === poi.coord[1]);
+        if (!adjacent) return false;
+
+        dispatch({ type: SORTIE_START_FIGHT, payload: { poiId, outcome: computeOutcome(poi, sortie.squadSize) } });
+        return true;
+    }
+}
+
+// Applies advanceSortie's contact/fight events (dispatched from planetTick).
+function resolveSortieEvent(dispatch, getState, sortie, event) {
+    const pois = getState().planet.pois;
+
+    switch (event.type) {
+        case 'fightOver': {
+            const poi = pois[event.poiId];
+            const outcome = event.outcome;
+            const reward = outcome.success ? poi.reward : null;
+
+            if (outcome.survivors > 0) {
+                dispatch({ type: SORTIE_FIGHT_WON, payload: { poiId: event.poiId, outcome, reward } });
+            }
+            else {
+                dispatch({ type: SORTIE_WIPED, payload: { poiId: event.poiId } });
+            }
+            logReport(dispatch, poi, outcome.success ? 'success' : 'failure', {
+                squadSize: outcome.survivors + outcome.losses,
+                losses: outcome.losses,
+                survivors: outcome.survivors,
+                loaded: reward && reward.resources ? reward.resources : null,
+                cargoLost: outcome.survivors === 0 ? (sortie.cargo || {}) : null,
+                difficulty: poi.difficulty
+            });
+            dispatch(recalculateState());
+            break;
+        }
+        case 'enteredPoi': {
+            // Walked onto a cache/story tile: movement stops and the interaction prompt opens (the player
+            // chooses to take/explore via sortieInteract, or walks away)
+            dispatch({ type: SORTIE_PROMPT, payload: { poiId: event.poiId } });
+            break;
+        }
+        case 'onGrid': {
+            // Touched powered ground: bank any cargo
+            const current = getState().planet.sortie;
+            if (current && current.cargo && Object.keys(current.cargo).length > 0) {
+                dispatch({ type: SORTIE_DELIVER_CARGO, payload: { cargo: current.cargo } });
+                logReport(dispatch, null, 'delivered', { cargo: current.cargo });
+                dispatch(recalculateState());
+            }
+            break;
+        }
+    }
 }
 
 // Standard functions

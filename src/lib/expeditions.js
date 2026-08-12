@@ -1,12 +1,9 @@
 import {getRandomFromArray, getRandomIntInclusive} from "./helpers";
-import {getCrossTime, TERRAINS} from "./planet_map";
+import {TERRAINS} from "./planet_map";
 
 /**
- * This module owns the expedition/point-of-interest (POI) domain logic: POI generation, squad movement, and encounter
- * resolution.
- *
- * The player has ONE squad. It travels to a POI and holds there (fights wait for the player to engage so they don't
- * occur while player is looking away). After resolution, squad can be assigned to another POI or return home.
+ * This module owns the point-of-interest (POI) domain logic: POI generation, encounter resolution math, and
+ * report text. Squad movement/driving lives in sortie.js (the squad is player-driven; see Addendum 2.1).
  */
 
 export const POI_TYPES = {
@@ -21,14 +18,6 @@ export const POI_STATUS = {
     cleared: 'cleared'
 }
 
-export const SQUAD_STATUS = {
-    traveling: 'traveling', // walking to targetPoiId
-    holding: 'holding',     // parked at atPoiId; either pendingFight (awaiting Engage) or awaiting orders
-    fighting: 'fighting',   // timed skirmish animation; outcome already decided at Engage
-    returning: 'returning'  // walking home; despawns + re-credits survivors on arrival
-    // future: an interactive encounter would add e.g. 'inEncounter' here
-}
-
 export const FIGHT_DURATION_MS = 5000;
 export const NEST_LOSS_FACTOR = 0.25; // fraction of a nest's difficulty lost as casualties on a win
 
@@ -36,7 +25,6 @@ export const NEST_LOSS_FACTOR = 0.25; // fraction of a nest's difficulty lost as
 export const POI_GLYPHS = { cache: '$', nest: '@', storySite: '?' };
 export const POI_COLOR_KEYS = { cache: 'poiCache', nest: 'poiNest', storySite: 'poiStory' };
 export const POI_LABELS = { cache: 'Supply Cache', nest: 'Hive Nest', storySite: 'Ruins' };
-export const SQUAD_GLYPH = '◊';
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 
 // Story text lives here (not in the log database) because reports are dynamic; reports store the key only.
@@ -150,6 +138,10 @@ export function buildReportText(report) {
                 ` Delivered ${formatResourceList(report.cargo)}.` : '';
             return `Team returned to base (${report.survivors} droids).${delivered}`;
         }
+        case 'delivered':
+            return `Cargo banked: ${formatResourceList(report.cargo)}.`;
+        case 'blocked':
+            return `${report.poiName} is sealed — requires ${report.requires}.`;
         case 'noRoute':
             return `No route to ${report.poiName}.`;
         default:
@@ -173,64 +165,3 @@ export function computeOutcome(poi, squadSize) {
     return { success: true, losses: 0, survivors: squadSize };
 }
 
-/**
- * Advances the squad one tick: movement along its path (same crossTime accounting as scout droids) and the fight
- * countdown. Emits events for the transitions that have side effects; the caller dispatches reducers for those.
- * Pure -- never mutates inputs.
- *
- * Events: { type: 'arrived', poiId }                       (squad reached a POI that needs resolving now: cache/story)
- *         { type: 'fightOver', poiId, outcome }            (skirmish finished; outcome was decided at Engage)
- *         { type: 'home', survivors, recalled }            (squad reached home base)
- */
-export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
-    const events = [];
-    let { status, coord, path, moveProgress, targetPoiId, atPoiId, pendingFight, fightRemaining } = squad;
-    path = path ? path.slice() : [];
-
-    if (status === SQUAD_STATUS.traveling || status === SQUAD_STATUS.returning) {
-        moveProgress = (moveProgress || 0) + moveAmountMs;
-
-        while (path.length > 0) {
-            const next = path[0];
-            const tileCrossMs = getCrossTime(map[next[0]][next[1]].terrain, unlocks) * 1000;
-            if (moveProgress < tileCrossMs) break;
-            moveProgress -= tileCrossMs;
-            coord = next;
-            path = path.slice(1);
-        }
-
-        if (path.length === 0) {
-            moveProgress = 0;
-
-            if (status === SQUAD_STATUS.traveling) {
-                const poi = pois[targetPoiId];
-                atPoiId = targetPoiId;
-                targetPoiId = null;
-                status = SQUAD_STATUS.holding;
-
-                if (poi && poi.type === POI_TYPES.nest && poi.status !== POI_STATUS.cleared) {
-                    pendingFight = true; // fight waits for the player to Engage; holding is safe indefinitely
-                }
-                else {
-                    pendingFight = false;
-                    events.push({ type: 'arrived', poiId: atPoiId }); // caches/story auto-resolve on arrival
-                }
-            }
-            else {
-                events.push({ type: 'home', survivors: squad.squadSize, recalled: squad.recalled });
-            }
-        }
-    }
-    else if (status === SQUAD_STATUS.fighting) {
-        fightRemaining -= moveAmountMs;
-        if (fightRemaining <= 0) {
-            fightRemaining = 0;
-            events.push({ type: 'fightOver', poiId: atPoiId, outcome: squad.outcome });
-        }
-    }
-
-    return {
-        squad: { ...squad, status, coord, path, moveProgress, targetPoiId, atPoiId, pendingFight, fightRemaining },
-        events
-    };
-}
