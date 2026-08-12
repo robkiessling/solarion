@@ -29,7 +29,8 @@ import {
     FIGHT_DURATION_MS,
     generatePois,
     POI_STATUS,
-    POI_TYPES
+    POI_TYPES,
+    resultBehaviorFor
 } from "../../lib/expeditions";
 import {canConsume} from "./resources";
 import {advanceSquad, createSquad, isOnGrid} from "../../lib/squad";
@@ -286,7 +287,7 @@ export default function reducer(state = initialState, action) {
                 squad: {
                     path: { $set: [] },
                     moveProgress: { $set: 0 },
-                    prompt: { $set: { poiId: payload.poiId } }
+                    prompt: { $set: { poiId: payload.poiId, phase: 'offer' } }
                 }
             });
         case SQUAD_LEAVE_PROMPT:
@@ -325,11 +326,13 @@ export default function reducer(state = initialState, action) {
                 squad: { $set: null }
             });
         case SQUAD_RESOLVE_POI: {
-            // Player chose to take/explore/open the site: clear it and load any reward as cargo
+            // Player chose to take/explore/open the site: clear it and load any reward as cargo. A 'narrate'
+            // POI holds the popup open on its result phase (story text, salvage); 'auto' closes it here.
             updates = {
                 pois: { [payload.poiId]: { status: { $set: POI_STATUS.cleared } } },
                 squad: {
-                    prompt: { $set: null },
+                    prompt: { $set: payload.result ?
+                        { poiId: payload.poiId, phase: 'result', result: payload.result } : null },
                     cargo: { $apply: (cargo) => mergeCargo(cargo, payload.reward) }
                 }
             };
@@ -729,7 +732,7 @@ export function squadInteract() {
     return function(dispatch, getState) {
         const planet = getState().planet;
         const squad = planet.squad;
-        if (!squad || !squad.prompt) return false;
+        if (!squad || !squad.prompt || squad.prompt.phase !== 'offer') return false;
 
         const poi = planet.pois[squad.prompt.poiId];
         if (!poi || poi.status !== POI_STATUS.available) {
@@ -737,7 +740,15 @@ export function squadInteract() {
             return false;
         }
 
-        dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward: poi.reward } });
+        // A 'narrate' POI's outcome shows in the popup's result phase; the fields stay serializable and the
+        // display strings are composed at render time (story text lookup, capability label, loot list)
+        const result = resultBehaviorFor(poi) === 'narrate' ? {
+            storyId: poi.storyId || null,
+            capability: (poi.reward && poi.reward.capability) || null,
+            loaded: (poi.reward && poi.reward.resources) || null
+        } : null;
+
+        dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward: poi.reward, result } });
         if (poi.reward && poi.reward.capability) {
             dispatch(unlockTerrain(poi.reward.capability)); // salvaged tool: permanent, instant (not cargo)
         }

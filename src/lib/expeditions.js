@@ -1,7 +1,7 @@
 import {getRandomFromArray} from "./helpers";
 import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, REGIONS, STATUSES, TERRAINS} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {BANDS, GATE_DEFS, POI_DEFS, POI_TYPES, rollPoiReward, STORY_TEXTS} from "../database/pois";
+import {BANDS, GATE_DEFS, POI_DEFS, POI_TYPE_DEFAULTS, POI_TYPES, rollPoiReward, STORY_TEXTS} from "../database/pois";
 
 /**
  * This module owns the point-of-interest (POI) domain logic: POI placement mechanics, encounter resolution
@@ -176,6 +176,29 @@ function squadReachableSet(map) {
 export function formatResourceList(resources) {
     if (!resources) return '';
     return Object.entries(resources).map(([resource, amount]) => `${amount} ${resource}`).join(', ');
+}
+
+/**
+ * Encounter popup content accessors: definition field if present, else the type default (POI_TYPE_DEFAULTS
+ * in database/pois.js). Cache prompt text is composed here because it names the rolled loot.
+ */
+
+export function promptTextFor(poi) {
+    if (poi.promptText) return poi.promptText;
+    if (poi.type === POI_TYPES.cache) {
+        const loot = poi.reward && poi.reward.resources ? ` — ${formatResourceList(poi.reward.resources)}` : '';
+        return `Supply cache found${loot}. Take it?`;
+    }
+    return 'Structure of unknown origin. Investigate?';
+}
+
+export function actionLabelFor(poi) {
+    return poi.actionLabel || POI_TYPE_DEFAULTS[poi.type].actionLabel || 'Explore';
+}
+
+// 'auto' (resolve and close) | 'narrate' (hold the popup open on a result phase)
+export function resultBehaviorFor(poi) {
+    return poi.resultBehavior || POI_TYPE_DEFAULTS[poi.type].result;
 }
 
 /**

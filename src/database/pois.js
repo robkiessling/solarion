@@ -18,6 +18,16 @@ export const POI_TYPES = {
     gate: 'gate' // a physical barrier POI (cave rockfall, sealed door): impassable until opened with its capability
 }
 
+// Per-type encounter popup behavior; individual definitions override. `result` decides what accepting does:
+// 'auto' resolves and closes the popup (the map change is the feedback), 'narrate' holds it open on a result
+// phase (story text, salvage, losses) until the player continues or drives away.
+export const POI_TYPE_DEFAULTS = {
+    cache: { actionLabel: 'Take', result: 'auto' },
+    storySite: { actionLabel: 'Explore', result: 'narrate' },
+    gate: { actionLabel: 'Open', result: 'auto' },
+    nest: { result: 'narrate' }
+}
+
 // Placement bands. R1 is the bowl (tutorial), R3 the antipode (finale). R2 is cut in half by the acid belt;
 // the near/far split keeps e.g. the Sealed Chassis salvage reachable BEFORE the acid it unlocks.
 export const BANDS = {

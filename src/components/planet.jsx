@@ -27,8 +27,10 @@ import {
     setRotation,
     setRotationMode,
     squadInteract,
+    squadLeavePrompt,
     squadStepInto
 } from "../redux/modules/planet";
+import EncounterPopup from "./encounter_popup";
 import {surveyAutomationUnlocked} from "../redux/reducer";
 
 const POI_PING_PERIOD_MS = 1200; // one full expand-and-fade cycle of the hovered marker's radar ping
@@ -143,11 +145,23 @@ class Planet extends React.Component {
     handleKeyDown(event) {
         if (!this.props.visible || !this.props.squad) return;
 
-        // Enter/Space accepts an open interaction prompt (take the cache / explore the site)
-        if ((event.key === 'Enter' || event.key === ' ') && this.props.squad.prompt) {
-            event.preventDefault();
-            if (!event.repeat) this.props.squadInteract();
-            return;
+        // Encounter popup hotkeys: 1/Enter/Space fire the primary action (accept the offer, or Continue past
+        // the result), Esc leaves. Movement keys fall through below: driving away is the third way out.
+        const prompt = this.props.squad.prompt;
+        if (prompt) {
+            if (event.key === 'Enter' || event.key === ' ' || event.key === '1') {
+                event.preventDefault();
+                if (!event.repeat) {
+                    if (prompt.phase === 'result') this.props.squadLeavePrompt();
+                    else this.props.squadInteract();
+                }
+                return;
+            }
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                if (!event.repeat) this.props.squadLeavePrompt();
+                return;
+            }
         }
 
         const dir = KEY_DIRS[event.key];
@@ -465,6 +479,7 @@ class Planet extends React.Component {
             <div id="planet" ref={this.canvasContainer} className={`${this.props.visible ? '' : 'hidden'}`}>
                 <canvas id="planet-canvas" ref={this.canvas}
                         onClick={this.handleCanvasClick} onMouseDown={this.handleCanvasMouseDown}></canvas>
+                <EncounterPopup/>
                 <div className="planet-legend">
                     <span className='d-flex justify-center underline'>Legend</span>
                     {
@@ -507,5 +522,5 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadStepInto, squadInteract, setBeaconAt, setRotation, setRotationMode }
+    { squadStepInto, squadInteract, squadLeavePrompt, setBeaconAt, setRotation, setRotationMode }
 )(Planet);

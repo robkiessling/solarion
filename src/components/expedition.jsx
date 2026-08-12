@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {deploySquad, disbandSquad, squadInteract, squadLeavePrompt} from "../redux/modules/planet";
+import {deploySquad, disbandSquad} from "../redux/modules/planet";
 import {updateSetting} from "../redux/modules/game";
 import {getQuantity, getResource} from "../redux/modules/resources";
 import {
@@ -23,7 +23,7 @@ const MAX_VISIBLE_REPORTS = 5;
 /**
  * Squad sidebar. The one player-driven squad: assemble and deploy it here, drive it on the map with
  * arrows/WASD. POI rows are pure intel (hover highlights the marker); fights start by stepping into a
- * nest on the map, and site interactions resolve through the prompt in the team card.
+ * nest on the map, and site interactions resolve through the encounter popup over the canvas.
  */
 class Expedition extends React.Component {
     constructor(props) {
@@ -96,22 +96,6 @@ class Expedition extends React.Component {
                 <span className="squad-status-text">{statusText}</span>
                 {this.renderTelemetry()}
                 <span className="cargo-line">Cargo: {formatResourceList(squad.cargo) || '—'}</span>
-                {promptPoi &&
-                    <div className="squad-prompt">
-                        <span className="prompt-text">
-                            {promptPoi.promptText ||
-                                (promptPoi.type === POI_TYPES.cache ?
-                                    `Supply cache found${promptPoi.reward && promptPoi.reward.resources ?
-                                        ` — ${formatResourceList(promptPoi.reward.resources)}` : ''}. Take it?` :
-                                    'Structure of unknown origin. Investigate?')}
-                        </span>
-                        <div className="squad-actions">
-                            <button onClick={() => this.props.squadInteract()}>
-                                {promptPoi.actionLabel || (promptPoi.type === POI_TYPES.cache ? 'Take' : 'Explore')}
-                            </button>
-                            <button onClick={() => this.props.squadLeavePrompt()}>Leave</button>
-                        </div>
-                    </div>}
                 <div className="squad-actions">
                     <button disabled={!onGrid || !!squad.fighting}
                             title={onGrid ? undefined : 'Return to powered ground to disband'}
@@ -252,5 +236,5 @@ const mapStateToProps = (state, ownProps) => {
 
 export default connect(
     mapStateToProps,
-    { deploySquad, disbandSquad, squadInteract, squadLeavePrompt, updateSetting }
+    { deploySquad, disbandSquad, updateSetting }
 )(Expedition);

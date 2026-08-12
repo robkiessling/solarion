@@ -70,6 +70,72 @@ $top-bar-float-padding: 0.875rem;
     display: flex;
     flex-direction: column;
   }
+
+  // The encounter popup: centered over the canvas (slightly high, clear of the legend), non-modal by design.
+  // No backdrop dim: the world stays live behind it, and driving away is a first-class dismissal.
+  .encounter-popup {
+    position: absolute;
+    left: 50%;
+    top: 46%;
+    transform: translate(-50%, -50%);
+    width: 21rem;
+    padding: 1rem 0.9rem 0.7rem;
+    background: rgba(13, 17, 23, 0.93);
+    border: 1px solid rgba(32, 217, 255, 0.45); // the squad's cyan channel
+    box-shadow: 0 0 0 1px rgba(1, 4, 9, 0.8), 0 6px 24px rgba(0, 0, 0, 0.7);
+
+    // Site name embedded in the border, fieldset-legend style, with the POI glyph in its map color
+    .popup-title {
+      position: absolute;
+      top: -0.7em;
+      left: 10px;
+      padding: 0 7px;
+      background: $black-inset;
+      font-size: 0.8em;
+      letter-spacing: 2px;
+      color: $ui-text-dim;
+      white-space: nowrap;
+    }
+
+    .popup-body {
+      margin-bottom: 0.7rem;
+
+      .story-text {
+        display: block;
+        font-style: italic;
+        margin-bottom: 0.5rem;
+      }
+
+      .outcome-line {
+        display: block;
+        font-size: 0.9em;
+        color: #9be29b; // report-success green
+      }
+    }
+
+    .popup-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.45rem;
+
+      // Hotkey chip inside the button: actions are numbered 1..N, leave/dismiss shows Esc
+      kbd {
+        font-family: inherit;
+        font-size: 0.75em;
+        line-height: 1;
+        padding: 1px 3px;
+        margin-right: 5px;
+        border: 1px solid #999;
+        background: #e2e2e2;
+        color: #333;
+      }
+    }
+
+    .popup-keys {
+      color: $ui-text-dim;
+      font-size: 0.75em;
+    }
+  }
 }
 
 .planet-tools {
@@ -256,17 +322,6 @@ $top-bar-float-padding: 0.875rem;
       min-height: 1.75rem;
     }
 
-    // Interaction prompt: the squad is standing on a site, waiting for a decision (Enter/Space also accepts)
-    .squad-prompt {
-      margin-top: 0.35rem;
-      padding: 0.35rem 0.4rem;
-      border: 1px solid rgba(127, 227, 245, 0.5);
-
-      .prompt-text {
-        display: block;
-        margin-bottom: 0.25rem;
-      }
-    }
   }
 
   .stepper {
