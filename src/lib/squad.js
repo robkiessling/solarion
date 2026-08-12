@@ -4,7 +4,7 @@ import {mod} from "./helpers";
 import {POI_STATUS} from "./expeditions";
 
 /**
- * The sortie: the directly-driven squad that IS act-2 exploration (see design-2.0.md Addendum 2.1). Owns the
+ * The player-driven squad that IS act-2 exploration (see design-2.0.md Addendum 2.1). Owns the
  * pure movement/charge/reveal/fight simulation plus routing; input handling lives in the planet component and
  * redux thunks. POI *resolution* math (computeOutcome etc.) stays in expeditions.js.
  *
@@ -13,26 +13,26 @@ import {POI_STATUS} from "./expeditions";
  * at contact like a wall. Caches/story sites are walkable and resolve on entry.
  */
 
-export const SORTIE_GLYPH = '◈';
+export const SQUAD_GLYPH = '◈';
 
-// Movement pace. crossTime is seconds-per-tile for scouts; the sortie multiplies it down so driving feels
+// Movement pace. crossTime is seconds-per-tile for scouts; the squad multiplies it down so driving feels
 // snappy (flatland 0.5s * 0.4 = 200ms/tile, ~5 tiles/sec).
-export const SORTIE_SPEED_FACTOR = 0.4;
+export const SQUAD_SPEED_FACTOR = 0.4;
 
 // Charge model: drains per tile entered while off the powered grid, snaps to full on the grid. At zero the
-// sortie limps ("reserve power"): crossings take twice as long. A planning aid, never a fail state.
-export const SORTIE_MAX_CHARGE = 100;
-export const SORTIE_DRAIN_PER_TILE = 2;
+// squad limps ("reserve power"): crossings take twice as long. A planning aid, never a fail state.
+export const SQUAD_MAX_CHARGE = 100;
+export const SQUAD_DRAIN_PER_TILE = 2;
 export const RESERVE_SPEED_PENALTY = 2;
 
 const GRID_TERRAINS = new Set([TERRAINS.home.enum, TERRAINS.developing.enum, TERRAINS.developed.enum]);
 
-export function createSortie(homeCoord, squadSize) {
+export function createSquad(homeCoord, squadSize) {
     return {
         coord: homeCoord,
         path: [],
         moveProgress: 0,
-        charge: SORTIE_MAX_CHARGE,
+        charge: SQUAD_MAX_CHARGE,
         squadSize,
         cargo: {},               // loot collected at POIs; banks whenever the squad touches the grid, dies on a wipe
         fighting: null,          // null | { poiId, remainingMs, outcome } -- outcome decided at initiation
@@ -52,33 +52,33 @@ export function isOnGrid(map, coord) {
     return GRID_TERRAINS.has(map[coord[0]][coord[1]].terrain);
 }
 
-export function sortieCrossMs(map, coord, unlocks, charge) {
-    const base = getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) * 1000 * SORTIE_SPEED_FACTOR;
+export function squadCrossMs(map, coord, unlocks, charge) {
+    const base = getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) * 1000 * SQUAD_SPEED_FACTOR;
     return charge <= 0 ? base * RESERVE_SPEED_PENALTY : base;
 }
 
 /**
- * Advances the sortie one tick: fight countdown when fighting (movement is locked), otherwise movement along
+ * Advances the squad one tick: fight countdown when fighting (movement is locked), otherwise movement along
  * its path. Per tile entered: line-of-sight reveal (the tile + its neighbors, same rule as scouts), charge
- * drain off-grid / snap-to-full on-grid, and contact events. Pure; returns the next sortie, the coords newly
+ * drain off-grid / snap-to-full on-grid, and contact events. Pure; returns the next squad, the coords newly
  * revealed this tick (still-unknown tiles only), and events for the caller to resolve:
  *   { type: 'fightOver', poiId, outcome }  (timed skirmish finished; outcome was decided at initiation)
  *   { type: 'enteredPoi', poiId }          (stepped onto an available cache/story tile: resolve it)
  *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)
  */
-export function advanceSortie(map, pois, sortie, moveAmountMs, unlocks) {
+export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
     const events = [];
 
-    if (sortie.fighting) {
-        const remainingMs = sortie.fighting.remainingMs - moveAmountMs;
+    if (squad.fighting) {
+        const remainingMs = squad.fighting.remainingMs - moveAmountMs;
         if (remainingMs > 0) {
-            return { sortie: {...sortie, fighting: {...sortie.fighting, remainingMs}}, reveals: [], events };
+            return { squad: {...squad, fighting: {...squad.fighting, remainingMs}}, reveals: [], events };
         }
-        events.push({ type: 'fightOver', poiId: sortie.fighting.poiId, outcome: sortie.fighting.outcome });
-        return { sortie: {...sortie, fighting: null}, reveals: [], events };
+        events.push({ type: 'fightOver', poiId: squad.fighting.poiId, outcome: squad.fighting.outcome });
+        return { squad: {...squad, fighting: null}, reveals: [], events };
     }
 
-    let {coord, path, moveProgress, charge} = sortie;
+    let {coord, path, moveProgress, charge} = squad;
     path = path ? path.slice() : [];
     moveProgress = (moveProgress || 0) + moveAmountMs;
 
@@ -89,7 +89,7 @@ export function advanceSortie(map, pois, sortie, moveAmountMs, unlocks) {
 
     while (path.length > 0) {
         const next = path[0];
-        const tileCrossMs = sortieCrossMs(map, next, unlocks, charge);
+        const tileCrossMs = squadCrossMs(map, next, unlocks, charge);
         if (moveProgress < tileCrossMs) break;
         moveProgress -= tileCrossMs;
         coord = next;
@@ -99,11 +99,11 @@ export function advanceSortie(map, pois, sortie, moveAmountMs, unlocks) {
         getAdjacentCoords(coord).forEach(reveal);
 
         if (isOnGrid(map, coord)) {
-            charge = SORTIE_MAX_CHARGE;
+            charge = SQUAD_MAX_CHARGE;
             events.push({ type: 'onGrid' });
         }
         else {
-            charge = Math.max(0, charge - SORTIE_DRAIN_PER_TILE);
+            charge = Math.max(0, charge - SQUAD_DRAIN_PER_TILE);
         }
 
         const poi = poiAtCoord(pois, coord);
@@ -119,7 +119,7 @@ export function advanceSortie(map, pois, sortie, moveAmountMs, unlocks) {
     if (path.length === 0) moveProgress = 0;
 
     return {
-        sortie: {...sortie, coord, path, moveProgress, charge},
+        squad: {...squad, coord, path, moveProgress, charge},
         reveals: [...reveals].map(key => key.split(',').map(Number)),
         events
     };

@@ -82,7 +82,7 @@ export function drawPlanetImage(canvasManager, image) {
         row.forEach((cell, colIndex) => {
             if (cell.char === undefined || cell.char === ' ') { return; }
 
-            // offsetX/offsetY: sub-cell nudge in cell units (sortie slide interpolation, bump animation)
+            // offsetX/offsetY: sub-cell nudge in cell units (squad slide interpolation, bump animation)
             const offsetX = (cell.offsetX || 0) * fontWidth;
             const offsetY = (cell.offsetY || 0) * fontHeight;
             const x = originX + colIndex * fontWidth + offsetX;

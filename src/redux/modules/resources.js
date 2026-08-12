@@ -67,9 +67,9 @@ export default function reducer(state = initialState, action) {
             return payload.instantIndices.length > 0
                 ? produceReducer(state, { standardDroids: payload.instantIndices.length }, false)
                 : state;
-        case fromPlanet.DEPLOY_SORTIE:
+        case fromPlanet.DEPLOY_SQUAD:
             return consumeReducer(state, { standardDroids: payload.squadSize })
-        case fromPlanet.DISBAND_SORTIE: {
+        case fromPlanet.DISBAND_SQUAD: {
             // Only survivors return to the idle pool; combat losses are permanent (never re-credited).
             // Any undelivered cargo banks here too. Rewards must be already-LEARNed resources (unlearned ids
             // are dropped silently by produceReducer).
@@ -82,13 +82,13 @@ export default function reducer(state = initialState, action) {
             }
             return next;
         }
-        case fromPlanet.SORTIE_DELIVER_CARGO:
+        case fromPlanet.SQUAD_DELIVER_CARGO:
             // The squad touched the powered grid: cargo banks (lost on a wipe, so this is the payoff moment)
             return produceReducer(state, payload.cargo)
         case fromPlanet.GENERATE_MAP:
             return produceReducer(state, { buildableLand: numSectorsMatching(payload.map, STATUSES.explored.enum, TERRAINS.flatland.enum) })
-        case fromPlanet.ADVANCE_SORTIE:
-            // The driven sortie squad reveals tiles just like scouts do; same land credit.
+        case fromPlanet.ADVANCE_SQUAD:
+            // The driven squad reveals tiles just like scouts do; same land credit.
             return payload.revealedFlatland > 0
                 ? produceReducer(state, { buildableLand: payload.revealedFlatland })
                 : state;

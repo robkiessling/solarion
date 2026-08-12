@@ -531,7 +531,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 if (overlay.color) { color = overlay.color; }
                 ping = overlay.ping;   // radar-ping cycle; drawn as expanding rings by planet_render
                 alpha = overlay.alpha; // per-cell brightness (e.g. scout pulse), multiplied with day/night shading
-                offsetX = overlay.offsetX; // sub-cell nudge in cell units (sortie slide/bump; see planet_render)
+                offsetX = overlay.offsetX; // sub-cell nudge in cell units (squad slide/bump; see planet_render)
                 offsetY = overlay.offsetY;
             }
 
