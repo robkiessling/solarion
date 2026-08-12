@@ -51,8 +51,9 @@ $top-bar-float-padding: 0.875rem;
   height: 100%;
 
   // Tile rendering (colors, day/night shading, etc.) moved to canvas; see lib/planet_render.js
+  // Scoped by id: the battle arena canvas inside the encounter popup lays out in normal flow
 
-  canvas {
+  #planet-canvas {
     position: absolute;
     top: 0;
     left: 0;
@@ -133,6 +134,85 @@ $top-bar-float-padding: 0.875rem;
         border: 1px solid #999;
         background: #e2e2e2;
         color: #333;
+      }
+    }
+
+    // Battle mode: the popup grows into the arena window (the live per-unit fight plays inside it).
+    // Sized generously now; scales further as armies do (the arena canvas is resolution-independent).
+    &.battle {
+      width: 34rem;
+
+      .battle-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.6rem;
+        margin-bottom: 0.5rem;
+
+        // Count + aggregate strength bar per side; the bug side mirrors (bar drains toward center)
+        .battle-side {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .battle-count {
+          font-size: 0.9em;
+          letter-spacing: 1px;
+          white-space: nowrap;
+
+          &.droids { color: #20d9ff; } // friendly cyan (matches the squad glyph + arena droids)
+          &.bugs { color: #ff6b35; }   // hostile orange (matches the arena bugs)
+        }
+
+        // One square per starting unit: colored while alive, grey once dead. Wraps into rows for big
+        // armies (the squares shrink but never merge into a bar). row-reverse on the bug side packs its
+        // living pips toward the outer edge, so both armies visibly erode toward the center line.
+        .battle-pips {
+          flex: 1;
+          display: flex;
+          flex-wrap: wrap;
+          align-content: center;
+          align-self: center;
+
+          &.bugs { flex-direction: row-reverse; }
+
+          .pip {
+            flex: 0 0 auto;
+            background: rgba(145, 155, 165, 0.35); // dead
+
+            &.alive { background: #20d9ff; }
+          }
+
+          &.bugs .pip.alive { background: #ff6b35; }
+        }
+
+        .battle-vs {
+          color: $ui-text-dim;
+
+          &.overcharged {
+            color: #20d9ff;
+            letter-spacing: 2px;
+          }
+        }
+      }
+
+      .battle-canvas {
+        display: block;
+        width: 100%;
+        aspect-ratio: 5 / 3; // ARENA_W : ARENA_H
+        margin-bottom: 0.7rem;
+        border: 1px solid rgba(120, 140, 160, 0.25);
+      }
+
+      .popup-actions {
+        flex-wrap: wrap;
+
+        // The retreat button hugs the right edge, away from the use-item row
+        button:last-child {
+          margin-left: auto;
+        }
       }
     }
 
@@ -291,6 +371,10 @@ $top-bar-float-padding: 0.875rem;
 
         &.low .fill { background: #ffd700; }
         &.reserve .fill { background: #ff4d4d; }
+
+        // Hull variant: squad health (green, matching the arena's unit hp bars) vs the cyan charge bar
+        &.hull .fill { background: #3fd66b; }
+        &.hull.low .fill { background: #ffd700; }
       }
 
       .reserve-label {

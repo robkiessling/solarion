@@ -59,6 +59,28 @@ export default {
         amount: 0,
         icon: 'icon-satellite',
     }),
+
+    // Squad consumables (see database/consumables.js): crafted at the droid factory, stocked into the
+    // squad's pouch at deploy, popped mid-battle. Kept off the resource bar; stock shows on the factory's
+    // craft buttons and the deploy card's pouch picker.
+    demoCharge: _.merge({}, base, {
+        name: "Demo Charge",
+        amount: 0,
+        icon: 'icon-abstract-1',
+        visible: false
+    }),
+    repairKit: _.merge({}, base, {
+        name: "Repair Kit",
+        amount: 0,
+        icon: 'icon-cog',
+        visible: false
+    }),
+    overchargeCell: _.merge({}, base, {
+        name: "Overcharge Cell",
+        amount: 0,
+        icon: 'icon-electric',
+        visible: false
+    }),
 };
 
 /**

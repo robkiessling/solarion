@@ -46,4 +46,9 @@ function readSetting(state, setting) {
     return state && state.game && state.game[setting];
 }
 
+// Dev-console access to the live store (debugging / driving the sim by hand); stripped from prod builds
+if (import.meta.env.DEV) {
+    window.solarionStore = store;
+}
+
 export default store;

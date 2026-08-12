@@ -2,11 +2,12 @@ import {getAdjacentCoords, NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry
 import {getCrossTime, isOnGrid, STATUSES} from "./planet_map";
 import {mod} from "./helpers";
 import {POI_STATUS} from "./expeditions";
+import {advanceBattle, fullDroidHp, UNIT_STATS} from "./battle";
 
 /**
  * The player-driven squad that IS act-2 exploration. Owns the
- * pure movement/charge/reveal/fight simulation plus routing; input handling lives in the planet component and
- * redux thunks. POI *resolution* math (computeOutcome etc.) stays in expeditions.js.
+ * pure movement/charge/reveal simulation plus routing, and ticks the live battle sim while fighting; input
+ * handling lives in the planet component and redux thunks. The battle itself (per-unit combat) is lib/battle.js.
  *
  * Contact model (roguelike bump-to-attack): uncleared nests and capability-gated POIs are impassable to the
  * squad. A deliberate keyboard tap into a nest starts the fight; held-key continuation and click-routes stop
@@ -28,7 +29,7 @@ export const RESERVE_SPEED_PENALTY = 2;
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
 export {isOnGrid} from "./planet_map";
 
-export function createSquad(homeCoord, squadSize) {
+export function createSquad(homeCoord, squadSize, pouch = {}) {
     return {
         coord: homeCoord,
         path: [],
@@ -36,8 +37,9 @@ export function createSquad(homeCoord, squadSize) {
         charge: SQUAD_MAX_CHARGE,
         squadSize,
         cargo: {},               // loot collected at POIs; banks whenever the squad touches the grid, dies on a wipe
-        fighting: null,          // null | { poiId, remainingMs, outcome } -- outcome decided at initiation
-        prompt: null             // null | { poiId } -- standing on a cache/story tile, awaiting the player's choice
+        pouch,                   // carried consumables { itemId: count }; unused ones return on disband, die on a wipe
+        droidHp: fullDroidHp(squadSize), // per-droid hull; battle wounds persist in the field, repaired on the grid
+        fighting: null           // null | { poiId, battle } -- live per-unit sim (see lib/battle.js)
     };
 }
 
@@ -54,11 +56,11 @@ export function squadCrossMs(map, coord, unlocks, charge) {
 }
 
 /**
- * Advances the squad one tick: fight countdown when fighting (movement is locked), otherwise movement along
+ * Advances the squad one tick: battle sim when fighting (movement is locked), otherwise movement along
  * its path. Per tile entered: line-of-sight reveal (the tile + its neighbors, same rule as scouts), charge
  * drain off-grid / snap-to-full on-grid, and contact events. Pure; returns the next squad, the coords newly
  * revealed this tick (still-unknown tiles only), and events for the caller to resolve:
- *   { type: 'fightOver', poiId, outcome }  (timed skirmish finished; outcome was decided at initiation)
+ *   { type: 'battleOver', poiId, result, survivors, bugsRemaining }  (live fight ended; see lib/battle.js)
  *   { type: 'enteredPoi', poiId }          (stepped onto an available cache/story tile: resolve it)
  *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)
  */
@@ -66,15 +68,16 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
     const events = [];
 
     if (squad.fighting) {
-        const remainingMs = squad.fighting.remainingMs - moveAmountMs;
-        if (remainingMs > 0) {
-            return { squad: {...squad, fighting: {...squad.fighting, remainingMs}}, reveals: [], events };
+        const { battle, events: battleEvents } = advanceBattle(squad.fighting.battle, moveAmountMs);
+        const over = battleEvents.find(event => event.type === 'battleOver');
+        if (!over) {
+            return { squad: {...squad, fighting: {...squad.fighting, battle}}, reveals: [], events };
         }
-        events.push({ type: 'fightOver', poiId: squad.fighting.poiId, outcome: squad.fighting.outcome });
+        events.push({ ...over, poiId: squad.fighting.poiId });
         return { squad: {...squad, fighting: null}, reveals: [], events };
     }
 
-    let {coord, path, moveProgress, charge} = squad;
+    let {coord, path, moveProgress, charge, droidHp} = squad;
     path = path ? path.slice() : [];
     moveProgress = (moveProgress || 0) + moveAmountMs;
 
@@ -96,6 +99,10 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
 
         if (isOnGrid(map, coord)) {
             charge = SQUAD_MAX_CHARGE;
+            // Powered ground repairs battle wounds the same way it refills charge (each side heals at home)
+            if (droidHp && droidHp.some(hp => hp < UNIT_STATS.droid.hp)) {
+                droidHp = fullDroidHp(droidHp.length);
+            }
             events.push({ type: 'onGrid' });
         }
         else {
@@ -115,7 +122,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
     if (path.length === 0) moveProgress = 0;
 
     return {
-        squad: {...squad, coord, path, moveProgress, charge},
+        squad: {...squad, coord, path, moveProgress, charge, droidHp},
         reveals: [...reveals].map(key => key.split(',').map(Number)),
         events
     };

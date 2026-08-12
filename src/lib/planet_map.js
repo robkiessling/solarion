@@ -53,7 +53,7 @@ const MOUNTAIN_WIDEN_CHANCE = 0.6; // per step, chance of a second mountain besi
 const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
-const EXPLORE_EVERYTHING = false;
+const EXPLORE_EVERYTHING = true;
 const MARK_SECTORS = false;
 const LOG_MAP = false;
 

@@ -251,6 +251,12 @@ export default {
             dispatch(fromStructures.learn('refinery'));
             dispatch(fromStructures.learn('droidFactory'));
             dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
+            dispatch(fromResources.learn('demoCharge'));
+            dispatch(fromResources.learn('repairKit'));
+            dispatch(fromResources.learn('overchargeCell'));
+            dispatch(fromAbilities.learn('droidFactory_buildDemoCharge'));
+            dispatch(fromAbilities.learn('droidFactory_buildRepairKit'));
+            dispatch(fromAbilities.learn('droidFactory_buildOverchargeCell'));
 
             dispatch(fromStructures.buildForFree('harvester', 7));
             dispatch(fromStructures.buildForFree('solarPanel', 10));
@@ -341,6 +347,12 @@ export default {
             dispatch(fromStructures.learn('refinery'));
             dispatch(fromStructures.learn('droidFactory'));
             dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
+            dispatch(fromResources.learn('demoCharge'));
+            dispatch(fromResources.learn('repairKit'));
+            dispatch(fromResources.learn('overchargeCell'));
+            dispatch(fromAbilities.learn('droidFactory_buildDemoCharge'));
+            dispatch(fromAbilities.learn('droidFactory_buildRepairKit'));
+            dispatch(fromAbilities.learn('droidFactory_buildOverchargeCell'));
 
             dispatch(fromStructures.buildForFree('harvester', 20));
             dispatch(fromStructures.buildForFree('solarPanel', 28));
@@ -463,6 +475,12 @@ export default {
             dispatch(fromResources.learn('standardDroids'));
             dispatch(fromStructures.learn('droidFactory'));
             dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
+            dispatch(fromResources.learn('demoCharge'));
+            dispatch(fromResources.learn('repairKit'));
+            dispatch(fromResources.learn('overchargeCell'));
+            dispatch(fromAbilities.learn('droidFactory_buildDemoCharge'));
+            dispatch(fromAbilities.learn('droidFactory_buildRepairKit'));
+            dispatch(fromAbilities.learn('droidFactory_buildOverchargeCell'));
 
             dispatch(addTrigger('startExploringMap'))
         }

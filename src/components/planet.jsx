@@ -21,14 +21,17 @@ import {
     POI_STATUS
 } from "../lib/expeditions";
 import {stepInDirection, squadCrossMs, SQUAD_GLYPH} from "../lib/squad";
+import {CONSUMABLE_ORDER} from "../database/consumables";
 import {
+    retreatFromFight,
     ROTATION_MODES,
     setBeaconAt,
     setRotation,
     setRotationMode,
     squadInteract,
     squadLeavePrompt,
-    squadStepInto
+    squadStepInto,
+    useConsumable
 } from "../redux/modules/planet";
 import EncounterPopup from "./encounter_popup";
 import {surveyAutomationUnlocked} from "../redux/reducer";
@@ -143,12 +146,13 @@ class Planet extends React.Component {
      */
 
     handleKeyDown(event) {
-        if (!this.props.visible || !this.props.squad) return;
+        if (!this.props.visible) return;
 
         // Encounter popup hotkeys: 1/Enter/Space fire the primary action (accept the offer, or Continue past
         // the result), Esc leaves. The popup blocks movement -- the player must choose -- but movement keys
         // still track into heldKeys, so holding a direction while pressing Esc walks off without a re-press.
-        const prompt = this.props.squad.prompt;
+        // Handled before the squad guard: a wipe's result popup has no squad left, but still needs dismissing.
+        const prompt = this.props.prompt;
         if (prompt) {
             if (event.key === 'Enter' || event.key === ' ' || event.key === '1') {
                 event.preventDefault();
@@ -161,6 +165,33 @@ class Planet extends React.Component {
             if (event.key === 'Escape') {
                 event.preventDefault();
                 if (!event.repeat) this.props.squadLeavePrompt();
+                return;
+            }
+            const dir = KEY_DIRS[event.key];
+            if (dir) {
+                event.preventDefault();
+                if (!event.repeat) {
+                    this.heldKeys = this.heldKeys.filter(held => held.key !== event.key).concat({ key: event.key, dir });
+                }
+            }
+            return;
+        }
+
+        if (!this.props.squad) return;
+
+        // Mid-battle hotkeys: number keys pop consumables (1..N in pouch order, mirrored by the popup's
+        // action row), Esc orders the retreat. Movement keys still track into heldKeys so a held direction
+        // resumes driving the moment the battle ends.
+        if (this.props.squad.fighting) {
+            const slot = parseInt(event.key, 10);
+            if (slot >= 1 && slot <= this.props.pouchOrder.length) {
+                event.preventDefault();
+                if (!event.repeat) this.props.useConsumable(this.props.pouchOrder[slot - 1]);
+                return;
+            }
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                if (!event.repeat) this.props.retreatFromFight();
                 return;
             }
             const dir = KEY_DIRS[event.key];
@@ -197,10 +228,10 @@ class Planet extends React.Component {
     // at the site until the player answers the popup (a held direction then resumes on dismissal).
     maybeContinueMovement(prevProps) {
         const squad = this.props.squad;
-        if (!squad || squad.path.length > 0 || squad.fighting || squad.prompt) return;
+        if (!squad || squad.path.length > 0 || squad.fighting || this.props.prompt) return;
 
         const prev = prevProps.squad;
-        const wasBusy = prev && (prev.path.length > 0 || prev.fighting || prev.prompt);
+        const wasBusy = prev && (prev.path.length > 0 || prev.fighting || prevProps.prompt);
         if (!wasBusy) return;
 
         const next = this.bufferedDir || (this.heldKeys.length > 0 ? this.heldKeys[this.heldKeys.length - 1].dir : null);
@@ -423,11 +454,12 @@ class Planet extends React.Component {
         const squad = this.props.squad;
         if (!squad) return;
 
-        // Skirmish animation: effect chars churn on the nest tile; the squad stands its ground beside it
+        // Skirmish animation: effect chars churn on the nest tile (ambient echo of the battle playing out in
+        // the popup); the squad stands its ground beside it
         if (squad.fighting) {
             const poi = this.props.pois[squad.fighting.poiId];
             if (poi) {
-                const frame = Math.floor(squad.fighting.remainingMs / 250) % FIGHT_EFFECT_CHARS.length;
+                const frame = Math.floor(squad.fighting.battle.elapsedMs / 250) % FIGHT_EFFECT_CHARS.length;
                 overlays[`${poi.coord[0]},${poi.coord[1]}`] = { char: FIGHT_EFFECT_CHARS[frame], colorKey: 'battle' };
             }
         }
@@ -534,6 +566,11 @@ const mapStateToProps = state => {
         droids: state.planet.droids,
         pois: state.planet.pois,
         squad: state.planet.squad,
+        prompt: state.planet.prompt,
+        // The battle hotkey layout: carried item types in manifest order (stable through a fight, so slots
+        // don't shift as an item runs out; the popup's action row mirrors this)
+        pouchOrder: state.planet.squad ?
+            CONSUMABLE_ORDER.filter(id => (state.planet.squad.pouch || {})[id] !== undefined) : [],
         hoveredPoiId: state.game.hoveredPoiId,
         homeCoord: state.planet.homeCoord,
         numExplored: state.planet.numExplored,
@@ -552,5 +589,6 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadStepInto, squadInteract, squadLeavePrompt, setBeaconAt, setRotation, setRotationMode }
+    { squadStepInto, squadInteract, squadLeavePrompt, useConsumable, retreatFromFight,
+      setBeaconAt, setRotation, setRotationMode }
 )(Planet);

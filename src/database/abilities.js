@@ -8,6 +8,7 @@ import {applyOperationsToVariables, EFFECT_TARGETS, initOperations, mergeEffectI
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {STANDARD_COST_EXP} from "./structures";
 import {countAllStructuresBuilt} from "../redux/modules/structures";
+import {CONSUMABLE_DEFS} from "./consumables";
 
 const DEBUG_FF = false;
 
@@ -60,6 +61,33 @@ const database = {
         produces: {
             standardDroids: 1
         },
+    }),
+
+    // Squad consumables (database/consumables.js defines what they do in battle). Flat costs -- unlike
+    // droids they don't scale, so a stocked pouch stays an ordinary purchase, not an investment.
+    droidFactory_buildDemoCharge: _.merge({}, base, {
+        name: 'Build Demo Charge',
+        structure: 'droidFactory',
+        description: `${CONSUMABLE_DEFS.demoCharge.description} Stock the squad's pouch at deploy.`,
+        castTime: 20,
+        cost: { ore: 150, refinedMinerals: 40 },
+        produces: { demoCharge: 1 }
+    }),
+    droidFactory_buildRepairKit: _.merge({}, base, {
+        name: 'Build Repair Kit',
+        structure: 'droidFactory',
+        description: `${CONSUMABLE_DEFS.repairKit.description} Stock the squad's pouch at deploy.`,
+        castTime: 15,
+        cost: { ore: 100, refinedMinerals: 25 },
+        produces: { repairKit: 1 }
+    }),
+    droidFactory_buildOverchargeCell: _.merge({}, base, {
+        name: 'Build Overcharge Cell',
+        structure: 'droidFactory',
+        description: `${CONSUMABLE_DEFS.overchargeCell.description} Stock the squad's pouch at deploy.`,
+        castTime: 15,
+        cost: { ore: 80, refinedMinerals: 20 },
+        produces: { overchargeCell: 1 }
     }),
 
     replicate: _.merge({}, base, {

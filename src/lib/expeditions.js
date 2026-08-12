@@ -26,9 +26,6 @@ export const POI_STATUS = {
     cleared: 'cleared'
 }
 
-export const FIGHT_DURATION_MS = 5000;
-export const NEST_LOSS_FACTOR = 0.25; // fraction of a nest's difficulty lost as casualties on a win
-
 // Display constants (colorKeys index into PLANET_COLORS in planet_render.js)
 export const POI_GLYPHS = { cache: '$', nest: '@', storySite: '?', gate: '∩' };
 export const POI_COLOR_KEYS = { cache: 'poiCache', nest: 'poiNest', storySite: 'poiStory', gate: 'poiGate' };
@@ -207,13 +204,4 @@ export function estimateDifficultyRange(difficulty) {
     return [lo, lo + 2];
 }
 
-// The deterministic encounter resolution. Nests: strength check. Everything else always succeeds.
-export function computeOutcome(poi, squadSize) {
-    if (poi.type === POI_TYPES.nest) {
-        const success = squadSize >= poi.difficulty;
-        const losses = success ? Math.min(squadSize, Math.ceil(poi.difficulty * NEST_LOSS_FACTOR)) : squadSize;
-        return { success, losses, survivors: squadSize - losses };
-    }
-    return { success: true, losses: 0, survivors: squadSize };
-}
 

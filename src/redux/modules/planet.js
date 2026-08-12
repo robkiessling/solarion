@@ -25,14 +25,13 @@ import {
 } from "../../lib/planet_pathing";
 import {
     CAPABILITY_LABELS,
-    computeOutcome,
-    FIGHT_DURATION_MS,
     formatResourceList,
     generatePois,
     POI_STATUS,
     POI_TYPES,
     resultBehaviorFor
 } from "../../lib/expeditions";
+import {applyConsumable, BATTLE_PHASES, createBattle, startWithdrawal} from "../../lib/battle";
 import {canConsume} from "./resources";
 import {advanceSquad, createSquad, isOnGrid} from "../../lib/squad";
 import {logInline} from "./log";
@@ -63,6 +62,9 @@ export const ADVANCE_SQUAD = 'planet/ADVANCE_SQUAD';
 export const SQUAD_START_FIGHT = 'planet/SQUAD_START_FIGHT';
 export const SQUAD_FIGHT_WON = 'planet/SQUAD_FIGHT_WON';
 export const SQUAD_WIPED = 'planet/SQUAD_WIPED';
+export const SQUAD_RETREATED = 'planet/SQUAD_RETREATED';
+export const SQUAD_RETREAT_ORDERED = 'planet/SQUAD_RETREAT_ORDERED';
+export const SQUAD_USE_CONSUMABLE = 'planet/SQUAD_USE_CONSUMABLE';
 export const SQUAD_PROMPT = 'planet/SQUAD_PROMPT';
 export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT';
 export const SQUAD_RESOLVE_POI = 'planet/SQUAD_RESOLVE_POI';
@@ -110,7 +112,10 @@ const initialState = {
 
     // Expedition system (see lib/expeditions.js for domain logic and shapes)
     pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
-    squad: null // the player-driven squad: { coord, path, moveProgress, charge, squadSize, cargo, fighting, prompt }
+    squad: null, // the player-driven squad: { coord, path, moveProgress, charge, squadSize, cargo, pouch, droidHp, fighting }
+    // The encounter popup's state: null | { poiId, phase: 'offer'|'result', result }. Planet-level (not on the
+    // squad) so a wipe can still narrate its ending after the squad object is gone.
+    prompt: null
 }
 
 // Reducer
@@ -127,6 +132,7 @@ export default function reducer(state = initialState, action) {
                 maxDevelopedLand: { $set: numSectorsMatching(payload.map, undefined, TERRAINS.flatland.enum) + 1 }, // add 1 for home base
                 pois: { $set: payload.pois },
                 squad: { $set: null },
+                prompt: { $set: null },
                 beaconCoord: { $set: null }
             })
         case PROGRESS:
@@ -243,11 +249,12 @@ export default function reducer(state = initialState, action) {
 
         case DEPLOY_SQUAD:
             return update(state, {
-                squad: { $set: createSquad(state.homeCoord, payload.squadSize) }
+                squad: { $set: createSquad(state.homeCoord, payload.squadSize, payload.pouch) }
             });
         case DISBAND_SQUAD:
             return update(state, {
-                squad: { $set: null }
+                squad: { $set: null },
+                prompt: { $set: null }
             });
         case SQUAD_SET_PATH:
             // Safety net: any new path clears a lingering prompt (the input layer blocks movement while one
@@ -255,43 +262,45 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 squad: {
                     path: { $set: payload.path },
-                    moveProgress: { $set: 0 },
-                    prompt: { $set: null }
-                }
+                    moveProgress: { $set: 0 }
+                },
+                prompt: { $set: null }
             });
         case SQUAD_START_FIGHT:
-            // Walked into a nest: outcome decided NOW (deterministic); the fighting state is a timed animation
-            // over a known result. Movement locks until it resolves.
+            // Walked into a nest: the live battle sim starts NOW (see lib/battle.js) and plays out in the
+            // encounter popup. Movement locks until it resolves. Watching the field reveals the true strength.
             return update(state, {
                 squad: {
                     path: { $set: [] },
                     moveProgress: { $set: 0 },
-                    prompt: { $set: null },
-                    fighting: { $set: { poiId: payload.poiId, remainingMs: FIGHT_DURATION_MS, outcome: payload.outcome } }
-                }
+                    fighting: { $set: { poiId: payload.poiId, battle: payload.battle } }
+                },
+                pois: { [payload.poiId]: { difficultyKnown: { $set: true } } },
+                prompt: { $set: null }
             });
         case SQUAD_PROMPT:
             // Standing on a cache/story tile: movement locks until the player answers (take/explore or leave)
             return update(state, {
                 squad: {
                     path: { $set: [] },
-                    moveProgress: { $set: 0 },
-                    prompt: { $set: { poiId: payload.poiId, phase: 'offer' } }
-                }
+                    moveProgress: { $set: 0 }
+                },
+                prompt: { $set: { poiId: payload.poiId, phase: 'offer' } }
             });
         case SQUAD_LEAVE_PROMPT:
             return update(state, {
-                squad: { prompt: { $set: null } }
+                prompt: { $set: null }
             });
         case SQUAD_FIGHT_WON: {
-            // The skirmish outcome shows in the encounter popup's result phase (losses, reclaimed land, loot)
+            // The battle's outcome shows in the encounter popup's result phase (losses, reclaimed land, loot)
             updates = {
                 pois: { [payload.poiId]: { status: { $set: POI_STATUS.cleared } } },
                 squad: {
-                    squadSize: { $set: payload.outcome.survivors },
-                    cargo: { $apply: (cargo) => mergeCargo(cargo, payload.reward) },
-                    prompt: { $set: { poiId: payload.poiId, phase: 'result', result: payload.result } }
-                }
+                    squadSize: { $set: payload.survivors },
+                    droidHp: { $set: payload.droidHp },
+                    cargo: { $apply: (cargo) => mergeCargo(cargo, payload.reward) }
+                },
+                prompt: { $set: { poiId: payload.poiId, phase: 'result', result: payload.result } }
             };
 
             // The nest is dead: its infestation stamp retracts (the land becomes sweepable and developable
@@ -311,10 +320,32 @@ export default function reducer(state = initialState, action) {
             return update(state, updates);
         }
         case SQUAD_WIPED:
-            // Failed assault: squad and cargo are gone; the exact strength is now known for the retry
+            // Failed assault: squad, cargo, and pouch are gone. The ending narrates in the popup
+            // (planet-level prompt, so it survives the squad's deletion). The nest resets to full
+            // strength (each side heals at home), so the next assault must be decisive too.
             return update(state, {
-                pois: { [payload.poiId]: { difficultyKnown: { $set: true } } },
-                squad: { $set: null }
+                squad: { $set: null },
+                prompt: { $set: { poiId: payload.poiId, phase: 'result', result: payload.result } }
+            });
+        case SQUAD_RETREATED:
+            // Withdrawal complete: the escapees keep driving (no popup to dismiss mid-flight), carrying
+            // their wounds; the nest restores itself to full strength behind them.
+            return update(state, {
+                squad: {
+                    squadSize: { $set: payload.survivors },
+                    droidHp: { $set: payload.droidHp }
+                }
+            });
+        case SQUAD_RETREAT_ORDERED:
+            return update(state, {
+                squad: { fighting: { battle: { $apply: startWithdrawal } } }
+            });
+        case SQUAD_USE_CONSUMABLE:
+            return update(state, {
+                squad: {
+                    pouch: { [payload.itemId]: { $apply: (count) => count - 1 } },
+                    fighting: { battle: { $apply: (battle) => applyConsumable(battle, payload.itemId) } }
+                }
             });
         case SQUAD_RESOLVE_POI: {
             // Player chose to take/explore/open the site: clear it and load any reward as cargo. A 'narrate'
@@ -322,10 +353,10 @@ export default function reducer(state = initialState, action) {
             updates = {
                 pois: { [payload.poiId]: { status: { $set: POI_STATUS.cleared } } },
                 squad: {
-                    prompt: { $set: payload.result ?
-                        { poiId: payload.poiId, phase: 'result', result: payload.result } : null },
                     cargo: { $apply: (cargo) => mergeCargo(cargo, payload.reward) }
-                }
+                },
+                prompt: { $set: payload.result ?
+                    { poiId: payload.poiId, phase: 'result', result: payload.result } : null }
             };
 
             // Opening a gate unblocks its tile (scouts can pass, land can develop through) and may put new
@@ -624,14 +655,21 @@ function sealedText(poi) {
     return `${poi.name} is sealed — requires ${CAPABILITY_LABELS[poi.requires] || poi.requires}.`;
 }
 
-export function deploySquad(squadSize) {
+// `pouch` is the consumable loadout staged on the deploy card: { itemId: count }, consumed from base stock
+// alongside the droids and carried by the squad for mid-fight use.
+export function deploySquad(squadSize, pouch = {}) {
     return function(dispatch, getState) {
         const state = getState();
         const planet = state.planet;
         if (planet.squad || !planet.homeCoord) return;
-        if (squadSize < 1 || !canConsume(state.resources, { standardDroids: squadSize })) return;
 
-        dispatch(withRecalculation({ type: DEPLOY_SQUAD, payload: { squadSize } }));
+        const stocked = {};
+        Object.entries(pouch).forEach(([itemId, count]) => {
+            if (count > 0) stocked[itemId] = Math.floor(count);
+        });
+        if (squadSize < 1 || !canConsume(state.resources, { ...stocked, standardDroids: squadSize })) return;
+
+        dispatch(withRecalculation({ type: DEPLOY_SQUAD, payload: { squadSize, pouch: stocked } }));
         dispatch(setRotationMode(ROTATION_MODES.squad)); // follow-cam makes driving feel right immediately
     }
 }
@@ -646,7 +684,7 @@ export function disbandSquad() {
 
         dispatch(withRecalculation({
             type: DISBAND_SQUAD,
-            payload: { survivors: squad.squadSize, cargo: squad.cargo || {} }
+            payload: { survivors: squad.squadSize, cargo: squad.cargo || {}, pouch: squad.pouch || {} }
         }));
         const delivered = squad.cargo && Object.keys(squad.cargo).length > 0 ?
             ` Delivered ${formatResourceList(squad.cargo)}.` : '';
@@ -723,9 +761,9 @@ export function squadInteract() {
     return function(dispatch, getState) {
         const planet = getState().planet;
         const squad = planet.squad;
-        if (!squad || !squad.prompt || squad.prompt.phase !== 'offer') return false;
+        if (!squad || !planet.prompt || planet.prompt.phase !== 'offer') return false;
 
-        const poi = planet.pois[squad.prompt.poiId];
+        const poi = planet.pois[planet.prompt.poiId];
         if (!poi || poi.status !== POI_STATUS.available) {
             dispatch({ type: SQUAD_LEAVE_PROMPT });
             return false;
@@ -752,8 +790,8 @@ export function squadLeavePrompt() {
     return { type: SQUAD_LEAVE_PROMPT };
 }
 
-// Bump-to-attack: a deliberate tap into an adjacent uncleared nest starts the fight. The outcome is decided
-// here (deterministic strength check); the fighting state is a timed animation over that known result.
+// Bump-to-attack: a deliberate tap into an adjacent uncleared nest starts the fight -- a live per-unit
+// battle (lib/battle.js) against the nest's current garrison, played out in the encounter popup.
 export function squadAttack(poiId) {
     return function(dispatch, getState) {
         const planet = getState().planet;
@@ -771,7 +809,33 @@ export function squadAttack(poiId) {
             .some(([r, c]) => r === poi.coord[0] && c === poi.coord[1]);
         if (!adjacent) return false;
 
-        dispatch({ type: SQUAD_START_FIGHT, payload: { poiId, outcome: computeOutcome(poi, squad.squadSize) } });
+        dispatch({ type: SQUAD_START_FIGHT,
+            payload: { poiId, battle: createBattle(squad.droidHp || squad.squadSize, poi.difficulty) } });
+        return true;
+    }
+}
+
+// Pops a carried consumable into the live battle (the popup's action row / number hotkeys).
+export function useConsumable(itemId) {
+    return function(dispatch, getState) {
+        const squad = getState().planet.squad;
+        if (!squad || !squad.fighting) return false;
+        if (!squad.pouch || !(squad.pouch[itemId] > 0)) return false;
+
+        dispatch({ type: SQUAD_USE_CONSUMABLE, payload: { itemId } });
+        return true;
+    }
+}
+
+// Orders a fighting squad to fall back (Esc). Droids stop attacking and run for the field edge while bugs
+// keep swinging, so the cost is emergent: fleeing at first contact is nearly free, mid-rout is not.
+export function retreatFromFight() {
+    return function(dispatch, getState) {
+        const squad = getState().planet.squad;
+        if (!squad || !squad.fighting) return false;
+        if (squad.fighting.battle.phase === BATTLE_PHASES.withdrawing) return false;
+
+        dispatch({ type: SQUAD_RETREAT_ORDERED });
         return true;
     }
 }
@@ -781,46 +845,54 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
     const pois = getState().planet.pois;
 
     switch (event.type) {
-        case 'fightOver': {
+        case 'battleOver': {
             const poi = pois[event.poiId];
-            const outcome = event.outcome;
-            const reward = outcome.success ? poi.reward : null;
 
-            // Reclaimed land: the stamp's already-revealed flatland credits NOW (counted before the reducer
-            // retracts the flags); still-unknown stamp tiles credit later through the normal reveal path.
-            let landCredit = 0;
-            if (outcome.success && poi.infestRadius != null) {
-                const planetMap = getState().planet.map;
-                [poi.coord, ...getCoordsWithinHops(poi.coord, poi.infestRadius)].forEach(([r, c]) => {
-                    const sector = planetMap[r][c];
-                    if (sector.infestedBy === event.poiId && sector.status === STATUSES.explored.enum &&
-                        sector.terrain === TERRAINS.flatland.enum) {
-                        landCredit++;
-                    }
-                });
-            }
+            if (event.result === 'won') {
+                const reward = poi.reward;
 
-            if (outcome.survivors > 0) {
+                // Reclaimed land: the stamp's already-revealed flatland credits NOW (counted before the reducer
+                // retracts the flags); still-unknown stamp tiles credit later through the normal reveal path.
+                let landCredit = 0;
+                if (poi.infestRadius != null) {
+                    const planetMap = getState().planet.map;
+                    [poi.coord, ...getCoordsWithinHops(poi.coord, poi.infestRadius)].forEach(([r, c]) => {
+                        const sector = planetMap[r][c];
+                        if (sector.infestedBy === event.poiId && sector.status === STATUSES.explored.enum &&
+                            sector.terrain === TERRAINS.flatland.enum) {
+                            landCredit++;
+                        }
+                    });
+                }
+
                 // The outcome narrates in the popup's result phase (the squad is standing right there)
-                dispatch({ type: SQUAD_FIGHT_WON, payload: { poiId: event.poiId, outcome, reward, landCredit,
+                dispatch({ type: SQUAD_FIGHT_WON, payload: { poiId: event.poiId, survivors: event.survivors,
+                    droidHp: event.droidHp, reward, landCredit,
                     result: {
-                        losses: outcome.losses,
-                        squadSize: outcome.survivors + outcome.losses,
+                        losses: squad.squadSize - event.survivors,
+                        squadSize: squad.squadSize,
                         landCredit,
                         capability: (reward && reward.capability) || null,
                         loaded: (reward && reward.resources) || null
                     } } });
+                if (reward && reward.capability) {
+                    dispatch(unlockTerrain(reward.capability));
+                }
             }
-            else {
-                // A wipe leaves no squad to anchor a popup to; the terminal carries the bad news
-                dispatch({ type: SQUAD_WIPED, payload: { poiId: event.poiId } });
-                const cargoLost = squad.cargo && Object.keys(squad.cargo).length > 0 ?
-                    ` Cargo lost: ${formatResourceList(squad.cargo)}.` : '';
-                dispatch(logInline(
-                    `Team lost assaulting ${poi.name}. Hostile strength confirmed: ${poi.difficulty}.${cargoLost}`));
+            else if (event.result === 'wiped') {
+                // The player watched it happen; the popup holds the ending (planet-level prompt, no squad
+                // left to anchor it), and the terminal keeps a line for the record.
+                const cargoLost = squad.cargo && Object.keys(squad.cargo).length > 0 ? squad.cargo : null;
+                dispatch({ type: SQUAD_WIPED, payload: { poiId: event.poiId,
+                    result: { wiped: true, squadSize: squad.squadSize, cargoLost } } });
+                dispatch(logInline(`Team lost assaulting ${poi.name}.` +
+                    (cargoLost ? ` Cargo lost: ${formatResourceList(cargoLost)}.` : '')));
             }
-            if (outcome.success && reward && reward.capability) {
-                dispatch(unlockTerrain(reward.capability));
+            else { // retreated
+                dispatch({ type: SQUAD_RETREATED, payload: { poiId: event.poiId, survivors: event.survivors,
+                    droidHp: event.droidHp } });
+                dispatch(logInline(`Team fell back from ${poi.name} — ` +
+                    `${event.survivors} of ${squad.squadSize} droids escaped.`));
             }
             dispatch(recalculateState());
             break;

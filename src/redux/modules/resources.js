@@ -68,17 +68,21 @@ export default function reducer(state = initialState, action) {
                 ? produceReducer(state, { standardDroids: payload.instantIndices.length }, false)
                 : state;
         case fromPlanet.DEPLOY_SQUAD:
-            return consumeReducer(state, { standardDroids: payload.squadSize })
+            // The squad walks out with its droids and its consumable pouch; both leave base stock now
+            return consumeReducer(state, { ...(payload.pouch || {}), standardDroids: payload.squadSize })
         case fromPlanet.DISBAND_SQUAD: {
             // Only survivors return to the idle pool; combat losses are permanent (never re-credited).
-            // Any undelivered cargo banks here too. Rewards must be already-LEARNed resources (unlearned ids
-            // are dropped silently by produceReducer).
+            // Any undelivered cargo banks here too, and unused pouch items go back on the shelf. Rewards must
+            // be already-LEARNed resources (unlearned ids are dropped silently by produceReducer).
             let next = state;
             if (payload.survivors > 0) {
                 next = produceReducer(next, { standardDroids: payload.survivors }, false);
             }
             if (payload.cargo && Object.keys(payload.cargo).length > 0) {
                 next = produceReducer(next, payload.cargo);
+            }
+            if (payload.pouch && Object.keys(payload.pouch).length > 0) {
+                next = produceReducer(next, payload.pouch, false);
             }
             return next;
         }
