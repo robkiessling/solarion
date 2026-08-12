@@ -1,7 +1,7 @@
 import {getRandomFromArray} from "./helpers";
 import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, REGIONS, STATUSES, TERRAINS} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {BANDS, GATE_DEFS, POI_DEFS, POI_TYPE_DEFAULTS, POI_TYPES, rollPoiReward, STORY_TEXTS} from "../database/pois";
+import {BANDS, GATE_DEFS, POI_DEFS, POI_TYPE_DEFAULTS, POI_TYPES, rollPoiReward} from "../database/pois";
 
 /**
  * This module owns the point-of-interest (POI) domain logic: POI placement mechanics, encounter resolution
@@ -199,53 +199,6 @@ export function actionLabelFor(poi) {
 // 'auto' (resolve and close) | 'narrate' (hold the popup open on a result phase)
 export function resultBehaviorFor(poi) {
     return poi.resultBehavior || POI_TYPE_DEFAULTS[poi.type].result;
-}
-
-/**
- * Composes the display line for an expedition report. Reports are structured objects (built in planet.js);
- * the text is composed once here and stored on planet.fieldReports for the Expeditions panel feed.
- *
- * Resource rewards stored as cargo: carried by the team, delivered only when it reaches home (and lost on wipe).
- */
-export function buildReportText(report) {
-    const loaded = report.loaded && Object.keys(report.loaded).length > 0 ?
-        ` Loaded ${formatResourceList(report.loaded)}.` : '';
-
-    const salvaged = report.capability ? ` Salvaged: ${CAPABILITY_LABELS[report.capability] || report.capability}.` : '';
-
-    switch (report.result) {
-        case 'success':
-            if (report.poiType === POI_TYPES.nest) {
-                const reclaimed = report.landCredit > 0 ? ` Reclaimed ${report.landCredit} land.` : '';
-                return `Cleared ${report.poiName} — lost ${report.losses} of ${report.squadSize} droids.${reclaimed}${loaded}`;
-            }
-            if (report.poiType === POI_TYPES.storySite) {
-                const story = STORY_TEXTS[report.storyId] || 'Site explored.';
-                return `${report.poiName} explored: "${story}"${salvaged}${loaded}`;
-            }
-            if (report.poiType === POI_TYPES.gate) {
-                return `${report.poiName} opened. The way is clear.`;
-            }
-            return `Recovered ${report.poiName}.${salvaged}${loaded}`;
-        case 'failure': {
-            const cargoLost = report.cargoLost && Object.keys(report.cargoLost).length > 0 ?
-                ` Cargo lost: ${formatResourceList(report.cargoLost)}.` : '';
-            return `Team lost assaulting ${report.poiName}. Hostile strength confirmed: ${report.difficulty}.${cargoLost}`;
-        }
-        case 'returned': {
-            const delivered = report.cargo && Object.keys(report.cargo).length > 0 ?
-                ` Delivered ${formatResourceList(report.cargo)}.` : '';
-            return `Team returned to base (${report.survivors} droids).${delivered}`;
-        }
-        case 'delivered':
-            return `Cargo banked: ${formatResourceList(report.cargo)}.`;
-        case 'blocked':
-            return `${report.poiName} is sealed — requires ${CAPABILITY_LABELS[report.requires] || report.requires}.`;
-        case 'noRoute':
-            return `No route to ${report.poiName}.`;
-        default:
-            return '';
-    }
 }
 
 // Difficulty shown as a band until a squad has made contact (first fight reveals the exact number).

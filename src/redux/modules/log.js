@@ -71,8 +71,8 @@ export function logMessage(id) {
 
 // Logs a one-off line of dynamic text. Unlike logMessage, the text lives on the entry itself rather than in
 // the logs database, so it can contain runtime values. The text is stored in the save -- terminal history is
-// a record, so old lines keeping their old copy is correct. (Expedition reports used this before moving to
-// planet.fieldReports; the render path stays for old saves' history and future dynamic terminal lines.)
+// a record, so old lines keeping their old copy is correct. (Used for ambient expedition telemetry: cargo
+// banked, sealed sites, disband summaries, squad wipes.)
 export function logInline(text, className = '') {
     return { type: LOG, payload: { id: null, entryType: 'inline', text, className, sequence: v4(), timestamp: null } };
 }

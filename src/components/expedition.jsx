@@ -18,7 +18,6 @@ import {PLANET_COLORS} from "../lib/planet_render";
 import Tooltip from "./ui/tooltip";
 
 const DEFAULT_TEAM_SIZE = 5;
-const MAX_VISIBLE_REPORTS = 5;
 
 /**
  * Squad sidebar. The one player-driven squad: assemble and deploy it here, drive it on the map with
@@ -181,25 +180,6 @@ class Expedition extends React.Component {
         );
     }
 
-    // Telemetry feed, newest first. Rows keep stable keys so only the newly-arrived report mounts (and plays
-    // its arrival flash); older rows just dim.
-    renderFieldReports() {
-        const reports = this.props.fieldReports;
-        if (reports.length === 0) return null;
-
-        return (
-            <div className="field-reports">
-                <div className="field-reports-header">Field Reports</div>
-                {reports.slice(-MAX_VISIBLE_REPORTS).reverse().map((report, index) =>
-                    <div key={report.id}
-                         className={`field-report report-${report.result} ${index === 0 ? 'latest' : ''}`}>
-                        {report.text}
-                    </div>
-                )}
-            </div>
-        );
-    }
-
     render() {
         const available = Object.values(this.props.pois)
             .filter(poi => poi.status === POI_STATUS.available)
@@ -209,7 +189,6 @@ class Expedition extends React.Component {
             <div className="expedition-status">
                 <div className="component-header">Expeditions</div>
                 {this.renderTeamCard()}
-                {this.renderFieldReports()}
                 {available.map(poi => this.renderPoiRow(poi))}
                 {
                     available.length === 0 && !this.props.squad &&
@@ -227,7 +206,6 @@ const mapStateToProps = (state, ownProps) => {
         squad,
         onGrid: !!(squad && state.planet.map.length > 0 && isOnGrid(state.planet.map, squad.coord)),
         sector: squad && state.planet.map.length > 0 ? state.planet.map[squad.coord[0]][squad.coord[1]] : null,
-        fieldReports: state.planet.fieldReports || [],
         unlockedTerrains: state.planet.unlockedTerrains,
         idleDroids: Math.floor(getQuantity(getResource(state.resources, 'standardDroids'))),
         hoveredPoiId: state.game.hoveredPoiId

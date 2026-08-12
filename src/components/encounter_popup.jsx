@@ -44,6 +44,12 @@ class EncounterPopup extends React.Component {
             <React.Fragment>
                 <div className="popup-body">
                     {story && <span className="story-text">"{story}"</span>}
+                    {result.losses != null &&
+                        <span className="result-line">
+                            Nest cleared — lost {result.losses} of {result.squadSize} droids.
+                        </span>}
+                    {result.landCredit > 0 &&
+                        <span className="outcome-line">Reclaimed {result.landCredit} land.</span>}
                     {result.capability &&
                         <span className="outcome-line">
                             Salvaged: {CAPABILITY_LABELS[result.capability] || result.capability}

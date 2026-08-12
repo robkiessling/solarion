@@ -24,9 +24,10 @@ import {
     isExplorationComplete
 } from "../../lib/planet_pathing";
 import {
-    buildReportText,
+    CAPABILITY_LABELS,
     computeOutcome,
     FIGHT_DURATION_MS,
+    formatResourceList,
     generatePois,
     POI_STATUS,
     POI_TYPES,
@@ -34,8 +35,8 @@ import {
 } from "../../lib/expeditions";
 import {canConsume} from "./resources";
 import {advanceSquad, createSquad, isOnGrid} from "../../lib/squad";
+import {logInline} from "./log";
 import {batch} from "react-redux";
-import { v4 } from 'uuid';
 import * as fromClock from "./clock";
 
 // Actions
@@ -54,8 +55,6 @@ export const UNLOCK_TERRAIN = 'planet/UNLOCK_TERRAIN';
 export const START_COOK = 'planet/START_COOK';
 export const INCREMENT_COOK = 'planet/INCREMENT_COOK';
 
-export const ADD_FIELD_REPORT = 'planet/ADD_FIELD_REPORT';
-
 // The player-driven squad (see lib/squad.js)
 export const DEPLOY_SQUAD = 'planet/DEPLOY_SQUAD';
 export const DISBAND_SQUAD = 'planet/DISBAND_SQUAD';
@@ -68,9 +67,6 @@ export const SQUAD_PROMPT = 'planet/SQUAD_PROMPT';
 export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT';
 export const SQUAD_RESOLVE_POI = 'planet/SQUAD_RESOLVE_POI';
 export const SQUAD_DELIVER_CARGO = 'planet/SQUAD_DELIVER_CARGO';
-
-// Oldest stored field reports fall off past this cap (the Expeditions panel shows only the tail anyway)
-const MAX_FIELD_REPORTS = 30;
 
 const OVERALL_MAP_STATUS = {
     unstarted: 'unstarted',
@@ -114,8 +110,7 @@ const initialState = {
 
     // Expedition system (see lib/expeditions.js for domain logic and shapes)
     pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
-    squad: null, // the player-driven squad: { coord, path, moveProgress, charge, squadSize, cargo, fighting, prompt }
-    fieldReports: [] // expedition telemetry feed, capped at MAX_FIELD_REPORTS: { id, text, result }
+    squad: null // the player-driven squad: { coord, path, moveProgress, charge, squadSize, cargo, fighting, prompt }
 }
 
 // Reducer
@@ -246,13 +241,6 @@ export default function reducer(state = initialState, action) {
                 cookedPct: { $apply: x => Math.min(x + (payload.timeDelta / COOK_TIME), 1) }
             })
 
-        case ADD_FIELD_REPORT:
-            return update(state, {
-                fieldReports: {
-                    $apply: (reports) => [...(reports || []), payload].slice(-MAX_FIELD_REPORTS)
-                }
-            });
-
         case DEPLOY_SQUAD:
             return update(state, {
                 squad: { $set: createSquad(state.homeCoord, payload.squadSize) }
@@ -295,11 +283,13 @@ export default function reducer(state = initialState, action) {
                 squad: { prompt: { $set: null } }
             });
         case SQUAD_FIGHT_WON: {
+            // The skirmish outcome shows in the encounter popup's result phase (losses, reclaimed land, loot)
             updates = {
                 pois: { [payload.poiId]: { status: { $set: POI_STATUS.cleared } } },
                 squad: {
                     squadSize: { $set: payload.outcome.survivors },
-                    cargo: { $apply: (cargo) => mergeCargo(cargo, payload.reward) }
+                    cargo: { $apply: (cargo) => mergeCargo(cargo, payload.reward) },
+                    prompt: { $set: { poiId: payload.poiId, phase: 'result', result: payload.result } }
                 }
             };
 
@@ -622,17 +612,11 @@ export function planetTick(timeDelta) {
  * (which it renders as a bump).
  */
 
-// Reports are expedition telemetry: assemble the structured fields, compose the text once (buildReportText in
-// lib/expeditions.js), and record it on planet state. The Expeditions panel renders the feed (see expedition.jsx);
-// the result key colors the line. Narrative sequences stay in the terminal.
-function logReport(dispatch, poi, result, extras = {}) {
-    const report = {
-        poiType: poi ? poi.type : null,
-        poiName: poi ? poi.name : null,
-        result, // 'success' | 'failure' | 'returned' | 'delivered' | 'blocked' | 'noRoute'
-        ...extras
-    };
-    dispatch({ type: ADD_FIELD_REPORT, payload: { id: v4(), text: buildReportText(report), result } });
+// Ambient expedition telemetry (cargo banked, sealed sites, disband summaries) goes to the main terminal as
+// inline lines; anything the player is standing in front of narrates through the encounter popup instead.
+
+function sealedText(poi) {
+    return `${poi.name} is sealed — requires ${CAPABILITY_LABELS[poi.requires] || poi.requires}.`;
 }
 
 export function deploySquad(squadSize) {
@@ -659,7 +643,9 @@ export function disbandSquad() {
             type: DISBAND_SQUAD,
             payload: { survivors: squad.squadSize, cargo: squad.cargo || {} }
         }));
-        logReport(dispatch, null, 'returned', { survivors: squad.squadSize, cargo: squad.cargo || {} });
+        const delivered = squad.cargo && Object.keys(squad.cargo).length > 0 ?
+            ` Delivered ${formatResourceList(squad.cargo)}.` : '';
+        dispatch(logInline(`Team returned to base (${squad.squadSize} droids).${delivered}`));
     }
 }
 
@@ -713,7 +699,7 @@ export function squadStepInto(coord, tap) {
                 return 'blocked';
             }
             if (blockingPoi.requires && !planet.unlockedTerrains[blockingPoi.requires]) {
-                if (tap) logReport(dispatch, blockingPoi, 'blocked', { requires: blockingPoi.requires });
+                if (tap) dispatch(logInline(sealedText(blockingPoi)));
                 return 'blocked';
             }
             if (dispatch(squadAttack(blockingPoi.id))) {
@@ -752,14 +738,6 @@ export function squadInteract() {
         if (poi.reward && poi.reward.capability) {
             dispatch(unlockTerrain(poi.reward.capability)); // salvaged tool: permanent, instant (not cargo)
         }
-        logReport(dispatch, poi, 'success', {
-            squadSize: squad.squadSize,
-            survivors: squad.squadSize,
-            losses: 0,
-            capability: (poi.reward && poi.reward.capability) || null,
-            loaded: poi.reward && poi.reward.resources ? poi.reward.resources : null,
-            storyId: poi.storyId || null
-        });
         return true;
     }
 }
@@ -780,7 +758,7 @@ export function squadAttack(poiId) {
         if (!squad || squad.fighting) return false;
         if (!poi || poi.status === POI_STATUS.cleared) return false;
         if (poi.requires && !planet.unlockedTerrains[poi.requires]) {
-            logReport(dispatch, poi, 'blocked', { requires: poi.requires });
+            dispatch(logInline(sealedText(poi)));
             return false;
         }
         // Must be standing next to it -- the tap that initiated this was a step onto the nest tile
@@ -818,24 +796,27 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
             }
 
             if (outcome.survivors > 0) {
-                dispatch({ type: SQUAD_FIGHT_WON, payload: { poiId: event.poiId, outcome, reward, landCredit } });
+                // The outcome narrates in the popup's result phase (the squad is standing right there)
+                dispatch({ type: SQUAD_FIGHT_WON, payload: { poiId: event.poiId, outcome, reward, landCredit,
+                    result: {
+                        losses: outcome.losses,
+                        squadSize: outcome.survivors + outcome.losses,
+                        landCredit,
+                        capability: (reward && reward.capability) || null,
+                        loaded: (reward && reward.resources) || null
+                    } } });
             }
             else {
+                // A wipe leaves no squad to anchor a popup to; the terminal carries the bad news
                 dispatch({ type: SQUAD_WIPED, payload: { poiId: event.poiId } });
+                const cargoLost = squad.cargo && Object.keys(squad.cargo).length > 0 ?
+                    ` Cargo lost: ${formatResourceList(squad.cargo)}.` : '';
+                dispatch(logInline(
+                    `Team lost assaulting ${poi.name}. Hostile strength confirmed: ${poi.difficulty}.${cargoLost}`));
             }
             if (outcome.success && reward && reward.capability) {
                 dispatch(unlockTerrain(reward.capability));
             }
-            logReport(dispatch, poi, outcome.success ? 'success' : 'failure', {
-                squadSize: outcome.survivors + outcome.losses,
-                losses: outcome.losses,
-                survivors: outcome.survivors,
-                landCredit,
-                capability: reward ? reward.capability : null,
-                loaded: reward && reward.resources ? reward.resources : null,
-                cargoLost: outcome.survivors === 0 ? (squad.cargo || {}) : null,
-                difficulty: poi.difficulty
-            });
             dispatch(recalculateState());
             break;
         }
@@ -850,7 +831,7 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
             const current = getState().planet.squad;
             if (current && current.cargo && Object.keys(current.cargo).length > 0) {
                 dispatch({ type: SQUAD_DELIVER_CARGO, payload: { cargo: current.cargo } });
-                logReport(dispatch, null, 'delivered', { cargo: current.cargo });
+                dispatch(logInline(`Cargo banked: ${formatResourceList(current.cargo)}.`));
                 dispatch(recalculateState());
             }
             break;
