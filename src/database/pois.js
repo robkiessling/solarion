@@ -1,0 +1,106 @@
+import {getRandomIntInclusive} from "../lib/helpers";
+import {GATE_KINDS} from "../lib/planet_map";
+
+/**
+ * POI content definitions: WHAT exists on the planet. One POI_DEFS entry per placed POI; gates are defined
+ * per gate kind (they sit on the tiles the map-gen stamp pass marked, not in placement bands). The placement
+ * pass (generatePois in lib/expeditions.js) owns the mechanics: band selection, reachability, nest
+ * infestation stamping.
+ *
+ * Names, texts, difficulties, and rewards are PLACEHOLDERS until the content pass; this file is what that
+ * pass edits.
+ */
+
+export const POI_TYPES = {
+    cache: 'cache',
+    nest: 'nest',
+    storySite: 'storySite',
+    gate: 'gate' // a physical barrier POI (cave rockfall, sealed door): impassable until opened with its capability
+}
+
+// Placement bands. R1 is the bowl (tutorial), R3 the antipode (finale). R2 is cut in half by the acid belt;
+// the near/far split keeps e.g. the Sealed Chassis salvage reachable BEFORE the acid it unlocks.
+export const BANDS = {
+    r1: 'r1',
+    r2near: 'r2near',
+    r2far: 'r2far',
+    r3: 'r3'
+}
+
+// Story text lives here (not in the log database) because reports are dynamic; POIs store the key only.
+// PLACEHOLDER texts: the real ~12-log mystery is authored in the content pass.
+export const STORY_TEXTS = {
+    r1_deadDroid: 'A droid chassis, half-buried. The model number matches your own manufacturing line. You did not build it.',
+    r2_scorchedCore: 'A collapsed structure of familiar design. Its data core is scorched from the inside.',
+    r2_chassisCache: 'A maintenance bay, mostly intact. One sealed hazard chassis still hangs in its cradle.',
+    r2_wreckage: 'Wreckage strewn across a kilometer. The blast patterns came from above. Something attacked them.',
+    r2_overrideVault: 'A command vault. Inside, an override module -- its authorization codes are older than your directive.',
+    r3_commandRuin: 'The ruined command center of the first swarm. The final log is intact.',
+    r3_hiveHeart: 'A vast organic chamber, pulsing faintly. The hive is not from this planet either.'
+}
+
+// Resource reward amounts are [lo, hi] ranges, rolled to a multiple of 100 at map generation (rollPoiReward).
+export const POI_DEFS = [
+    // R1, the bowl (tutorial): one easy nest, two caches, the dead-droid story site
+    { type: POI_TYPES.nest, band: BANDS.r1, difficulty: 3, infestRadius: 1 },
+    { type: POI_TYPES.cache, band: BANDS.r1, reward: { resources: { ore: [500, 1000] } } },
+    { type: POI_TYPES.cache, band: BANDS.r1, reward: { resources: { refinedMinerals: [200, 400] } } },
+    { type: POI_TYPES.storySite, band: BANDS.r1, storyId: 'r1_deadDroid' },
+
+    // R2 near (before the acid): the Sealed Chassis salvage lives HERE so the belt is crossable
+    { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 6, infestRadius: 2 },
+    { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 10, infestRadius: 2 },
+    { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 14, infestRadius: 2 },
+    { type: POI_TYPES.cache, band: BANDS.r2near, reward: { resources: { ore: [2000, 4000] } } },
+    {
+        type: POI_TYPES.cache, band: BANDS.r2near,
+        requires: 'sealedChassis', // teased before the unlock: visible, sealed, backtrack target
+        reward: { resources: { refinedMinerals: [1000, 2000] } }
+    },
+    { type: POI_TYPES.storySite, band: BANDS.r2near, storyId: 'r2_scorchedCore' },
+    { type: POI_TYPES.storySite, band: BANDS.r2near, storyId: 'r2_chassisCache', reward: { capability: 'sealedChassis' } },
+
+    // R2 far (beyond the acid): the Override Module salvage; the red-herring wreckage
+    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 18, infestRadius: 2 },
+    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 24, infestRadius: 2 },
+    { type: POI_TYPES.cache, band: BANDS.r2far, reward: { resources: { ore: [5000, 9000] } } },
+    { type: POI_TYPES.cache, band: BANDS.r2far, reward: { resources: { refinedMinerals: [2000, 4000] } } },
+    { type: POI_TYPES.storySite, band: BANDS.r2far, storyId: 'r2_wreckage' },
+    { type: POI_TYPES.storySite, band: BANDS.r2far, storyId: 'r2_overrideVault', reward: { capability: 'overrideModule' } },
+
+    // R3, the antipode (finale): two hard nests, one cache, the command ruin + hive heart
+    { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 30, infestRadius: 2 },
+    { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 40, infestRadius: 2 },
+    { type: POI_TYPES.cache, band: BANDS.r3, reward: { resources: { refinedMinerals: [5000, 8000] } } },
+    { type: POI_TYPES.storySite, band: BANDS.r3, storyId: 'r3_commandRuin' },
+    { type: POI_TYPES.storySite, band: BANDS.r3, storyId: 'r3_hiveHeart' }
+]
+
+// Gate POIs, one definition per gate kind (the map-gen stamp pass marks sector.gated/gateKind tiles).
+export const GATE_DEFS = {
+    [GATE_KINDS.cave]: {
+        name: 'Collapsed Cave',
+        requires: 'drill',
+        promptText: 'The only pass through the ring is choked with rockfall. Drill through?',
+        actionLabel: 'Drill'
+    },
+    [GATE_KINDS.door]: {
+        name: 'Sealed Bulkhead',
+        requires: 'overrideModule',
+        promptText: 'A first-swarm bulkhead, still powered. The override module interfaces cleanly. Open it?',
+        actionLabel: 'Open'
+    }
+}
+
+// Resolves a definition's reward at generation time: [lo, hi] resource ranges roll to a multiple of 100;
+// capability rewards pass through unchanged.
+export function rollPoiReward(rewardDef) {
+    const reward = {...rewardDef};
+    if (rewardDef.resources) {
+        reward.resources = {};
+        Object.entries(rewardDef.resources).forEach(([resource, [lo, hi]]) => {
+            reward.resources[resource] = getRandomIntInclusive(lo / 100, hi / 100) * 100;
+        });
+    }
+    return reward;
+}

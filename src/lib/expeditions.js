@@ -1,18 +1,16 @@
-import {getRandomFromArray, getRandomIntInclusive} from "./helpers";
-import {ACID_BAND_DISTANCES, GATE_KINDS, getCrossTime, getHomeBasePosition, REGIONS, STATUSES, TERRAINS} from "./planet_map";
+import {getRandomFromArray} from "./helpers";
+import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, REGIONS, STATUSES, TERRAINS} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
+import {BANDS, GATE_DEFS, POI_DEFS, POI_TYPES, rollPoiReward, STORY_TEXTS} from "../database/pois";
 
 /**
- * This module owns the point-of-interest (POI) domain logic: POI generation, encounter resolution math, and
- * report text. Squad movement/driving lives in squad.js (the squad is player-driven).
+ * This module owns the point-of-interest (POI) domain logic: POI placement mechanics, encounter resolution
+ * math, and report text. WHAT gets placed (counts, rewards, story text) is data in database/pois.js; squad
+ * movement/driving lives in squad.js (the squad is player-driven).
  */
 
-export const POI_TYPES = {
-    cache: 'cache',
-    nest: 'nest',
-    storySite: 'storySite',
-    gate: 'gate' // a physical barrier POI (cave rockfall, sealed door): impassable until opened with its capability
-}
+// POI content constants live in database/pois.js; re-exported here so consumers keep one import site.
+export {POI_TYPES, STORY_TEXTS} from "../database/pois";
 
 // The three tools. Stored in planet.unlockedTerrains (the shared capability set: terrain crossUpgrades and
 // POI `requires` both read it), granted via upgrades or POI salvage (reward.capability).
@@ -37,36 +35,20 @@ export const POI_COLOR_KEYS = { cache: 'poiCache', nest: 'poiNest', storySite: '
 export const POI_LABELS = { cache: 'Supply Cache', nest: 'Hive Nest', storySite: 'Ruins', gate: 'Barrier' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 
-// Story text lives here (not in the log database) because reports are dynamic; reports store the key only.
-// PLACEHOLDER texts: the real ~12-log mystery is authored in the content pass.
-export const STORY_TEXTS = {
-    r1_deadDroid: 'A droid chassis, half-buried. The model number matches your own manufacturing line. You did not build it.',
-    r2_scorchedCore: 'A collapsed structure of familiar design. Its data core is scorched from the inside.',
-    r2_chassisCache: 'A maintenance bay, mostly intact. One sealed hazard chassis still hangs in its cradle.',
-    r2_wreckage: 'Wreckage strewn across a kilometer. The blast patterns came from above. Something attacked them.',
-    r2_overrideVault: 'A command vault. Inside, an override module -- its authorization codes are older than your directive.',
-    r3_commandRuin: 'The ruined command center of the first swarm. The final log is intact.',
-    r3_hiveHeart: 'A vast organic chamber, pulsing faintly. The hive is not from this planet either.'
-}
-
 /**
- * The region/stamp placement pass: POIs scattered per region (counts from the content budget; rewards,
- * names, and difficulties are placeholders until the content pass), gate POIs on the stamped gate tiles,
- * and an infestation stamp around every nest (sector.infestedBy: scout-impassable, not developable,
- * squad-crossable; retracts when the nest is cleared). MUTATES the map (generation-time only).
+ * The region/stamp placement pass: the POI_DEFS content manifest scattered per placement band, gate POIs on
+ * the stamped gate tiles, and an infestation stamp around every nest (sector.infestedBy: scout-impassable,
+ * not developable, squad-crossable; retracts when the nest is cleared). MUTATES the map (generation-time
+ * only).
  */
 export function generatePois(map) {
     const pois = {};
     const usedKeys = new Set();
 
-    // R2 is cut in half by the acid band; near/far placement bands keep e.g. the Sealed Chassis salvage
-    // reachable BEFORE the acid it unlocks.
-    const R2_NEAR = 'r2near';
-    const R2_FAR = 'r2far';
     const bandOf = (sector) => {
-        if (sector.region === REGIONS.bowl) return 'r1';
-        if (sector.region === REGIONS.antipode) return 'r3';
-        return sector.graphDistanceHome < ACID_BAND_DISTANCES[0] ? R2_NEAR : R2_FAR;
+        if (sector.region === REGIONS.bowl) return BANDS.r1;
+        if (sector.region === REGIONS.antipode) return BANDS.r3;
+        return sector.graphDistanceHome < ACID_BAND_DISTANCES[0] ? BANDS.r2near : BANDS.r2far;
     };
 
     // Only place POIs where a fully-tooled squad can actually walk (gates treated as open, acid as
@@ -143,57 +125,25 @@ export function generatePois(map) {
         row.forEach(sector => {
             if (!sector.gated) return;
             usedKeys.add(`${sector.coord[0]},${sector.coord[1]}`);
-            if (sector.gateKind === GATE_KINDS.cave) {
-                add(POI_TYPES.gate, sector, {
-                    name: 'Collapsed Cave',
-                    requires: 'drill',
-                    promptText: 'The only pass through the ring is choked with rockfall. Drill through?',
-                    actionLabel: 'Drill'
-                });
-            }
-            else {
-                add(POI_TYPES.gate, sector, {
-                    name: 'Sealed Bulkhead',
-                    requires: 'overrideModule',
-                    promptText: 'A first-swarm bulkhead, still powered. The override module interfaces cleanly. Open it?',
-                    actionLabel: 'Open'
-                });
-            }
+            add(POI_TYPES.gate, sector, { ...GATE_DEFS[sector.gateKind] });
         });
     });
 
-    // R1 -- the bowl (tutorial): one easy nest, two caches, the dead-droid story site
-    addNest('r1', 3, 1);
-    add(POI_TYPES.cache, pick('r1'), { reward: { resources: { ore: getRandomIntInclusive(5, 10) * 100 } } });
-    add(POI_TYPES.cache, pick('r1'), { reward: { resources: { refinedMinerals: getRandomIntInclusive(2, 4) * 100 } } });
-    add(POI_TYPES.storySite, pick('r1'), { storyId: 'r1_deadDroid' });
-
-    // R2 near (before the acid): the Sealed Chassis salvage lives HERE so the belt is crossable
-    addNest(R2_NEAR, 6, 2);
-    addNest(R2_NEAR, 10, 2);
-    addNest(R2_NEAR, 14, 2);
-    add(POI_TYPES.cache, pick(R2_NEAR), { reward: { resources: { ore: getRandomIntInclusive(20, 40) * 100 } } });
-    add(POI_TYPES.cache, pick(R2_NEAR), {
-        requires: 'sealedChassis', // teased before the unlock: visible, sealed, backtrack target
-        reward: { resources: { refinedMinerals: getRandomIntInclusive(10, 20) * 100 } }
+    // The content manifest: each definition placed in its band, rewards rolled from their declared ranges
+    POI_DEFS.forEach(def => {
+        if (def.type === POI_TYPES.nest) {
+            addNest(def.band, def.difficulty, def.infestRadius);
+            return;
+        }
+        const extras = {};
+        if (def.name) extras.name = def.name;
+        if (def.requires) extras.requires = def.requires;
+        if (def.storyId) extras.storyId = def.storyId;
+        if (def.promptText) extras.promptText = def.promptText;
+        if (def.actionLabel) extras.actionLabel = def.actionLabel;
+        if (def.reward) extras.reward = rollPoiReward(def.reward);
+        add(def.type, pick(def.band), extras);
     });
-    add(POI_TYPES.storySite, pick(R2_NEAR), { storyId: 'r2_scorchedCore' });
-    add(POI_TYPES.storySite, pick(R2_NEAR), { storyId: 'r2_chassisCache', reward: { capability: 'sealedChassis' } });
-
-    // R2 far (beyond the acid): the Override Module salvage; the red-herring wreckage
-    addNest(R2_FAR, 18, 2);
-    addNest(R2_FAR, 24, 2);
-    add(POI_TYPES.cache, pick(R2_FAR), { reward: { resources: { ore: getRandomIntInclusive(50, 90) * 100 } } });
-    add(POI_TYPES.cache, pick(R2_FAR), { reward: { resources: { refinedMinerals: getRandomIntInclusive(20, 40) * 100 } } });
-    add(POI_TYPES.storySite, pick(R2_FAR), { storyId: 'r2_wreckage' });
-    add(POI_TYPES.storySite, pick(R2_FAR), { storyId: 'r2_overrideVault', reward: { capability: 'overrideModule' } });
-
-    // R3 -- the antipode (finale): two hard nests, one cache, the command ruin + hive heart
-    addNest('r3', 30, 2);
-    addNest('r3', 40, 2);
-    add(POI_TYPES.cache, pick('r3'), { reward: { resources: { refinedMinerals: getRandomIntInclusive(50, 80) * 100 } } });
-    add(POI_TYPES.storySite, pick('r3'), { storyId: 'r3_commandRuin' });
-    add(POI_TYPES.storySite, pick('r3'), { storyId: 'r3_hiveHeart' });
 
     return pois;
 }
