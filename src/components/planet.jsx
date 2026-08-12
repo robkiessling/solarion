@@ -426,6 +426,14 @@ class Planet extends React.Component {
                 offsetX = (toCell[1] - fromCell[1]) * fraction;
                 offsetY = (toCell[0] - fromCell[0]) * fraction;
             }
+
+            // Follow-cam pins the glyph horizontally: the camera re-centers by a whole column on arrival, so a
+            // smooth horizontal slide would just snap back (sawtooth). The world step-scrolls under a stationary
+            // avatar instead. Vertical slides keep the smoothing (the camera never tracks rows), as do all
+            // slides in the manual/sun camera modes (the camera doesn't chase the squad there).
+            if (this.props.rotationMode === ROTATION_MODES.squad) {
+                offsetX = 0;
+            }
         }
 
         if (this.bump) {
