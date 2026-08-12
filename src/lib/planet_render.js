@@ -57,18 +57,22 @@ const PING_VARIANTS = {
  *
  * @param canvasManager {AsciiCanvas} must be constructed with the fillContainer option
  * @param image {Array} 2d array of cells from generateImage: { char, colorKey, color, light, dividers }
+ * @param cameraShift {number} sub-column camera offset in cell units (the follow-cam mid-slide); shifts the
+ *        whole scene -- chars, halo segments, pings -- while the canvas/silhouette stays put. generateImage
+ *        must have been called with the same value (it widens the window and masks by screen position).
  */
-export function drawPlanetImage(canvasManager, image) {
+export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
     if (image.length === 0) { return; }
 
     const context = canvasManager.context;
     const fontWidth = canvasManager.fontWidth;
     const fontHeight = canvasManager.fontHeight;
 
-    // Center the image on the grid; a larger image (laser beams) extends symmetrically past the grid edges.
+    // Center the image on the grid; a larger image (laser beams, the camera-shift pad columns) extends
+    // symmetrically past the grid edges.
     const imageCols = Math.max(...image.map(row => row.length));
     const [gridX, gridY] = canvasManager.gridOrigin();
-    const originX = gridX - ((imageCols - canvasManager.numCols) / 2) * fontWidth;
+    const originX = gridX - ((imageCols - canvasManager.numCols) / 2) * fontWidth - cameraShift * fontWidth;
     const originY = gridY - ((image.length - canvasManager.numRows) / 2) * fontHeight;
 
     // fillStyle/globalAlpha changes are canvas state churn; neighboring cells usually share them, so only set on change

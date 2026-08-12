@@ -288,6 +288,23 @@ class Planet extends React.Component {
         this.props.setBeaconAt(coord);
     }
 
+    // Sub-column camera offset, in cell units: mid-slide under the follow-cam, the camera tracks the squad's
+    // true (fractional) position. Redux rotation snaps a whole column on arrival exactly as this returns to 0,
+    // so the scene scrolls continuously. Signed toward the step direction; 0 for vertical steps (the camera
+    // never tracks rows) and in the manual/sun camera modes.
+    cameraShift() {
+        const squad = this.props.squad;
+        if (!squad || this.props.rotationMode !== ROTATION_MODES.squad || squad.path.length === 0) return 0;
+
+        const next = squad.path[0];
+        // Wrap-aware step direction: +1 east / -1 west, including across the seam (col 119 -> 0)
+        const step = mod(next[1] - squad.coord[1] + PLANET_COLS / 2, PLANET_COLS) - PLANET_COLS / 2;
+        if (step === 0) return 0;
+
+        const crossMs = squadCrossMs(this.props.map, next, this.props.unlockedTerrains, squad.charge);
+        return step * Math.min(squad.moveProgress / crossMs, 1);
+    }
+
     drawPlanet() {
         if (!this.props.visible) {
             return;
@@ -299,17 +316,19 @@ class Planet extends React.Component {
             this.canvasManager.resize();
         }
 
+        const cameraShift = this.cameraShift();
         const planetImage = generateImage(
             this.props.map,
             this.props.fractionOfDay,
             this.props.rotation,
             this.props.sunTracking,
             this.props.cookedPct,
-            this.buildOverlays()
+            this.buildOverlays(),
+            cameraShift
         );
 
         this.canvasManager.clearAll();
-        drawPlanetImage(this.canvasManager, planetImage);
+        drawPlanetImage(this.canvasManager, planetImage, cameraShift);
     }
 
     // Expedition markers, keyed by planet "row,col". Later entries overwrite earlier ones, so precedence is
@@ -423,16 +442,10 @@ class Planet extends React.Component {
             const fromCell = coordToImageCell(squad.coord, this.props.rotation);
             const toCell = coordToImageCell(next, this.props.rotation);
             if (fromCell && toCell) {
+                // Under the follow-cam this horizontal offset is cancelled exactly by the scene-wide
+                // cameraShift, pinning the glyph at center while the terrain scrolls beneath it
                 offsetX = (toCell[1] - fromCell[1]) * fraction;
                 offsetY = (toCell[0] - fromCell[0]) * fraction;
-            }
-
-            // Follow-cam pins the glyph horizontally: the camera re-centers by a whole column on arrival, so a
-            // smooth horizontal slide would just snap back (sawtooth). The world step-scrolls under a stationary
-            // avatar instead. Vertical slides keep the smoothing (the camera never tracks rows), as do all
-            // slides in the manual/sun camera modes (the camera doesn't chase the squad there).
-            if (this.props.rotationMode === ROTATION_MODES.squad) {
-                offsetX = 0;
             }
         }
 

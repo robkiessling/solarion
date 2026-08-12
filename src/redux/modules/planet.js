@@ -534,13 +534,6 @@ export function planetTick(timeDelta) {
             if (state.rotationMode === ROTATION_MODES.sun) {
                 newRotation = sunTrackingRotation(fromClock.fractionOfDay(getState().clock));
             }
-            else if (state.rotationMode === ROTATION_MODES.squad) {
-                // Follow the squad; with nobody deployed, center home base instead
-                const focusCoord = (state.squad && state.squad.coord) ? state.squad.coord : state.homeCoord;
-                if (focusCoord) {
-                    newRotation = centeringRotation(focusCoord);
-                }
-            }
 
             // Advance the squad (movement or fight countdown + line-of-sight reveals + charge). Runs before
             // the finished-map early-return so driving keeps working on a fully-explored map.
@@ -562,6 +555,17 @@ export function planetTick(timeDelta) {
                 // Scouts below must see the squad's reveals as already-applied, or a tile revealed by both in
                 // the same tick would double-count numExplored.
                 planetState = getState().planet;
+            }
+
+            if (state.rotationMode === ROTATION_MODES.squad) {
+                // Follow the squad; with nobody deployed, center home base instead. Computed AFTER the advance
+                // so the camera snaps its column in the same tick the squad arrives -- the render-side
+                // cameraShift (see planet.jsx) returns to 0 at that exact moment, keeping the scroll seamless.
+                const focusCoord = (planetState.squad && planetState.squad.coord) ?
+                    planetState.squad.coord : state.homeCoord;
+                if (focusCoord) {
+                    newRotation = centeringRotation(focusCoord);
+                }
             }
 
             const finished = planetState.overallStatus === OVERALL_MAP_STATUS.finished;

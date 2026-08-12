@@ -788,25 +788,44 @@ export function imageCellToCoord(imageRow, imageCol, rotation) {
     return [imageRow, mod(floor(rotation * PLANET_COLS) + imageCol, PLANET_COLS)];
 }
 
+// The mask factor at a fractional screen column (linear interpolation between the cell samples; 0 outside
+// the display window). With the camera mid-slide, chars land between mask cells; sampling the mask at the
+// char's actual screen position keeps the silhouette and limb fade fixed to the screen while terrain scrolls.
+function maskFactorAt(rowIndex, screenCol) {
+    const row = DISPLAY_MASK[rowIndex];
+    const left = floor(screenCol);
+    const t = screenCol - left;
+    const a = (left >= 0 && left < DISPLAY_COLS) ? row[left] : 0;
+    const b = (left + 1 >= 0 && left + 1 < DISPLAY_COLS) ? row[left + 1] : 0;
+    return a + (b - a) * t;
+}
+
 // overlays: { "row,col": { char, colorKey, color?, ping? } } -- markers drawn over tiles (scout droids, POIs,
 // expedition squad, fight effects, path highlights). Keyed by planet coords, so they ride the rotation mapping.
-export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, overlays = {}) {
+// cameraShift: sub-column camera offset in cell units (the follow-cam mid-slide). The sampled window widens by
+// one column per side and every char draws shifted by -cameraShift (see drawPlanetImage), so the whole scene
+// scrolls smoothly under the screen-fixed silhouette.
+export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, overlays = {}, cameraShift = 0) {
     let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
     let nightEnd = (fractionOfDay + NIGHT_END) % 1;
 
-    // Anchor of the fake-sphere projection (see ROW_CURVE_SCALE): the planet fraction at the disc's center column
-    const displayCenterFraction = (floor(rotation * PLANET_COLS) + DISPLAY_COLS / 2) / PLANET_COLS;
+    const displayStart = floor(rotation * PLANET_COLS);
+    const pad = cameraShift === 0 ? 0 : 1;
+
+    // Anchor of the fake-sphere projection (see ROW_CURVE_SCALE): the planet fraction at the disc's center
+    // column, continuous with the camera shift so the terminator slides instead of stepping per column
+    const displayCenterFraction = mod((displayStart + cameraShift + DISPLAY_COLS / 2) / PLANET_COLS, 1);
 
     let asciiImage = map.map((planetRow, rowIndex) => {
-        const displayStart = floor(rotation * PLANET_COLS);
-        const displayEnd = (displayStart + DISPLAY_COLS) % PLANET_COLS;
-        let displayRow = displayStart < displayEnd ? planetRow.slice(displayStart, displayEnd) :
-            planetRow.slice(displayStart, PLANET_COLS).concat(planetRow.slice(0, displayEnd));
+        const displayRow = [];
+        for (let windowIndex = 0; windowIndex < DISPLAY_COLS + pad * 2; windowIndex++) {
+            const sector = planetRow[mod(displayStart - pad + windowIndex, PLANET_COLS)];
+            // Where this char actually lands on screen, in display-cell units (fractional mid-slide)
+            const screenCol = windowIndex - pad - cameraShift;
 
-        displayRow = displayRow.map((sector, displayColIndex) => {
             // Viewport mask: cells outside the planet silhouette draw blank; the limb fades out
-            const maskFactor = DISPLAY_MASK[rowIndex][displayColIndex];
-            if (maskFactor === 0) { return { char: ' ' }; }
+            const maskFactor = maskFactorAt(rowIndex, screenCol);
+            if (maskFactor === 0) { displayRow.push({ char: ' ' }); continue; }
 
             // Cell fields (consumed by planet_render's drawPlanetImage):
             //   char: the glyph
@@ -854,7 +873,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 // (Ideally, the sunTracking:disabled shading would work for this use case too, but I couldn't get it to
                 //  work without stuttering. So I have to make this special case for sunTracking:enabled)
                 // How far into the display length the sector is, curved by row so the cutoffs arc like a sphere's limb
-                const displayFraction = 0.5 + (displayColIndex / DISPLAY_COLS - 0.5) * ROW_CURVE_SCALE[rowIndex];
+                const displayFraction = 0.5 + (screenCol / DISPLAY_COLS - 0.5) * ROW_CURVE_SCALE[rowIndex];
                 if (displayFraction >= SUN_TRACKING_NIGHT_CUTOFF) {
                     light = 'night';
                 }
@@ -886,8 +905,8 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 alpha = (alpha === undefined ? 1 : alpha) * maskFactor; // soft limb fade
             }
 
-            return { char, colorKey, color, light, dividers, ping, alpha, offsetX, offsetY, haloEdges }
-        });
+            displayRow.push({ char, colorKey, color, light, dividers, ping, alpha, offsetX, offsetY, haloEdges });
+        }
 
         return displayRow;
     });
