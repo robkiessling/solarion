@@ -82,7 +82,10 @@ export function drawPlanetImage(canvasManager, image) {
         row.forEach((cell, colIndex) => {
             if (cell.char === undefined || cell.char === ' ') { return; }
 
-            const x = originX + colIndex * fontWidth;
+            // offsetX/offsetY: sub-cell nudge in cell units (sortie slide interpolation, bump animation)
+            const offsetX = (cell.offsetX || 0) * fontWidth;
+            const offsetY = (cell.offsetY || 0) * fontHeight;
+            const x = originX + colIndex * fontWidth + offsetX;
             const color = cell.color || PLANET_COLORS[cell.colorKey] || '#ffffff';
             // Day/night shading, multiplied by any per-cell alpha (e.g. the scouts' pulse animation)
             let alpha = LIGHT_ALPHA[cell.light] !== undefined ? LIGHT_ALPHA[cell.light] : 1;
@@ -97,10 +100,10 @@ export function drawPlanetImage(canvasManager, image) {
                 currentColor = color;
             }
 
-            context.fillText(cell.char, x, baseline);
+            context.fillText(cell.char, x, baseline + offsetY);
 
             if (cell.ping !== undefined) {
-                pings.push({ x: x + fontWidth / 2, y: top + fontHeight / 2, ping: cell.ping });
+                pings.push({ x: x + fontWidth / 2, y: top + offsetY + fontHeight / 2, ping: cell.ping });
             }
 
             if (cell.dividers) {

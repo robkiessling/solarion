@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import {NUM_PLANET_ROWS, PLANET_COLS} from './planet_geometry';
 import structuresDatabase from '../database/structures';
 import resourcesDatabase from '../database/resources';
 import upgradesDatabase from '../database/upgrades';
@@ -29,6 +30,15 @@ const replaceArrays = (defaultValue, savedValue) => {
  */
 export function migrateSavedState(savedState, defaultState) {
     if (!savedState) {
+        return undefined;
+    }
+
+    // A saved map from a different planet geometry (row count / row length) can't be repaired -- every coord in
+    // it (droids, squad, POIs, home) refers to a world that no longer exists. Discard the save and start fresh.
+    const savedMap = savedState.planet && savedState.planet.map;
+    if (savedMap && savedMap.length > 0 &&
+        (savedMap.length !== NUM_PLANET_ROWS || (savedMap[0] || []).length !== PLANET_COLS)) {
+        console.warn('Saved game uses an incompatible planet geometry; starting a new game.');
         return undefined;
     }
 

@@ -1,8 +1,8 @@
 import React from 'react';
 import {connect} from "react-redux";
 import AsciiCanvas from "../lib/ascii_canvas";
-import {TERRAINS, STATUSES, generateImage} from "../lib/planet_map";
-import {NUM_PLANET_ROWS, WIDEST_DISPLAY_ROW} from "../lib/planet_geometry";
+import {TERRAINS, STATUSES, generateImage, coordToImageCell, imageCellToCoord, isDisplayCellVisible} from "../lib/planet_map";
+import {NUM_PLANET_ROWS, DISPLAY_COLS} from "../lib/planet_geometry";
 import {drawPlanetImage, PLANET_COLORS} from "../lib/planet_render";
 import {
     FIGHT_EFFECT_CHARS,
@@ -13,6 +13,8 @@ import {
     SQUAD_GLYPH,
     SQUAD_STATUS
 } from "../lib/expeditions";
+import {stepInDirection, sortieCrossMs, SORTIE_GLYPH} from "../lib/sortie";
+import {sortieMoveTo, sortieStep} from "../redux/modules/planet";
 import {findPath} from "../lib/planet_pathing";
 
 const PATH_ANTS_STEP_MS = 180; // marching-ants crawl speed for the hovered-path highlight
@@ -26,6 +28,20 @@ const SCOUT_PULSE_PERIOD_MS = 1800; // scouts breathe between dim and full brigh
 import {PLANET_FPS} from "../singletons/game_clock";
 import * as fromClock from "../redux/modules/clock";
 
+const CHAR_RATIO = 0.5; // cell width/height; must match the AsciiCanvas charRatio below
+
+// Sortie driving input: screen-space direction vectors per key (y points down). On the uniform grid these
+// map 1:1 onto coordinate steps (see stepInDirection), so movement is identical at any latitude/rotation.
+const KEY_DIRS = {
+    ArrowUp: [0, -1], w: [0, -1],
+    ArrowDown: [0, 1], s: [0, 1],
+    ArrowLeft: [-1, 0], a: [-1, 0],
+    ArrowRight: [1, 0], d: [1, 0]
+};
+const BUMP_MS = 150;        // rejected-step nudge duration
+const BUMP_AMPLITUDE = 0.3; // nudge distance, in cell units
+const WALL_FLASH_MS = 300;  // how long the blocking tile stays highlighted after a bump
+
 class Planet extends React.Component {
     constructor(props) {
         super(props);
@@ -34,16 +50,32 @@ class Planet extends React.Component {
         this.canvas = React.createRef();
 
         this.waitTimeMs = 1000.0 / PLANET_FPS; // how long to wait between rendering
+
+        // Sortie driving state (input-layer only, so it lives on the component, not in redux):
+        this.heldKeys = [];      // pressed movement keys in press order; last one is the active direction
+        this.bufferedDir = null; // a tap mid-slide queues one turn, executed on arrival
+        this.bump = null;        // rejected-step feedback: { dx, dy, target, at }
+
+        this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.handleKeyUp = this.handleKeyUp.bind(this);
+        this.handleCanvasClick = this.handleCanvasClick.bind(this);
     }
 
     componentDidMount() {
         this.canvasManager = new AsciiCanvas(
-            this.canvasContainer.current, this.canvas.current, NUM_PLANET_ROWS, WIDEST_DISPLAY_ROW, null,
+            this.canvasContainer.current, this.canvas.current, NUM_PLANET_ROWS, DISPLAY_COLS, null,
 
-            // charRatio of 0.5 roughly matches DOM rendering with 1.2 line-height
-            { fillContainer: true, charRatio: 0.5, padding: 64 }
+            // charRatio roughly matches DOM rendering with 1.2 line-height
+            { fillContainer: true, charRatio: CHAR_RATIO, padding: 64 }
         );
+        window.addEventListener('keydown', this.handleKeyDown);
+        window.addEventListener('keyup', this.handleKeyUp);
         this.drawPlanet();
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener('keydown', this.handleKeyDown);
+        window.removeEventListener('keyup', this.handleKeyUp);
     }
 
     // todo move this to base class. also throw warning if props.elapsedTime undefined
@@ -65,7 +97,82 @@ class Planet extends React.Component {
     }
 
     componentDidUpdate(prevProps, prevState) {
+        this.maybeContinueMovement(prevProps);
         this.drawPlanet();
+    }
+
+    /**
+     * --- Sortie driving (prototype) ---
+     * Tile-walker input model: a step starts instantly and takes crossTime to complete; a held key re-steps on
+     * every arrival (own keydown/keyup tracking, not OS keyrepeat); a tap mid-slide buffers one turn; a blocked
+     * step bumps in place and flashes the wall. Click-to-move routes via the same executor.
+     */
+
+    handleKeyDown(event) {
+        const dir = KEY_DIRS[event.key];
+        if (!dir || !this.props.visible || !this.props.sortie) return;
+        event.preventDefault();
+        if (event.repeat) return; // we do our own repeat (re-step on arrival), OS keyrepeat only jitters it
+
+        this.heldKeys = this.heldKeys.filter(held => held.key !== event.key).concat({ key: event.key, dir });
+
+        if (this.props.sortie.path.length > 0) {
+            this.bufferedDir = dir; // mid-slide: queue the turn for arrival
+        }
+        else {
+            this.tryStep(dir);
+        }
+    }
+
+    handleKeyUp(event) {
+        this.heldKeys = this.heldKeys.filter(held => held.key !== event.key);
+    }
+
+    // On arrival (path just emptied), continue: a buffered tap wins once, then any still-held key takes over.
+    maybeContinueMovement(prevProps) {
+        const sortie = this.props.sortie;
+        if (!sortie || sortie.path.length > 0) return;
+        if (!prevProps.sortie || prevProps.sortie.path.length === 0) return; // wasn't moving
+
+        const next = this.bufferedDir || (this.heldKeys.length > 0 ? this.heldKeys[this.heldKeys.length - 1].dir : null);
+        this.bufferedDir = null;
+        if (next) this.tryStep(next);
+    }
+
+    tryStep(dir) {
+        const sortie = this.props.sortie;
+        if (!sortie || sortie.path.length > 0) return;
+
+        const target = stepInDirection(sortie.coord, dir);
+        if (!target) {
+            this.startBump(dir, null); // pushing north/south past the pole rows
+            return;
+        }
+
+        // sortieStep returns false when the tile is impassable (revealing it if it was unknown -- probing a
+        // hidden wall teaches the map). Either way a rejection renders as a bump toward the target.
+        if (!this.props.sortieStep(target)) {
+            this.startBump(dir, target);
+        }
+    }
+
+    startBump(dir, target) {
+        this.bump = { dx: dir[0], dy: dir[1], target, at: this.props.elapsedTime };
+    }
+
+    handleCanvasClick(event) {
+        if (!this.props.sortie) return; // clicks only drive the sortie; POI dispatch stays panel-driven
+
+        const rect = this.canvas.current.getBoundingClientRect();
+        const [gridRow, gridCol] = this.canvasManager.xyToGrid(event.clientX - rect.left, event.clientY - rect.top);
+        const imageRow = Math.floor(gridRow);
+        const imageCol = Math.floor(gridCol);
+        if (!isDisplayCellVisible(imageRow, imageCol)) return; // outside the planet silhouette (masked corners)
+        const coord = imageCellToCoord(imageRow, imageCol, this.props.rotation);
+        if (!coord) return; // letterbox padding
+
+        this.bufferedDir = null; // a click overrides any queued keyboard turn
+        this.props.sortieMoveTo(coord);
     }
 
     drawPlanet() {
@@ -175,6 +282,8 @@ class Planet extends React.Component {
             };
         });
 
+        this.addSortieOverlays(overlays);
+
         const squad = this.props.squad;
         if (squad && squad.coord) {
             const key = `${squad.coord[0]},${squad.coord[1]}`;
@@ -193,6 +302,55 @@ class Planet extends React.Component {
         return overlays;
     }
 
+    // Sortie prototype: remaining route as a dim highlight, the team glyph sliding smoothly between tiles
+    // (sub-cell offset from moveProgress), and the bump/wall-flash feedback for rejected steps.
+    addSortieOverlays(overlays) {
+        const sortie = this.props.sortie;
+        if (!sortie) return;
+
+        (sortie.path || []).forEach(([r, c]) => {
+            if (!overlays[`${r},${c}`]) overlays[`${r},${c}`] = { colorKey: 'pathHighlight' };
+        });
+
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (sortie.path.length > 0) {
+            const next = sortie.path[0];
+            const crossMs = sortieCrossMs(this.props.map, next, this.props.unlockedTerrains, sortie.charge);
+            const fraction = Math.min(sortie.moveProgress / crossMs, 1);
+            const fromCell = coordToImageCell(sortie.coord, this.props.rotation);
+            const toCell = coordToImageCell(next, this.props.rotation);
+            if (fromCell && toCell) {
+                offsetX = (toCell[1] - fromCell[1]) * fraction;
+                offsetY = (toCell[0] - fromCell[0]) * fraction;
+            }
+        }
+
+        if (this.bump) {
+            const sinceBump = this.props.elapsedTime - this.bump.at;
+            if (sinceBump < BUMP_MS) {
+                // Nudge out and spring back over BUMP_MS (half sine)
+                const amplitude = Math.sin((sinceBump / BUMP_MS) * Math.PI) * BUMP_AMPLITUDE;
+                offsetX = this.bump.dx * amplitude;
+                offsetY = this.bump.dy * amplitude;
+            }
+            if (sinceBump < WALL_FLASH_MS && this.bump.target) {
+                overlays[`${this.bump.target[0]},${this.bump.target[1]}`] = { colorKey: 'poiHighlight' };
+            }
+            if (sinceBump >= Math.max(BUMP_MS, WALL_FLASH_MS)) {
+                this.bump = null;
+            }
+        }
+
+        overlays[`${sortie.coord[0]},${sortie.coord[1]}`] = {
+            char: SORTIE_GLYPH,
+            colorKey: 'squad',
+            offsetX,
+            offsetY
+        };
+    }
+
     render() {
         const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.developed];
 
@@ -201,6 +359,10 @@ class Planet extends React.Component {
             if (SHOW_DROID_STACK_COUNTS) {
                 legend.push({ key: 'droidStack', colorKey: 'droid', display: '2+', label: 'Scouts (stacked)' });
             }
+        }
+
+        if (this.props.sortie) {
+            legend.push({ key: 'sortie', colorKey: 'squad', display: SORTIE_GLYPH, label: 'Sortie team' });
         }
 
         // POI/squad legend entries only appear once relevant (any POI discovered)
@@ -214,7 +376,8 @@ class Planet extends React.Component {
 
         return (
             <div id="planet" ref={this.canvasContainer} className={`${this.props.visible ? '' : 'hidden'}`}>
-                <canvas id="planet-canvas" ref={this.canvas}></canvas>
+                <canvas id="planet-canvas" ref={this.canvas} onClick={this.handleCanvasClick}
+                        style={this.props.sortie ? {cursor: 'crosshair'} : undefined}></canvas>
                 <div className="planet-legend">
                     <span className='d-flex justify-center underline'>Legend</span>
                     {
@@ -239,6 +402,7 @@ const mapStateToProps = state => {
         droids: state.planet.droids,
         pois: state.planet.pois,
         squad: state.planet.squad,
+        sortie: state.planet.sortie,
         hoveredPoiId: state.game.hoveredPoiId,
         homeCoord: state.planet.homeCoord,
         numExplored: state.planet.numExplored,
@@ -253,5 +417,5 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    {}
+    { sortieMoveTo, sortieStep }
 )(Planet);

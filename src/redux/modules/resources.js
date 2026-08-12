@@ -84,6 +84,11 @@ export default function reducer(state = initialState, action) {
         }
         case fromPlanet.GENERATE_MAP:
             return produceReducer(state, { buildableLand: numSectorsMatching(payload.map, STATUSES.explored.enum, TERRAINS.flatland.enum) })
+        case fromPlanet.ADVANCE_SORTIE:
+            // The driven sortie squad reveals tiles just like scouts do; same land credit.
+            return payload.revealedFlatland > 0
+                ? produceReducer(state, { buildableLand: payload.revealedFlatland })
+                : state;
         case fromPlanet.PROGRESS: {
             // Droids reveal tiles as they explore; each newly-revealed flatland tile adds buildable land.
             let next = state;

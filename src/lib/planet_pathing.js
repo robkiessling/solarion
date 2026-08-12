@@ -1,6 +1,6 @@
 import { getRandomFromArray } from "./helpers";
 import { MinHeap } from "./min_heap";
-import { getAdjacentCoords, PLANET_ROW_LENGTHS, WIDEST_PLANET_ROW } from "./planet_geometry";
+import { getAdjacentCoords } from "./planet_geometry";
 import { getCrossTime, isPassable, STATUSES } from "./planet_map";
 
 /**
@@ -237,14 +237,7 @@ function pickByHeading(candidates, fromCoord, heading) {
     return best;
 }
 
-/**
- * Direction from one coord to another in "centered column" space, so a heading reads as roughly straight on the
- * rendered globe. Column wrap is ignored (this is only ever used for nearby targets).
- */
+// Direction from one coord to another. Column wrap is ignored (this is only ever used for nearby targets).
 function bearing(fromCoord, toCoord) {
-    const centeredCol = (row, col) => col + (WIDEST_PLANET_ROW - PLANET_ROW_LENGTHS[row]) / 2;
-    return [
-        toCoord[0] - fromCoord[0],
-        centeredCol(toCoord[0], toCoord[1]) - centeredCol(fromCoord[0], fromCoord[1]),
-    ];
+    return [toCoord[0] - fromCoord[0], toCoord[1] - fromCoord[1]];
 }

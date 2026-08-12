@@ -2,31 +2,20 @@ import _ from 'lodash';
 import {createArray, getIntermediateColor, getRandomFromArray, getRandomIntInclusive, mod, floor, nTimes} from "./helpers";
 import {
     ALL_DIRECTIONS,
-    COORD_TO_MERIDIAN_LOOKUP,
-    DISPLAY_ROW_LENGTHS,
-    meridianStepInDirection,
+    DISPLAY_COLS,
+    getAdjacentCoords,
+    stepInCompassDirection,
     getCoordsWithinHops,
     getApproxDistance,
     getGraphDistancesFrom,
-    MERIDIANS,
     NUM_PLANET_ROWS,
-    PLANET_ROW_LENGTHS,
-    WIDEST_DISPLAY_ROW,
-    WIDEST_PLANET_ROW,
+    PLANET_COLS,
 } from "./planet_geometry";
 
 // Re-exported so existing consumers (e.g. redux) can keep importing planet-size constants from here.
 // The source of truth lives in planet_geometry.
 export { NUM_SECTORS } from "./planet_geometry";
 
-
-/**
- * If DISCRETE_ROTATION is true, each rotation step will occur an equal amount of time apart. Only some rows will
- * move though because some rows have farther to move than others.
- *
- * If false, rows can move independently (looks better at high rotation rates, but at low rates it can be jarring)
- */
-const DISCRETE_ROTATION = true;
 
 const HOME_FRACTION = 0.75; // Defining home to be 75% of the way into planet, this way it lines up with 50% on slider
 const NIGHT_WIDTH = 0.45; // How much of the planet night should occupy
@@ -41,22 +30,24 @@ const SUN_TRACKING_TWI_NIGHT_CUTOFF = SUN_TRACKING_NIGHT_CUTOFF - TWILIGHT_LENGT
 const SUN_TRACKING_TWI_DAY_CUTOFF = SUN_TRACKING_TWI_NIGHT_CUTOFF - TWILIGHT_LENGTH_DISPLAY;
 
 
-// Ice cap is hardcoded to these values
+// Ice cap run-length rows (alternating [ice, gap, ice, gap, ...]), sized for the uniform 120-col rows.
+// The caps wall off the poles (no north/south wrap) and give the viewport mask's polar crop a natural edge.
 const NORTH_ICE_CAP_ROWS = [
-    [20], // row 0 
-    [8, 2, 7, 2, 11, 1, 30], // row 1 (8 sectors of ice, followed by a 2 sector gap, followed by 7 sectors of ice, etc.)
-    [0, 7, 3, 20, 7, 30] // row 2
+    [120], // row 0: solid wall
+    [14, 2, 20, 1, 26, 2, 18, 1, 36], // row 1: near-solid with a couple of inlets
+    [0, 10, 6, 25, 4, 30, 8, 37] // row 2: scattered floes (leading 0 = starts with a gap)
 ]
 const SOUTH_ICE_CAP_ROWS = [
-    [0, 9, 5, 22, 7, 30], // third to last row
-    [0, 2, 16, 2, 30], // second to last row
-    [20] // last row
+    [0, 12, 5, 28, 6, 24, 7, 38], // third to last row
+    [10, 3, 24, 2, 30, 1, 22, 2, 26], // second to last row
+    [120] // last row: solid wall
 ]
 
 // const HOME_STARTING_ROW_RANGE = [3, 7];
 const HOME_STARTING_ROW_RANGE = [5, 5]; // TODO Leaving dead center otherwise first 3x3 explored area gets stretched poorly
-const NUM_MOUNTAIN_RANGES_RANGE = [40, 50];
+const NUM_MOUNTAIN_RANGES_RANGE = [50, 62]; // scaled with the uniform grid's larger tile count
 const MOUNTAIN_RANGE_SIZE_RANGE = [1, 20];
+const MOUNTAIN_WIDEN_CHANCE = 0.6; // per step, chance of a second mountain beside the spine (ranges read 2-ish wide)
 
 const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
@@ -114,7 +105,7 @@ const COOKED_CHAR = '}'
 const COOK_COLOR_START = [255, 180, 0]; // rgb ffb400
 const COOK_COLOR_END = [255, 60, 0]; // rgb ff3c00
 
-const LASER_BEAM_WIDTH = 251; // needs to be odd if widest planet width is odd
+const LASER_BEAM_WIDTH = 250; // must share parity with DISPLAY_COLS so the beam image centers on whole cells
 const LASER_BEAM_HEIGHT = NUM_PLANET_ROWS + 4; // Laser must be larger than planet height
 const LASER_BEAM_SPEED = 150;
 const LASER_BEAM_CHAR_OPTS = ['-']
@@ -142,13 +133,13 @@ export function generateRandomMap() {
     const map = [];
 
     // Start by initializing entire map as flatland
-    PLANET_ROW_LENGTHS.forEach(rowLength => {
-        map.push(createArray(rowLength, () => createSector(TERRAINS.flatland, STATUSES.unknown)));
+    nTimes(NUM_PLANET_ROWS, () => {
+        map.push(createArray(PLANET_COLS, () => createSector(TERRAINS.flatland, STATUSES.unknown)));
     });
 
     if (ADD_MOUNTAINS) addMountainRanges(map);
 
-    // addIceCaps(map);
+    addIceCaps(map);
 
     if (SHOW_DEBUG_MERIDIANS) generateDebugMeridians(map);
 
@@ -169,13 +160,9 @@ function logMap(map) {
     let str = '';
 
     map.forEach((row, rowIndex) => {
-        const rowLength = PLANET_ROW_LENGTHS[rowIndex];
-        const padding = Math.floor((WIDEST_PLANET_ROW - rowLength) / 2);
-        nTimes(padding, () => str += ' ');
         row.forEach(sector => {
             str += TERRAINS_BY_ENUM[sector.terrain].display;
         });
-        nTimes(padding, () => str += ' ');
         str += '\n'
     })
     console.log(str);
@@ -200,53 +187,39 @@ function createSector(terrain, status) {
 
 const NUM_SECTOR_MERIDIANS = 8;
 function markSectors(map) {
+    // Meridians are straight columns on the uniform grid: divider lines at evenly-spaced columns
     for (let i = 0; i < NUM_SECTOR_MERIDIANS; i++) {
-        const middleRow = floor(NUM_PLANET_ROWS / 2) - 1
-        const colIndexInMiddleRow = floor(i / NUM_SECTOR_MERIDIANS * PLANET_ROW_LENGTHS[middleRow]);
-        const meridianIndex = COORD_TO_MERIDIAN_LOOKUP[middleRow][colIndexInMiddleRow];
-
-        MERIDIANS[meridianIndex].forEach((colIndex, rowIndex) => {
+        const colIndex = floor(i / NUM_SECTOR_MERIDIANS * PLANET_COLS);
+        const prevCol = mod(colIndex - 1, PLANET_COLS);
+        for (let rowIndex = 0; rowIndex < NUM_PLANET_ROWS; rowIndex++) {
             map[rowIndex][colIndex].sectorDividerLeft = true;
-
-            const prevCol = mod(colIndex - 1, PLANET_ROW_LENGTHS[rowIndex]);
             map[rowIndex][prevCol].sectorDividerRight = true;
-        })
+        }
     }
 
-    // const middleRow = floor(NUM_PLANET_ROWS / 2) - 1
-    // for (let i = 0; i < PLANET_ROW_LENGTHS[middleRow]; i++) {
-    //     map[middleRow][i].sectorDividerBottom = true
-    // }
     const firstThird = floor(NUM_PLANET_ROWS / 3) - 1
-    for (let i = 0; i < PLANET_ROW_LENGTHS[firstThird]; i++) {
+    for (let i = 0; i < PLANET_COLS; i++) {
         map[firstThird][i].sectorDividerBottom = true
     }
     const secondThird = floor(NUM_PLANET_ROWS / 3 * 2) - 1
-    for (let i = 0; i < PLANET_ROW_LENGTHS[secondThird]; i++) {
+    for (let i = 0; i < PLANET_COLS; i++) {
         map[secondThird][i].sectorDividerBottom = true
     }
 }
 
-/**
- * Draws some of the meridian lines on the map to help with debugging.
- * We have lots of meridians (equal to the widest row), so note that we are just drawing a subset of them.
- * E.g. if the widest row is length 80 and numMeridians is 4, every 20th meridian will be drawn
- */
+// Draws some evenly-spaced meridian columns on the map to help with debugging.
 function generateDebugMeridians(map) {
     for (let i = 0; i < NUM_DEBUG_MERIDIANS; i++) {
-        const middleRow = floor(NUM_PLANET_ROWS / 2)
-        const colIndexInMiddleRow = floor(i / NUM_DEBUG_MERIDIANS * PLANET_ROW_LENGTHS[middleRow]);
-        const meridianIndex = COORD_TO_MERIDIAN_LOOKUP[middleRow][colIndexInMiddleRow];
-
-        MERIDIANS[meridianIndex].forEach((colIndex, rowIndex) => {
+        const colIndex = floor(i / NUM_DEBUG_MERIDIANS * PLANET_COLS);
+        for (let rowIndex = 0; rowIndex < NUM_PLANET_ROWS; rowIndex++) {
             if (map[rowIndex][colIndex].terrain < 100) {
                 map[rowIndex][colIndex] = createSector(TERRAINS[`meridian_${i}`], STATUSES.explored);
             }
-        })
+        }
     }
 
     const middleRow = floor(NUM_PLANET_ROWS / 2)
-    for (let i = 0; i < PLANET_ROW_LENGTHS[middleRow]; i++) {
+    for (let i = 0; i < PLANET_COLS; i++) {
         map[middleRow][i] = createSector(TERRAINS[`meridian_${1}`], STATUSES.explored);
     }
 }
@@ -269,7 +242,7 @@ function addIceRow(map, rowIndex, iceLengths) {
     iceLengths.forEach((iceLength, i) => {
         const isGap = i % 2 === 1;
         nTimes(iceLength, i => {
-            if (colIndex + i < PLANET_ROW_LENGTHS[rowIndex]) {
+            if (colIndex + i < PLANET_COLS) {
                 map[rowIndex][colIndex + i] = createSector(isGap ? TERRAINS.flatland : TERRAINS.ice, STATUSES.unknown);
             }
         })
@@ -283,7 +256,7 @@ function addMountainRanges(map) {
     for (let i = 0; i < numMountainRanges; i++) {
         const mountainRangeSize = getRandomIntInclusive(...MOUNTAIN_RANGE_SIZE_RANGE);
         const mountainRangeStartRow = getRandomIntInclusive(0, NUM_PLANET_ROWS - 1);
-        const mountainRangeStartCol = getRandomIntInclusive(0, PLANET_ROW_LENGTHS[mountainRangeStartRow] - 1);
+        const mountainRangeStartCol = getRandomIntInclusive(0, PLANET_COLS - 1);
         addMountainRange(map, mountainRangeSize, mountainRangeStartRow, mountainRangeStartCol)
     }
 }
@@ -303,6 +276,13 @@ function addMountainRange(map, size, startingRow, startingCol) {
     for (let step = 0; step < size; step++) {
         map[currentCoord[0]][currentCoord[1]] = createSector(TERRAINS.mountain, STATUSES.unknown);
 
+        // Widen the range: sometimes raise a neighboring tile too, so ranges read as 2-cell-thick massifs
+        // instead of 1-cell strings (thin diagonal strings look crossable and read poorly during travel).
+        if (Math.random() < MOUNTAIN_WIDEN_CHANCE) {
+            const side = getRandomFromArray(getAdjacentCoords(currentCoord));
+            map[side[0]][side[1]] = createSector(TERRAINS.mountain, STATUSES.unknown);
+        }
+
         // Choose next direction
         let direction;
         const rand = Math.random();
@@ -311,13 +291,13 @@ function addMountainRange(map, size, startingRow, startingCol) {
         else { direction = getRandomFromArray(ALL_DIRECTIONS); }
 
         // Move towards the randomly chosen direction (if possible)
-        currentCoord = meridianStepInDirection(currentCoord, direction) || currentCoord;
+        currentCoord = stepInCompassDirection(currentCoord, direction) || currentCoord;
     }
 }
 
 function addHomeBase(map) {
     const homeRow = getRandomIntInclusive(...HOME_STARTING_ROW_RANGE);
-    const homeCol = floor(HOME_FRACTION * PLANET_ROW_LENGTHS[homeRow]);
+    const homeCol = floor(HOME_FRACTION * PLANET_COLS);
 
     if (ADD_MOUNTAINS) {
         // Create a mountain range near to home (so it somewhat matches the scenery)
@@ -449,27 +429,61 @@ export function numSectorsMatching(map, status, terrain) {
 
 // If sunTracking is enabled, the camera is always from the sun's POV; the planet rotates in place
 export function sunTrackingRotation(fractionOfDay) {
-    let rotation;
-
-    if (DISCRETE_ROTATION) {
-        // primeMeridianIndex is where the prime meridian currently is (value of 0 means it is on the left-most side of planet)
-        const primeMeridianIndex = floor(fractionOfDay * WIDEST_PLANET_ROW);
-        rotation = primeMeridianIndex / WIDEST_PLANET_ROW;
-    }
-    else {
-        rotation = fractionOfDay;
-    }
-
-    return mod(rotation + SUN_TRACKING_INSET, 1);
+    return mod(fractionOfDay + SUN_TRACKING_INSET, 1);
 }
 
 // Returns the rotation that horizontally centers `coord` in the display window (the follow-team camera).
-// displayStart = floor(rotation * rowLength), so centering means starting half a display-window before the column.
+// displayStart = floor(rotation * PLANET_COLS), so centering means starting half a display-window before the column.
 export function centeringRotation(coord) {
+    return mod(coord[1] - DISPLAY_COLS / 2, PLANET_COLS) / PLANET_COLS;
+}
+
+/**
+ * The elliptical viewport mask: the planet's round silhouette. The world itself is a uniform cylinder; this
+ * render-time crop of the display window is the ONLY thing that makes it look like a globe. 0 = hidden
+ * (drawn blank), 1 = fully visible, in between = the soft "limb" fade near the edge that sells the curvature.
+ * Cell aspect (charRatio 0.5) makes the 60x30 display window square on screen, so the ellipse renders circular.
+ */
+const LIMB_FADE_START = 0.88;  // radius where the soft fade begins (1 = the mask edge)
+const LIMB_MIN_ALPHA = 0.35;   // brightness at the very edge of the visible disc
+
+export const DISPLAY_MASK = createArray(NUM_PLANET_ROWS, (rowIndex) => {
+    return createArray(DISPLAY_COLS, (colIndex) => {
+        const nx = (colIndex + 0.5) / DISPLAY_COLS * 2 - 1;
+        const ny = (rowIndex + 0.5) / NUM_PLANET_ROWS * 2 - 1;
+        const radius = Math.sqrt(nx * nx + ny * ny);
+
+        if (radius > 1) return 0;
+        if (radius <= LIMB_FADE_START) return 1;
+        return 1 - (radius - LIMB_FADE_START) / (1 - LIMB_FADE_START) * (1 - LIMB_MIN_ALPHA);
+    });
+});
+
+// Whether a display cell is inside the planet silhouette (clicks on the masked corners should be ignored).
+export function isDisplayCellVisible(imageRow, imageCol) {
+    return DISPLAY_MASK[imageRow] !== undefined && (DISPLAY_MASK[imageRow][imageCol] || 0) > 0;
+}
+
+/**
+ * Maps a planet coord to its cell in the generated image (the same windowing + centering math as generateImage):
+ * returns [imageRow, imageCol], or null when the coord is outside the current display window. The inverse,
+ * imageCellToCoord, turns a clicked image cell back into a planet coord (null for letterbox padding / off-planet).
+ */
+export function coordToImageCell(coord, rotation) {
     const [row, col] = coord;
-    const planetRowLength = PLANET_ROW_LENGTHS[row];
-    const displayRowLength = DISPLAY_ROW_LENGTHS[row];
-    return mod(col - floor(displayRowLength / 2), planetRowLength) / planetRowLength;
+    if (row < 0 || row >= NUM_PLANET_ROWS) return null;
+
+    const displayColIndex = mod(col - floor(rotation * PLANET_COLS), PLANET_COLS);
+    if (displayColIndex >= DISPLAY_COLS) return null; // on the far (hidden) side of the planet
+
+    return [row, displayColIndex];
+}
+
+export function imageCellToCoord(imageRow, imageCol, rotation) {
+    if (imageRow < 0 || imageRow >= NUM_PLANET_ROWS) return null;
+    if (imageCol < 0 || imageCol >= DISPLAY_COLS) return null;
+
+    return [imageRow, mod(floor(rotation * PLANET_COLS) + imageCol, PLANET_COLS)];
 }
 
 // overlays: { "row,col": { char, colorKey, color?, ping? } } -- markers drawn over tiles (scout droids, POIs,
@@ -479,15 +493,16 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
     let nightEnd = (fractionOfDay + NIGHT_END) % 1;
 
     let asciiImage = map.map((planetRow, rowIndex) => {
-        const planetRowLength = PLANET_ROW_LENGTHS[rowIndex];
-        const displayRowLength = DISPLAY_ROW_LENGTHS[rowIndex];
-
-        const displayStart = floor(rotation * planetRowLength);
-        const displayEnd = (displayStart + displayRowLength) % planetRowLength;
+        const displayStart = floor(rotation * PLANET_COLS);
+        const displayEnd = (displayStart + DISPLAY_COLS) % PLANET_COLS;
         let displayRow = displayStart < displayEnd ? planetRow.slice(displayStart, displayEnd) :
-            planetRow.slice(displayStart, planetRowLength).concat(planetRow.slice(0, displayEnd));
+            planetRow.slice(displayStart, PLANET_COLS).concat(planetRow.slice(0, displayEnd));
 
         displayRow = displayRow.map((sector, displayColIndex) => {
+            // Viewport mask: cells outside the planet silhouette draw blank; the limb fades out
+            const maskFactor = DISPLAY_MASK[rowIndex][displayColIndex];
+            if (maskFactor === 0) { return { char: ' ' }; }
+
             // Cell fields (consumed by planet_render's drawPlanetImage):
             //   char: the glyph
             //   colorKey: key into PLANET_COLORS (terrain/status key, 'droid', 'laserBeam')
@@ -513,7 +528,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 }
             }
 
-            let ping, alpha;
+            let ping, alpha, offsetX, offsetY;
             const overlay = overlays[`${sector.coord[0]},${sector.coord[1]}`];
             if (overlay) {
                 if (overlay.char) { char = overlay.char; } // color-only overlays keep the terrain glyph (e.g. path highlight)
@@ -521,6 +536,8 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 if (overlay.color) { color = overlay.color; }
                 ping = overlay.ping;   // radar-ping cycle; drawn as expanding rings by planet_render
                 alpha = overlay.alpha; // per-cell brightness (e.g. scout pulse), multiplied with day/night shading
+                offsetX = overlay.offsetX; // sub-cell nudge in cell units (sortie slide/bump; see planet_render)
+                offsetY = overlay.offsetY;
             }
 
             let light = 'day';
@@ -528,7 +545,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 // sunTracking is enabled: shading the far-right side of the planet accordingly
                 // (Ideally, the sunTracking:disabled shading would work for this use case too, but I couldn't get it to
                 //  work without stuttering. So I have to make this special case for sunTracking:enabled)
-                const displayFraction = displayColIndex / displayRowLength; // How far into the display length the sector is
+                const displayFraction = displayColIndex / DISPLAY_COLS; // How far into the display length the sector is
                 if (displayFraction >= SUN_TRACKING_NIGHT_CUTOFF) {
                     light = 'night';
                 }
@@ -541,7 +558,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
             }
             else {
                 // sunTracking is disabled: shading the night side of the planet
-                const planetFraction = sector.coord[1] / planetRowLength; // How far into the planet length the sector is
+                const planetFraction = sector.coord[1] / PLANET_COLS; // How far into the planet length the sector is
                 light = getTwilightLight(planetFraction, nightStart, nightEnd) ||
                     getNightLight(planetFraction, nightStart, nightEnd) ||
                     'day';
@@ -552,11 +569,13 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 char = (light === 'day') ? COOKED_CHAR : TERRAINS.flatland.display;
             }
 
-            return { char, colorKey, color, light, dividers, ping, alpha }
+            if (maskFactor < 1) {
+                alpha = (alpha === undefined ? 1 : alpha) * maskFactor; // soft limb fade
+            }
+
+            return { char, colorKey, color, light, dividers, ping, alpha, offsetX, offsetY }
         });
 
-        const numMissingSpaces = (WIDEST_DISPLAY_ROW - displayRowLength) / 2;
-        displayRow.unshift(...createArray(numMissingSpaces, () => ({ char: ' ' })))
         return displayRow;
     });
 
@@ -660,7 +679,7 @@ const LASER_BEAM_ARROW_OFFSETS = createArray(LASER_BEAM_HEIGHT, rowIndex => {
 
 function addLaserBeams(planetImage, fractionOfDay) {
     const heightPadding = floor((LASER_BEAM_HEIGHT - NUM_PLANET_ROWS) / 2);
-    const widthPadding = floor((LASER_BEAM_WIDTH - WIDEST_DISPLAY_ROW) / 2);
+    const widthPadding = floor((LASER_BEAM_WIDTH - DISPLAY_COLS) / 2);
 
     // start by making a 2d array of beams
     let result = createArray(LASER_BEAM_HEIGHT, (rowIndex) => {

@@ -8,6 +8,7 @@ import {
     getCurrentDevelopmentArea,
     getHomeBasePosition,
     getNextDevelopmentArea,
+    isPassable,
     NUM_SECTORS,
     numSectorsMatching,
     STATUSES, sunTrackingRotation,
@@ -25,6 +26,7 @@ import {
     SQUAD_STATUS
 } from "../../lib/expeditions";
 import {canConsume} from "./resources";
+import {advanceSortie, createSortie} from "../../lib/sortie";
 import {batch} from "react-redux";
 import { v4 } from 'uuid';
 import * as fromClock from "./clock";
@@ -52,6 +54,12 @@ export const ADVANCE_SQUAD = 'planet/ADVANCE_SQUAD';
 export const RESOLVE_AT_POI = 'planet/RESOLVE_AT_POI';
 export const SQUAD_HOME = 'planet/SQUAD_HOME';
 export const ADD_FIELD_REPORT = 'planet/ADD_FIELD_REPORT';
+
+// Sortie prototype (directly-driven squad; see lib/sortie.js)
+export const DEPLOY_SORTIE = 'planet/DEPLOY_SORTIE';
+export const DISBAND_SORTIE = 'planet/DISBAND_SORTIE';
+export const SORTIE_SET_PATH = 'planet/SORTIE_SET_PATH';
+export const ADVANCE_SORTIE = 'planet/ADVANCE_SORTIE';
 
 // Oldest stored field reports fall off past this cap (the Expeditions panel shows only the tail anyway)
 const MAX_FIELD_REPORTS = 30;
@@ -96,6 +104,7 @@ const initialState = {
     pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
     squad: null,  // the single squad: { squadSize, status, coord, path, moveProgress, targetPoiId, atPoiId,
                   //                     pendingFight, fightRemaining, outcome, recalled }
+    sortie: null, // prototype directly-driven squad: { coord, path, moveProgress, charge } (lib/sortie.js)
     fieldReports: [] // expedition telemetry feed, capped at MAX_FIELD_REPORTS: { id, text, result }
 }
 
@@ -112,7 +121,8 @@ export default function reducer(state = initialState, action) {
                 numExplored: { $set: numSectorsMatching(payload.map, STATUSES.explored.enum) },
                 maxDevelopedLand: { $set: numSectorsMatching(payload.map, undefined, TERRAINS.flatland.enum) + 1 }, // add 1 for home base
                 pois: { $set: payload.pois },
-                squad: { $set: null }
+                squad: { $set: null },
+                sortie: { $set: null }
             })
         case PROGRESS:
             updates = {
@@ -123,25 +133,7 @@ export default function reducer(state = initialState, action) {
                 updates.rotation = { $set: payload.newRotation };
             }
 
-            // Apply the tiles revealed by droid movement this tick (line-of-sight): mark them explored and bump the count.
-            if (payload.reveals.length > 0) {
-                updates.map = {};
-                payload.reveals.forEach(([rowIndex, colIndex]) => {
-                    if (updates.map[rowIndex] === undefined) updates.map[rowIndex] = {};
-                    updates.map[rowIndex][colIndex] = { status: { $set: STATUSES.explored.enum } };
-                });
-                updates.numExplored = { $apply: x => x + payload.reveals.length };
-                updates.overallStatus = { $set: OVERALL_MAP_STATUS.inProgress };
-
-                // POI discovery: a hidden POI whose tile just got revealed becomes available (shows on map + sidebar)
-                const revealKeys = new Set(payload.reveals.map(([r, c]) => `${r},${c}`));
-                Object.values(state.pois).forEach(poi => {
-                    if (poi.status === POI_STATUS.hidden && revealKeys.has(`${poi.coord[0]},${poi.coord[1]}`)) {
-                        if (updates.pois === undefined) updates.pois = {};
-                        updates.pois[poi.id] = { status: { $set: POI_STATUS.available } };
-                    }
-                });
-            }
+            addRevealUpdates(state, updates, payload.reveals);
 
             return update(state, updates);
         case FINISH_EXPLORING_MAP:
@@ -337,9 +329,56 @@ export default function reducer(state = initialState, action) {
                     $apply: (reports) => [...(reports || []), payload].slice(-MAX_FIELD_REPORTS)
                 }
             });
+
+        case DEPLOY_SORTIE:
+            return update(state, {
+                sortie: { $set: createSortie(state.homeCoord) }
+            });
+        case DISBAND_SORTIE:
+            return update(state, {
+                sortie: { $set: null }
+            });
+        case SORTIE_SET_PATH:
+            return update(state, {
+                sortie: {
+                    path: { $set: payload.path },
+                    moveProgress: { $set: 0 }
+                }
+            });
+        case ADVANCE_SORTIE:
+            // Wholesale snapshot from the pure advanceSortie, plus its line-of-sight reveals (same treatment
+            // as scout reveals on PROGRESS: mark explored, discover POIs; resources credits land off this action).
+            updates = {
+                sortie: { $set: payload.sortie }
+            };
+            addRevealUpdates(state, updates, payload.reveals);
+            return update(state, updates);
         default:
             return state;
     }
+}
+
+// Shared by PROGRESS (scout reveals) and ADVANCE_SORTIE (sortie reveals): mutates `updates` to mark the given
+// tiles explored, bump numExplored, and flip any hidden POI on a revealed tile to available.
+function addRevealUpdates(state, updates, reveals) {
+    if (!reveals || reveals.length === 0) return;
+
+    updates.map = updates.map || {};
+    reveals.forEach(([rowIndex, colIndex]) => {
+        if (updates.map[rowIndex] === undefined) updates.map[rowIndex] = {};
+        updates.map[rowIndex][colIndex] = { status: { $set: STATUSES.explored.enum } };
+    });
+    updates.numExplored = { $apply: x => x + reveals.length };
+    updates.overallStatus = { $set: OVERALL_MAP_STATUS.inProgress };
+
+    // POI discovery: a hidden POI whose tile just got revealed becomes available (shows on map + sidebar)
+    const revealKeys = new Set(reveals.map(([r, c]) => `${r},${c}`));
+    Object.values(state.pois).forEach(poi => {
+        if (poi.status === POI_STATUS.hidden && revealKeys.has(`${poi.coord[0]},${poi.coord[1]}`)) {
+            if (updates.pois === undefined) updates.pois = {};
+            updates.pois[poi.id] = { status: { $set: POI_STATUS.available } };
+        }
+    });
 }
 
 
@@ -468,8 +507,9 @@ export function planetTick(timeDelta) {
                 newRotation = sunTrackingRotation(fromClock.fractionOfDay(getState().clock));
             }
             else if (state.rotationMode === ROTATION_MODES.squad) {
-                // Follow the team; with nobody deployed, center home base instead
-                const focusCoord = (state.squad && state.squad.coord) ? state.squad.coord : state.homeCoord;
+                // Follow the team (sortie first, then expedition squad); with nobody deployed, center home base
+                const focusCoord = (state.sortie && state.sortie.coord) ? state.sortie.coord :
+                    (state.squad && state.squad.coord) ? state.squad.coord : state.homeCoord;
                 if (focusCoord) {
                     newRotation = centeringRotation(focusCoord);
                 }
@@ -503,8 +543,25 @@ export function planetTick(timeDelta) {
                 });
             }
 
-            const finished = state.overallStatus === OVERALL_MAP_STATUS.finished;
-            const anyReturning = state.droids.some(droid => droid.returning);
+            // Advance the sortie prototype (movement + line-of-sight reveals + charge). Like the squad, this
+            // runs before the finished-map early-return so driving keeps working on a fully-explored map.
+            let planetState = state;
+            if (state.sortie && state.sortie.path.length > 0) {
+                const { sortie, reveals } = advanceSortie(state.map, state.sortie, timeDelta, state.unlockedTerrains);
+                const revealedFlatland = reveals.filter(
+                    ([r, c]) => state.map[r][c].terrain === TERRAINS.flatland.enum
+                ).length;
+                dispatch({ type: ADVANCE_SORTIE, payload: { sortie, reveals, revealedFlatland } });
+                if (revealedFlatland > 0) {
+                    dispatch(recalculateState());
+                }
+                // Scouts below must see the sortie's reveals as already-applied, or a tile revealed by both in
+                // the same tick would double-count numExplored.
+                planetState = getState().planet;
+            }
+
+            const finished = planetState.overallStatus === OVERALL_MAP_STATUS.finished;
+            const anyReturning = planetState.droids.some(droid => droid.returning);
 
             // Once exploration is finished there's nothing to path, so skip the frontier scan + droid work entirely
             // (keeps end-state catch-up after a long tab-away ~free). This is re-armed by ASSIGN_DROID -- and would be by
@@ -512,21 +569,21 @@ export function planetTick(timeDelta) {
             // Exception: recalled droids still walking home must keep advancing.
             if (finished && !anyReturning) {
                 if (newRotation) {
-                    dispatch({ type: PROGRESS, payload: { newRotation, droids: state.droids, reveals: [], revealedFlatland: 0, numArrivedHome: 0 } });
+                    dispatch({ type: PROGRESS, payload: { newRotation, droids: planetState.droids, reveals: [], revealedFlatland: 0, numArrivedHome: 0 } });
                 }
                 return;
             }
 
             // Don't bother re-targeting idle droids once there's nothing left to reach (avoids a pathfind per idle droid).
-            const complete = finished || isExplorationComplete(state.map, state.unlockedTerrains);
+            const complete = finished || isExplorationComplete(planetState.map, planetState.unlockedTerrains);
 
             const { droids, reveals, numArrivedHome } = advanceDroids(
-                state.map, state.droids, timeDelta * state.exploreSpeed, state.unlockedTerrains, !complete
+                planetState.map, planetState.droids, timeDelta * planetState.exploreSpeed, planetState.unlockedTerrains, !complete
             );
 
             // Newly-revealed flatland becomes buildable land (resources reducer listens for this on PROGRESS).
             const revealedFlatland = reveals.filter(
-                ([r, c]) => state.map[r][c].terrain === TERRAINS.flatland.enum
+                ([r, c]) => planetState.map[r][c].terrain === TERRAINS.flatland.enum
             ).length;
 
             dispatch({ type: PROGRESS, payload: { newRotation, droids, reveals, revealedFlatland, numArrivedHome } });
@@ -626,6 +683,63 @@ export function recallSquad() {
         if (!path) return; // cannot happen in practice (they walked out on explored ground), but never strand state
 
         dispatch({ type: RECALL_SQUAD, payload: { path } });
+    }
+}
+
+/**
+ * --- Sortie prototype thunks ---
+ * Free to deploy/disband (it's a feel-test harness, not an economy feature). Thunks return booleans so the
+ * planet component can distinguish "order accepted" from "blocked" (which it renders as a bump).
+ */
+
+export function deploySortie() {
+    return function(dispatch, getState) {
+        const planet = getState().planet;
+        if (planet.sortie || !planet.homeCoord) return;
+
+        dispatch({ type: DEPLOY_SORTIE });
+        dispatch(setRotationMode(ROTATION_MODES.squad)); // follow-cam makes driving feel right immediately
+    }
+}
+
+export function disbandSortie() {
+    return { type: DISBAND_SORTIE };
+}
+
+// Click-to-move: route to any revealed tile (or an unknown tile adjacent to revealed ground -- findPath
+// reaches those as a final step). Returns false when there's no route.
+export function sortieMoveTo(coord) {
+    return function(dispatch, getState) {
+        const planet = getState().planet;
+        const sortie = planet.sortie;
+        if (!sortie) return false;
+
+        const path = findPath(planet.map, sortie.coord, coord, { unlocks: planet.unlockedTerrains });
+        if (!path || path.length === 0) return false;
+
+        dispatch({ type: SORTIE_SET_PATH, payload: { path } });
+        return true;
+    }
+}
+
+// Keyboard step onto an adjacent tile. Stepping into an unknown impassable tile reveals it (you probed the
+// wall and learned something) but does not move -- the caller shows a bump either way on `false`.
+export function sortieStep(coord) {
+    return function(dispatch, getState) {
+        const planet = getState().planet;
+        const sortie = planet.sortie;
+        if (!sortie) return false;
+
+        if (!isPassable(planet.map, coord, planet.unlockedTerrains)) {
+            if (planet.map[coord[0]][coord[1]].status === STATUSES.unknown.enum) {
+                // Reveal the wall: same action shape as movement, with the sortie itself unchanged
+                dispatch({ type: ADVANCE_SORTIE, payload: { sortie, reveals: [coord], revealedFlatland: 0 } });
+            }
+            return false;
+        }
+
+        dispatch({ type: SORTIE_SET_PATH, payload: { path: [coord] } });
+        return true;
     }
 }
 

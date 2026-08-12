@@ -118,6 +118,27 @@ $top-bar-float-padding: 0.875rem;
       }
     }
   }
+
+  // Sortie prototype controls (deploy/disband + charge readout)
+  .sortie-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+
+    a {
+      cursor: pointer;
+      color: $ui-text;
+
+      &:hover {
+        color: white;
+      }
+    }
+
+    .sortie-hint {
+      opacity: 0.6;
+      font-size: 0.85em;
+    }
+  }
 }
 .exploration-actions {
   display: flex;
