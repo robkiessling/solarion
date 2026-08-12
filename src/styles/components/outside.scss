@@ -71,8 +71,8 @@ $top-bar-float-padding: 0.875rem;
     flex-direction: column;
   }
 
-  // The encounter popup: centered over the canvas (slightly high, clear of the legend), non-modal by design.
-  // No backdrop dim: the world stays live behind it, and driving away is a first-class dismissal.
+  // The encounter popup: centered over the canvas (slightly high, clear of the legend). No backdrop dim --
+  // the world stays live behind it -- but it blocks squad movement until answered (accept or Esc).
   .encounter-popup {
     position: absolute;
     left: 50%;
@@ -122,7 +122,6 @@ $top-bar-float-padding: 0.875rem;
     .popup-actions {
       display: flex;
       gap: 0.5rem;
-      margin-bottom: 0.45rem;
 
       // Hotkey chip inside the button: actions are numbered 1..N, leave/dismiss shows Esc
       kbd {
@@ -137,10 +136,6 @@ $top-bar-float-padding: 0.875rem;
       }
     }
 
-    .popup-keys {
-      color: $ui-text-dim;
-      font-size: 0.75em;
-    }
   }
 }
 

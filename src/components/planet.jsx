@@ -146,7 +146,8 @@ class Planet extends React.Component {
         if (!this.props.visible || !this.props.squad) return;
 
         // Encounter popup hotkeys: 1/Enter/Space fire the primary action (accept the offer, or Continue past
-        // the result), Esc leaves. Movement keys fall through below: driving away is the third way out.
+        // the result), Esc leaves. The popup blocks movement -- the player must choose -- but movement keys
+        // still track into heldKeys, so holding a direction while pressing Esc walks off without a re-press.
         const prompt = this.props.squad.prompt;
         if (prompt) {
             if (event.key === 'Enter' || event.key === ' ' || event.key === '1') {
@@ -162,6 +163,14 @@ class Planet extends React.Component {
                 if (!event.repeat) this.props.squadLeavePrompt();
                 return;
             }
+            const dir = KEY_DIRS[event.key];
+            if (dir) {
+                event.preventDefault();
+                if (!event.repeat) {
+                    this.heldKeys = this.heldKeys.filter(held => held.key !== event.key).concat({ key: event.key, dir });
+                }
+            }
+            return;
         }
 
         const dir = KEY_DIRS[event.key];
@@ -185,7 +194,7 @@ class Planet extends React.Component {
 
     // When the squad becomes free again (arrival, fight resolved, prompt answered), continue: a buffered tap
     // wins once, then any still-held key takes over. An OPEN prompt suppresses continuation -- held-walk stops
-    // at the site until the player chooses (or releases and taps onward, which walks away).
+    // at the site until the player answers the popup (a held direction then resumes on dismissal).
     maybeContinueMovement(prevProps) {
         const squad = this.props.squad;
         if (!squad || squad.path.length > 0 || squad.fighting || squad.prompt) return;

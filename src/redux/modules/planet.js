@@ -250,7 +250,8 @@ export default function reducer(state = initialState, action) {
                 squad: { $set: null }
             });
         case SQUAD_SET_PATH:
-            // Moving dismisses any open interaction prompt (walking away IS the "leave" choice)
+            // Safety net: any new path clears a lingering prompt (the input layer blocks movement while one
+            // is open, so this shouldn't fire in practice)
             return update(state, {
                 squad: {
                     path: { $set: payload.path },
@@ -270,7 +271,7 @@ export default function reducer(state = initialState, action) {
                 }
             });
         case SQUAD_PROMPT:
-            // Standing on a cache/story tile: wait for the player's choice (take/explore or walk away)
+            // Standing on a cache/story tile: movement locks until the player answers (take/explore or leave)
             return update(state, {
                 squad: {
                     path: { $set: [] },
@@ -742,7 +743,7 @@ export function squadInteract() {
     }
 }
 
-// Player declines the prompt without moving. (Walking away does the same thing implicitly.)
+// Player declines the offer (or continues past a result); the popup's only exits besides accepting.
 export function squadLeavePrompt() {
     return { type: SQUAD_LEAVE_PROMPT };
 }
@@ -822,7 +823,7 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
         }
         case 'enteredPoi': {
             // Walked onto a cache/story tile: movement stops and the interaction prompt opens (the player
-            // chooses to take/explore via squadInteract, or walks away)
+            // chooses to take/explore via squadInteract, or leaves via squadLeavePrompt)
             dispatch({ type: SQUAD_PROMPT, payload: { poiId: event.poiId } });
             break;
         }

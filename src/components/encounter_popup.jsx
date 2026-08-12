@@ -14,11 +14,11 @@ import {PLANET_COLORS} from "../lib/planet_render";
 
 /**
  * The centered encounter popup over the planet canvas: the squad is standing on a site awaiting a choice
- * (offer phase), or reading what it found there (result phase). A view of squad.prompt, deliberately
- * non-modal: no backdrop, and driving away dismisses it (movement clears the prompt in the reducer).
- * Keyboard mapping (1/Enter/Space accept, Esc leave) lives in the planet component's input layer; the
- * buttons mirror it. Connected on its own so updates aren't gated by the canvas's FPS-throttled
- * shouldComponentUpdate.
+ * (offer phase), or reading what it found there (result phase). A view of squad.prompt. The world stays
+ * live behind it (no backdrop dim, nothing pauses), but the popup blocks squad movement: the player answers
+ * it (accept, or leave via Esc). Keyboard mapping (1/Enter/Space accept, Esc leave) lives in the planet
+ * component's input layer; the buttons mirror it. Connected on its own so updates aren't gated by the
+ * canvas's FPS-throttled shouldComponentUpdate.
  */
 class EncounterPopup extends React.Component {
     renderOffer(poi) {
@@ -33,7 +33,6 @@ class EncounterPopup extends React.Component {
                         <kbd>Esc</kbd>Leave
                     </button>
                 </div>
-                <div className="popup-keys">or drive away to dismiss</div>
             </React.Fragment>
         );
     }
@@ -62,7 +61,6 @@ class EncounterPopup extends React.Component {
                         <kbd>1</kbd>Continue
                     </button>
                 </div>
-                <div className="popup-keys">or drive away</div>
             </React.Fragment>
         );
     }
