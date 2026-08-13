@@ -11,13 +11,15 @@ import {
     STORY_TEXTS
 } from "../lib/expeditions";
 import {PLANET_COLORS} from "../lib/planet_render";
-import {ARENA_W, BATTLE_PHASES, countUnits} from "../lib/battle";
+import {ARENA_W, BATTLE_PHASES, countSpawners, countUnits} from "../lib/battle";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import BattleCanvas from "./battle_canvas";
 import Tooltip from "./ui/tooltip";
 
 // Force display: one pip per starting unit, colored while alive (escapees included: alive, off the
 // field), grey once dead -- the display IS the count, so the number and the visual can't disagree.
+// Spawner battles swap the bug side's pips to one per spawner: the swarm is open-ended there, so the
+// sources are the only honest fixed total (the count label keeps tracking the live swarm).
 // Alive pips pack toward the outside and the dead accumulate toward the center, so the armies erode
 // toward the center line. Pips shrink and wrap into rows for big armies, never merging into a bar.
 // Individual wounds show on the arena's per-unit slivers instead. Memoized: at hundreds of units the
@@ -118,7 +120,9 @@ class EncounterPopup extends React.Component {
                         {battle.buffs.overchargeMs > 0 ? 'OVERCHARGE' : 'vs'}
                     </span>
                     <span className="battle-side bugs">
-                        <ForcePips alive={bugs} total={battle.startingBugs} side="bugs"/>
+                        {battle.startingSpawners > 0
+                            ? <ForcePips alive={countSpawners(battle)} total={battle.startingSpawners} side="bugs"/>
+                            : <ForcePips alive={bugs} total={battle.startingBugs} side="bugs"/>}
                         <span className="battle-count bugs">Bugs {bugs}</span>
                     </span>
                 </div>

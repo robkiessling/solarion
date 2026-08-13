@@ -71,9 +71,14 @@ export const POI_DEFS = [
     { type: POI_TYPES.storySite, band: BANDS.r2near, storyId: 'r2_scorchedCore' },
     { type: POI_TYPES.storySite, band: BANDS.r2near, storyId: 'r2_chassisCache', reward: { capability: 'sealedChassis' } },
 
-    // R2 far (beyond the acid): the Override Module salvage; the red-herring wreckage
-    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 18, infestRadius: 2, formation: 'clusters' },
-    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 24, infestRadius: 2, formation: 'ring' },
+    // R2 far (beyond the acid): the Override Module salvage; the red-herring wreckage.
+    // `surround` is the ambush opening: the garrison starts in all four corners with the squad encircled.
+    // `bugs` declares a typed garrison ({ type: count }, see BUG_TYPES in lib/battle.js) instead of
+    // `difficulty` standard bugs; entry order maps to formation slots, so the hive leads to take the
+    // ring's center. `difficulty` remains the displayed threat estimate either way.
+    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 18, infestRadius: 2, formation: 'surround' },
+    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 24, infestRadius: 2, formation: 'ring',
+        bugs: { hive: 1, bug: 18 } },
     { type: POI_TYPES.cache, band: BANDS.r2far, reward: { resources: { ore: [5000, 9000] } } },
     { type: POI_TYPES.cache, band: BANDS.r2far, reward: { resources: { refinedMinerals: [2000, 4000] } } },
     { type: POI_TYPES.storySite, band: BANDS.r2far, storyId: 'r2_wreckage' },
@@ -81,7 +86,8 @@ export const POI_DEFS = [
 
     // R3, the antipode (finale): two hard nests, one cache, the command ruin + hive heart
     { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 30, infestRadius: 2, formation: 'scatter' },
-    { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 40, infestRadius: 2, formation: 'ring' },
+    { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 40, infestRadius: 2, formation: 'ring',
+        bugs: { hive: 2, bug: 32 } },
     { type: POI_TYPES.cache, band: BANDS.r3, reward: { resources: { refinedMinerals: [5000, 8000] } } },
     { type: POI_TYPES.storySite, band: BANDS.r3, storyId: 'r3_commandRuin' },
     { type: POI_TYPES.storySite, band: BANDS.r3, storyId: 'r3_hiveHeart' }

@@ -16,7 +16,8 @@ const DROID_COLOR = PLANET_COLORS.squad;   // friendly cyan, same as the map gly
 const BUG_COLOR = PLANET_COLORS.battle;    // hostile orange, same as the map's fight effect
 
 // Per-type glyph overrides (future bug variants/bosses get their own look here); side glyph is the fallback
-const TYPE_GLYPHS = { droid: DROID_GLYPH, bug: BUG_GLYPH };
+const TYPE_GLYPHS = { droid: DROID_GLYPH, bug: BUG_GLYPH, hive: '◉' };
+const SPAWNER_SCALE = 1.7; // spawners draw this much larger: the hole reads as a fixture, not a trooper
 
 // Attack lunge: on each swing the glyph nudges toward its target and springs back (out-and-back half
 // sine, same feel as the map's movement bump). Render-side only; sim positions never move.
@@ -114,6 +115,10 @@ export default class BattleCanvas extends React.Component {
                 ctx.fillStyle = `rgba(155, 226, 155, ${alpha})`;
                 ctx.fillText('+', px(fx.x), py(fx.y - age * 2)); // drifts upward as it fades
             }
+            else if (fx.type === 'spawn') { // fresh bugs boiling out of a hive
+                ctx.fillStyle = `rgba(255, 170, 60, ${alpha * 0.8})`;
+                ctx.fillText('∴', px(fx.x), py(fx.y));
+            }
             else { // hit
                 ctx.fillStyle = `rgba(255, 235, 200, ${alpha * 0.5})`;
                 ctx.fillText('·', px(fx.x), py(fx.y));
@@ -126,6 +131,7 @@ export default class BattleCanvas extends React.Component {
         const bigFight = battle.startingDroids + battle.startingBugs > HP_BAR_FORCE_LIMIT;
         battle.units.forEach(unit => {
             const droid = unit.side === 'droid';
+            const spawner = !!battle.stats[unit.type].spawnEveryMs;
             let x = unit.x, y = unit.y;
             if (unit.strike) {
                 const age = battle.elapsedMs - unit.strike.t;
@@ -141,7 +147,9 @@ export default class BattleCanvas extends React.Component {
                 ctx.shadowColor = DROID_COLOR;
                 ctx.shadowBlur = fontSize * 0.7;
             }
+            if (spawner) ctx.font = `${fontSize * SPAWNER_SCALE}px monospace`;
             ctx.fillText(TYPE_GLYPHS[unit.type] || (droid ? DROID_GLYPH : BUG_GLYPH), px(x), py(y));
+            if (spawner) ctx.font = `${fontSize}px monospace`;
             ctx.shadowBlur = 0;
 
             // Rank-and-file bugs get no bar: they can't be targeted, so per-bug hp isn't actionable
@@ -151,9 +159,10 @@ export default class BattleCanvas extends React.Component {
             const elite = !droid && unit.maxHp > BUG_TYPES.bug.hp;
             if (elite || (droid && !bigFight)) {
                 const fraction = unit.hp / unit.maxHp;
-                const barW = px(HP_BAR_W);
+                // A spawner's bar matches its oversized glyph (wider, lifted clear of the bigger sprite)
+                const barW = px(HP_BAR_W) * (spawner ? SPAWNER_SCALE : 1);
                 const barX = px(x) - barW / 2;
-                const barY = py(y - HP_BAR_LIFT);
+                const barY = py(y - (spawner ? HP_BAR_LIFT + 1 : HP_BAR_LIFT));
                 ctx.fillStyle = HP_TRACK;
                 ctx.fillRect(barX, barY, barW, barH);
                 ctx.fillStyle = hpColor(fraction);

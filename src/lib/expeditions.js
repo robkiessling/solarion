@@ -98,17 +98,18 @@ export function generatePois(map) {
 
     // A nest additionally stamps its infestation radius (flatland only; mountains/acid are barriers already).
     // Placement requires clean ground out to radius+1, so stamps never overlap (retraction assumes one owner).
-    const addNest = (band, difficulty, infestRadius, formation) => {
+    const addNest = (def) => {
         for (let attempt = 0; attempt < 20; attempt++) {
-            const sector = pick(band);
+            const sector = pick(def.band);
             if (!sector) return;
-            const area = [sector.coord, ...getCoordsWithinHops(sector.coord, infestRadius + 1)];
+            const area = [sector.coord, ...getCoordsWithinHops(sector.coord, def.infestRadius + 1)];
             const clean = area.every(([r, c]) => !map[r][c].infestedBy && !map[r][c].gated &&
                 map[r][c].terrain !== TERRAINS.home.enum);
             if (!clean) continue; // pick() already marked it used; just try another tile
 
-            const poi = add(POI_TYPES.nest, sector, { difficulty, infestRadius, formation });
-            [sector.coord, ...getCoordsWithinHops(sector.coord, infestRadius)].forEach(([r, c]) => {
+            const poi = add(POI_TYPES.nest, sector, { difficulty: def.difficulty, infestRadius: def.infestRadius,
+                formation: def.formation, bugs: def.bugs });
+            [sector.coord, ...getCoordsWithinHops(sector.coord, def.infestRadius)].forEach(([r, c]) => {
                 if (map[r][c].terrain === TERRAINS.flatland.enum && !map[r][c].gated) {
                     map[r][c].infestedBy = poi.id;
                 }
@@ -129,7 +130,7 @@ export function generatePois(map) {
     // The content manifest: each definition placed in its band, rewards rolled from their declared ranges
     POI_DEFS.forEach(def => {
         if (def.type === POI_TYPES.nest) {
-            addNest(def.band, def.difficulty, def.infestRadius, def.formation);
+            addNest(def);
             return;
         }
         const extras = {};

@@ -8,7 +8,9 @@ import {EQUIPMENT_DEFS} from "../database/equipment";
  * Model: every droid and bug is an agent with position, hp, and an attack cooldown. Units seek the nearest
  * enemy and trade fixed damage in melee range; bodies collide (both sides), so frontage is physical and
  * rear ranks queue. Spawn arrangements are data-driven (FORMATIONS: nests declare poi.formation, droids
- * deploy in squadron blocks). The outcome emerges from counts, per-unit stats, the opening geometry, and
+ * deploy in squadron blocks unless the bug formation dictates a counter-layout). Spawner-type bugs
+ * (BUG_TYPES rows with spawnEveryMs) sit immobile and feed fresh bugs into the fight on a fixed clock
+ * until killed. The outcome emerges from counts, per-unit stats, the opening geometry, and
  * whatever equipment the player fires mid-fight. Deliberately no RNG anywhere: motion "wobble" is a deterministic
  * per-unit sine drift, so a replayed tick stream (save reload, background-tab catch-up) reproduces the same
  * fight. Positions live in a float arena space sized per battle (constant unit density, so big armies get a
@@ -37,7 +39,14 @@ const FRONT_GAP = 44;              // spawn distance between the two front lines
 // above the standard bug automatically earns an hp bar in the arena (battle_canvas.jsx).
 export const DROID_BASE_STATS = { hp: 9, damage: 1, attackMs: 1500, speed: 9 };
 export const BUG_TYPES = {
-    bug: { hp: 6, damage: 1, attackMs: 1300, speed: 11 }
+    bug: { hp: 6, damage: 1, attackMs: 1300, speed: 11 },
+    // Spawner: the hive mouth itself. Stationary and harmless (speed/damage 0 route it around the whole
+    // combat loop; droids still path to it and kill it as the nearest enemy once the escorts are dead)
+    // but it disgorges spawnBatch fresh `spawns`-type bugs every spawnEveryMs until killed, holding fire
+    // while spawnCap non-spawner bugs are already afield (saturation, not an unbounded swarm). Winning
+    // stays emergent: 'won' fires when the bug side is empty and the hive is on the bug side, so "kill
+    // the source or it never ends" needs no special case.
+    hive: { hp: 40, damage: 0, attackMs: 0, speed: 0, spawns: 'bug', spawnEveryMs: 4000, spawnBatch: 2, spawnCap: 24 }
 };
 const ATTACK_RANGE = 3;
 const UNIT_RADIUS = 1.2;        // hard collision radius, both sides: pairs closer than 2R get pushed apart,
@@ -156,21 +165,25 @@ const CLUSTER_PATTERNS = {
     6: [[0.25, 0.2], [0.7, 0.25], [0.3, 0.5], [0.75, 0.55], [0.25, 0.85], [0.7, 0.85]]
 };
 
+// Dense mini-rings at the given centers, dealing the count round-robin-ish (remainder to the first
+// pockets). Position order leads with one pocket CENTER per group (slot k = pocket k's center), so a
+// garrison's leading composition entries -- hives -- distribute one per pocket instead of stacking in
+// the first one; the escort fill follows, pocket by pocket.
+function pocketPositions(centers, count) {
+    const groups = centers.map(([cx, cy], c) => ringPositions(
+        Math.floor(count / centers.length) + (c < count % centers.length ? 1 : 0), cx, cy, c * 1000));
+    const occupied = groups.filter(g => g.length > 0);
+    return [...occupied.map(g => g[0]), ...occupied.flatMap(g => g.slice(1))];
+}
+
 function clustersLayout(count, arenaW, arenaH, side) {
     const k = Math.max(2, Math.min(6, Math.round(count / 40)));
     const centers = CLUSTER_PATTERNS[Math.min(k, count)] || CLUSTER_PATTERNS[2];
     const margin = SPAWN_SPACING * (Math.sqrt(count / centers.length / Math.PI) + 2);
     const halfLeft = side === 'droid' ? margin : arenaW / 2 + margin / 2;
     const halfW = arenaW / 2 - margin * 1.5;
-    const positions = [];
-    centers.forEach(([fx, fy], c) => {
-        const groupSize = Math.floor(count / centers.length) + (c < count % centers.length ? 1 : 0);
-        positions.push(...ringPositions(groupSize,
-            halfLeft + fx * halfW,
-            margin + fy * (arenaH - 2 * margin),
-            c * 1000));
-    });
-    return positions;
+    return pocketPositions(centers.map(([fx, fy]) =>
+        [halfLeft + fx * halfW, margin + fy * (arenaH - 2 * margin)]), count);
 }
 
 // Disturbed swarm: low-discrepancy spread over the side's half. R2 keeps points evenly spaced (no RNG,
@@ -184,35 +197,65 @@ function scatterLayout(count, arenaW, arenaH, side) {
     }));
 }
 
+// Ambush: the garrison opens in four corner pockets (same dense mini-rings as clusters, but spread over
+// the WHOLE arena, not the bug half) with the field's middle left empty for the prey. Paired with its
+// `center` counter-layout below, first contact comes from every direction at once.
+function surroundLayout(count, arenaW, arenaH, side) {
+    const margin = SPAWN_SPACING * (Math.sqrt(count / 4 / Math.PI) + 2);
+    return pocketPositions([[margin, margin], [arenaW - margin, margin],
+                            [margin, arenaH - margin], [arenaW - margin, arenaH - margin]], count);
+}
+
+// Squadron blocks re-anchored to the middle of the field: the droid opening when the enemy doesn't
+// have a "side" to face (see COUNTER_FORMATIONS).
+function centerLayout(count, arenaW, arenaH, side) {
+    const positions = squadronLayout(count, arenaW, arenaH, side);
+    const meanX = positions.reduce((sum, p) => sum + p.x, 0) / count;
+    return positions.map(p => ({ x: p.x + arenaW / 2 - meanX, y: p.y }));
+}
+
+// The layout registry (nests declare theirs via poi.formation). Roster slot 0 -- where a garrison's
+// leading composition entry, e.g. a hive, ends up -- noted per layout.
 export const FORMATIONS = {
-    column: columnLayout,
-    squadron: squadronLayout,
-    ring: ringLayout,
-    clusters: clustersLayout,
-    scatter: scatterLayout
+    column: columnLayout,       // deep battle-line of columns at the front; slot 0: top of the front column
+    squadron: squadronLayout,   // rectangular blocks with lanes (the droid default); slot 0: first block's corner
+    ring: ringLayout,           // one dense circle behind the front line; slot 0: dead center
+    clusters: clustersLayout,   // 2-6 separated pockets over the side's half; slots 0..k-1: one pocket center each
+    scatter: scatterLayout,     // even scatter over the side's half; slot 0: nothing special (quasi-random)
+    surround: surroundLayout,   // ambush: four corner pockets of the WHOLE arena; slots 0-3: one corner center each
+    center: centerLayout        // squadron blocks re-anchored mid-field (surround's droid counter-layout)
 };
+
+// A bug formation can dictate the droid side's deployment (createBattle consults this): a surround
+// opening only reads as an ambush if the droids actually start encircled in the middle.
+const COUNTER_FORMATIONS = { surround: 'center' };
+
+// One combat-ready unit. `base` selects the unit's deterministic hash streams (opening swing delay,
+// wobble phase/period, collision tie-break angle) and must be unique across every unit the battle will
+// ever hold, including bugs a spawner adds mid-fight.
+function makeUnit(id, side, type, stats, base, x, y, arenaW, arenaH, hp) {
+    const unit = {
+        id, side, type,
+        x: Math.min(arenaW - 2, Math.max(2, x)),
+        y: Math.min(arenaH - 2, Math.max(2, y)),
+        hp: hp != null ? hp : stats.hp,
+        maxHp: stats.hp,
+        cooldownMs: Math.floor(hash01(base + 200003) * stats.attackMs), // desynchronized opening swings
+        seed: hash01(base) * 2 * Math.PI,                // wobble phase (also the collision tie-break angle)
+        wobbleMs: 340 + Math.floor(hash01(base + 100003) * 120) // per-unit wobble period, 340-460ms
+    };
+    if (stats.spawnEveryMs) unit.spawnMs = stats.spawnEveryMs; // spawner clock: counts down to the next batch
+    return unit;
+}
 
 // roster: [{ type, hp? }] per unit; hp defaults to the type's full pool.
 function spawnUnits(side, roster, statsByType, arenaW, arenaH, formation) {
     const layout = FORMATIONS[formation] || columnLayout;
     const positions = layout(roster.length, arenaW, arenaH, side);
     const sideSalt = side === 'droid' ? 0 : 1;
-    return roster.map((entry, i) => {
-        const stats = statsByType[entry.type];
-        const base = i * 2 + sideSalt; // distinct hash streams per unit AND per side
-        return {
-            id: `${side[0]}${i}`,
-            side,
-            type: entry.type,
-            x: Math.min(arenaW - 2, Math.max(2, positions[i].x)),
-            y: Math.min(arenaH - 2, Math.max(2, positions[i].y)),
-            hp: entry.hp != null ? entry.hp : stats.hp,
-            maxHp: stats.hp,
-            cooldownMs: Math.floor(hash01(base + 200003) * stats.attackMs), // desynchronized opening swings
-            seed: hash01(base) * 2 * Math.PI,                // wobble phase (also the collision tie-break angle)
-            wobbleMs: 340 + Math.floor(hash01(base + 100003) * 120) // per-unit wobble period, 340-460ms
-        };
-    });
+    return roster.map((entry, i) => makeUnit(`${side[0]}${i}`, side, entry.type, statsByType[entry.type],
+        i * 2 + sideSalt, // distinct hash streams per unit AND per side
+        positions[i].x, positions[i].y, arenaW, arenaH, entry.hp));
 }
 
 /**
@@ -224,7 +267,12 @@ function spawnUnits(side, roster, statsByType, arenaW, arenaH, formation) {
  * `droidStats` is the squad's effective stat block (base + researched upgrades), snapshotted onto the
  * battle so a mid-fight save replays with the stats the fight started with.
  * `bugFormation` is the nest's spawn layout (poi.formation; see FORMATIONS), defaulting to the column
- * front. Droids always deploy in squadron blocks.
+ * front. Droids deploy in squadron blocks unless the bug formation dictates a counter-layout
+ * (COUNTER_FORMATIONS: a surround opening re-anchors the squadrons to the middle of the field).
+ * Composition entry order maps to formation slots (the first roster unit takes layout index 0), so a
+ * ring-formation garrison declared { hive: 1, bug: N } puts the hive at the ring's center, and the
+ * pocket layouts (clusters, surround) lead with one slot per pocket center, distributing leading hives
+ * one per pocket.
  */
 export function createBattle(droids, bugs, droidStats = DROID_BASE_STATS, bugFormation = 'column') {
     const droidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
@@ -234,6 +282,8 @@ export function createBattle(droids, bugs, droidStats = DROID_BASE_STATS, bugFor
     const bugRoster = [];
     Object.entries(composition).forEach(([type, n]) => {
         stats[type] = BUG_TYPES[type];
+        // A spawner's output type fights too, even when the opening garrison fields none of it
+        if (BUG_TYPES[type].spawns) stats[BUG_TYPES[type].spawns] = BUG_TYPES[BUG_TYPES[type].spawns];
         for (let i = 0; i < n; i++) bugRoster.push({ type });
     });
 
@@ -251,12 +301,15 @@ export function createBattle(droids, bugs, droidStats = DROID_BASE_STATS, bugFor
         arenaH,
         startingDroids: droidHp.length, // initial force sizes; the header pips count against these
         startingBugs: bugRoster.length,
+        startingSpawners: bugRoster.reduce((n, e) => n + (BUG_TYPES[e.type].spawnEveryMs ? 1 : 0), 0),
+        spawnCounter: 0,                // bugs spawned mid-fight so far: unique ids/hash streams for late arrivals
         escaped: 0,                     // withdrawing droids that reached the edge (they count as survivors)
         escapedHp: [],                  // ...and the hp each of them left with (persists onto the squad)
         buffs: { overchargeMs: 0 },
         fx: [],                         // { type: 'hit'|'death'|'heal'|'bomb', x, y, t } markers for the renderer
         units: [
-            ...spawnUnits('droid', droidHp.map(hp => ({ type: 'droid', hp })), stats, arenaW, arenaH, 'squadron'),
+            ...spawnUnits('droid', droidHp.map(hp => ({ type: 'droid', hp })), stats, arenaW, arenaH,
+                COUNTER_FORMATIONS[bugFormation] || 'squadron'),
             ...spawnUnits('bug', bugRoster, stats, arenaW, arenaH, bugFormation)
         ]
     };
@@ -264,6 +317,12 @@ export function createBattle(droids, bugs, droidStats = DROID_BASE_STATS, bugFor
 
 export function countUnits(battle, side) {
     return battle.units.reduce((n, u) => n + (u.side === side ? 1 : 0), 0);
+}
+
+// Living spawners afield. In a spawner battle the header pips count these against startingSpawners:
+// the swarm is open-ended, so the sources are the only honest fixed total.
+export function countSpawners(battle) {
+    return battle.units.reduce((n, u) => n + (battle.stats[u.type].spawnEveryMs ? 1 : 0), 0);
 }
 
 /**
@@ -385,7 +444,10 @@ function advanceStep(battle, dtMs, events) {
     }
     const droidGrid = buildGrid(units, 'droid', TARGET_CELL);
     for (const unit of units) {
-        if (unit.side === 'bug') seek(unit, nearestInGrid(droidGrid, unit.x, unit.y, maxDim));
+        // speed-0 units (spawners) don't seek at all: even the wobble term would send the hole wandering
+        if (unit.side === 'bug' && battle.stats[unit.type].speed > 0) {
+            seek(unit, nearestInGrid(droidGrid, unit.x, unit.y, maxDim));
+        }
     }
 
     // Collision: hard personal space, both sides. Each unit is pushed out of overlap with EVERY neighbor
@@ -397,6 +459,9 @@ function advanceStep(battle, dtMs, events) {
     const contact = 2 * UNIT_RADIUS;
     const collGrid = buildGrid(units, null, contact);
     units.forEach((unit, i) => {
+        // Spawners are terrain: they occupy space (neighbors still get pushed off them) but never get
+        // displaced themselves, so a crush can't shove the hole across the field.
+        if (battle.stats[unit.type].speed === 0) return;
         const cx = Math.floor(unit.x / contact), cy = Math.floor(unit.y / contact);
         const oldKey = cellKey(cx, cy);
         let pushX = 0, pushY = 0;
@@ -455,11 +520,12 @@ function advanceStep(battle, dtMs, events) {
         unit.cooldownMs = Math.max(0, unit.cooldownMs - dtMs);
         if (unit.hp <= 0 || unit.cooldownMs > 0) continue;
         if (unit.side === 'droid' && withdrawing) continue;
+        const stats = battle.stats[unit.type];
+        if (stats.damage <= 0) continue; // spawners don't fight back; their threat is the spawn clock
         const target = nearestInGrid(targetGrids[unit.side], unit.x, unit.y, maxDim);
         if (!target) continue;
         const dx = target.x - unit.x, dy = target.y - unit.y;
         if (dx * dx + dy * dy > ATTACK_RANGE * ATTACK_RANGE) continue;
-        const stats = battle.stats[unit.type];
         target.hp -= stats.damage;
         unit.cooldownMs = unit.side === 'droid' && overchargeActive ? stats.attackMs / rateMultiplier : stats.attackMs;
         // Cosmetic strike cue: the renderer lunges the glyph along this direction, then springs back.
@@ -479,6 +545,37 @@ function advanceStep(battle, dtMs, events) {
         alive.push(unit);
     }
 
+    // Spawners: each living hive runs its own deterministic clock (same countdown convention as attack
+    // cooldowns, so replays land identically) and on firing disgorges a batch of fresh bugs at its rim;
+    // they join targeting/collision on the next substep. battle.spawnCounter hands late arrivals ids and
+    // hash streams the opening roster can never collide with. A hive holds fire while spawnCap
+    // non-spawner bugs are already afield, so a stalled assault meets a saturated field, not an
+    // ever-denser death spiral.
+    let spawnCounter = battle.spawnCounter || 0;
+    let fieldBugs = 0;
+    for (const u of alive) if (u.side === 'bug' && !battle.stats[u.type].spawnEveryMs) fieldBugs++;
+    const spawned = [];
+    for (const unit of alive) {
+        const stats = battle.stats[unit.type];
+        if (unit.side !== 'bug' || !stats.spawnEveryMs) continue;
+        unit.spawnMs = Math.max(0, unit.spawnMs - dtMs);
+        if (unit.spawnMs > 0) continue;
+        unit.spawnMs = stats.spawnEveryMs;
+        const spawnStats = battle.stats[stats.spawns];
+        for (let k = 0; k < stats.spawnBatch && fieldBugs < stats.spawnCap; k++) {
+            const base = 1000003 + spawnCounter * 2 + 1; // far above any opening roster's i*2+1 streams
+            const angle = hash01(base + 400009) * 2 * Math.PI;
+            const sx = unit.x + Math.cos(angle) * (2 * UNIT_RADIUS + 0.6);
+            const sy = unit.y + Math.sin(angle) * (2 * UNIT_RADIUS + 0.6);
+            spawned.push(makeUnit(`s${spawnCounter}`, 'bug', stats.spawns, spawnStats, base,
+                sx, sy, arenaW, arenaH));
+            fx.push({ type: 'spawn', x: sx, y: sy, t: elapsedMs });
+            spawnCounter++;
+            fieldBugs++;
+        }
+    }
+    alive.push(...spawned);
+
     const droidsLeft = alive.reduce((n, u) => n + (u.side === 'droid' ? 1 : 0), 0);
     const bugsLeft = alive.length - droidsLeft;
     if (droidsLeft === 0) {
@@ -492,7 +589,7 @@ function advanceStep(battle, dtMs, events) {
             bugsRemaining: 0, droidHp: [...standerHp, ...escapedHp] });
     }
 
-    return { ...battle, elapsedMs, escaped, escapedHp, buffs: { overchargeMs }, fx, units: alive };
+    return { ...battle, elapsedMs, escaped, escapedHp, spawnCounter, buffs: { overchargeMs }, fx, units: alive };
 }
 
 /**
