@@ -16,26 +16,6 @@ import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import BattleCanvas from "./battle_canvas";
 import Tooltip from "./ui/tooltip";
 
-// Force display: one pip per starting unit, colored while alive (escapees included: alive, off the
-// field), grey once dead -- the display IS the count, so the number and the visual can't disagree.
-// Spawner battles swap the bug side's pips to one per spawner: the swarm is open-ended there, so the
-// sources are the only honest fixed total (the count label keeps tracking the live swarm).
-// Alive pips pack toward the outside and the dead accumulate toward the center, so the armies erode
-// toward the center line. Pips shrink and wrap into rows for big armies, never merging into a bar.
-// Individual wounds show on the arena's per-unit slivers instead. Memoized: at hundreds of units the
-// pip row is the popup's biggest DOM cost, and it only changes when the alive count does.
-const ForcePips = React.memo(function ForcePips({ alive, total, side }) {
-    const size = total <= 24 ? 7 : total <= 80 ? 5 : total <= 200 ? 3 : 2;
-    return (
-        <span className={`battle-pips ${side}`} style={{gap: size >= 5 ? 2 : 1}}>
-            {Array.from({ length: total }, (_, i) => (
-                <span key={i} className={`pip${i < alive ? ' alive' : ''}`}
-                      style={{width: size, height: size}}/>
-            ))}
-        </span>
-    );
-});
-
 /**
  * The centered encounter popup over the planet canvas, in one of three modes: the squad is standing on a
  * site awaiting a choice (offer phase), reading what happened there (result phase, including a wipe's
@@ -106,24 +86,27 @@ class EncounterPopup extends React.Component {
         // hotkeys in the planet component's input layer
         const slots = EQUIPMENT_ORDER.filter(id => equipment[id] !== undefined);
         const withdrawing = battle.phase === BATTLE_PHASES.withdrawing;
+        // Force fractions, alive/starting (escapees count as alive: off the field, not dead). Mirrored:
+        // labels sit at the outer edges. The bug denominator is the swarm's high-water mark (bugsPeak),
+        // so spawner reinforcements raise the ceiling instead of overflowing it, and spawner fights add
+        // a Hives fraction -- kill the sources or the swarm never drains.
         const droids = countUnits(battle, 'droid') + battle.escaped;
-        const bugs = countUnits(battle, 'bug');
+        const spawners = countSpawners(battle);
+        const bugs = countUnits(battle, 'bug') - spawners;
 
         return (
             <React.Fragment>
                 <div className="battle-header">
                     <span className="battle-side">
-                        <span className="battle-count droids">Droids {droids}</span>
-                        <ForcePips alive={droids} total={battle.startingDroids} side="droids"/>
+                        <span className="battle-count droids">Droids {droids}/{battle.startingDroids}</span>
                     </span>
                     <span className={`battle-vs${battle.buffs.overchargeMs > 0 ? ' overcharged' : ''}`}>
                         {battle.buffs.overchargeMs > 0 ? 'OVERCHARGE' : 'vs'}
                     </span>
                     <span className="battle-side bugs">
-                        {battle.startingSpawners > 0
-                            ? <ForcePips alive={countSpawners(battle)} total={battle.startingSpawners} side="bugs"/>
-                            : <ForcePips alive={bugs} total={battle.startingBugs} side="bugs"/>}
-                        <span className="battle-count bugs">Bugs {bugs}</span>
+                        {battle.startingSpawners > 0 &&
+                            <span className="battle-count hives">{spawners}/{battle.startingSpawners} Hives</span>}
+                        <span className="battle-count bugs">{bugs}/{battle.bugsPeak} Bugs</span>
                     </span>
                 </div>
                 <BattleCanvas battle={battle}/>

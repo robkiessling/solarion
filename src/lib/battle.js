@@ -24,7 +24,7 @@ import {EQUIPMENT_DEFS} from "../database/equipment";
 // are the authoritative dimensions, these constants are the floor (and the fallback for pre-scaling saves).
 export const ARENA_W = 100;
 export const ARENA_H = 60;
-const ARENA_BASELINE_UNITS = 80;   // a 40v40 fills the baseline arena at design density
+const ARENA_BASELINE_UNITS = 320;  // a 160v160 fills the baseline arena at design density
 const FRONT_GAP = 44;              // spawn distance between the two front lines, at any arena size
 
 // --- Tuning ---
@@ -155,15 +155,57 @@ function ringLayout(count, arenaW, arenaH, side) {
     return ringPositions(count, cx, Math.max(radius + 2, Math.min(arenaH - radius - 2, arenaH / 2)));
 }
 
-// A few separated groups: fixed dice-face style center patterns over the side's half (fractions of the
-// half's box), each group a dense mini-ring. Group count scales with headcount.
-const CLUSTER_PATTERNS = {
-    2: [[0.3, 0.3], [0.7, 0.7]],
-    3: [[0.3, 0.2], [0.65, 0.55], [0.25, 0.85]],
-    4: [[0.3, 0.25], [0.75, 0.3], [0.25, 0.75], [0.7, 0.8]],
-    5: [[0.3, 0.2], [0.75, 0.3], [0.5, 0.5], [0.25, 0.8], [0.7, 0.85]],
-    6: [[0.25, 0.2], [0.7, 0.25], [0.3, 0.5], [0.75, 0.55], [0.25, 0.85], [0.7, 0.85]]
-};
+// Exact outer radius of a ringPositions(n) pocket: mirrors its ring-capacity math, so the pocket
+// layouts budget true extents. (An earlier padded estimate cost midgame fights their pockets entirely:
+// pocket area scales with the garrison exactly as arena area scales with the fight, so at design
+// density the fit is genuinely tight and every wasted unit of padding matters.)
+function ringExtent(n) {
+    let placed = Math.min(n, 1);
+    let ring = 0;
+    while (placed < n) {
+        ring++;
+        placed += Math.floor(2 * Math.PI * ring);
+    }
+    return ring * SPAWN_SPACING;
+}
+
+// True when every pair of centers ([fx, fy] fractions of a boxW x boxH space; pass 1x1 for absolute
+// coordinates) sits at least minSep apart. The surround layout's fit check: separated pockets need
+// center gaps of both extents plus spawn spacing, or their rings spawn overlapped.
+function fitsApart(centers, boxW, boxH, minSep) {
+    return centers.every(([ax, ay], i) => centers.slice(i + 1).every(([bx, by]) =>
+        Math.hypot((ax - bx) * boxW, (ay - by) * boxH) >= minSep));
+}
+
+// k pocket centers packed into a boxW x boxH space, all pairs at least minSep apart, or null when no
+// arrangement manages it. Picks the rows x cols grid whose smallest neighbor gap is largest (matched to
+// the box's aspect: a tall half stacks pockets, a wide one ranks them), then jitters each center
+// deterministically inside its spare separation so the openings stay organic rather than parade-ground.
+// An axis without neighbors (single column/row) is free and jitters across its whole span.
+function packCenters(k, boxW, boxH, minSep, salt) {
+    if (boxW <= 0 || boxH <= 0) return null;
+    let cols = 1, rows = k, bestGap = -Infinity;
+    for (let c = 1; c <= k; c++) {
+        const r = Math.ceil(k / c);
+        const gap = Math.min(c > 1 ? boxW / (c - 1) : Infinity, r > 1 ? boxH / (r - 1) : Infinity);
+        if (gap > bestGap) { bestGap = gap; cols = c; rows = r; }
+    }
+    if (bestGap < minSep) return null;
+    const gapX = cols > 1 ? boxW / (cols - 1) : 0;
+    const gapY = rows > 1 ? boxH / (rows - 1) : 0;
+    const jx = cols > 1 ? Math.min((gapX - minSep) / 2, gapX * 0.3) : boxW / 2;
+    const jy = rows > 1 ? Math.min((gapY - minSep) / 2, gapY * 0.3) : boxH / 2;
+    return Array.from({ length: k }, (_, i) => {
+        const row = Math.floor(i / cols);
+        const inRow = Math.min(k - row * cols, cols); // the last row may be partial (and gets centered)
+        const cx = inRow > 1 ? (cols - inRow) * gapX / 2 + (i % cols) * gapX : boxW / 2;
+        const cy = rows > 1 ? row * gapY : boxH / 2;
+        return [
+            Math.min(boxW, Math.max(0, cx + (hash01(salt + i * 2) * 2 - 1) * jx)),
+            Math.min(boxH, Math.max(0, cy + (hash01(salt + i * 2 + 1) * 2 - 1) * jy))
+        ];
+    });
+}
 
 // Dense mini-rings at the given centers, dealing the count round-robin-ish (remainder to the first
 // pockets). Position order leads with one pocket CENTER per group (slot k = pocket k's center), so a
@@ -176,14 +218,19 @@ function pocketPositions(centers, count) {
     return [...occupied.map(g => g[0]), ...occupied.flatMap(g => g.slice(1))];
 }
 
+// A few separated groups over the side's half, each a dense mini-ring, packed by packCenters. The
+// ideal pocket count (headcount/40, 2-6) backs off when even the best packing can't fit them with
+// clear water between; the floor is the single ring.
 function clustersLayout(count, arenaW, arenaH, side) {
-    const k = Math.max(2, Math.min(6, Math.round(count / 40)));
-    const centers = CLUSTER_PATTERNS[Math.min(k, count)] || CLUSTER_PATTERNS[2];
-    const margin = SPAWN_SPACING * (Math.sqrt(count / centers.length / Math.PI) + 2);
-    const halfLeft = side === 'droid' ? margin : arenaW / 2 + margin / 2;
-    const halfW = arenaW / 2 - margin * 1.5;
-    return pocketPositions(centers.map(([fx, fy]) =>
-        [halfLeft + fx * halfW, margin + fy * (arenaH - 2 * margin)]), count);
+    for (let k = Math.max(2, Math.min(6, Math.round(count / 40))); k >= 2; k--) {
+        const extent = ringExtent(Math.ceil(count / k)); // the largest pocket's true outer radius
+        const margin = extent + 2;                       // clear of the walls (the spawn clamp sits at 2)
+        const left = (side === 'droid' ? 0 : arenaW / 2) + margin;
+        const centers = packCenters(k, arenaW / 2 - 2 * margin, arenaH - 2 * margin,
+            2 * extent + SPAWN_SPACING, count * 31 + k * 7919);
+        if (centers) return pocketPositions(centers.map(([x, y]) => [left + x, margin + y]), count);
+    }
+    return ringLayout(count, arenaW, arenaH, side);
 }
 
 // Disturbed swarm: low-discrepancy spread over the side's half. R2 keeps points evenly spaced (no RNG,
@@ -197,13 +244,22 @@ function scatterLayout(count, arenaW, arenaH, side) {
     }));
 }
 
-// Ambush: the garrison opens in four corner pockets (same dense mini-rings as clusters, but spread over
-// the WHOLE arena, not the bug half) with the field's middle left empty for the prey. Paired with its
-// `center` counter-layout below, first contact comes from every direction at once.
+// Ambush: the garrison opens in corner pockets (same dense mini-rings as clusters, but spread over the
+// WHOLE arena, not the bug half) with the field's middle left empty for the prey. Paired with its
+// `center` counter-layout below, first contact comes from every direction at once. Four corners when
+// they fit with clear water, backing off to a diagonal pincer, then to the plain ring for fights too
+// big for their field to encircle anything.
 function surroundLayout(count, arenaW, arenaH, side) {
-    const margin = SPAWN_SPACING * (Math.sqrt(count / 4 / Math.PI) + 2);
-    return pocketPositions([[margin, margin], [arenaW - margin, margin],
-                            [margin, arenaH - margin], [arenaW - margin, arenaH - margin]], count);
+    for (const k of [4, 2]) {
+        const extent = ringExtent(Math.ceil(count / k));
+        const margin = extent + 2;
+        const corners = k === 4
+            ? [[margin, margin], [arenaW - margin, margin],
+               [margin, arenaH - margin], [arenaW - margin, arenaH - margin]]
+            : [[margin, margin], [arenaW - margin, arenaH - margin]];
+        if (fitsApart(corners, 1, 1, 2 * extent + SPAWN_SPACING)) return pocketPositions(corners, count);
+    }
+    return ringLayout(count, arenaW, arenaH, side);
 }
 
 // Squadron blocks re-anchored to the middle of the field: the droid opening when the enemy doesn't
@@ -287,6 +343,8 @@ export function createBattle(droids, bugs, droidStats = DROID_BASE_STATS, bugFor
         for (let i = 0; i < n; i++) bugRoster.push({ type });
     });
 
+    const startingSpawners = bugRoster.reduce((n, e) => n + (BUG_TYPES[e.type].spawnEveryMs ? 1 : 0), 0);
+
     // Constant-density field: area grows with headcount, so linear dimensions scale with its square root.
     // Small fights stay on the baseline arena (never shrink below it).
     const arenaScale = Math.max(1, Math.sqrt((droidHp.length + bugRoster.length) / ARENA_BASELINE_UNITS));
@@ -299,9 +357,12 @@ export function createBattle(droids, bugs, droidStats = DROID_BASE_STATS, bugFor
         stats,                          // per-type stat blocks this battle runs on (upgrade snapshot)
         arenaW,                         // field dimensions for this engagement (renderer + clamps)
         arenaH,
-        startingDroids: droidHp.length, // initial force sizes; the header pips count against these
+        startingDroids: droidHp.length, // initial force sizes; the header fractions read against these
         startingBugs: bugRoster.length,
-        startingSpawners: bugRoster.reduce((n, e) => n + (BUG_TYPES[e.type].spawnEveryMs ? 1 : 0), 0),
+        startingSpawners,
+        // High-water mark of the swarm (spawners excluded): the header's bug-fraction denominator, so a
+        // spawner-fed swarm reads against its true peak instead of overflowing its starting total
+        bugsPeak: bugRoster.length - startingSpawners,
         spawnCounter: 0,                // bugs spawned mid-fight so far: unique ids/hash streams for late arrivals
         escaped: 0,                     // withdrawing droids that reached the edge (they count as survivors)
         escapedHp: [],                  // ...and the hp each of them left with (persists onto the squad)
@@ -319,8 +380,7 @@ export function countUnits(battle, side) {
     return battle.units.reduce((n, u) => n + (u.side === side ? 1 : 0), 0);
 }
 
-// Living spawners afield. In a spawner battle the header pips count these against startingSpawners:
-// the swarm is open-ended, so the sources are the only honest fixed total.
+// Living spawners afield: the header's "Hives x/y" fraction reads these against startingSpawners.
 export function countSpawners(battle) {
     return battle.units.reduce((n, u) => n + (battle.stats[u.type].spawnEveryMs ? 1 : 0), 0);
 }
@@ -328,11 +388,20 @@ export function countSpawners(battle) {
 /**
  * Spatial hash grid. At endgame scale (hundreds of units per side) the all-pairs O(n^2) scans for
  * targeting and separation dominate the tick, and catch-up replays multiply them by hundreds of substeps.
- * The grid buckets units by cell and queries expand outward ring by ring. Results are bit-identical to a
- * brute-force scan of the units array: the comparator is (squared distance, then array index), which is
- * exactly the winner the sequential first-strictly-closer scan produced, so determinism is untouched.
+ * The grid buckets units by cell and queries expand outward ring by ring. Within its ring cap, a query
+ * is bit-identical to a brute-force scan of the units array: the comparator is (squared distance, then
+ * array index), which is exactly the winner the sequential first-strictly-closer scan produced.
+ *
+ * Targeting is two-tier: the exact ring search runs only out to NEAR_RINGS cells (everything that can
+ * fight or is about to). Units farther than that from any enemy steer by a flow field instead -- a
+ * multi-source BFS over the grid's cells seeded from every enemy-occupied cell -- because at
+ * replicated-army scale (thousands per side on a giant arena) exact long-range searches made opening
+ * ticks cost hundreds of ms. The field is still deterministic (seed order is grid insertion order =
+ * units order; FIFO expansion breaks ties by queue position), just approximate: a marching unit heads
+ * for its nearest enemy-occupied CELL, and precise nearest-unit targeting takes over as it closes in.
  */
 const TARGET_CELL = 12;                   // targeting cell size (arena units); coarse, rings expand as needed
+const NEAR_RINGS = 3;                     // exact-search radius in cells; beyond this the flow field steers
 const KEY_OFFSET = 8, KEY_STRIDE = 4096;  // packs (possibly slightly negative) cell coords into one int key
 
 function cellKey(cx, cy) { return (cx + KEY_OFFSET) * KEY_STRIDE + (cy + KEY_OFFSET); }
@@ -354,12 +423,13 @@ function buildGrid(units, side, cell) {
 
 // Nearest living unit in the grid to (x, y). Expands Chebyshev rings of cells; a ring-r cell is at least
 // (r-1) whole cells away, so the search stops once even that bound can't beat (or tie) the best found.
-// maxDim bounds the expansion so a query against a nearly-empty grid still terminates.
-function nearestInGrid(grid, x, y, maxDim) {
+// maxDim bounds the expansion so a query against a nearly-empty grid still terminates; ringCap bounds it
+// harder (returns null if nothing lives within that many rings -- callers fall back to the flow field).
+function nearestInGrid(grid, x, y, maxDim, ringCap = Infinity) {
     if (grid.count === 0) return null;
     const cell = grid.cell;
     const cx = Math.floor(x / cell), cy = Math.floor(y / cell);
-    const maxRing = Math.ceil(maxDim / cell) + 2;
+    const maxRing = Math.min(Math.ceil(maxDim / cell) + 2, ringCap);
     let best = null, bestD2 = Infinity, bestI = Infinity;
     const scanCell = (dx, dy) => {
         const bucket = grid.cells.get(cellKey(cx + dx, cy + dy));
@@ -385,6 +455,51 @@ function nearestInGrid(grid, x, y, maxDim) {
     return best;
 }
 
+// Long-range steering (see the two-tier note above): every cell learns which grid unit stands in its
+// nearest enemy-occupied cell, via multi-source BFS with each occupied cell seeded as its own source
+// (represented by its first bucket entry: the lowest units-array index, the exact search's tie-break).
+// O(cells) per side per substep -- effectively free next to the per-unit work it replaces.
+function buildFlowField(grid, arenaW, arenaH) {
+    const cell = grid.cell;
+    const cols = Math.floor(arenaW / cell) + 1, rows = Math.floor(arenaH / cell) + 1;
+    const target = new Array(cols * rows).fill(null);
+    const queue = [];
+    grid.cells.forEach((bucket, key) => {
+        // Clamped: withdrawing droids can hold cells just off-field (x down to -2)
+        const cx = Math.min(cols - 1, Math.max(0, Math.floor(key / KEY_STRIDE) - KEY_OFFSET));
+        const cy = Math.min(rows - 1, Math.max(0, key % KEY_STRIDE - KEY_OFFSET));
+        const idx = cy * cols + cx;
+        if (target[idx] === null) { target[idx] = bucket[0].unit; queue.push(idx); }
+    });
+    for (let head = 0; head < queue.length; head++) {
+        const idx = queue[head];
+        const cx = idx % cols, cy = (idx - cx) / cols;
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                const nx = cx + dx, ny = cy + dy;
+                if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+                const nIdx = ny * cols + nx;
+                if (target[nIdx] === null) { target[nIdx] = target[idx]; queue.push(nIdx); }
+            }
+        }
+    }
+    return { target, cols, cell };
+}
+
+function flowTarget(field, x, y) {
+    return field.target[Math.floor(y / field.cell) * field.cols + Math.floor(x / field.cell)] || null;
+}
+
+// Catch-up guard. Substepping a big dt at army scale can cost more wall-clock than the dt being
+// simulated, and every over-budget frame grows the next frame's dt: a death spiral that freezes the
+// page. Each advanceBattle call therefore caps how many substeps it runs, from a deterministic cost
+// model (fitted against scale probes: one substep costs ~units/500 ms) aimed at ~30ms of work per
+// call. Deliberately NOT measured wall-clock time: the cap must be a pure function of battle state
+// so a replayed tick stream reproduces the same fight. Small fights never hit the cap (a backgrounded
+// tab still catches up in one call); huge fights simulate as fast as they can, dropping the unprocessed
+// remainder of dt each call, so the arena fast-forwards smoothly instead of stalling the tab.
+const CATCHUP_BUDGET_MS = 30;
+
 /**
  * Advances the battle, substepping internally for stability. Pure: returns { battle, events } and never
  * mutates the input. Terminal event (at most one, and the loop stops on it):
@@ -399,7 +514,8 @@ export function advanceBattle(battle, dtMs) {
     const events = [];
     let current = battle;
     let remaining = dtMs;
-    while (remaining > 0 && events.length === 0) {
+    let stepsLeft = Math.max(1, Math.ceil(CATCHUP_BUDGET_MS / (battle.units.length / 500)));
+    while (remaining > 0 && events.length === 0 && stepsLeft-- > 0) {
         const step = Math.min(remaining, SUBSTEP_MS);
         remaining -= step;
         current = advanceStep(current, step, events);
@@ -434,19 +550,21 @@ function advanceStep(battle, dtMs, events) {
         }
     };
     const bugGrid = buildGrid(units, 'bug', TARGET_CELL);
+    const bugFlow = buildFlowField(bugGrid, arenaW, arenaH);
     for (const unit of units) {
         if (unit.side !== 'droid') continue;
         if (withdrawing) {
             unit.x -= WITHDRAW_SPEED * dtSec;
             continue;
         }
-        seek(unit, nearestInGrid(bugGrid, unit.x, unit.y, maxDim));
+        seek(unit, nearestInGrid(bugGrid, unit.x, unit.y, maxDim, NEAR_RINGS) || flowTarget(bugFlow, unit.x, unit.y));
     }
     const droidGrid = buildGrid(units, 'droid', TARGET_CELL);
+    const droidFlow = buildFlowField(droidGrid, arenaW, arenaH);
     for (const unit of units) {
         // speed-0 units (spawners) don't seek at all: even the wobble term would send the hole wandering
         if (unit.side === 'bug' && battle.stats[unit.type].speed > 0) {
-            seek(unit, nearestInGrid(droidGrid, unit.x, unit.y, maxDim));
+            seek(unit, nearestInGrid(droidGrid, unit.x, unit.y, maxDim, NEAR_RINGS) || flowTarget(droidFlow, unit.x, unit.y));
         }
     }
 
@@ -522,7 +640,10 @@ function advanceStep(battle, dtMs, events) {
         if (unit.side === 'droid' && withdrawing) continue;
         const stats = battle.stats[unit.type];
         if (stats.damage <= 0) continue; // spawners don't fight back; their threat is the spawn clock
-        const target = nearestInGrid(targetGrids[unit.side], unit.x, unit.y, maxDim);
+        // Ring cap 1: attacks only land within ATTACK_RANGE, and that's always inside the 3x3 cell
+        // block (range << cell size), so searching the whole arena for a target to then range-reject
+        // was pure waste. Within the cap the pick is exact, so hits land identically.
+        const target = nearestInGrid(targetGrids[unit.side], unit.x, unit.y, maxDim, 1);
         if (!target) continue;
         const dx = target.x - unit.x, dy = target.y - unit.y;
         if (dx * dx + dy * dy > ATTACK_RANGE * ATTACK_RANGE) continue;
@@ -575,6 +696,7 @@ function advanceStep(battle, dtMs, events) {
         }
     }
     alive.push(...spawned);
+    const bugsPeak = Math.max(battle.bugsPeak || 0, fieldBugs); // swarm high-water mark (header denominator)
 
     const droidsLeft = alive.reduce((n, u) => n + (u.side === 'droid' ? 1 : 0), 0);
     const bugsLeft = alive.length - droidsLeft;
@@ -589,7 +711,7 @@ function advanceStep(battle, dtMs, events) {
             bugsRemaining: 0, droidHp: [...standerHp, ...escapedHp] });
     }
 
-    return { ...battle, elapsedMs, escaped, escapedHp, spawnCounter, buffs: { overchargeMs }, fx, units: alive };
+    return { ...battle, elapsedMs, escaped, escapedHp, spawnCounter, bugsPeak, buffs: { overchargeMs }, fx, units: alive };
 }
 
 /**
