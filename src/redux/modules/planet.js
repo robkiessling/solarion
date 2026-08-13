@@ -818,15 +818,19 @@ export function squadAttack(poiId) {
             .some(([r, c]) => r === poi.coord[0] && c === poi.coord[1]);
         if (!adjacent) return false;
 
-        // Garrison composition: POI defs may declare a bug-type mix (poi.bugs) and a spawn formation
-        // (poi.formation); plain nests field `difficulty` standard bugs in a column front. The squad
-        // fights with its deploy-time stat snapshot.
+        // Garrison composition: POI defs may declare a bug-type mix (poi.bugs), a spawn formation
+        // (poi.formation), and an obstacle layout (poi.terrain); plain nests field `difficulty` standard
+        // bugs in a column front on open ground. The squad fights with its deploy-time stat snapshot.
+        // The terrain salt derives from the nest's map coord, so every assault on this nest fights on
+        // the same ground.
         dispatch({ type: SQUAD_START_FIGHT,
             payload: { poiId, battle: createBattle(
                 squad.droidHp || squad.squadSize,
                 poi.bugs || poi.difficulty,
                 squad.droidStats || undefined,
-                poi.formation || undefined) } });
+                poi.formation || undefined,
+                poi.terrain || undefined,
+                poi.coord[0] * 337 + poi.coord[1]) } });
         return true;
     }
 }

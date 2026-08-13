@@ -1,5 +1,6 @@
 import React from 'react';
-import {ARENA_H, ARENA_W, BATTLE_PHASES, BUG_TYPES, FX_TTL_MS} from "../lib/battle";
+import {ARENA_H, ARENA_W, BATTLE_PHASES, BUG_TYPES, FX_TTL_MS, TERRAIN_CELL_H, TERRAIN_CELL_W} from "../lib/battle";
+import {TERRAIN_PIECES} from "../database/battle_terrain";
 import {PLANET_COLORS} from "../lib/planet_render";
 
 /**
@@ -20,6 +21,9 @@ const BUG_COLOR = PLANET_COLORS.battle;    // hostile orange, same as the map's 
 // art) where per-frame fillText cost doesn't matter.
 const TYPE_GLYPHS = { hive: '◉' };
 const SPAWNER_SCALE = 1.7; // spawners draw this much larger: the hole reads as a fixture, not a trooper
+
+// Terrain obstacles: weathered stone, deliberately neutral next to the two sides' colors
+const TERRAIN_COLOR = 'rgba(164, 152, 128, 0.85)';
 
 // Attack lunge: on each swing the glyph nudges toward its target and springs back (out-and-back half
 // sine, same feel as the map's movement bump). Render-side only; sim positions never move.
@@ -43,6 +47,40 @@ export default class BattleCanvas extends React.Component {
         super(props);
         this.canvas = React.createRef();
         this.sprites = new Map();
+        this.terrainLayer = null;   // cached offscreen render of the battle's obstacles
+        this.terrainKey = null;
+    }
+
+    // Terrain never moves, so its ASCII pieces rasterize once to an offscreen canvas and get stamped
+    // each frame; the cache invalidates on popup resize or when a different battle's terrain arrives.
+    // Chars draw at the terrain cell metrics (TERRAIN_CELL_W/H in lib/battle.js), so the art sits
+    // exactly on the cells the sim blocks.
+    terrainSprite(terrain, width, height, scaleX, scaleY) {
+        if (!terrain || !terrain.pieces || terrain.pieces.length === 0) return null;
+        const key = `${width}x${height}`;
+        if (this.terrainLayer && this.terrainKey === key && this.terrainFor === terrain) return this.terrainLayer;
+        const c = document.createElement('canvas');
+        c.width = width;
+        c.height = height;
+        const g = c.getContext('2d');
+        g.font = `${TERRAIN_CELL_H * scaleY}px monospace`;
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillStyle = TERRAIN_COLOR;
+        terrain.pieces.forEach(({ art, col, row }) => {
+            const lines = TERRAIN_PIECES[art];
+            if (!lines) return;
+            lines.forEach((line, j) => {
+                for (let i = 0; i < line.length; i++) {
+                    if (line[i] === ' ') continue;
+                    g.fillText(line[i], (col + i + 0.5) * TERRAIN_CELL_W * scaleX, (row + j + 0.5) * TERRAIN_CELL_H * scaleY);
+                }
+            });
+        });
+        this.terrainLayer = c;
+        this.terrainKey = key;
+        this.terrainFor = terrain;
+        return c;
     }
 
     // Pre-rendered marks, keyed by kind and pixel size. fillText (and shadowBlur for the overcharge
@@ -153,6 +191,10 @@ export default class BattleCanvas extends React.Component {
             ctx.lineTo(px(gx), height);
             ctx.stroke();
         }
+
+        // Obstacles sit on the ground, under fx and units
+        const terrainLayer = this.terrainSprite(battle.terrain, width, height, scaleX, scaleY);
+        if (terrainLayer) ctx.drawImage(terrainLayer, 0, 0);
 
         const fontSize = Math.max(8, py(3.2));
         const markPx = Math.round(fontSize); // sprite edge; quantized so the cache stays small
