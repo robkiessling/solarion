@@ -2,7 +2,8 @@ import {getAdjacentCoords, NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry
 import {getCrossTime, isOnGrid, STATUSES} from "./planet_map";
 import {mod} from "./helpers";
 import {POI_STATUS} from "./expeditions";
-import {advanceBattle, fullDroidHp, UNIT_STATS} from "./battle";
+import {advanceBattle, DROID_BASE_STATS, fullDroidHp} from "./battle";
+import {EQUIPMENT_DEFS} from "../database/equipment";
 
 /**
  * The player-driven squad that IS act-2 exploration. Owns the
@@ -29,7 +30,7 @@ export const RESERVE_SPEED_PENALTY = 2;
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
 export {isOnGrid} from "./planet_map";
 
-export function createSquad(homeCoord, squadSize, pouch = {}) {
+export function createSquad(homeCoord, squadSize, equipment = {}, droidStats = DROID_BASE_STATS) {
     return {
         coord: homeCoord,
         path: [],
@@ -37,8 +38,9 @@ export function createSquad(homeCoord, squadSize, pouch = {}) {
         charge: SQUAD_MAX_CHARGE,
         squadSize,
         cargo: {},               // loot collected at POIs; banks whenever the squad touches the grid, dies on a wipe
-        pouch,                   // carried consumables { itemId: count }; unused ones return on disband, die on a wipe
-        droidHp: fullDroidHp(squadSize), // per-droid hull; battle wounds persist in the field, repaired on the grid
+        equipment,               // carried gear charges { itemId: chargesLeft }; spend in battle, reload on the grid
+        droidStats,              // effective unit stats (base + upgrades), snapshotted at deploy: refit at base
+        droidHp: fullDroidHp(squadSize, droidStats.hp), // per-droid hull; wounds persist in the field, repaired on the grid
         fighting: null           // null | { poiId, battle } -- live per-unit sim (see lib/battle.js)
     };
 }
@@ -77,7 +79,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
         return { squad: {...squad, fighting: null}, reveals: [], events };
     }
 
-    let {coord, path, moveProgress, charge, droidHp} = squad;
+    let {coord, path, moveProgress, charge, droidHp, equipment} = squad;
     path = path ? path.slice() : [];
     moveProgress = (moveProgress || 0) + moveAmountMs;
 
@@ -99,9 +101,15 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
 
         if (isOnGrid(map, coord)) {
             charge = SQUAD_MAX_CHARGE;
-            // Powered ground repairs battle wounds the same way it refills charge (each side heals at home)
-            if (droidHp && droidHp.some(hp => hp < UNIT_STATS.droid.hp)) {
-                droidHp = fullDroidHp(droidHp.length);
+            // Powered ground repairs battle wounds and reloads equipment charges the same way it refills
+            // charge (everyone heals at home, gear reloads at home)
+            const maxHp = (squad.droidStats || DROID_BASE_STATS).hp;
+            if (droidHp && droidHp.some(hp => hp < maxHp)) {
+                droidHp = fullDroidHp(droidHp.length, maxHp);
+            }
+            if (equipment && Object.entries(equipment).some(([id, n]) => n < EQUIPMENT_DEFS[id].charges)) {
+                equipment = Object.fromEntries(
+                    Object.keys(equipment).map(id => [id, EQUIPMENT_DEFS[id].charges]));
             }
             events.push({ type: 'onGrid' });
         }
@@ -122,7 +130,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
     if (path.length === 0) moveProgress = 0;
 
     return {
-        squad: {...squad, coord, path, moveProgress, charge, droidHp},
+        squad: {...squad, coord, path, moveProgress, charge, droidHp, equipment},
         reveals: [...reveals].map(key => key.split(',').map(Number)),
         events
     };

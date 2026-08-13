@@ -6,7 +6,7 @@ import upgradesDatabase from '../database/upgrades';
 import abilitiesDatabase from '../database/abilities';
 import triggersDatabase from '../database/triggers';
 import logsDatabase from '../database/logs';
-import {fullDroidHp} from './battle';
+import {DROID_BASE_STATS, fullDroidHp} from './battle';
 
 // lodash merges arrays index-by-index, which would mangle saved maps, droid lists, etc.
 // This customizer makes saved arrays replace default arrays wholesale instead.
@@ -45,16 +45,19 @@ export function migrateSavedState(savedState, defaultState) {
 
     const state = _.mergeWith({}, defaultState, savedState, replaceArrays);
 
-    // Squad shape repairs: the prompt moved off the squad onto the planet slice, the pouch was added, and
+    // Squad shape repairs: the prompt moved off the squad onto the planet slice, equipment was added, and
     // the precomputed-outcome fight state was replaced by the live battle sim (an old mid-fight save can't
     // be resumed as a battle, so the fight is simply dropped; the nest is still there to re-engage).
     if (state.planet && state.planet.squad) {
         const squad = state.planet.squad;
-        if (squad.pouch === undefined) squad.pouch = {};
+        delete squad.pouch; // pre-equipment saves carried purchasable consumables; that system is gone
+        if (squad.equipment === undefined) squad.equipment = {}; // gear re-arms on the next deploy
+        if (!squad.droidStats) squad.droidStats = { ...DROID_BASE_STATS }; // pre-upgrades saves: stock droids
         if (!Array.isArray(squad.droidHp) || squad.droidHp.length !== squad.squadSize) {
-            squad.droidHp = fullDroidHp(squad.squadSize); // pre-persistence saves: everyone deploys healthy
+            squad.droidHp = fullDroidHp(squad.squadSize, squad.droidStats.hp); // pre-persistence saves: deploy healthy
         }
-        if (squad.fighting && !squad.fighting.battle) squad.fighting = null;
+        // A mid-fight battle from an older sim shape can't resume; drop the fight, the nest remains
+        if (squad.fighting && (!squad.fighting.battle || !squad.fighting.battle.stats)) squad.fighting = null;
         if (squad.prompt !== undefined) {
             if (!state.planet.prompt) state.planet.prompt = squad.prompt;
             delete squad.prompt;

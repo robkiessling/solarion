@@ -19,6 +19,9 @@ import {getQuantity, getResource} from "./modules/resources";
 import {aimMirrors, isTargetingPlanet, startEnergyBeam, TARGETS} from "./modules/star";
 import {HYPER_BEAM_CHARGE_TIME} from "../lib/star";
 import {getStructure} from "./modules/structures";
+import {DROID_BASE_STATS} from "../lib/battle";
+import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
+import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 
 // Actions
 export const RECALCULATE = 'reducer/RECALCULATE';
@@ -177,6 +180,40 @@ export function researchUpgrade(upgradeId) {
 }
 
 // Returns ids of available abilities for a structure
+// Droid combat upgrades (EFFECT_TARGETS.misc, applied manually here): each researched entry's effect
+// modifies the expedition droids' unit stats. New combat upgrades just join this list.
+const DROID_COMBAT_UPGRADE_IDS = ['droidFactory_reinforcedPlating', 'droidFactory_weaponCalibration'];
+
+// The effective expedition-droid stat block: DROID_BASE_STATS plus every researched combat upgrade.
+// Snapshotted onto the squad at deploy (see deploySquad), so refits apply to the NEXT deployment --
+// the squad in the field fights with the stats it left base with.
+export function getDroidStats(state) {
+    const stats = { ...DROID_BASE_STATS };
+    const operations = initOperations();
+    DROID_COMBAT_UPGRADE_IDS.forEach(upgradeId => {
+        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
+        if (upgrade && fromUpgrades.isResearched(upgrade) && upgrade.effect) {
+            mergeEffectIntoOperations(upgrade.effect, operations);
+        }
+    });
+    applyOperationsToVariables(operations, stats);
+    return stats;
+}
+
+// The battle gear squads carry automatically: each piece is owned once its one-time upgrade is
+// researched (story salvage can researchForFree the same upgrade ids later). Returns the fresh
+// loadout { itemId: maxCharges } a deploying squad walks out with.
+export function ownedEquipment(state) {
+    const equipment = {};
+    EQUIPMENT_ORDER.forEach(itemId => {
+        const upgrade = fromUpgrades.getUpgrade(state.upgrades, EQUIPMENT_DEFS[itemId].upgradeId);
+        if (upgrade && fromUpgrades.isResearched(upgrade)) {
+            equipment[itemId] = EQUIPMENT_DEFS[itemId].charges;
+        }
+    });
+    return equipment;
+}
+
 export function getStructureAbilityIds(state, structure) {
     return fromAbilities.visibleIds(state.abilities).filter(abilityId => {
         const ability = fromAbilities.getAbility(state.abilities, abilityId);

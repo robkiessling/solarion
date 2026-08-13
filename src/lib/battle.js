@@ -1,4 +1,4 @@
-import {CONSUMABLE_DEFS} from "../database/consumables";
+import {EQUIPMENT_DEFS} from "../database/equipment";
 
 /**
  * Real-time per-unit battle sim: the skirmish that plays out in the encounter popup when the squad attacks
@@ -7,7 +7,7 @@ import {CONSUMABLE_DEFS} from "../database/consumables";
  *
  * Model: every droid and bug is an agent with position, hp, and an attack cooldown. Units seek the nearest
  * enemy and trade fixed damage in melee range; the outcome emerges from counts, per-unit stats, and whatever
- * consumables the player pops mid-fight. Deliberately no RNG anywhere: motion "wobble" is a deterministic
+ * equipment the player fires mid-fight. Deliberately no RNG anywhere: motion "wobble" is a deterministic
  * per-unit sine drift, so a replayed tick stream (save reload, background-tab catch-up) reproduces the same
  * fight. Positions live in a fixed float arena space; pixel scaling is the renderer's problem, which is what
  * lets the popup grow as armies scale (endgame target is 200v200+; the sim is O(n^2) per step for target
@@ -19,11 +19,18 @@ export const ARENA_W = 100;
 export const ARENA_H = 60;
 
 // --- Tuning ---
-// Kill-time asymmetry is the balance dial: a droid is worth roughly two bugs, so matched counts win with
-// light losses and ~1.5x bug numbers is the break-even. Bugs are faster (they swarm), droids hit harder.
-export const UNIT_STATS = {
-    droid: { hp: 9, damage: 1, attackMs: 1500, speed: 9 },
-    bug:   { hp: 6, damage: 1, attackMs: 1300, speed: 11 }
+// Kill-time asymmetry is the balance dial: a stock droid is worth roughly two standard bugs, so matched
+// counts win with light losses and ~1.5x bug numbers is the break-even. Bugs are faster (they swarm),
+// droids hit harder.
+//
+// Droids have BASE stats: combat upgrades modify a copy (getDroidStats in redux/reducer.js) that is
+// snapshotted onto the squad at deploy (refits apply to the next deployment, not squads in the field).
+// Bug TYPES are static definitions, never upgraded; nests differ only in how many of each type they
+// field (their composition). New types (tougher variants, bosses) are new rows here; anything with hp
+// above the standard bug automatically earns an hp bar in the arena (battle_canvas.jsx).
+export const DROID_BASE_STATS = { hp: 9, damage: 1, attackMs: 1500, speed: 9 };
+export const BUG_TYPES = {
+    bug: { hp: 6, damage: 1, attackMs: 1300, speed: 11 }
 };
 const ATTACK_RANGE = 3;
 const SEPARATION_RADIUS = 2.4;  // same-side personal space; keeps a swarm from collapsing to a point
@@ -37,54 +44,71 @@ export const FX_TTL_MS = 600;   // hit/death/bomb markers linger this long for t
 export const BATTLE_PHASES = { active: 'active', withdrawing: 'withdrawing' };
 
 // A fresh squad's per-droid hp list (persistence helpers: squad state and save migration use it too).
-export function fullDroidHp(count) {
-    return new Array(count).fill(UNIT_STATS.droid.hp);
+export function fullDroidHp(count, maxHp = DROID_BASE_STATS.hp) {
+    return new Array(count).fill(maxHp);
 }
 
-function spawnSide(side, count, hpList = null) {
+// roster: [{ type, hp? }] per unit; hp defaults to the type's full pool.
+function spawnUnits(side, roster, statsByType) {
     // Column formation, filled top to bottom, growing away from the center line. Column height scales with
     // army size so big armies form a deep front instead of a 60-unit-tall line.
+    const count = roster.length;
     const perCol = Math.max(12, Math.ceil(count / 8));
     const spacing = Math.min(4, (ARENA_H - 8) / perCol);
-    const stats = UNIT_STATS[side];
-    const units = [];
-    for (let i = 0; i < count; i++) {
+    return roster.map((entry, i) => {
+        const stats = statsByType[entry.type];
         const col = Math.floor(i / perCol);
         const row = i % perCol;
         const colHeight = Math.min(count - col * perCol, perCol);
         const x = side === 'droid' ? 28 - col * 2.5 : ARENA_W - 28 + col * 2.5;
-        units.push({
+        return {
             id: `${side[0]}${i}`,
             side,
+            type: entry.type,
             x: Math.min(ARENA_W - 2, Math.max(2, x)),
             y: ARENA_H / 2 + (row - (colHeight - 1) / 2) * spacing,
-            hp: hpList ? hpList[i] : stats.hp,
+            hp: entry.hp != null ? entry.hp : stats.hp,
             maxHp: stats.hp,
             cooldownMs: (i * 137) % stats.attackMs, // deterministic stagger so opening volleys aren't synchronized
             seed: i * 2.399                          // phase offset for the wobble drift
-        });
-    }
-    return units;
+        };
+    });
 }
 
 /**
  * `droids` is a per-droid hp list (wounds persist between fights in the field, so the droid that got
  * mauled last time really is the fragile one now); a plain count means a fresh squad at full health.
- * Bugs always spawn at full strength: nests reset completely between engagements (each side heals at
- * home), so every assault faces the full garrison and must be decisive.
+ * `bugs` is a composition { bugType: count } (a plain count means standard bugs). Bugs always spawn at
+ * full strength: nests reset completely between engagements (each side heals at home), so every assault
+ * faces the full garrison and must be decisive.
+ * `droidStats` is the squad's effective stat block (base + researched upgrades), snapshotted onto the
+ * battle so a mid-fight save replays with the stats the fight started with.
  */
-export function createBattle(droids, bugCount) {
-    const droidHp = Array.isArray(droids) ? droids : fullDroidHp(droids);
+export function createBattle(droids, bugs, droidStats = DROID_BASE_STATS) {
+    const droidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
+    const composition = typeof bugs === 'number' ? { bug: bugs } : bugs;
+
+    const stats = { droid: droidStats };
+    const bugRoster = [];
+    Object.entries(composition).forEach(([type, n]) => {
+        stats[type] = BUG_TYPES[type];
+        for (let i = 0; i < n; i++) bugRoster.push({ type });
+    });
+
     return {
         phase: BATTLE_PHASES.active,
         elapsedMs: 0,
-        startingDroids: droidHp.length, // initial force sizes; the header bars drain against these
-        startingBugs: bugCount,
-        escaped: 0,                    // withdrawing droids that reached the edge (they count as survivors)
-        escapedHp: [],                 // ...and the hp each of them left with (persists onto the squad)
+        stats,                          // per-type stat blocks this battle runs on (upgrade snapshot)
+        startingDroids: droidHp.length, // initial force sizes; the header pips count against these
+        startingBugs: bugRoster.length,
+        escaped: 0,                     // withdrawing droids that reached the edge (they count as survivors)
+        escapedHp: [],                  // ...and the hp each of them left with (persists onto the squad)
         buffs: { overchargeMs: 0 },
-        fx: [],                        // { type: 'hit'|'death'|'heal'|'bomb', x, y, t } markers for the renderer
-        units: [...spawnSide('droid', droidHp.length, droidHp), ...spawnSide('bug', bugCount)]
+        fx: [],                         // { type: 'hit'|'death'|'heal'|'bomb', x, y, t } markers for the renderer
+        units: [
+            ...spawnUnits('droid', droidHp.map(hp => ({ type: 'droid', hp })), stats),
+            ...spawnUnits('bug', bugRoster, stats)
+        ]
     };
 }
 
@@ -145,7 +169,7 @@ function advanceStep(battle, dtMs, events) {
         const dx = target.x - unit.x, dy = target.y - unit.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
         if (dist > ATTACK_RANGE) {
-            const speed = UNIT_STATS[unit.side].speed * dtSec;
+            const speed = battle.stats[unit.type].speed * dtSec;
             const wobble = Math.sin(elapsedMs / 400 + unit.seed) * WOBBLE * dtSec;
             unit.x += (dx / dist) * speed + (-dy / dist) * wobble;
             unit.y += (dy / dist) * speed + (dx / dist) * wobble;
@@ -173,7 +197,7 @@ function advanceStep(battle, dtMs, events) {
     // Attacks. Damage lands immediately on the shared clones, so simultaneous kills within a substep are
     // possible (both sides can hit 0). Withdrawing droids don't fight back; that IS the retreat cost.
     const overchargeActive = overchargeMs > 0;
-    const rateMultiplier = CONSUMABLE_DEFS.overchargeCell.effect.rateMultiplier;
+    const rateMultiplier = EQUIPMENT_DEFS.overchargeCell.effect.rateMultiplier;
     for (const unit of units) {
         unit.cooldownMs = Math.max(0, unit.cooldownMs - dtMs);
         if (unit.hp <= 0 || unit.cooldownMs > 0) continue;
@@ -182,7 +206,7 @@ function advanceStep(battle, dtMs, events) {
         if (!target) continue;
         const dx = target.x - unit.x, dy = target.y - unit.y;
         if (dx * dx + dy * dy > ATTACK_RANGE * ATTACK_RANGE) continue;
-        const stats = UNIT_STATS[unit.side];
+        const stats = battle.stats[unit.type];
         target.hp -= stats.damage;
         unit.cooldownMs = unit.side === 'droid' && overchargeActive ? stats.attackMs / rateMultiplier : stats.attackMs;
         // Cosmetic strike cue: the renderer lunges the glyph along this direction, then springs back.
@@ -219,12 +243,12 @@ function advanceStep(battle, dtMs, events) {
 }
 
 /**
- * Applies a consumable's effect (CONSUMABLE_DEFS[itemId].effect) to the battle. Pure; pouch accounting is
- * the caller's job. All effects are instant and untargeted for now (aiming is a later positional upgrade):
- * the demo charge self-targets the densest bug clump and never harms droids.
+ * Applies an equipment piece's effect (EQUIPMENT_DEFS[itemId].effect) to the battle. Pure; charge
+ * accounting is the caller's job. All effects are instant and untargeted for now (aiming is a later
+ * positional upgrade): the demo charge self-targets the densest bug clump and never harms droids.
  */
-export function applyConsumable(battle, itemId) {
-    const def = CONSUMABLE_DEFS[itemId];
+export function applyEquipment(battle, itemId) {
+    const def = EQUIPMENT_DEFS[itemId];
     if (!def) return battle;
     const effect = def.effect;
 

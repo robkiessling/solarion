@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {retreatFromFight, squadInteract, squadLeavePrompt, useConsumable} from "../redux/modules/planet";
+import {retreatFromFight, squadInteract, squadLeavePrompt, useEquipment} from "../redux/modules/planet";
 import {
     actionLabelFor,
     CAPABILITY_LABELS,
@@ -12,13 +12,14 @@ import {
 } from "../lib/expeditions";
 import {PLANET_COLORS} from "../lib/planet_render";
 import {BATTLE_PHASES, countUnits} from "../lib/battle";
-import {CONSUMABLE_DEFS, CONSUMABLE_ORDER} from "../database/consumables";
+import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import BattleCanvas from "./battle_canvas";
+import Tooltip from "./ui/tooltip";
 
 /**
  * The centered encounter popup over the planet canvas, in one of three modes: the squad is standing on a
  * site awaiting a choice (offer phase), reading what happened there (result phase, including a wipe's
- * ending), or fighting -- the live battle arena with the consumable action row. Offer/result are views of
+ * ending), or fighting -- the live battle arena with the equipment action row. Offer/result are views of
  * planet.prompt (planet-level, so a wipe's popup outlives the squad); the battle is a view of
  * squad.fighting. The world stays live behind it (no backdrop dim, nothing pauses), but the popup blocks
  * squad movement. Keyboard mapping (1..N actions, Enter/Space accept, Esc leave/retreat) lives in the
@@ -80,10 +81,10 @@ class EncounterPopup extends React.Component {
 
     renderBattle(poi, fighting) {
         const battle = fighting.battle;
-        const pouch = this.props.squad.pouch || {};
-        // Carried item types in manifest order; slots stay put as an item runs out, matching the number
+        const equipment = this.props.squad.equipment || {};
+        // Carried gear in manifest order; slots stay put as charges run out, matching the number
         // hotkeys in the planet component's input layer
-        const slots = CONSUMABLE_ORDER.filter(id => pouch[id] !== undefined);
+        const slots = EQUIPMENT_ORDER.filter(id => equipment[id] !== undefined);
         const withdrawing = battle.phase === BATTLE_PHASES.withdrawing;
         const droids = countUnits(battle, 'droid') + battle.escaped;
         const bugs = countUnits(battle, 'bug');
@@ -123,11 +124,17 @@ class EncounterPopup extends React.Component {
                 <BattleCanvas battle={battle}/>
                 <div className="popup-actions">
                     {slots.map((id, i) => (
-                        <button key={id} title={CONSUMABLE_DEFS[id].description}
-                                disabled={!(pouch[id] > 0)}
-                                onClick={() => this.props.useConsumable(id)}>
-                            <kbd>{i + 1}</kbd>{CONSUMABLE_DEFS[id].name} ×{pouch[id]}
-                        </button>
+                        <React.Fragment key={id}>
+                            <button data-tip data-for={`battle-item-${id}-tip`}
+                                    disabled={!(equipment[id] > 0)}
+                                    onClick={() => this.props.useEquipment(id)}>
+                                <kbd>{i + 1}</kbd>{EQUIPMENT_DEFS[id].name}{' '}
+                                {'●'.repeat(equipment[id]) + '○'.repeat(Math.max(0, EQUIPMENT_DEFS[id].charges - equipment[id]))}
+                            </button>
+                            <Tooltip id={`battle-item-${id}-tip`} place="top">
+                                {EQUIPMENT_DEFS[id].description} Charges reload on the powered grid.
+                            </Tooltip>
+                        </React.Fragment>
                     ))}
                     <button disabled={withdrawing} onClick={() => this.props.retreatFromFight()}>
                         <kbd>Esc</kbd>{withdrawing ? 'Falling back…' : 'Retreat'}
@@ -168,5 +175,5 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadInteract, squadLeavePrompt, useConsumable, retreatFromFight }
+    { squadInteract, squadLeavePrompt, useEquipment, retreatFromFight }
 )(EncounterPopup);

@@ -21,7 +21,7 @@ import {
     POI_STATUS
 } from "../lib/expeditions";
 import {stepInDirection, squadCrossMs, SQUAD_GLYPH} from "../lib/squad";
-import {CONSUMABLE_ORDER} from "../database/consumables";
+import {EQUIPMENT_ORDER} from "../database/equipment";
 import {
     retreatFromFight,
     ROTATION_MODES,
@@ -31,7 +31,7 @@ import {
     squadInteract,
     squadLeavePrompt,
     squadStepInto,
-    useConsumable
+    useEquipment
 } from "../redux/modules/planet";
 import EncounterPopup from "./encounter_popup";
 import {surveyAutomationUnlocked} from "../redux/reducer";
@@ -179,14 +179,14 @@ class Planet extends React.Component {
 
         if (!this.props.squad) return;
 
-        // Mid-battle hotkeys: number keys pop consumables (1..N in pouch order, mirrored by the popup's
+        // Mid-battle hotkeys: number keys fire equipment (1..N in carried order, mirrored by the popup's
         // action row), Esc orders the retreat. Movement keys still track into heldKeys so a held direction
         // resumes driving the moment the battle ends.
         if (this.props.squad.fighting) {
             const slot = parseInt(event.key, 10);
-            if (slot >= 1 && slot <= this.props.pouchOrder.length) {
+            if (slot >= 1 && slot <= this.props.equipmentOrder.length) {
                 event.preventDefault();
-                if (!event.repeat) this.props.useConsumable(this.props.pouchOrder[slot - 1]);
+                if (!event.repeat) this.props.useEquipment(this.props.equipmentOrder[slot - 1]);
                 return;
             }
             if (event.key === 'Escape') {
@@ -567,10 +567,10 @@ const mapStateToProps = state => {
         pois: state.planet.pois,
         squad: state.planet.squad,
         prompt: state.planet.prompt,
-        // The battle hotkey layout: carried item types in manifest order (stable through a fight, so slots
-        // don't shift as an item runs out; the popup's action row mirrors this)
-        pouchOrder: state.planet.squad ?
-            CONSUMABLE_ORDER.filter(id => (state.planet.squad.pouch || {})[id] !== undefined) : [],
+        // The battle hotkey layout: carried gear in manifest order (stable through a fight, so slots
+        // don't shift as charges run out; the popup's action row mirrors this)
+        equipmentOrder: state.planet.squad ?
+            EQUIPMENT_ORDER.filter(id => (state.planet.squad.equipment || {})[id] !== undefined) : [],
         hoveredPoiId: state.game.hoveredPoiId,
         homeCoord: state.planet.homeCoord,
         numExplored: state.planet.numExplored,
@@ -589,6 +589,6 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadStepInto, squadInteract, squadLeavePrompt, useConsumable, retreatFromFight,
+    { squadStepInto, squadInteract, squadLeavePrompt, useEquipment, retreatFromFight,
       setBeaconAt, setRotation, setRotationMode }
 )(Planet);

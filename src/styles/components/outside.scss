@@ -313,6 +313,13 @@ $top-bar-float-padding: 0.875rem;
       }
     }
 
+    // Droid combat specs (hull/damage), shown while staging AND fielded; details in the tooltip
+    .spec-line {
+      font-size: 0.9em;
+      opacity: 0.8;
+      min-height: 1.4em;
+    }
+
     .squad-status-text {
       font-style: italic;
       opacity: 0.85;
@@ -418,58 +425,6 @@ $top-bar-float-padding: 0.875rem;
     text-align: center;
   }
 
-  .no-sites {
-    color: $ui-text-dim;
-    font-style: italic;
-  }
-
-  .poi-row {
-    display: flex;
-    flex-direction: column;
-    padding: 0.3rem 0.25rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-
-    .poi-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 0.5rem;
-    }
-
-    // The row's single verb; revealed on hover of an actionable row
-    .poi-verb {
-      visibility: hidden;
-      color: $blue;
-      white-space: nowrap;
-    }
-
-    &.actionable {
-      cursor: pointer;
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.07);
-
-        .poi-verb {
-          visibility: visible;
-        }
-      }
-    }
-
-    // No order is currently possible here (team busy, gated, or no idle droids): same layout, just muted
-    &.inert {
-      opacity: 0.55;
-    }
-
-    .poi-distance, .poi-detail {
-      opacity: 0.7;
-      font-size: 0.85em;
-    }
-
-    .poi-requires {
-      color: #ff6b6b;
-      font-size: 0.85em;
-    }
-  }
 }
 
 

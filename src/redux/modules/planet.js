@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import {recalculateState, surveyAutomationUnlocked, withRecalculation} from "../reducer";
+import {getDroidStats, ownedEquipment, recalculateState, surveyAutomationUnlocked, withRecalculation} from "../reducer";
 import {
     centeringRotation,
     COOK_TIME,
@@ -31,7 +31,7 @@ import {
     POI_TYPES,
     resultBehaviorFor
 } from "../../lib/expeditions";
-import {applyConsumable, BATTLE_PHASES, createBattle, startWithdrawal} from "../../lib/battle";
+import {applyEquipment, BATTLE_PHASES, createBattle, startWithdrawal} from "../../lib/battle";
 import {canConsume} from "./resources";
 import {advanceSquad, createSquad, isOnGrid} from "../../lib/squad";
 import {logInline} from "./log";
@@ -64,7 +64,7 @@ export const SQUAD_FIGHT_WON = 'planet/SQUAD_FIGHT_WON';
 export const SQUAD_WIPED = 'planet/SQUAD_WIPED';
 export const SQUAD_RETREATED = 'planet/SQUAD_RETREATED';
 export const SQUAD_RETREAT_ORDERED = 'planet/SQUAD_RETREAT_ORDERED';
-export const SQUAD_USE_CONSUMABLE = 'planet/SQUAD_USE_CONSUMABLE';
+export const SQUAD_USE_EQUIPMENT = 'planet/SQUAD_USE_EQUIPMENT';
 export const SQUAD_PROMPT = 'planet/SQUAD_PROMPT';
 export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT';
 export const SQUAD_RESOLVE_POI = 'planet/SQUAD_RESOLVE_POI';
@@ -112,7 +112,7 @@ const initialState = {
 
     // Expedition system (see lib/expeditions.js for domain logic and shapes)
     pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
-    squad: null, // the player-driven squad: { coord, path, moveProgress, charge, squadSize, cargo, pouch, droidHp, fighting }
+    squad: null, // the player-driven squad: { coord, path, moveProgress, charge, squadSize, cargo, equipment, droidHp, fighting }
     // The encounter popup's state: null | { poiId, phase: 'offer'|'result', result }. Planet-level (not on the
     // squad) so a wipe can still narrate its ending after the squad object is gone.
     prompt: null
@@ -249,7 +249,7 @@ export default function reducer(state = initialState, action) {
 
         case DEPLOY_SQUAD:
             return update(state, {
-                squad: { $set: createSquad(state.homeCoord, payload.squadSize, payload.pouch) }
+                squad: { $set: createSquad(state.homeCoord, payload.squadSize, payload.equipment, payload.droidStats) }
             });
         case DISBAND_SQUAD:
             return update(state, {
@@ -320,7 +320,7 @@ export default function reducer(state = initialState, action) {
             return update(state, updates);
         }
         case SQUAD_WIPED:
-            // Failed assault: squad, cargo, and pouch are gone. The ending narrates in the popup
+            // Failed assault: squad and cargo are gone. The ending narrates in the popup
             // (planet-level prompt, so it survives the squad's deletion). The nest resets to full
             // strength (each side heals at home), so the next assault must be decisive too.
             return update(state, {
@@ -340,11 +340,11 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 squad: { fighting: { battle: { $apply: startWithdrawal } } }
             });
-        case SQUAD_USE_CONSUMABLE:
+        case SQUAD_USE_EQUIPMENT:
             return update(state, {
                 squad: {
-                    pouch: { [payload.itemId]: { $apply: (count) => count - 1 } },
-                    fighting: { battle: { $apply: (battle) => applyConsumable(battle, payload.itemId) } }
+                    equipment: { [payload.itemId]: { $apply: (charges) => charges - 1 } },
+                    fighting: { battle: { $apply: (battle) => applyEquipment(battle, payload.itemId) } }
                 }
             });
         case SQUAD_RESOLVE_POI: {
@@ -655,21 +655,17 @@ function sealedText(poi) {
     return `${poi.name} is sealed — requires ${CAPABILITY_LABELS[poi.requires] || poi.requires}.`;
 }
 
-// `pouch` is the consumable loadout staged on the deploy card: { itemId: count }, consumed from base stock
-// alongside the droids and carried by the squad for mid-fight use.
-export function deploySquad(squadSize, pouch = {}) {
+// Deploying costs only the droids. The squad automatically carries every owned equipment piece at full
+// charges, and its unit stats (base + researched combat upgrades) are snapshotted here: refit at base.
+export function deploySquad(squadSize) {
     return function(dispatch, getState) {
         const state = getState();
         const planet = state.planet;
         if (planet.squad || !planet.homeCoord) return;
+        if (squadSize < 1 || !canConsume(state.resources, { standardDroids: squadSize })) return;
 
-        const stocked = {};
-        Object.entries(pouch).forEach(([itemId, count]) => {
-            if (count > 0) stocked[itemId] = Math.floor(count);
-        });
-        if (squadSize < 1 || !canConsume(state.resources, { ...stocked, standardDroids: squadSize })) return;
-
-        dispatch(withRecalculation({ type: DEPLOY_SQUAD, payload: { squadSize, pouch: stocked } }));
+        dispatch(withRecalculation({ type: DEPLOY_SQUAD,
+            payload: { squadSize, equipment: ownedEquipment(state), droidStats: getDroidStats(state) } }));
         dispatch(setRotationMode(ROTATION_MODES.squad)); // follow-cam makes driving feel right immediately
     }
 }
@@ -684,7 +680,7 @@ export function disbandSquad() {
 
         dispatch(withRecalculation({
             type: DISBAND_SQUAD,
-            payload: { survivors: squad.squadSize, cargo: squad.cargo || {}, pouch: squad.pouch || {} }
+            payload: { survivors: squad.squadSize, cargo: squad.cargo || {} }
         }));
         const delivered = squad.cargo && Object.keys(squad.cargo).length > 0 ?
             ` Delivered ${formatResourceList(squad.cargo)}.` : '';
@@ -809,20 +805,25 @@ export function squadAttack(poiId) {
             .some(([r, c]) => r === poi.coord[0] && c === poi.coord[1]);
         if (!adjacent) return false;
 
+        // Garrison composition: POI defs may declare a bug-type mix (poi.bugs); plain nests field
+        // `difficulty` standard bugs. The squad fights with its deploy-time stat snapshot.
         dispatch({ type: SQUAD_START_FIGHT,
-            payload: { poiId, battle: createBattle(squad.droidHp || squad.squadSize, poi.difficulty) } });
+            payload: { poiId, battle: createBattle(
+                squad.droidHp || squad.squadSize,
+                poi.bugs || poi.difficulty,
+                squad.droidStats || undefined) } });
         return true;
     }
 }
 
-// Pops a carried consumable into the live battle (the popup's action row / number hotkeys).
-export function useConsumable(itemId) {
+// Fires a carried equipment piece into the live battle (the popup's action row / number hotkeys).
+export function useEquipment(itemId) {
     return function(dispatch, getState) {
         const squad = getState().planet.squad;
         if (!squad || !squad.fighting) return false;
-        if (!squad.pouch || !(squad.pouch[itemId] > 0)) return false;
+        if (!squad.equipment || !(squad.equipment[itemId] > 0)) return false;
 
-        dispatch({ type: SQUAD_USE_CONSUMABLE, payload: { itemId } });
+        dispatch({ type: SQUAD_USE_EQUIPMENT, payload: { itemId } });
         return true;
     }
 }

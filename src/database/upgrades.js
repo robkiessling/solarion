@@ -1034,6 +1034,109 @@ const database = {
             castTime: { add: -15 }
         }
     }),
+    // Squad equipment: one-time acquisitions (see database/equipment.js). Researching one permanently
+    // outfits every future squad with the piece; its charges spend in battle and reload on the grid.
+    // Story salvage can grant these later by researchForFree-ing the same ids.
+    droidFactory_demoLauncher: _.merge({}, base, {
+        name: "Demo Launcher",
+        structure: 'droidFactory',
+        description: 'Squad equipment: lobs a demolition charge onto the densest knot of hostiles. ' +
+            'One shot per grid visit; reloads on powered ground.',
+        discoverWhen: {
+            resources: {
+                standardDroids: 5
+            }
+        },
+        cost: {
+            ore: 4000,
+            refinedMinerals: 800
+        },
+        affects: {
+            type: EFFECT_TARGETS.misc
+        },
+    }),
+    droidFactory_repairRig: _.merge({}, base, {
+        name: "Repair Rig",
+        structure: 'droidFactory',
+        description: 'Squad equipment: field-patches every damaged droid (does not rebuild the destroyed). ' +
+            'One use per grid visit; reloads on powered ground.',
+        discoverWhen: {
+            resources: {
+                standardDroids: 5
+            }
+        },
+        cost: {
+            ore: 2500,
+            refinedMinerals: 500
+        },
+        affects: {
+            type: EFFECT_TARGETS.misc
+        },
+    }),
+    droidFactory_overchargeCell: _.merge({}, base, {
+        name: "Overcharge Cell",
+        structure: 'droidFactory',
+        description: 'Squad equipment: overdrives droid weapons for a short burst. ' +
+            'One discharge per grid visit; recharges on powered ground.',
+        discoverWhen: {
+            resources: {
+                standardDroids: 5
+            }
+        },
+        cost: {
+            ore: 3000,
+            refinedMinerals: 600
+        },
+        affects: {
+            type: EFFECT_TARGETS.misc
+        },
+    }),
+
+    // Droid combat upgrades: EFFECT_TARGETS.misc effects on the expedition droids' unit stats
+    // (hp/damage/attackMs/speed), applied by getDroidStats in redux/reducer.js and snapshotted onto the
+    // squad at deploy. Refits apply to the next deployment, not squads already in the field.
+    droidFactory_reinforcedPlating: _.merge({}, base, {
+        name: "Reinforced Plating",
+        structure: 'droidFactory',
+        description: 'Thicker hull plating for expedition droids: +3 max HP each. Refits apply to the next deployed squad.',
+        discoverWhen: {
+            resources: {
+                standardDroids: 5
+            }
+        },
+        cost: {
+            ore: 3000,
+            refinedMinerals: 600
+        },
+        affects: {
+            type: EFFECT_TARGETS.misc
+        },
+        effect: {
+            hp: { add: 3 }
+        }
+    }),
+    droidFactory_weaponCalibration: _.merge({}, base, {
+        name: "Weapon Calibration",
+        structure: 'droidFactory',
+        description: 'Recalibrated arc cutters: expedition droids hit 50% harder. Refits apply to the next deployed squad.',
+        discoverWhen: {
+            upgrades: ['droidFactory_reinforcedPlating'],
+            resources: {
+                refinedMinerals: 1000
+            }
+        },
+        cost: {
+            ore: 6000,
+            refinedMinerals: 1500
+        },
+        affects: {
+            type: EFFECT_TARGETS.misc
+        },
+        effect: {
+            damage: { multiply: 1.5 }
+        }
+    }),
+
     droidFactory_fasterExplore: _.merge({}, base, {
         name: "Research: Jet Propulsion",
         structure: 'droidFactory',

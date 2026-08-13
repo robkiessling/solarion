@@ -1,83 +1,75 @@
 import React from 'react';
 import {connect} from "react-redux";
 import {deploySquad, disbandSquad} from "../redux/modules/planet";
-import {updateSetting} from "../redux/modules/game";
 import {getQuantity, getResource} from "../redux/modules/resources";
-import {
-    CAPABILITY_LABELS,
-    estimateDifficultyRange,
-    formatResourceList,
-    POI_COLOR_KEYS,
-    POI_GLYPHS,
-    POI_STATUS,
-    POI_TYPES
-} from "../lib/expeditions";
-import {CONSUMABLE_DEFS, CONSUMABLE_ORDER} from "../database/consumables";
+import {formatResourceList} from "../lib/expeditions";
+import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import {isOnGrid, RESERVE_SPEED_PENALTY, SQUAD_DRAIN_PER_TILE, SQUAD_MAX_CHARGE} from "../lib/squad";
-import {UNIT_STATS} from "../lib/battle";
+import {DROID_BASE_STATS} from "../lib/battle";
+import {getDroidStats, ownedEquipment} from "../redux/reducer";
 import {getCrossTime, getTerrain, TERRAINS} from "../lib/planet_map";
 import {PLANET_COLORS} from "../lib/planet_render";
 import Tooltip from "./ui/tooltip";
 
 const DEFAULT_TEAM_SIZE = 5;
 
+const formatStat = (n) => Number.isInteger(n) ? n : n.toFixed(1);
+
+// "●●○": charges remaining vs spent for one equipment piece
+const chargeDots = (itemId, charges) =>
+    '●'.repeat(charges) + '○'.repeat(Math.max(0, EQUIPMENT_DEFS[itemId].charges - charges));
+
 /**
- * Squad sidebar. The one player-driven squad: assemble and deploy it here, drive it on the map with
- * arrows/WASD. POI rows are pure intel (hover highlights the marker); fights start by stepping into a
- * nest on the map, and site interactions resolve through the encounter popup over the canvas.
+ * Squad sidebar. The one player-driven squad: assemble, equip, and deploy it here, drive it on the map
+ * with arrows/WASD. Fights start by stepping into a nest on the map and play out in the encounter popup;
+ * site intel lives on the map itself (glyphs), not in a directory here.
  */
 class Expedition extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            teamSize: DEFAULT_TEAM_SIZE, // staged size; droids only leave the pool at Deploy
-            pouch: {} // staged consumable loadout { itemId: count }; items only leave base stock at Deploy
+            teamSize: DEFAULT_TEAM_SIZE // staged size; droids only leave the pool at Deploy
         };
-    }
-
-    componentWillUnmount() {
-        if (this.props.hoveredPoiId) {
-            this.props.updateSetting('hoveredPoiId', null);
-        }
     }
 
     teamSize() {
         return Math.max(1, Math.min(this.state.teamSize, this.props.idleDroids));
     }
 
-    stagedCount(itemId, stock) {
-        return Math.max(0, Math.min(this.state.pouch[itemId] || 0, stock));
+    // The squad's gear: owned pieces (one-time factory upgrades / story salvage) ride along automatically.
+    // At base: names only (a fresh squad always leaves fully loaded). Fielded: charge dots per piece.
+    renderEquipment(carried) {
+        const ids = EQUIPMENT_ORDER.filter(id => carried[id] !== undefined);
+        if (ids.length === 0) return null;
+
+        return (
+            <React.Fragment>
+                <span className="cargo-line" data-tip data-for="equipment-tip">
+                    Equipment: {ids.map(id => this.props.squad ?
+                        `${EQUIPMENT_DEFS[id].name} ${chargeDots(id, carried[id])}` :
+                        EQUIPMENT_DEFS[id].name).join(', ')}
+                </span>
+                <Tooltip id="equipment-tip">
+                    Fired with number keys mid-battle; charges reload on the powered grid.
+                </Tooltip>
+            </React.Fragment>
+        );
     }
 
-    stagedPouch() {
-        const pouch = {};
-        this.props.consumableStocks.forEach(({ id, stock }) => {
-            const count = this.stagedCount(id, stock);
-            if (count > 0) pouch[id] = count;
-        });
-        return pouch;
-    }
-
-    // The pouch picker: one stepper row per craftable consumable, staged like the team size (nothing is
-    // consumed until Deploy). Hidden entirely until any consumable has been learned at the droid factory.
-    renderPouchPicker() {
-        const stocks = this.props.consumableStocks;
-        if (stocks.length === 0) return null;
-
-        return stocks.map(({ id, stock }) => {
-            const count = this.stagedCount(id, stock);
-            return (
-                <div className="team-line team-builder" key={id} title={CONSUMABLE_DEFS[id].description}>
-                    <span>{CONSUMABLE_DEFS[id].name}:</span>
-                    <button className="stepper" disabled={count <= 0}
-                            onClick={() => this.setState({ pouch: { ...this.state.pouch, [id]: count - 1 } })}>-</button>
-                    <span className="staged-size">{count}</span>
-                    <button className="stepper" disabled={count >= stock}
-                            onClick={() => this.setState({ pouch: { ...this.state.pouch, [id]: count + 1 } })}>+</button>
-                    <span className="idle-count">({stock} stocked)</span>
-                </div>
-            );
-        });
+    // Droid combat specs: live (base + researched upgrades) while staging, the deploy-time snapshot once
+    // fielded -- so a squad running pre-refit stats shows what it actually fights with.
+    renderSpecs(stats) {
+        return (
+            <React.Fragment>
+                <span className="spec-line" data-tip data-for="droid-spec-tip">
+                    Droids: HP {formatStat(stats.hp)} · Damage {formatStat(stats.damage)}
+                </span>
+                <Tooltip id="droid-spec-tip">
+                    {`Swings every ${(stats.attackMs / 1000).toFixed(1)}s · move speed ${stats.speed}. ` +
+                        'Upgrades refit the next deployed squad.'}
+                </Tooltip>
+            </React.Fragment>
+        );
     }
 
     renderTeamCard() {
@@ -96,13 +88,14 @@ class Expedition extends React.Component {
                                 onClick={() => this.setState({ teamSize: size + 1 })}>+</button>
                         <span className="idle-count">({idleDroids} idle)</span>
                     </div>
-                    {this.renderPouchPicker()}
+                    {this.renderSpecs(this.props.droidStats)}
+                    {this.renderEquipment(this.props.ownedEquipment)}
                     <span className="squad-status-text">Status: At base</span>
                     <div className="field-telemetry"/>
                     <span className="cargo-line">Cargo: —</span>
                     <div className="squad-actions">
                         <button disabled={idleDroids < 1}
-                                onClick={() => this.props.deploySquad(size, this.stagedPouch())}>Deploy</button>
+                                onClick={() => this.props.deploySquad(size)}>Deploy</button>
                     </div>
                 </div>
             );
@@ -132,19 +125,18 @@ class Expedition extends React.Component {
                         <span>{squad.squadSize} droids</span>
                     </span>
                 </div>
+                {this.renderSpecs(squad.droidStats || DROID_BASE_STATS)}
                 <span className="squad-status-text">{statusText}</span>
                 {this.renderTelemetry()}
                 <span className="cargo-line">Cargo: {formatResourceList(squad.cargo) || '—'}</span>
-                {Object.keys(squad.pouch || {}).length > 0 &&
-                    <span className="cargo-line">Pouch: {
-                        CONSUMABLE_ORDER.filter(id => squad.pouch[id] > 0)
-                            .map(id => `${CONSUMABLE_DEFS[id].name} ×${squad.pouch[id]}`)
-                            .join(', ') || '—'
-                    }</span>}
+                {this.renderEquipment(squad.equipment || {})}
                 <div className="squad-actions">
-                    <button disabled={!onGrid || !!squad.fighting}
-                            title={onGrid ? undefined : 'Return to powered ground to disband'}
-                            onClick={() => this.props.disbandSquad()}>Disband</button>
+                    <span data-tip data-for="disband-tip">
+                        <button disabled={!onGrid || !!squad.fighting}
+                                onClick={() => this.props.disbandSquad()}>Disband</button>
+                    </span>
+                    {!onGrid &&
+                        <Tooltip id="disband-tip">Return to powered ground to disband.</Tooltip>}
                 </div>
             </div>
         );
@@ -182,7 +174,7 @@ class Expedition extends React.Component {
                         'Reserve power: crossings take twice as long. Recharges on the grid.' :
                         `${Math.ceil(squad.charge)} / ${SQUAD_MAX_CHARGE}`}
                 </Tooltip>
-                {this.renderHull()}
+                {this.renderHpBar()}
                 <span className="terrain-line">
                     <span className="terrain-key">Terrain:</span>{' '}
                     <span style={{color: PLANET_COLORS[terrain.key]}}>{terrain.display} {terrain.label}</span>
@@ -193,77 +185,34 @@ class Expedition extends React.Component {
         );
     }
 
-    // Squad hull: battle wounds persist in the field and repair on the grid, exactly like charge. The bar
+    // Squad HP: battle wounds persist in the field and repair on the grid, exactly like charge. The bar
     // sums per-droid hp; green like the arena's unit bars (hp language), distinct from the cyan charge bar.
-    renderHull() {
+    renderHpBar() {
         const { squad } = this.props;
-        const hullMax = squad.squadSize * UNIT_STATS.droid.hp;
-        const hull = (squad.droidHp || []).reduce((sum, hp) => sum + hp, 0) || hullMax;
-        const hullPct = Math.max(0, Math.min(100, (hull / hullMax) * 100));
+        const hpMax = squad.squadSize * ((squad.droidStats || DROID_BASE_STATS).hp);
+        const hp = (squad.droidHp || []).reduce((sum, unitHp) => sum + unitHp, 0) || hpMax;
+        const hpPct = Math.max(0, Math.min(100, (hp / hpMax) * 100));
 
         return (
             <React.Fragment>
-                <div className="charge-row" data-tip data-for="squad-hull-tip">
-                    <span>Hull:</span>
-                    <div className={`charge-bar hull${hull <= hullMax * 0.5 ? ' low' : ''}`}>
-                        <span className="fill" style={{width: `${hullPct}%`}}/>
+                <div className="charge-row" data-tip data-for="squad-hp-tip">
+                    <span>HP:</span>
+                    <div className={`charge-bar hull${hp <= hpMax * 0.5 ? ' low' : ''}`}>
+                        <span className="fill" style={{width: `${hpPct}%`}}/>
                     </div>
                 </div>
-                <Tooltip id="squad-hull-tip">
-                    {`${hull} / ${hullMax}. Battle damage persists in the field; repairs on the grid.`}
+                <Tooltip id="squad-hp-tip">
+                    {`${hp} / ${hpMax}. Battle damage persists in the field; repairs on the grid.`}
                 </Tooltip>
             </React.Fragment>
         );
     }
 
-    renderPoiRow(poi) {
-        const { unlockedTerrains } = this.props;
-
-        const requiresUnmet = poi.requires && !unlockedTerrains[poi.requires];
-        const glyphColor = PLANET_COLORS[POI_COLOR_KEYS[poi.type]];
-
-        let difficultyText = null;
-        if (poi.type === POI_TYPES.nest) {
-            if (poi.difficultyKnown) {
-                difficultyText = `Strength: ${poi.difficulty}`;
-            }
-            else {
-                const [lo, hi] = estimateDifficultyRange(poi.difficulty);
-                difficultyText = `Est. strength: ${lo}–${hi}`;
-            }
-        }
-
-        // Rows are pure intel: hovering highlights the map marker; you reach sites by driving there.
-        return (
-            <div key={poi.id} className="poi-row inert"
-                 onMouseEnter={() => this.props.updateSetting('hoveredPoiId', poi.id)}
-                 onMouseLeave={() => this.props.updateSetting('hoveredPoiId', null)}>
-                <div className="poi-head">
-                    <span className="poi-title">
-                        <span style={{color: glyphColor}}>{POI_GLYPHS[poi.type]}</span> {poi.name}
-                        <span className="poi-distance"> ({poi.distance} tiles)</span>
-                    </span>
-                </div>
-                {difficultyText && <span className="poi-detail">{difficultyText}</span>}
-                {requiresUnmet && <span className="poi-requires">Requires: {CAPABILITY_LABELS[poi.requires] || poi.requires}</span>}
-            </div>
-        );
-    }
-
     render() {
-        const available = Object.values(this.props.pois)
-            .filter(poi => poi.status === POI_STATUS.available)
-            .sort((a, b) => a.distance - b.distance);
-
         return (
             <div className="expedition-status">
                 <div className="component-header">Expeditions</div>
                 {this.renderTeamCard()}
-                {available.map(poi => this.renderPoiRow(poi))}
-                {
-                    available.length === 0 && !this.props.squad &&
-                    <span className="no-sites">No sites of interest discovered. Deploy the squad and drive it into the unknown.</span>
-                }
             </div>
         );
     }
@@ -272,22 +221,19 @@ class Expedition extends React.Component {
 const mapStateToProps = (state, ownProps) => {
     const squad = state.planet.squad;
     return {
-        pois: state.planet.pois,
+        pois: state.planet.pois, // for the prompt's site name in the status line
         squad,
         prompt: state.planet.prompt,
         onGrid: !!(squad && state.planet.map.length > 0 && isOnGrid(state.planet.map, squad.coord)),
         sector: squad && state.planet.map.length > 0 ? state.planet.map[squad.coord[0]][squad.coord[1]] : null,
         unlockedTerrains: state.planet.unlockedTerrains,
         idleDroids: Math.floor(getQuantity(getResource(state.resources, 'standardDroids'))),
-        // Craftable consumables (learned at the droid factory) and how many are on the shelf
-        consumableStocks: CONSUMABLE_ORDER
-            .filter(id => getResource(state.resources, id))
-            .map(id => ({ id, stock: Math.floor(getQuantity(getResource(state.resources, id))) })),
-        hoveredPoiId: state.game.hoveredPoiId
+        droidStats: getDroidStats(state),
+        ownedEquipment: ownedEquipment(state)
     };
 };
 
 export default connect(
     mapStateToProps,
-    { deploySquad, disbandSquad, updateSetting }
+    { deploySquad, disbandSquad }
 )(Expedition);

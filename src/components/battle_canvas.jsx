@@ -1,5 +1,5 @@
 import React from 'react';
-import {ARENA_H, ARENA_W, BATTLE_PHASES, FX_TTL_MS, UNIT_STATS} from "../lib/battle";
+import {ARENA_H, ARENA_W, BATTLE_PHASES, BUG_TYPES, FX_TTL_MS} from "../lib/battle";
 import {PLANET_COLORS} from "../lib/planet_render";
 
 /**
@@ -14,6 +14,9 @@ const DROID_GLYPH = '◆';
 const BUG_GLYPH = '✳';
 const DROID_COLOR = PLANET_COLORS.squad;   // friendly cyan, same as the map glyph
 const BUG_COLOR = PLANET_COLORS.battle;    // hostile orange, same as the map's fight effect
+
+// Per-type glyph overrides (future bug variants/bosses get their own look here); side glyph is the fallback
+const TYPE_GLYPHS = { droid: DROID_GLYPH, bug: BUG_GLYPH };
 
 // Attack lunge: on each swing the glyph nudges toward its target and springs back (out-and-back half
 // sine, same feel as the map's movement bump). Render-side only; sim positions never move.
@@ -129,14 +132,13 @@ export default class BattleCanvas extends React.Component {
                 ctx.shadowColor = DROID_COLOR;
                 ctx.shadowBlur = fontSize * 0.7;
             }
-            ctx.fillText(droid ? DROID_GLYPH : BUG_GLYPH, px(x), py(y));
+            ctx.fillText(TYPE_GLYPHS[unit.type] || (droid ? DROID_GLYPH : BUG_GLYPH), px(x), py(y));
             ctx.shadowBlur = 0;
 
             // Rank-and-file bugs get no bar: they can't be targeted, so per-bug hp isn't actionable
-            // (the header's aggregate bar tracks the swarm), and hiding them halves the clutter that
-            // makes bar ownership ambiguous. Hostiles tougher than a standard bug (future elites and
-            // bosses) do earn one.
-            if (droid || unit.maxHp > UNIT_STATS.bug.hp) {
+            // (the header's pips track the swarm), and hiding them halves the clutter that makes bar
+            // ownership ambiguous. Hostiles tougher than a standard bug (elites and bosses) do earn one.
+            if (droid || unit.maxHp > BUG_TYPES.bug.hp) {
                 const fraction = unit.hp / unit.maxHp;
                 const barW = px(HP_BAR_W);
                 const barX = px(x) - barW / 2;
