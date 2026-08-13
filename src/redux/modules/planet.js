@@ -885,8 +885,10 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
                     });
                 }
 
-                // The outcome narrates in the popup's result phase (the squad is standing right there).
-                // Counts are effective units; the popup words them "units" once replication multiplies.
+                // The outcome narrates in the popup's result phase (the squad is standing right there),
+                // over the battle's final frame (finalBattle: the popup holds the field instead of
+                // snapping down to the small prompt). Counts are effective units; the popup words them
+                // "units" once replication multiplies.
                 dispatch({ type: SQUAD_FIGHT_WON, payload: { poiId: event.poiId, survivors: event.survivors,
                     droidHp: event.droidHp, reward, landCredit,
                     result: {
@@ -895,7 +897,8 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
                         multiplier: squad.multiplier || 1,
                         landCredit,
                         capability: (reward && reward.capability) || null,
-                        loaded: (reward && reward.resources) || null
+                        loaded: (reward && reward.resources) || null,
+                        finalBattle: event.battle
                     } } });
                 if (reward && reward.capability) {
                     dispatch(unlockTerrain(reward.capability));
@@ -907,7 +910,8 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
                 const cargoLost = squad.cargo && Object.keys(squad.cargo).length > 0 ? squad.cargo : null;
                 dispatch({ type: SQUAD_WIPED, payload: { poiId: event.poiId,
                     result: { wiped: true, squadSize: squad.squadSize,
-                        multiplier: squad.multiplier || 1, cargoLost } } });
+                        multiplier: squad.multiplier || 1, cargoLost,
+                        finalBattle: event.battle } } });
                 dispatch(logInline(`Team lost assaulting ${poi.name}.` +
                     (cargoLost ? ` Cargo lost: ${formatResourceList(cargoLost)}.` : '')));
             }

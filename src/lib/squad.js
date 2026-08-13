@@ -85,7 +85,8 @@ export function squadCrossMs(map, coord, unlocks, charge) {
  * its path. Per tile entered: line-of-sight reveal (the tile + its neighbors, same rule as scouts), charge
  * drain off-grid / snap-to-full on-grid, and contact events. Pure; returns the next squad, the coords newly
  * revealed this tick (still-unknown tiles only), and events for the caller to resolve:
- *   { type: 'battleOver', poiId, result, survivors, bugsRemaining }  (live fight ended; see lib/battle.js)
+ *   { type: 'battleOver', poiId, result, survivors, bugsRemaining, battle }  (live fight ended; `battle`
+ *       is the final field state, kept so the result popup can hold the last frame; see lib/battle.js)
  *   { type: 'enteredPoi', poiId }          (stepped onto an available cache/story tile: resolve it)
  *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)
  */
@@ -98,7 +99,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
         if (!over) {
             return { squad: {...squad, fighting: {...squad.fighting, battle}}, reveals: [], events };
         }
-        events.push({ ...over, poiId: squad.fighting.poiId });
+        events.push({ ...over, poiId: squad.fighting.poiId, battle });
         return { squad: {...squad, fighting: null}, reveals: [], events };
     }
 
