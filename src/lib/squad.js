@@ -23,26 +23,49 @@ export const SQUAD_SPEED_FACTOR = 0.4;
 
 // Charge model: drains per tile entered while off the powered grid, snaps to full on the grid. At zero the
 // squad limps ("reserve power"): crossings take twice as long. A planning aid, never a fail state.
+// Drain scales with the assigned droids (not the replicated units, so growing the multiplier never shrinks
+// range): a bigger team is a shorter-legged team, which is what makes force sizing a real decision.
 export const SQUAD_MAX_CHARGE = 100;
-export const SQUAD_DRAIN_PER_TILE = 2;
+export const SQUAD_DRAIN_PER_DROID = 0.4; // per assigned droid per tile; the default 5-droid team drains 2
 export const RESERVE_SPEED_PENALTY = 2;
 
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
 export {isOnGrid} from "./planet_map";
 
-export function createSquad(homeCoord, squadSize, equipment = {}, droidStats = DROID_BASE_STATS) {
+export function squadDrainPerTile(squad) {
+    return SQUAD_DRAIN_PER_DROID * (squad.assignedDroids || 5);
+}
+
+/**
+ * Replication multiplies the fielded force: `assignedDroids` leave the pool, but the squad's roster is
+ * assignedDroids x multiplier effective UNITS (snapshotted at deploy; replicating while deployed doesn't
+ * grow a fielded squad). Everything downstream -- battles, wounds (droidHp), losses, the sidebar --
+ * deals in units 1:1; whole droids only reappear at disband settlement (droidsRecovered).
+ */
+export function createSquad(homeCoord, assignedDroids = 1, multiplier = 1, equipment = {}, droidStats = DROID_BASE_STATS) {
+    const numUnits = assignedDroids * multiplier;
     return {
         coord: homeCoord,
         path: [],
         moveProgress: 0,
         charge: SQUAD_MAX_CHARGE,
-        squadSize,
+        assignedDroids,          // droids consumed from the pool at deploy; the resource-side contract
+        multiplier,              // replication multiplier snapshotted at deploy
+        squadSize: numUnits,     // current roster in effective units (shrinks as units die)
         cargo: {},               // loot collected at POIs; banks whenever the squad touches the grid, dies on a wipe
         equipment,               // carried gear charges { itemId: chargesLeft }; spend in battle, reload on the grid
         droidStats,              // effective unit stats (base + upgrades), snapshotted at deploy: refit at base
-        droidHp: fullDroidHp(squadSize, droidStats.hp), // per-droid hull; wounds persist in the field, repaired on the grid
+        droidHp: fullDroidHp(numUnits, droidStats.hp), // per-unit hull; wounds persist in the field, repaired on the grid
         fighting: null           // null | { poiId, battle } -- live per-unit sim (see lib/battle.js)
     };
+}
+
+// Disband settlement: surviving units round back to whole droids, to the nearest (losing less than half a
+// multiplier's worth of units costs nothing: partial stacks re-replicate at home, the same fiction as
+// heals-at-home; unexploitable because nests reset fully between engagements).
+export function droidsRecovered(squad) {
+    return Math.min(squad.assignedDroids || squad.squadSize,
+        Math.round(squad.squadSize / (squad.multiplier || 1)));
 }
 
 // The available (discovered, unresolved) POI standing on `coord`, or null.
@@ -114,7 +137,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
             events.push({ type: 'onGrid' });
         }
         else {
-            charge = Math.max(0, charge - SQUAD_DRAIN_PER_TILE);
+            charge = Math.max(0, charge - squadDrainPerTile(squad));
         }
 
         const poi = poiAtCoord(pois, coord);

@@ -138,9 +138,13 @@ $top-bar-float-padding: 0.875rem;
     }
 
     // Battle mode: the popup grows into the arena window (the live per-unit fight plays inside it).
-    // Sized generously now; scales further as armies do (the arena canvas is resolution-independent).
+    // 34rem is the small-fight floor; above the baseline army size the component sets an inline width
+    // that grows with the arena, capped near-fullscreen (and re-anchored fixed, over the side panels).
+    // Slightly more opaque than the base popup: at arena size the planet map bleeding through reads as
+    // noise behind hundreds of glyphs.
     &.battle {
       width: 34rem;
+      background: rgba(13, 17, 23, 0.97);
 
       .battle-header {
         display: flex;

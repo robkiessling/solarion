@@ -11,10 +11,28 @@ import {
     STORY_TEXTS
 } from "../lib/expeditions";
 import {PLANET_COLORS} from "../lib/planet_render";
-import {BATTLE_PHASES, countUnits} from "../lib/battle";
+import {ARENA_W, BATTLE_PHASES, countUnits} from "../lib/battle";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import BattleCanvas from "./battle_canvas";
 import Tooltip from "./ui/tooltip";
+
+// Force display: one pip per starting unit, colored while alive (escapees included: alive, off the
+// field), grey once dead -- the display IS the count, so the number and the visual can't disagree.
+// Alive pips pack toward the outside and the dead accumulate toward the center, so the armies erode
+// toward the center line. Pips shrink and wrap into rows for big armies, never merging into a bar.
+// Individual wounds show on the arena's per-unit slivers instead. Memoized: at hundreds of units the
+// pip row is the popup's biggest DOM cost, and it only changes when the alive count does.
+const ForcePips = React.memo(function ForcePips({ alive, total, side }) {
+    const size = total <= 24 ? 7 : total <= 80 ? 5 : total <= 200 ? 3 : 2;
+    return (
+        <span className={`battle-pips ${side}`} style={{gap: size >= 5 ? 2 : 1}}>
+            {Array.from({ length: total }, (_, i) => (
+                <span key={i} className={`pip${i < alive ? ' alive' : ''}`}
+                      style={{width: size, height: size}}/>
+            ))}
+        </span>
+    );
+});
 
 /**
  * The centered encounter popup over the planet canvas, in one of three modes: the squad is standing on a
@@ -51,7 +69,7 @@ class EncounterPopup extends React.Component {
                     {story && <span className="story-text">"{story}"</span>}
                     {result.wiped &&
                         <span className="result-line">
-                            Contact lost — all {result.squadSize} droids destroyed.
+                            Contact lost — all {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'} destroyed.
                         </span>}
                     {result.wiped && result.cargoLost &&
                         <span className="result-line">
@@ -59,7 +77,7 @@ class EncounterPopup extends React.Component {
                         </span>}
                     {result.losses != null &&
                         <span className="result-line">
-                            Nest cleared — lost {result.losses} of {result.squadSize} droids.
+                            Nest cleared — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
                         </span>}
                     {result.landCredit > 0 &&
                         <span className="outcome-line">Reclaimed {result.landCredit} land.</span>}
@@ -89,35 +107,18 @@ class EncounterPopup extends React.Component {
         const droids = countUnits(battle, 'droid') + battle.escaped;
         const bugs = countUnits(battle, 'bug');
 
-        // Force display: one pip per starting unit, colored while alive (escapees included: alive, off
-        // the field), grey once dead -- the display IS the count, so the number and the visual can't
-        // disagree. Alive pips pack toward the outside and the dead accumulate toward the center, so the
-        // armies erode toward the center line. Pips shrink and wrap into rows for big armies, never
-        // merging into a bar. Individual wounds show on the arena's per-unit slivers instead.
-        const renderPips = (alive, total, side) => {
-            const size = total <= 24 ? 7 : total <= 80 ? 5 : 3;
-            return (
-                <span className={`battle-pips ${side}`} style={{gap: size >= 5 ? 2 : 1}}>
-                    {Array.from({ length: total }, (_, i) => (
-                        <span key={i} className={`pip${i < alive ? ' alive' : ''}`}
-                              style={{width: size, height: size}}/>
-                    ))}
-                </span>
-            );
-        };
-
         return (
             <React.Fragment>
                 <div className="battle-header">
                     <span className="battle-side">
                         <span className="battle-count droids">Droids {droids}</span>
-                        {renderPips(droids, battle.startingDroids, 'droids')}
+                        <ForcePips alive={droids} total={battle.startingDroids} side="droids"/>
                     </span>
                     <span className={`battle-vs${battle.buffs.overchargeMs > 0 ? ' overcharged' : ''}`}>
                         {battle.buffs.overchargeMs > 0 ? 'OVERCHARGE' : 'vs'}
                     </span>
                     <span className="battle-side bugs">
-                        {renderPips(bugs, battle.startingBugs, 'bugs')}
+                        <ForcePips alive={bugs} total={battle.startingBugs} side="bugs"/>
                         <span className="battle-count bugs">Bugs {bugs}</span>
                     </span>
                 </div>
@@ -152,8 +153,26 @@ class EncounterPopup extends React.Component {
         const poi = this.props.pois[poiId];
         if (!poi) return null;
 
+        // Battle mode grows the popup with the arena (same sqrt-of-headcount scale as the field itself),
+        // capped near-fullscreen; the height cap keeps the 5:3 canvas plus header/actions on screen.
+        // Scaled battles re-anchor to the viewport: the default home (#planet) clips overflow at the panel
+        // edges and the flanking panels paint over it. z-index stays below the settings modal (4).
+        let style;
+        if (fighting) {
+            const scale = (fighting.battle.arenaW || ARENA_W) / ARENA_W;
+            if (scale > 1) {
+                style = {
+                    width: `min(${(34 * scale).toFixed(1)}rem, 94vw, calc(150vh - 13rem))`,
+                    position: 'fixed',
+                    left: '50%',
+                    top: '50%', // true center: at this size the panel-relative 46% would run into the top bar
+                    zIndex: 3
+                };
+            }
+        }
+
         return (
-            <div className={`encounter-popup${fighting ? ' battle' : ''}`}>
+            <div className={`encounter-popup${fighting ? ' battle' : ''}`} style={style}>
                 <div className="popup-title">
                     <span style={{color: PLANET_COLORS[POI_COLOR_KEYS[poi.type]]}}>{POI_GLYPHS[poi.type]}</span>
                     {' '}{poi.name.toUpperCase()}

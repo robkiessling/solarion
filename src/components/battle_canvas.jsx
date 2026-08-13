@@ -25,6 +25,10 @@ const LUNGE_DIST = 1.4; // arena units at full extension
 
 // Per-unit hp bars, StarCraft style: a grey track above each glyph with a colored fill whose hue
 // slides green -> yellow -> orange -> red as hp drops. Sized in arena units so they scale with the popup.
+// Above HP_BAR_FORCE_LIMIT total starting units, rank-and-file bars disappear entirely: at army scale no
+// individual droid's hull is actionable (the header pips and the sidebar HP bar carry the aggregate), so
+// only units worth tracking by name -- elites and bosses -- keep one.
+const HP_BAR_FORCE_LIMIT = 60;
 const HP_BAR_W = 2.6;       // arena units wide (about a glyph)
 const HP_BAR_LIFT = 2.8;    // arena units above the unit's center
 const HP_BAR_PX = 2;        // bar thickness in CSS pixels
@@ -61,8 +65,12 @@ export default class BattleCanvas extends React.Component {
         }
 
         const ctx = canvas.getContext('2d');
-        const scaleX = width / ARENA_W;
-        const scaleY = height / ARENA_H;
+        // Arena dimensions are per battle (bigger armies fight on a bigger field at the same density);
+        // the constants are the fallback for battles saved before arena scaling existed.
+        const arenaW = battle.arenaW || ARENA_W;
+        const arenaH = battle.arenaH || ARENA_H;
+        const scaleX = width / arenaW;
+        const scaleY = height / arenaH;
         const px = (x) => x * scaleX;
         const py = (y) => y * scaleY;
 
@@ -73,7 +81,7 @@ export default class BattleCanvas extends React.Component {
         ctx.fillRect(0, 0, width, height);
         ctx.strokeStyle = 'rgba(120, 140, 160, 0.07)';
         ctx.lineWidth = 1;
-        for (let gx = 10; gx < ARENA_W; gx += 10) {
+        for (let gx = 10; gx < arenaW; gx += 10) {
             ctx.beginPath();
             ctx.moveTo(px(gx), 0);
             ctx.lineTo(px(gx), height);
@@ -115,6 +123,7 @@ export default class BattleCanvas extends React.Component {
         // Units: glyph at position (plus any mid-lunge offset) with a thin hp sliver above it. The bar
         // carries the health information, so glyphs stay full-strength colors.
         const barH = Math.max(2, Math.round(HP_BAR_PX * dpr));
+        const bigFight = battle.startingDroids + battle.startingBugs > HP_BAR_FORCE_LIMIT;
         battle.units.forEach(unit => {
             const droid = unit.side === 'droid';
             let x = unit.x, y = unit.y;
@@ -137,8 +146,10 @@ export default class BattleCanvas extends React.Component {
 
             // Rank-and-file bugs get no bar: they can't be targeted, so per-bug hp isn't actionable
             // (the header's pips track the swarm), and hiding them halves the clutter that makes bar
-            // ownership ambiguous. Hostiles tougher than a standard bug (elites and bosses) do earn one.
-            if (droid || unit.maxHp > BUG_TYPES.bug.hp) {
+            // ownership ambiguous. Hostiles tougher than a standard bug (elites and bosses) do earn one,
+            // at any scale; friendlies show theirs only in small fights (see HP_BAR_FORCE_LIMIT).
+            const elite = !droid && unit.maxHp > BUG_TYPES.bug.hp;
+            if (elite || (droid && !bigFight)) {
                 const fraction = unit.hp / unit.maxHp;
                 const barW = px(HP_BAR_W);
                 const barX = px(x) - barW / 2;

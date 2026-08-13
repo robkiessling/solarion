@@ -53,6 +53,9 @@ export function migrateSavedState(savedState, defaultState) {
         delete squad.pouch; // pre-equipment saves carried purchasable consumables; that system is gone
         if (squad.equipment === undefined) squad.equipment = {}; // gear re-arms on the next deploy
         if (!squad.droidStats) squad.droidStats = { ...DROID_BASE_STATS }; // pre-upgrades saves: stock droids
+        // Pre-replication saves: the fielded roster was the assigned droids themselves (x1)
+        if (!squad.multiplier) squad.multiplier = 1;
+        if (!squad.assignedDroids) squad.assignedDroids = squad.squadSize;
         if (!Array.isArray(squad.droidHp) || squad.droidHp.length !== squad.squadSize) {
             squad.droidHp = fullDroidHp(squad.squadSize, squad.droidStats.hp); // pre-persistence saves: deploy healthy
         }

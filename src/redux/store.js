@@ -46,9 +46,11 @@ function readSetting(state, setting) {
     return state && state.game && state.game[setting];
 }
 
-// Dev-console access to the live store (debugging / driving the sim by hand); stripped from prod builds
+// Dev-console access to the live store (debugging / driving the sim by hand); stripped from prod builds.
+// solarionBattle exposes the battle factory so e2e scripts can stage arbitrary fights via SQUAD_START_FIGHT.
 if (import.meta.env.DEV) {
     window.solarionStore = store;
+    import('../lib/battle').then(battle => { window.solarionBattle = battle; });
 }
 
 export default store;

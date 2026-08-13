@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import {getDroidStats, ownedEquipment, recalculateState, surveyAutomationUnlocked, withRecalculation} from "../reducer";
+import {getDroidStats, getReplicationMultiplier, ownedEquipment, recalculateState, surveyAutomationUnlocked, withRecalculation} from "../reducer";
 import {
     centeringRotation,
     COOK_TIME,
@@ -33,7 +33,7 @@ import {
 } from "../../lib/expeditions";
 import {applyEquipment, BATTLE_PHASES, createBattle, startWithdrawal} from "../../lib/battle";
 import {canConsume} from "./resources";
-import {advanceSquad, createSquad, isOnGrid} from "../../lib/squad";
+import {advanceSquad, createSquad, droidsRecovered, isOnGrid} from "../../lib/squad";
 import {logInline} from "./log";
 import {batch} from "react-redux";
 import * as fromClock from "./clock";
@@ -112,7 +112,8 @@ const initialState = {
 
     // Expedition system (see lib/expeditions.js for domain logic and shapes)
     pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
-    squad: null, // the player-driven squad: { coord, path, moveProgress, charge, squadSize, cargo, equipment, droidHp, fighting }
+    squad: null, // the player-driven squad (see createSquad): { coord, path, moveProgress, charge,
+                 // assignedDroids, multiplier, squadSize (effective units), cargo, equipment, droidHp, fighting }
     // The encounter popup's state: null | { poiId, phase: 'offer'|'result', result }. Planet-level (not on the
     // squad) so a wipe can still narrate its ending after the squad object is gone.
     prompt: null
@@ -249,7 +250,8 @@ export default function reducer(state = initialState, action) {
 
         case DEPLOY_SQUAD:
             return update(state, {
-                squad: { $set: createSquad(state.homeCoord, payload.squadSize, payload.equipment, payload.droidStats) }
+                squad: { $set: createSquad(state.homeCoord, payload.assignedDroids, payload.multiplier,
+                    payload.equipment, payload.droidStats) }
             });
         case DISBAND_SQUAD:
             return update(state, {
@@ -655,22 +657,27 @@ function sealedText(poi) {
     return `${poi.name} is sealed — requires ${CAPABILITY_LABELS[poi.requires] || poi.requires}.`;
 }
 
-// Deploying costs only the droids. The squad automatically carries every owned equipment piece at full
-// charges, and its unit stats (base + researched combat upgrades) are snapshotted here: refit at base.
-export function deploySquad(squadSize) {
+// Deploying costs only the droids. Replication multiplies them: the fielded roster is
+// assignedDroids x multiplier effective units, snapshotted at deploy (replicating afterward doesn't grow a
+// fielded squad). The squad automatically carries every owned equipment piece at full charges, and its
+// unit stats (base + researched combat upgrades) are snapshotted here: refit at base.
+export function deploySquad(assignedDroids) {
     return function(dispatch, getState) {
         const state = getState();
         const planet = state.planet;
         if (planet.squad || !planet.homeCoord) return;
-        if (squadSize < 1 || !canConsume(state.resources, { standardDroids: squadSize })) return;
+        if (assignedDroids < 1 || !canConsume(state.resources, { standardDroids: assignedDroids })) return;
 
         dispatch(withRecalculation({ type: DEPLOY_SQUAD,
-            payload: { squadSize, equipment: ownedEquipment(state), droidStats: getDroidStats(state) } }));
+            payload: { assignedDroids, multiplier: getReplicationMultiplier(state),
+                equipment: ownedEquipment(state), droidStats: getDroidStats(state) } }));
         dispatch(setRotationMode(ROTATION_MODES.squad)); // follow-cam makes driving feel right immediately
     }
 }
 
 // Disbanding requires standing on the powered grid (walk home first); survivors and cargo credit there.
+// Surviving units settle back into whole droids to the nearest (droidsRecovered): partial losses
+// re-replicate at home.
 export function disbandSquad() {
     return function(dispatch, getState) {
         const planet = getState().planet;
@@ -678,13 +685,19 @@ export function disbandSquad() {
         if (!squad || squad.fighting) return;
         if (!isOnGrid(planet.map, squad.coord)) return;
 
+        const droidsReturned = droidsRecovered(squad);
         dispatch(withRecalculation({
             type: DISBAND_SQUAD,
-            payload: { survivors: squad.squadSize, cargo: squad.cargo || {} }
+            payload: { droidsReturned, cargo: squad.cargo || {} }
         }));
         const delivered = squad.cargo && Object.keys(squad.cargo).length > 0 ?
             ` Delivered ${formatResourceList(squad.cargo)}.` : '';
-        dispatch(logInline(`Team returned to base (${squad.squadSize} droids).${delivered}`));
+        const mult = squad.multiplier || 1;
+        const roster = mult > 1 ?
+            `${squad.squadSize} of ${(squad.assignedDroids || squad.squadSize) * mult} units — ` +
+                `${droidsReturned} of ${squad.assignedDroids} droids recovered` :
+            `${droidsReturned} droids`;
+        dispatch(logInline(`Team returned to base (${roster}).${delivered}`));
     }
 }
 
@@ -805,13 +818,15 @@ export function squadAttack(poiId) {
             .some(([r, c]) => r === poi.coord[0] && c === poi.coord[1]);
         if (!adjacent) return false;
 
-        // Garrison composition: POI defs may declare a bug-type mix (poi.bugs); plain nests field
-        // `difficulty` standard bugs. The squad fights with its deploy-time stat snapshot.
+        // Garrison composition: POI defs may declare a bug-type mix (poi.bugs) and a spawn formation
+        // (poi.formation); plain nests field `difficulty` standard bugs in a column front. The squad
+        // fights with its deploy-time stat snapshot.
         dispatch({ type: SQUAD_START_FIGHT,
             payload: { poiId, battle: createBattle(
                 squad.droidHp || squad.squadSize,
                 poi.bugs || poi.difficulty,
-                squad.droidStats || undefined) } });
+                squad.droidStats || undefined,
+                poi.formation || undefined) } });
         return true;
     }
 }
@@ -866,12 +881,14 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
                     });
                 }
 
-                // The outcome narrates in the popup's result phase (the squad is standing right there)
+                // The outcome narrates in the popup's result phase (the squad is standing right there).
+                // Counts are effective units; the popup words them "units" once replication multiplies.
                 dispatch({ type: SQUAD_FIGHT_WON, payload: { poiId: event.poiId, survivors: event.survivors,
                     droidHp: event.droidHp, reward, landCredit,
                     result: {
                         losses: squad.squadSize - event.survivors,
                         squadSize: squad.squadSize,
+                        multiplier: squad.multiplier || 1,
                         landCredit,
                         capability: (reward && reward.capability) || null,
                         loaded: (reward && reward.resources) || null
@@ -885,15 +902,16 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
                 // left to anchor it), and the terminal keeps a line for the record.
                 const cargoLost = squad.cargo && Object.keys(squad.cargo).length > 0 ? squad.cargo : null;
                 dispatch({ type: SQUAD_WIPED, payload: { poiId: event.poiId,
-                    result: { wiped: true, squadSize: squad.squadSize, cargoLost } } });
+                    result: { wiped: true, squadSize: squad.squadSize,
+                        multiplier: squad.multiplier || 1, cargoLost } } });
                 dispatch(logInline(`Team lost assaulting ${poi.name}.` +
                     (cargoLost ? ` Cargo lost: ${formatResourceList(cargoLost)}.` : '')));
             }
             else { // retreated
                 dispatch({ type: SQUAD_RETREATED, payload: { poiId: event.poiId, survivors: event.survivors,
                     droidHp: event.droidHp } });
-                dispatch(logInline(`Team fell back from ${poi.name} — ` +
-                    `${event.survivors} of ${squad.squadSize} droids escaped.`));
+                dispatch(logInline(`Team fell back from ${poi.name} — ${event.survivors} of ` +
+                    `${squad.squadSize} ${(squad.multiplier || 1) > 1 ? 'units' : 'droids'} escaped.`));
             }
             dispatch(recalculateState());
             break;

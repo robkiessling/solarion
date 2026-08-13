@@ -98,7 +98,7 @@ export function generatePois(map) {
 
     // A nest additionally stamps its infestation radius (flatland only; mountains/acid are barriers already).
     // Placement requires clean ground out to radius+1, so stamps never overlap (retraction assumes one owner).
-    const addNest = (band, difficulty, infestRadius) => {
+    const addNest = (band, difficulty, infestRadius, formation) => {
         for (let attempt = 0; attempt < 20; attempt++) {
             const sector = pick(band);
             if (!sector) return;
@@ -107,7 +107,7 @@ export function generatePois(map) {
                 map[r][c].terrain !== TERRAINS.home.enum);
             if (!clean) continue; // pick() already marked it used; just try another tile
 
-            const poi = add(POI_TYPES.nest, sector, { difficulty, infestRadius });
+            const poi = add(POI_TYPES.nest, sector, { difficulty, infestRadius, formation });
             [sector.coord, ...getCoordsWithinHops(sector.coord, infestRadius)].forEach(([r, c]) => {
                 if (map[r][c].terrain === TERRAINS.flatland.enum && !map[r][c].gated) {
                     map[r][c].infestedBy = poi.id;
@@ -129,7 +129,7 @@ export function generatePois(map) {
     // The content manifest: each definition placed in its band, rewards rolled from their declared ranges
     POI_DEFS.forEach(def => {
         if (def.type === POI_TYPES.nest) {
-            addNest(def.band, def.difficulty, def.infestRadius);
+            addNest(def.band, def.difficulty, def.infestRadius, def.formation);
             return;
         }
         const extras = {};

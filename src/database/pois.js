@@ -57,10 +57,11 @@ export const POI_DEFS = [
     { type: POI_TYPES.cache, band: BANDS.r1, reward: { resources: { refinedMinerals: [200, 400] } } },
     { type: POI_TYPES.storySite, band: BANDS.r1, storyId: 'r1_deadDroid' },
 
-    // R2 near (before the acid): the Sealed Chassis salvage lives HERE so the belt is crossable
+    // R2 near (before the acid): the Sealed Chassis salvage lives HERE so the belt is crossable.
+    // `formation` is the nest's battle spawn layout (FORMATIONS in lib/battle.js); unset = column front.
     { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 6, infestRadius: 2 },
-    { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 10, infestRadius: 2 },
-    { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 14, infestRadius: 2 },
+    { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 10, infestRadius: 2, formation: 'scatter' },
+    { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 14, infestRadius: 2, formation: 'clusters' },
     { type: POI_TYPES.cache, band: BANDS.r2near, reward: { resources: { ore: [2000, 4000] } } },
     {
         type: POI_TYPES.cache, band: BANDS.r2near,
@@ -71,16 +72,16 @@ export const POI_DEFS = [
     { type: POI_TYPES.storySite, band: BANDS.r2near, storyId: 'r2_chassisCache', reward: { capability: 'sealedChassis' } },
 
     // R2 far (beyond the acid): the Override Module salvage; the red-herring wreckage
-    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 18, infestRadius: 2 },
-    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 24, infestRadius: 2 },
+    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 18, infestRadius: 2, formation: 'clusters' },
+    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 24, infestRadius: 2, formation: 'ring' },
     { type: POI_TYPES.cache, band: BANDS.r2far, reward: { resources: { ore: [5000, 9000] } } },
     { type: POI_TYPES.cache, band: BANDS.r2far, reward: { resources: { refinedMinerals: [2000, 4000] } } },
     { type: POI_TYPES.storySite, band: BANDS.r2far, storyId: 'r2_wreckage' },
     { type: POI_TYPES.storySite, band: BANDS.r2far, storyId: 'r2_overrideVault', reward: { capability: 'overrideModule' } },
 
     // R3, the antipode (finale): two hard nests, one cache, the command ruin + hive heart
-    { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 30, infestRadius: 2 },
-    { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 40, infestRadius: 2 },
+    { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 30, infestRadius: 2, formation: 'scatter' },
+    { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 40, infestRadius: 2, formation: 'ring' },
     { type: POI_TYPES.cache, band: BANDS.r3, reward: { resources: { refinedMinerals: [5000, 8000] } } },
     { type: POI_TYPES.storySite, band: BANDS.r3, storyId: 'r3_commandRuin' },
     { type: POI_TYPES.storySite, band: BANDS.r3, storyId: 'r3_hiveHeart' }

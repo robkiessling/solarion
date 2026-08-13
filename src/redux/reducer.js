@@ -256,6 +256,14 @@ export function getReplicatedStructureCount(structure, state) {
     return fromStructures.getNumBuilt(structure) * replicationMultiplier;
 }
 
+// The squad's replication multiplier: each assigned droid fields this many effective units, snapshotted at
+// deploy time (see createSquad). Whole-number version of the structure multiplier above (a squad can't
+// field a fractional unit).
+export function getReplicationMultiplier(state) {
+    const developedLand = fromResources.getResource(state.resources, 'developedLand');
+    return Math.max(1, Math.floor(developedLand ? fromResources.getQuantity(developedLand) : 1));
+}
+
 // Gets structure statistic based on how many of the structures are built. Statistics can be any keys on the structure record.
 export function getStructureStatistic(state, structure, statistic, includeReplications = true) {
     if (structure === undefined || structure[statistic] === undefined) {
@@ -393,9 +401,9 @@ export function numStandardDroids(state) {
     // Add in recalled scouts still walking home (removed from the assigned count, not yet back in the pool)
     total += state.planet.droids.filter(droid => droid.returning).length;
 
-    // Add in droids away with the squad
+    // Add in droids away with the squad (the assigned droids, not their replicated units)
     if (state.planet.squad) {
-        total += state.planet.squad.squadSize;
+        total += state.planet.squad.assignedDroids || state.planet.squad.squadSize;
     }
 
     // Add in unused droids
@@ -444,7 +452,7 @@ export function getDroidCounts(state) {
         if (structure.droidData) { assigned += structure.droidData.numDroidsAssigned; }
     }
     assigned += (state.planet.droids || []).length;
-    if (state.planet.squad) { assigned += state.planet.squad.squadSize; }
+    if (state.planet.squad) { assigned += state.planet.squad.assignedDroids || state.planet.squad.squadSize; }
 
     return { total: idle + assigned, idle };
 }

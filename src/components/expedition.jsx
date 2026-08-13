@@ -4,9 +4,9 @@ import {deploySquad, disbandSquad} from "../redux/modules/planet";
 import {getQuantity, getResource} from "../redux/modules/resources";
 import {formatResourceList} from "../lib/expeditions";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
-import {isOnGrid, RESERVE_SPEED_PENALTY, SQUAD_DRAIN_PER_TILE, SQUAD_MAX_CHARGE} from "../lib/squad";
+import {isOnGrid, RESERVE_SPEED_PENALTY, SQUAD_DRAIN_PER_DROID, SQUAD_MAX_CHARGE, squadDrainPerTile} from "../lib/squad";
 import {DROID_BASE_STATS} from "../lib/battle";
-import {getDroidStats, ownedEquipment} from "../redux/reducer";
+import {getDroidStats, getReplicationMultiplier, ownedEquipment} from "../redux/reducer";
 import {getCrossTime, getTerrain, TERRAINS} from "../lib/planet_map";
 import {PLANET_COLORS} from "../lib/planet_render";
 import Tooltip from "./ui/tooltip";
@@ -77,6 +77,7 @@ class Expedition extends React.Component {
 
         if (!squad) {
             const size = this.teamSize();
+            const multiplier = this.props.multiplier;
             return (
                 <div className="squad-card">
                     <div className="team-line team-builder">
@@ -88,6 +89,15 @@ class Expedition extends React.Component {
                                 onClick={() => this.setState({ teamSize: size + 1 })}>+</button>
                         <span className="idle-count">({idleDroids} idle)</span>
                     </div>
+                    <span className="spec-line" data-tip data-for="force-projection-tip">
+                        {multiplier > 1 && `Fields ${size * multiplier} units (×${multiplier}) · `}
+                        Charge −{formatStat(SQUAD_DRAIN_PER_DROID * size)} / tile
+                    </span>
+                    <Tooltip id="force-projection-tip">
+                        {(multiplier > 1 ?
+                            'Replication multiplies the fielded force, snapshotted at deploy. ' : '') +
+                            'Each assigned droid drains charge off-grid: bigger teams have shorter range.'}
+                    </Tooltip>
                     {this.renderSpecs(this.props.droidStats)}
                     {this.renderEquipment(this.props.ownedEquipment)}
                     <span className="squad-status-text">Status: At base</span>
@@ -122,7 +132,9 @@ class Expedition extends React.Component {
                 <div className="team-line">
                     <span className="key-value-pair">
                         <span>Team:</span>
-                        <span>{squad.squadSize} droids</span>
+                        <span>{(squad.multiplier || 1) > 1 ?
+                            `${squad.squadSize} units (${squad.assignedDroids} droids ×${squad.multiplier})` :
+                            `${squad.squadSize} droids`}</span>
                     </span>
                 </div>
                 {this.renderSpecs(squad.droidStats || DROID_BASE_STATS)}
@@ -157,7 +169,7 @@ class Expedition extends React.Component {
         const speed = (getCrossTime(sector.terrain, unlockedTerrains) / TERRAINS.flatland.crossTime) *
             (reserve ? RESERVE_SPEED_PENALTY : 1);
         const effectsText = onGrid ? 'on the grid · charge full' :
-            `speed ×${speed} · charge −${SQUAD_DRAIN_PER_TILE} / tile`;
+            `speed ×${speed} · charge −${formatStat(squadDrainPerTile(squad))} / tile`;
 
         return (
             <div className="field-telemetry">
@@ -229,7 +241,8 @@ const mapStateToProps = (state, ownProps) => {
         unlockedTerrains: state.planet.unlockedTerrains,
         idleDroids: Math.floor(getQuantity(getResource(state.resources, 'standardDroids'))),
         droidStats: getDroidStats(state),
-        ownedEquipment: ownedEquipment(state)
+        ownedEquipment: ownedEquipment(state),
+        multiplier: getReplicationMultiplier(state)
     };
 };
 
