@@ -60,16 +60,29 @@ $top-bar-float-padding: 0.875rem;
     cursor: grab; // the globe is draggable (pans the camera); flips to 'grabbing' inline mid-drag
   }
 
+  // The legend rides in the dead corners of the globe's circular mask: terrain (the ground) bottom-right,
+  // where it sits alongside the Expeditions panel's live terrain readout and shares its color vocabulary;
+  // markers (units and sites) take the opposite corner when enabled. Split in two, each column is short
+  // enough to stay clear of the silhouette where it widens. Auto width with no wrapping so a long label
+  // grows away from the globe, not into it.
   .planet-legend {
     position: absolute;
-    //-webkit-transform: translateY(-50%);
-    //transform: translateY(-50%);
-    width: 9rem;
-    right: $top-bar-float-padding;
     bottom: $top-bar-float-padding;
 
     display: flex;
     flex-direction: column;
+    white-space: nowrap;
+
+    transition: opacity 150ms ease;
+
+    &.terrain-legend { right: $top-bar-float-padding; }
+    &.marker-legend { left: $top-bar-float-padding; }
+
+    // Ceding the frame to the encounter popup / battle arena
+    &.yielded {
+      opacity: 0;
+      pointer-events: none;
+    }
   }
 
   // The encounter popup: centered over the canvas (slightly high, clear of the legend). No backdrop dim --

@@ -41,6 +41,9 @@ const SQUAD_PING_PERIOD_MS = 2200; // slower, subtler locator pulse on the deplo
 const DROID_GLYPH = '♦'; // a scout; small yellow diamond, kept apart from the squad's cyan '◈'
                          // and can't be confused with '·' unknown
 const SHOW_DROID_STACK_COUNTS = false; // when true, tiles with 2+ scouts show the count (2-9, '+') instead of the glyph
+// When true, the bottom-left key for units and sites shows. Off: a site names itself in the encounter popup
+// the first time the squad steps into it, so the map keeps its unexplained-symbol feel.
+const SHOW_MARKER_LEGEND = false;
 const SCOUT_PULSE_PERIOD_MS = 1800; // scouts breathe between dim and full brightness, phase-offset per tile
 const BEACON_GLYPH = '◎'; // the growth beacon: replication flows toward it
 const BEACON_PING_PERIOD_MS = 2600; // slow locator pulse on the placed beacon
@@ -507,53 +510,73 @@ class Planet extends React.Component {
         };
     }
 
+    // One half of the legend, parked in a bottom corner of the frame (see render). Renders nothing until it
+    // has entries, so the marker key stays absent until there is something on the map to key.
+    renderLegend(title, entries, className, yielded) {
+        if (entries.length === 0) return null;
+
+        return (
+            <div className={`planet-legend ${className}${yielded ? ' yielded' : ''}`}>
+                <span className='d-flex justify-center underline'>{title}</span>
+                {
+                    entries.map((attributes) => {
+                        return <span key={attributes.key}>
+                            <span style={{color: PLANET_COLORS[attributes.colorKey || attributes.key]}}>
+                                {attributes.display} {attributes.label}
+                            </span>
+                        </span>
+                    })
+                }
+            </div>
+        );
+    }
+
     render() {
-        const legend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.acid, TERRAINS.developed];
+        // The ground itself, keyed bottom-right. Terrain drives movement cost and charge drain, so it stays
+        // spelled out; the marker key (units and sites, bottom-left) is built the same way but gated behind
+        // SHOW_MARKER_LEGEND.
+        const terrainLegend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain,
+            TERRAINS.acid, TERRAINS.developed];
+        const markerLegend = [];
 
         if ((this.props.droids || []).length > 0) {
-            legend.push({ key: 'droid', display: DROID_GLYPH, label: 'Scout' });
+            markerLegend.push({ key: 'droid', display: DROID_GLYPH, label: 'Scout' });
             if (SHOW_DROID_STACK_COUNTS) {
-                legend.push({ key: 'droidStack', colorKey: 'droid', display: '2+', label: 'Scouts (stacked)' });
+                markerLegend.push({ key: 'droidStack', colorKey: 'droid', display: '2+', label: 'Scouts (stacked)' });
             }
         }
 
         if (this.props.squad) {
-            legend.push({ key: 'squad', colorKey: 'squad', display: SQUAD_GLYPH, label: 'Squad' });
+            markerLegend.push({ key: 'squad', colorKey: 'squad', display: SQUAD_GLYPH, label: 'Squad' });
         }
 
         if (this.props.surveyUnlocked) {
-            legend.push({ key: 'haloRing', display: '╌', label: 'Survey range' });
+            markerLegend.push({ key: 'haloRing', display: '╌', label: 'Survey range' });
         }
         if (this.props.beaconCoord) {
-            legend.push({ key: 'beacon', display: BEACON_GLYPH, label: 'Growth beacon' });
+            markerLegend.push({ key: 'beacon', display: BEACON_GLYPH, label: 'Growth beacon' });
         }
 
         // POI legend entries only appear once relevant (any POI discovered)
         const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== POI_STATUS.hidden);
         if (anyPoiVisible) {
             ['cache', 'nest', 'storySite', 'gate'].forEach(type => {
-                legend.push({ key: POI_COLOR_KEYS[type], display: POI_GLYPHS[type], label: POI_LABELS[type] });
+                markerLegend.push({ key: POI_COLOR_KEYS[type], display: POI_GLYPHS[type], label: POI_LABELS[type] });
             });
-            legend.push({ key: 'infested', display: TERRAINS.flatland.display, label: 'Infested' });
+            terrainLegend.push({ key: 'infested', display: TERRAINS.flatland.display, label: 'Infested' });
         }
+
+        // Both halves fold away while the encounter popup is up: at arena size it covers the corners anyway,
+        // and reference text competing with a live fight is noise (same condition the popup renders on)
+        const yielded = !!(this.props.prompt || (this.props.squad && this.props.squad.fighting));
 
         return (
             <div id="planet" ref={this.canvasContainer} className={`${this.props.visible ? '' : 'hidden'}`}>
                 <canvas id="planet-canvas" ref={this.canvas}
                         onClick={this.handleCanvasClick} onMouseDown={this.handleCanvasMouseDown}></canvas>
                 <EncounterPopup/>
-                <div className="planet-legend">
-                    <span className='d-flex justify-center underline'>Legend</span>
-                    {
-                        legend.map((attributes) => {
-                            return <span key={attributes.key}>
-                                <span style={{color: PLANET_COLORS[attributes.colorKey || attributes.key]}}>
-                                    {attributes.display} {attributes.label}
-                                </span>
-                            </span>
-                        })
-                    }
-                </div>
+                {this.renderLegend('Terrain', terrainLegend, 'terrain-legend', yielded)}
+                {SHOW_MARKER_LEGEND && this.renderLegend('Markers', markerLegend, 'marker-legend', yielded)}
             </div>
         );
     }
