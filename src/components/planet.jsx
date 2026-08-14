@@ -20,7 +20,7 @@ import {
     POI_LABELS,
     POI_STATUS
 } from "../lib/expeditions";
-import {stepInDirection, squadCrossMs, SQUAD_GLYPH} from "../lib/squad";
+import {stepInDirection, squadCrossMs, CONTACT_MS, SQUAD_GLYPH} from "../lib/squad";
 import {EQUIPMENT_ORDER} from "../database/equipment";
 import {
     retreatFromFight,
@@ -82,6 +82,7 @@ class Planet extends React.Component {
         this.heldKeys = [];      // pressed movement keys in press order; last one is the active direction
         this.bufferedDir = null; // a tap mid-slide queues one turn, executed on arrival
         this.bump = null;        // rejected-step feedback: { dx, dy, target, at }
+        this.emergedAt = null;   // elapsedTime the squad climbed back out of a hive; drives the grow-back
 
         // Drag-to-pan state: set on mousedown, becomes a pan once the pointer moves DRAG_THRESHOLD_PX.
         // { startX, panning, baseRotation, baseX }; didPan suppresses the click that fires after a pan's mouseup.
@@ -137,6 +138,11 @@ class Planet extends React.Component {
     }
 
     componentDidUpdate(prevProps, prevState) {
+        // A fight just ended with a squad still alive: start the climb back out of the hive (a wipe leaves
+        // no squad, so nothing emerges)
+        if (prevProps.squad && prevProps.squad.fighting && this.props.squad && !this.props.squad.fighting) {
+            this.emergedAt = this.props.elapsedTime;
+        }
         this.maybeContinueMovement(prevProps);
         this.drawPlanet();
     }
@@ -366,7 +372,9 @@ class Planet extends React.Component {
     }
 
     // Expedition markers, keyed by planet "row,col". Later entries overwrite earlier ones, so precedence is
-    // POI marker < beacon < squad glyph < fight effect (squad/fight sit on the POI's tile when there).
+    // POI marker < beacon < fight effect. The squad is the exception: it merges in as a float (a glyph
+    // drawn OVER the cell's char, see addSquadOverlays), so a marker it is standing on stays the char
+    // underneath and reappears as the squad slides off.
     buildOverlays() {
         const overlays = {};
 
@@ -457,8 +465,8 @@ class Planet extends React.Component {
         const squad = this.props.squad;
         if (!squad) return;
 
-        // Skirmish animation: effect chars churn on the nest tile (ambient echo of the battle playing out in
-        // the popup); the squad stands its ground beside it
+        // Skirmish animation: effect chars churn on the nest tile the squad is standing on, so once it has
+        // shrunk out of sight the tile shows the fight going on underneath it
         if (squad.fighting) {
             const poi = this.props.pois[squad.fighting.poiId];
             if (poi) {
@@ -493,20 +501,45 @@ class Planet extends React.Component {
                 offsetY = this.bump.dy * amplitude;
             }
             if (sinceBump < WALL_FLASH_MS && this.bump.target) {
-                overlays[`${this.bump.target[0]},${this.bump.target[1]}`] = { colorKey: 'poiHighlight' };
+                // Merged, not assigned: this is a tint on whatever is standing there. Replacing the entry
+                // would drop a POI marker's glyph and flash the bare terrain char instead of the barrier.
+                const targetKey = `${this.bump.target[0]},${this.bump.target[1]}`;
+                overlays[targetKey] = { ...(overlays[targetKey] || {}), colorKey: 'poiHighlight' };
             }
             if (sinceBump >= Math.max(BUMP_MS, WALL_FLASH_MS)) {
                 this.bump = null;
             }
         }
 
-        overlays[`${squad.coord[0]},${squad.coord[1]}`] = {
-            char: SQUAD_GLYPH,
-            colorKey: 'squad',
-            offsetX,
-            offsetY,
-            // Quiet locator pulse so the deployed team is followable at a glance
-            ping: { fraction: (this.props.elapsedTime % SQUAD_PING_PERIOD_MS) / SQUAD_PING_PERIOD_MS, variant: 'squad' }
+        // Descending into the hive: the squad shrinks away into the tile it just stepped onto while the
+        // contact beat runs, and climbs back out when the fight ends -- on the nest tile if it won (it is
+        // already through), then walking back to fromCoord if it fell back. A wipe never climbs out.
+        let scale = 1;
+        if (squad.fighting) {
+            scale = 1 - Math.min((squad.fighting.contactMs || 0) / CONTACT_MS, 1);
+        }
+        else if (this.emergedAt !== null) {
+            scale = Math.min((this.props.elapsedTime - this.emergedAt) / CONTACT_MS, 1);
+            if (scale >= 1) this.emergedAt = null;
+        }
+
+        // Drawn as a float rather than as a replacement glyph: the tile keeps its own char and the squad
+        // rides above it behind an opaque footprint. Standing still that hides the tile exactly like the old
+        // replacement did, but mid-slide the ground it is leaving uncovers itself as the footprint clears,
+        // instead of staying blank until the crossing finishes.
+        const squadKey = `${squad.coord[0]},${squad.coord[1]}`;
+        overlays[squadKey] = {
+            ...(overlays[squadKey] || {}), // keeps a POI/beacon marker on this tile as the char underneath
+            float: {
+                char: SQUAD_GLYPH,
+                colorKey: 'squad',
+                offsetX,
+                offsetY,
+                scale,
+                mask: true,
+                // Quiet locator pulse so the deployed team is followable at a glance
+                ping: { fraction: (this.props.elapsedTime % SQUAD_PING_PERIOD_MS) / SQUAD_PING_PERIOD_MS, variant: 'squad' }
+            }
         };
     }
 

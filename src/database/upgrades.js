@@ -684,7 +684,7 @@ const database = {
         // description: `Increases ${getIconSpan('energy', true)} production boost to 5%.`,
         description: `Increases energy production boost to 20% per Energy Bay.`,
         discoverWhen: {
-            upgrades: ['energyBay_production2'],
+            upgrades: ['energyBay_production3'],
             resources: {
                 refinedMinerals: 1e7
             }

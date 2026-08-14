@@ -6,7 +6,6 @@ import {
     DISPLAY_COLS,
     getAdjacentCoords,
     stepInCompassDirection,
-    getCoordsWithinHops,
     getApproxDistance,
     getGraphDistancesFrom,
     NUM_PLANET_ROWS,
@@ -53,7 +52,7 @@ const MOUNTAIN_WIDEN_CHANCE = 0.6; // per step, chance of a second mountain besi
 const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
-const EXPLORE_EVERYTHING = true;
+const EXPLORE_EVERYTHING = false;
 const MARK_SECTORS = false;
 const LOG_MAP = false;
 
@@ -64,6 +63,9 @@ const START_WITH_ADJ_EXPLORED = true;
  * crossTime: ms for a droid to cross one tile of this terrain (the movement cost / terrain weight).
  * crossUpgrade: research key that must be unlocked before the terrain can be crossed at all; until then it is impassable,
  *   but still revealed by line-of-sight so you can see the barrier.
+ * blocksVision (optional): the tile stops sight. It is revealed itself, but nothing behind it is (see
+ *   getVisibleCoords). Independent of passability: a ridge you can climb with Mountaineering still hides
+ *   what is on the far side.
  * exploreLength: legacy per-tile explore cost used by the old sector-exploration model; removed once droids land.
  */
 export const TERRAINS = {
@@ -71,7 +73,7 @@ export const TERRAINS = {
     flatland: { key: 'flatland', enum: 1, display: '*', label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
     developing: { key: 'developing', enum: 2, display: '+', label: 'Replicating', crossTime: EXPLORATION_TIME_FACTOR },
     developed: { key: 'developed', enum: 3, display: '+', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
-    mountain: { key: 'mountain', enum: 4, display: 'Λ', label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
+    mountain: { key: 'mountain', enum: 4, display: 'Λ', label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
     ice: { key: 'ice', enum: 5, display: 'X', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
     acid: { key: 'acid', enum: 6, display: '~', label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // The mid-world belt; binary gate (Sealed Chassis or no)
 }
@@ -328,9 +330,11 @@ function addHomeBase(map) {
         }
     }
 
-    // Explore adjacent sectors to base
+    // The starting clearing: exactly what the squad would light up standing on the pad, sight lines and all,
+    // so the opening view reads as ground already scanned rather than an arbitrary patch. A scenery ridge
+    // next to home therefore walls off part of the view from the first frame.
     if (START_WITH_ADJ_EXPLORED) {
-        getCoordsWithinHops([homeRow, homeCol], 1).forEach(([row, col]) => {
+        getVisibleCoords(map, [homeRow, homeCol]).forEach(([row, col]) => {
             map[row][col].status = STATUSES.explored.enum
         });
     }
@@ -599,6 +603,43 @@ export function isPassable(map, coord, unlocks = {}) {
     return getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) < Infinity;
 }
 
+// Line-of-sight range of the driven squad, in hops. Sight walks the 4-neighbor adjacency graph, so an
+// unobstructed blob is a diamond (12 tiles at 2 hops), not a square.
+export const VISION_HOPS = 2;
+
+export function blocksVision(terrainEnum) {
+    return !!TERRAINS_BY_ENUM[terrainEnum].blocksVision;
+}
+
+/**
+ * Everything visible from `coord` within `hops` (excluding `coord` itself). Same flood fill as
+ * getCoordsWithinHops, with one rule added: a vision-blocking tile is revealed but never expanded through,
+ * so a ridge shows up as a wall and hides the ground behind it. Because sight flows around obstacles the
+ * same way movement does, a lone peak only hides the tile directly behind it; a run of them hides an arc.
+ * The tile being looked FROM never blocks (standing on a summit shouldn't blind you).
+ */
+export function getVisibleCoords(map, coord, hops = VISION_HOPS) {
+    const visited = new Set([`${coord[0]},${coord[1]}`]);
+    let frontier = [coord];
+    const result = [];
+
+    for (let step = 0; step < hops && frontier.length > 0; step++) {
+        const nextFrontier = [];
+        frontier.forEach(current => {
+            getAdjacentCoords(current).forEach(neighbor => {
+                const key = `${neighbor[0]},${neighbor[1]}`;
+                if (visited.has(key)) { return; }
+                visited.add(key);
+                result.push(neighbor);
+                if (!blocksVision(map[neighbor[0]][neighbor[1]].terrain)) { nextFrontier.push(neighbor); }
+            });
+        });
+        frontier = nextFrontier;
+    }
+
+    return result;
+}
+
 // Scout passability: beyond raw terrain, infested ground (sector.infestedBy, stamped around nests) and
 // unopened gate tiles (sector.gated) stop the dumb remotes. The player-driven squad ignores both -- it can
 // cross infestation freely and opens gates through the POI flow.
@@ -854,7 +895,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 }
             }
 
-            let ping, alpha, offsetX, offsetY, haloEdges;
+            let ping, alpha, offsetX, offsetY, haloEdges, float;
             const overlay = overlays[`${sector.coord[0]},${sector.coord[1]}`];
             if (overlay) {
                 if (overlay.char) { char = overlay.char; } // color-only overlays keep the terrain glyph (e.g. path highlight)
@@ -865,6 +906,9 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 offsetX = overlay.offsetX; // sub-cell nudge in cell units (squad slide/bump; see planet_render)
                 offsetY = overlay.offsetY;
                 haloEdges = overlay.haloEdges; // survey-boundary segments on this cell's edges (see planet_render)
+                // A marker that slides between tiles (the squad) rather than replacing this cell's glyph:
+                // the tile keeps its own char and the marker draws over it, carrying its own offsets.
+                float = overlay.float;
             }
 
             let light = 'day';
@@ -903,9 +947,18 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
 
             if (maskFactor < 1) {
                 alpha = (alpha === undefined ? 1 : alpha) * maskFactor; // soft limb fade
+                // The limb fades a floating marker AND its occluding footprint, so neither survives as a
+                // hard-edged artifact out past the planet's soft edge
+                if (float) {
+                    float = {
+                        ...float,
+                        alpha: (float.alpha === undefined ? 1 : float.alpha) * maskFactor,
+                        maskAlpha: maskFactor
+                    };
+                }
             }
 
-            displayRow.push({ char, colorKey, color, light, dividers, ping, alpha, offsetX, offsetY, haloEdges });
+            displayRow.push({ char, colorKey, color, light, dividers, ping, alpha, offsetX, offsetY, haloEdges, float });
         }
 
         return displayRow;

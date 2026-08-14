@@ -42,7 +42,8 @@ class Replication extends React.Component {
                     </span>
                 }
 
-                {this.props.replicateAbility && !this.props.finishedReplicating && <Ability id={this.props.replicateAbility.id} />}
+                {this.props.replicateAbility && !this.props.finishedReplicating &&
+                    <Ability id={this.props.replicateAbility.id} tooltipProps={{ place: 'align-left-column' }} />}
 
 
             </div>

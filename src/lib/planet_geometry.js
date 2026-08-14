@@ -70,6 +70,29 @@ export function getAdjacentCoords(coord) {
     return ADJACENT_COORDS[coord[0]][coord[1]];
 }
 
+// SURROUNDING_COORDS[row][col] => the 8 tiles touching this one (the 4 orthogonal neighbors plus the
+// diagonals): columns wrap east/west, rows clamp at the poles (5 entries on a pole row, 8 elsewhere).
+// This is a VISION shape only; movement and the coverage graph stay 4-connected (see getAdjacentCoords).
+const SURROUNDING_COORDS = createArray(NUM_PLANET_ROWS, (rowIndex) => {
+    return createArray(PLANET_COLS, (colIndex) => {
+        const neighbors = [];
+        for (let rowOffset = -1; rowOffset <= 1; rowOffset++) {
+            const row = rowIndex + rowOffset;
+            if (row < 0 || row >= NUM_PLANET_ROWS) continue;
+            for (let colOffset = -1; colOffset <= 1; colOffset++) {
+                if (rowOffset === 0 && colOffset === 0) continue;
+                neighbors.push([row, mod(colIndex + colOffset, PLANET_COLS)]);
+            }
+        }
+        return neighbors;
+    });
+});
+
+// Line-of-sight neighborhood (8-way). NOTE: returns the cached list -- treat as read-only.
+export function getSurroundingCoords(coord) {
+    return SURROUNDING_COORDS[coord[0]][coord[1]];
+}
+
 // Flood-fills outward from `coord` along the adjacency graph and returns every coord within `steps` hops
 // (excluding `coord` itself). Used to reveal a small contiguous blob, e.g. the area around the home base.
 export function getCoordsWithinHops(coord, steps = 1) {

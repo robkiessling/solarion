@@ -32,6 +32,37 @@ export const PLANET_COLORS = {
 
 const HALO_EDGE_ALPHA = 0.45; // how faint the survey-range boundary line is
 
+// The flat color sitting behind the (transparent) canvas: #planet's background in outside.scss. Floating
+// markers paint their footprint with it to occlude the tile underneath, so keep the two in sync.
+const PLANET_BACKDROP = '#0d1117';
+
+// Grown around a floating marker's ink box so its footprint swallows the antialiased fringe of whatever it
+// covers. Raise it if a wide terrain glyph peeks out from behind a narrower marker.
+const FLOAT_MASK_PADDING = 1;
+
+// Ink box of a glyph: the tight rectangle its strokes actually paint, as offsets from the (x, baseline)
+// anchor fillText draws at. Measured rather than assumed, so a marker's footprint hugs the character
+// instead of blanking its whole cell. Cached per font+char; the font only changes on resize.
+const inkBoxCache = new Map();
+function glyphInkBox(context, char) {
+    const cacheKey = `${context.font}|${char}`;
+    if (inkBoxCache.has(cacheKey)) { return inkBoxCache.get(cacheKey); } // has(), so a null result caches too
+
+    const metrics = context.measureText(char);
+    // Very old browsers don't report the actual bounding box; fall back to blanking the advance width
+    const box = metrics.actualBoundingBoxAscent === undefined ?
+        null :
+        {
+            dx: -metrics.actualBoundingBoxLeft,   // positive values on this metric point LEFT of the anchor
+            dy: -metrics.actualBoundingBoxAscent, // ...and UP from the baseline
+            width: metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight,
+            height: metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent
+        };
+
+    inkBoxCache.set(cacheKey, box);
+    return box;
+}
+
 // Day/night shading levels (was CSS opacity on .night/.twilight-* classes)
 const LIGHT_ALPHA = {
     day: 1,
@@ -81,6 +112,7 @@ export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
 
     const pings = []; // collected during the cell pass, drawn last so rings sit on top of everything
     const haloEdges = []; // survey-boundary segments, batched into one stroke after the cell pass
+    const floats = []; // sliding markers (the squad), drawn after the cell pass so they clear their neighbors
 
     // Baseline sits at the cell bottom (same offset AsciiCanvas.drawImage uses), shifted up by half of any leading
     // (fontHeight minus fontSize) so glyphs are vertically centered when rows have extra spacing
@@ -117,6 +149,28 @@ export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
                 pings.push({ x: x + fontWidth / 2, y: top + offsetY + fontHeight / 2, ping: cell.ping });
             }
 
+            // A floating marker rides above the grid on its own offsets, so it is collected here and drawn
+            // after every cell: mid-slide it straddles two tiles, and the far one may not be painted yet.
+            if (cell.float !== undefined) {
+                const floatX = originX + colIndex * fontWidth + (cell.float.offsetX || 0) * fontWidth;
+                const floatTop = top + (cell.float.offsetY || 0) * fontHeight;
+                floats.push({
+                    x: floatX,
+                    top: floatTop,
+                    char: cell.float.char,
+                    color: cell.float.color || PLANET_COLORS[cell.float.colorKey] || '#ffffff',
+                    // Day/night shades the marker like anything else on the ground
+                    alpha: (LIGHT_ALPHA[cell.light] !== undefined ? LIGHT_ALPHA[cell.light] : 1) *
+                        (cell.float.alpha === undefined ? 1 : cell.float.alpha),
+                    maskAlpha: cell.float.mask ?
+                        (cell.float.maskAlpha === undefined ? 1 : cell.float.maskAlpha) : 0,
+                    scale: cell.float.scale === undefined ? 1 : cell.float.scale
+                });
+                if (cell.float.ping !== undefined) {
+                    pings.push({ x: floatX + fontWidth / 2, y: floatTop + fontHeight / 2, ping: cell.float.ping });
+                }
+            }
+
             if (cell.haloEdges !== undefined) {
                 // Anchored to the cell itself (no offsetX/offsetY): the boundary belongs to the tile, not to
                 // a marker glyph sliding across it
@@ -141,6 +195,47 @@ export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
                 context.stroke();
             }
         });
+    });
+
+    // Floating markers. A masked one paints its own ink box in the backdrop color first, so it reads as a
+    // solid object standing ON the ground rather than a glyph blended into it: the tile it is sliding off
+    // uncovers itself as the footprint clears, and the tile ahead is covered as it arrives. The footprint
+    // hugs the character (see glyphInkBox) rather than blanking the cell, so a narrow marker doesn't punch a
+    // rectangular hole in the terrain around itself. It is opaque regardless of day/night (an object
+    // occludes just as much at night), but still fades with the limb so it can't hole-punch the soft edge.
+    floats.forEach(({ x, top, char, color, alpha, maskAlpha, scale }) => {
+        if (scale <= 0) { return; } // fully shrunk away (a squad down inside a hive)
+        const baseline = top + baselineOffset;
+
+        // Shrinking happens about the cell's center, and wraps the footprint too so the occlusion shrinks
+        // with the glyph. Scaling the context (rather than the font) keeps every coordinate below valid.
+        const scaled = scale !== 1;
+        if (scaled) {
+            const centerX = x + fontWidth / 2;
+            const centerY = top + fontHeight / 2;
+            context.save();
+            context.translate(centerX, centerY);
+            context.scale(scale, scale);
+            context.translate(-centerX, -centerY);
+        }
+
+        if (maskAlpha > 0) {
+            const ink = glyphInkBox(context, char);
+            context.globalAlpha = maskAlpha;
+            context.fillStyle = PLANET_BACKDROP;
+            if (ink) {
+                context.fillRect(x + ink.dx - FLOAT_MASK_PADDING, baseline + ink.dy - FLOAT_MASK_PADDING,
+                    ink.width + FLOAT_MASK_PADDING * 2, ink.height + FLOAT_MASK_PADDING * 2);
+            }
+            else {
+                context.fillRect(x, top, fontWidth, fontHeight);
+            }
+        }
+        context.globalAlpha = alpha;
+        context.fillStyle = color;
+        context.fillText(char, x, baseline);
+
+        if (scaled) { context.restore(); }
     });
 
     // Survey-range boundary: line segments along the cell edges where the halo ends -- drawn between the

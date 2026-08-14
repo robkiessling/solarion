@@ -269,13 +269,15 @@ export default function reducer(state = initialState, action) {
                 prompt: { $set: null }
             });
         case SQUAD_START_FIGHT:
-            // Walked into a nest: the live battle sim starts NOW (see lib/battle.js) and plays out in the
+            // Standing on the nest: the live battle sim starts NOW (see lib/battle.js) and plays out in the
             // encounter popup. Movement locks until it resolves. Watching the field reveals the true strength.
+            // fromCoord rides along so a retreat can fall back to the tile the squad came in from.
             return update(state, {
                 squad: {
                     path: { $set: [] },
                     moveProgress: { $set: 0 },
-                    fighting: { $set: { poiId: payload.poiId, battle: payload.battle } }
+                    fighting: { $set: { poiId: payload.poiId, battle: payload.battle,
+                        fromCoord: payload.fromCoord, contactMs: 0 } }
                 },
                 pois: { [payload.poiId]: { difficultyKnown: { $set: true } } },
                 prompt: { $set: null }
@@ -725,12 +727,13 @@ export function squadStep(coord) {
 
 /**
  * The single keyboard entry point: attempt to step onto `coord`. Returns what happened so the component can
- * render it: 'moved' | 'attacked' | 'blocked' (bump) | 'busy' (no squad / mid-fight: ignore silently).
+ * render it: 'moved' | 'blocked' (bump) | 'busy' (no squad / mid-fight: ignore silently).
  *
- * Contact rules: stepping into an available nest starts the fight -- tapped OR held (running headlong into a
- * nest is a fight, Pokemon-grass style; the posted difficulty was your warning). Sealed sites bump (with a
- * report on deliberate taps only, so held keys don't spam it). Hidden blocking POIs reveal on the bump, same
- * as probing an unknown wall -- you discover the danger, and the NEXT step in commits.
+ * Contact rules: an available nest is walked ONTO -- tapped or held (running headlong into a nest is a
+ * fight, Pokemon-grass style; the posted difficulty was your warning) -- and the fight starts on arrival,
+ * the same way a cache raises its prompt on arrival. Sealed sites bump (with a report on deliberate taps
+ * only, so held keys don't spam it). Hidden blocking POIs reveal on the bump, same as probing an unknown
+ * wall -- you discover the danger, and the NEXT step in commits.
  */
 export function squadStepInto(coord, tap) {
     return function(dispatch, getState) {
@@ -746,7 +749,9 @@ export function squadStepInto(coord, tap) {
 
         if (blockingPoi) {
             if (blockingPoi.status === POI_STATUS.hidden) {
-                // Probing the dark found something: reveal it (tile reveal flips the POI to available)
+                // Probing the dark found something: reveal it (tile reveal flips the POI to available).
+                // Defensive: the squad's own line of sight reveals every tile it can step into, so this
+                // shouldn't be reachable unless vision shrinks below one hop.
                 dispatch({ type: ADVANCE_SQUAD, payload: { squad, reveals: [coord], revealedFlatland: 0 } });
                 return 'blocked';
             }
@@ -754,10 +759,7 @@ export function squadStepInto(coord, tap) {
                 if (tap) dispatch(logInline(sealedText(blockingPoi)));
                 return 'blocked';
             }
-            if (dispatch(squadAttack(blockingPoi.id))) {
-                return 'attacked';
-            }
-            return 'blocked';
+            // An available nest falls through: it is walkable, and arriving on it starts the fight
         }
 
         return dispatch(squadStep(coord)) ? 'moved' : 'blocked';
@@ -799,9 +801,10 @@ export function squadLeavePrompt() {
     return { type: SQUAD_LEAVE_PROMPT };
 }
 
-// Bump-to-attack: a deliberate tap into an adjacent uncleared nest starts the fight -- a live per-unit
-// battle (lib/battle.js) against the nest's current garrison, played out in the encounter popup.
-export function squadAttack(poiId) {
+// Walking onto an uncleared nest starts the fight: a live per-unit battle (lib/battle.js) against the nest's
+// current garrison, played out in the encounter popup. `fromCoord` is the tile the squad stepped in from,
+// held for the duration so a retreat can walk back out the way it came.
+export function squadAttack(poiId, fromCoord) {
     return function(dispatch, getState) {
         const planet = getState().planet;
         const squad = planet.squad;
@@ -813,10 +816,8 @@ export function squadAttack(poiId) {
             dispatch(logInline(sealedText(poi)));
             return false;
         }
-        // Must be standing next to it -- the tap that initiated this was a step onto the nest tile
-        const adjacent = getAdjacentCoords(squad.coord)
-            .some(([r, c]) => r === poi.coord[0] && c === poi.coord[1]);
-        if (!adjacent) return false;
+        // Must be standing ON it -- this fires from the arrival event, not from an adjacent tile
+        if (squad.coord[0] !== poi.coord[0] || squad.coord[1] !== poi.coord[1]) return false;
 
         // Garrison composition: POI defs may declare a bug-type mix (poi.bugs), a spawn formation
         // (poi.formation), and an obstacle layout (poi.terrain); plain nests field `difficulty` standard
@@ -824,7 +825,7 @@ export function squadAttack(poiId) {
         // The terrain salt derives from the nest's map coord, so every assault on this nest fights on
         // the same ground.
         dispatch({ type: SQUAD_START_FIGHT,
-            payload: { poiId, battle: createBattle(
+            payload: { poiId, fromCoord, battle: createBattle(
                 squad.droidHp || squad.squadSize,
                 poi.bugs || poi.difficulty,
                 squad.droidStats || undefined,
@@ -920,11 +921,22 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
                     droidHp: event.droidHp } });
                 dispatch(logInline(`Team fell back from ${poi.name} — ${event.survivors} of ` +
                     `${squad.squadSize} ${(squad.multiplier || 1) > 1 ? 'units' : 'droids'} escaped.`));
+                // Falling back is a real move off the nest tile, animated and paid for like any other step
+                // (a failed assault costs a tile of charge each way). Saves written before fromCoord existed
+                // have none, in which case the squad just holds the ground it took.
+                if (event.fromCoord) dispatch(squadStep(event.fromCoord));
             }
             dispatch(recalculateState());
             break;
         }
         case 'enteredPoi': {
+            const entered = pois[event.poiId];
+            if (entered && entered.type === POI_TYPES.nest) {
+                // Walked into the hive: the fight starts here, on the tile. Win and the squad is already
+                // through; retreat and it walks back to event.fromCoord.
+                dispatch(squadAttack(event.poiId, event.fromCoord));
+                break;
+            }
             // Walked onto a cache/story tile: movement stops and the interaction prompt opens (the player
             // chooses to take/explore via squadInteract, or leaves via squadLeavePrompt)
             dispatch({ type: SQUAD_PROMPT, payload: { poiId: event.poiId } });

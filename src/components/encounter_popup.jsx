@@ -12,6 +12,7 @@ import {
 } from "../lib/expeditions";
 import {PLANET_COLORS} from "../lib/planet_render";
 import {ARENA_W, BATTLE_PHASES, countSpawners, countUnits} from "../lib/battle";
+import {CONTACT_MS} from "../lib/squad";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import BattleCanvas from "./battle_canvas";
 import Tooltip from "./ui/tooltip";
@@ -164,7 +165,12 @@ class EncounterPopup extends React.Component {
     }
 
     render() {
-        const fighting = this.props.squad && this.props.squad.fighting;
+        // Held shut through the contact beat: the squad is still visibly dropping into the hive on the map,
+        // and the battle behind this hasn't started ticking yet (see advanceSquad's descent).
+        const descending = this.props.squad && this.props.squad.fighting &&
+            this.props.squad.fighting.contactMs !== undefined &&
+            this.props.squad.fighting.contactMs < CONTACT_MS;
+        const fighting = !descending && this.props.squad && this.props.squad.fighting;
         const prompt = this.props.prompt;
         const poiId = fighting ? fighting.poiId : prompt && prompt.poiId;
         if (!poiId) return null;

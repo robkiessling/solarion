@@ -72,6 +72,7 @@ class Structure extends React.Component {
                         { this.props.children }
                         {this.props.isBuilt && this.props.showDroidsForStructure &&
                             <DroidCount droidData={this.props.droidData} targetId={this.props.structure.id}
+                                        tooltipProps={this.props.tooltipProps}
                                         assignTooltip={this.props.droidAssignTooltip} />}
                     </div>
 

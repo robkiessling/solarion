@@ -1,5 +1,5 @@
-import {getAdjacentCoords, NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
-import {getCrossTime, isOnGrid, STATUSES} from "./planet_map";
+import {NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
+import {getCrossTime, getVisibleCoords, isOnGrid, STATUSES} from "./planet_map";
 import {mod} from "./helpers";
 import {POI_STATUS} from "./expeditions";
 import {advanceBattle, DROID_BASE_STATS, fullDroidHp} from "./battle";
@@ -10,21 +10,28 @@ import {EQUIPMENT_DEFS} from "../database/equipment";
  * pure movement/charge/reveal simulation plus routing, and ticks the live battle sim while fighting; input
  * handling lives in the planet component and redux thunks. The battle itself (per-unit combat) is lib/battle.js.
  *
- * Contact model (roguelike bump-to-attack): uncleared nests and capability-gated POIs are impassable to the
- * squad. A deliberate keyboard tap into a nest starts the fight; held-key continuation and click-routes stop
- * at contact like a wall. Caches/story sites are walkable and resolve on entry.
+ * Contact model: every uncleared POI is walkable and resolves on entry -- caches and story sites raise their
+ * prompt, a nest starts the fight. Only capability-gated sites are impassable, bumping like a wall until the
+ * tool is researched. Assaulting a nest is therefore a real step onto its tile: win and the squad is already
+ * through, standing on cleared ground; retreat and it walks back to the tile it came from (fromCoord, carried
+ * on the contact event and held in `fighting` for the duration).
  */
 
-export const SQUAD_GLYPH = '◈';
+export const SQUAD_GLYPH = '@';
 
 // Movement pace. crossTime is seconds-per-tile for scouts; the squad multiplies it down so driving feels
-// snappy (flatland 0.5s * 0.4 = 200ms/tile, ~5 tiles/sec).
-export const SQUAD_SPEED_FACTOR = 0.4;
+// snappy (flatland 0.5s * 0.8 = 400ms/tile, ~2.5 tiles/sec).
+export const SQUAD_SPEED_FACTOR = 0.8;
 
 // Charge model: drains per tile entered while off the powered grid, snaps to full on the grid. At zero the
 // squad limps ("reserve power"): crossings take twice as long. A planning aid, never a fail state.
 // Drain scales with the assigned droids (not the replicated units, so growing the multiplier never shrinks
 // range): a bigger team is a shorter-legged team, which is what makes force sizing a real decision.
+// The contact beat between stepping onto a nest and the fight being shown: the squad shrinks into the hive
+// (planet.jsx draws it), the battle sim holds its opening frame, and the encounter popup waits. Doubles as
+// the climb-back-out duration when the fight ends.
+export const CONTACT_MS = 400;
+
 export const SQUAD_MAX_CHARGE = 100;
 export const SQUAD_DRAIN_PER_DROID = 0.4; // per assigned droid per tile; the default 5-droid team drains 2
 export const RESERVE_SPEED_PENALTY = 2;
@@ -82,24 +89,36 @@ export function squadCrossMs(map, coord, unlocks, charge) {
 
 /**
  * Advances the squad one tick: battle sim when fighting (movement is locked), otherwise movement along
- * its path. Per tile entered: line-of-sight reveal (the tile + its neighbors, same rule as scouts), charge
+ * its path. Per tile entered: line-of-sight reveal (getVisibleCoords, so mountains wall off the view; scouts
+ * see less, revealing only their 4 orthogonal neighbors, because a crewed squad has better eyes), charge
  * drain off-grid / snap-to-full on-grid, and contact events. Pure; returns the next squad, the coords newly
  * revealed this tick (still-unknown tiles only), and events for the caller to resolve:
- *   { type: 'battleOver', poiId, result, survivors, bugsRemaining, battle }  (live fight ended; `battle`
- *       is the final field state, kept so the result popup can hold the last frame; see lib/battle.js)
- *   { type: 'enteredPoi', poiId }          (stepped onto an available cache/story tile: resolve it)
+ *   { type: 'battleOver', poiId, result, survivors, bugsRemaining, battle, fromCoord }  (live fight ended;
+ *       `battle` is the final field state, kept so the result popup can hold the last frame, see
+ *       lib/battle.js; `fromCoord` is where a retreat falls back to)
+ *   { type: 'enteredPoi', poiId, fromCoord } (stepped onto an available POI: resolve it. fromCoord is the
+ *       tile just left, which a nest assault holds onto so a retreat can walk back out)
  *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)
  */
 export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
     const events = [];
 
     if (squad.fighting) {
+        // The descent. For CONTACT_MS after stepping in, the battle is held at its opening frame while the
+        // map plays the squad dropping into the hive and the popup stays shut, so the player sees the cause
+        // before the consequence. A save written before this existed has no counter: treat it as landed.
+        const contactMs = squad.fighting.contactMs === undefined ? CONTACT_MS :
+            Math.min(squad.fighting.contactMs + moveAmountMs, CONTACT_MS);
+        if (contactMs < CONTACT_MS) {
+            return { squad: {...squad, fighting: {...squad.fighting, contactMs}}, reveals: [], events };
+        }
+
         const { battle, events: battleEvents } = advanceBattle(squad.fighting.battle, moveAmountMs);
         const over = battleEvents.find(event => event.type === 'battleOver');
         if (!over) {
-            return { squad: {...squad, fighting: {...squad.fighting, battle}}, reveals: [], events };
+            return { squad: {...squad, fighting: {...squad.fighting, battle, contactMs}}, reveals: [], events };
         }
-        events.push({ ...over, poiId: squad.fighting.poiId, battle });
+        events.push({ ...over, poiId: squad.fighting.poiId, battle, fromCoord: squad.fighting.fromCoord });
         return { squad: {...squad, fighting: null}, reveals: [], events };
     }
 
@@ -117,11 +136,12 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
         const tileCrossMs = squadCrossMs(map, next, unlocks, charge);
         if (moveProgress < tileCrossMs) break;
         moveProgress -= tileCrossMs;
+        const cameFrom = coord; // reported on contact: a failed assault falls back to the tile it came from
         coord = next;
         path = path.slice(1);
 
         reveal(coord);
-        getAdjacentCoords(coord).forEach(reveal);
+        getVisibleCoords(map, coord).forEach(reveal);
 
         if (isOnGrid(map, coord)) {
             charge = SQUAD_MAX_CHARGE;
@@ -145,7 +165,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
         if (poi) {
             // Contact interrupts: stop here and let the caller raise the interaction prompt (any remaining
             // route is abandoned -- the world just got more interesting than the destination)
-            events.push({ type: 'enteredPoi', poiId: poi.id });
+            events.push({ type: 'enteredPoi', poiId: poi.id, fromCoord: cameFrom });
             path = [];
             break;
         }

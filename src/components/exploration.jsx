@@ -37,6 +37,7 @@ class Exploration extends React.Component {
                     // Scout assignment is the Survey Automation unlock; before it, the squad is the only exploration
                     this.props.showDroidsUI && this.props.surveyUnlocked &&
                     <DroidCount droidData={this.props.droidData}
+                                tooltipProps={{ place: 'align-left-column' }}
                                 assignTooltip={`Assigned scouts automatically survey unexplored ground within uplink range of the powered grid.`}/>
                 }
 
