@@ -1037,9 +1037,12 @@ const database = {
     // Squad equipment: one-time acquisitions (see database/equipment.js). Researching one permanently
     // outfits every future squad with the piece; its charges spend in battle and reload on the grid.
     // Story salvage can grant these later by researchForFree-ing the same ids.
+    // `squad: true` (here and on the combat/battery upgrades below) instead of a `structure`: these only
+    // affect expeditions, so they're offered in the Expedition panel's Outfitting section, not on any
+    // structure's card. (Ids keep the droidFactory_ prefix; saves and equipment.js reference them.)
     droidFactory_demoLauncher: _.merge({}, base, {
+        squad: true,
         name: "Demo Launcher",
-        structure: 'droidFactory',
         description: 'Squad equipment: lobs a demolition charge onto the densest knot of hostiles. ' +
             'One shot per grid visit; reloads on powered ground.',
         discoverWhen: {
@@ -1056,8 +1059,8 @@ const database = {
         },
     }),
     droidFactory_repairRig: _.merge({}, base, {
+        squad: true,
         name: "Repair Rig",
-        structure: 'droidFactory',
         description: 'Squad equipment: field-patches every damaged droid (does not rebuild the destroyed). ' +
             'One use per grid visit; reloads on powered ground.',
         discoverWhen: {
@@ -1074,8 +1077,8 @@ const database = {
         },
     }),
     droidFactory_overchargeCell: _.merge({}, base, {
+        squad: true,
         name: "Overcharge Cell",
-        structure: 'droidFactory',
         description: 'Squad equipment: overdrives droid weapons for a short burst. ' +
             'One discharge per grid visit; recharges on powered ground.',
         discoverWhen: {
@@ -1096,9 +1099,9 @@ const database = {
     // (hp/damage/attackMs/speed), applied by getDroidStats in redux/reducer.js and snapshotted onto the
     // squad at deploy. Refits apply to the next deployment, not squads already in the field.
     droidFactory_reinforcedPlating: _.merge({}, base, {
+        squad: true,
         name: "Reinforced Plating",
-        structure: 'droidFactory',
-        description: 'Thicker hull plating for expedition droids: +3 max HP each. Refits apply to the next deployed squad.',
+        description: 'Thicker hull plating for expedition droids: +3 max health each. Refits apply to the next deployed squad.',
         discoverWhen: {
             resources: {
                 standardDroids: 5
@@ -1116,8 +1119,8 @@ const database = {
         }
     }),
     droidFactory_weaponCalibration: _.merge({}, base, {
+        squad: true,
         name: "Weapon Calibration",
-        structure: 'droidFactory',
         description: 'Recalibrated arc cutters: expedition droids hit 50% harder. Refits apply to the next deployed squad.',
         discoverWhen: {
             upgrades: ['droidFactory_reinforcedPlating'],
@@ -1139,8 +1142,8 @@ const database = {
     // Squad battery upgrade: applied by getBatteryCapacity in redux/reducer.js (squad-level, not per-droid)
     // and snapshotted at deploy like the combat stats above.
     droidFactory_extendedCells: _.merge({}, base, {
+        squad: true,
         name: "Extended Cells",
-        structure: 'droidFactory',
         description: 'Higher-density battery cells for the expedition squad: +50 battery capacity. ' +
             'Refits apply to the next deployed squad.',
         discoverWhen: {

@@ -83,7 +83,7 @@ html {
 
   &.hide-ui {
     background: $burn;
-    .left-column, .right-column, .top-bar, .navigation-tabs, .planet-legend {
+    .left-column, .right-column, .top-bar, .navigation-tabs, .planet-legend, .camera-strip {
       display: none;
     }
   }

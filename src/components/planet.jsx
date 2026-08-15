@@ -2,8 +2,6 @@ import React from 'react';
 import {connect} from "react-redux";
 import AsciiCanvas from "../lib/ascii_canvas";
 import {
-    TERRAINS,
-    STATUSES,
     generateImage,
     coordToImageCell,
     imageCellToCoord,
@@ -20,7 +18,7 @@ import {
     POI_LABELS,
     POI_STATUS
 } from "../lib/expeditions";
-import {stepInDirection, squadCrossMs, CONTACT_MS, SQUAD_GLYPH} from "../lib/squad";
+import {stepInDirection, squadCrossMs, squadZone, CONTACT_MS, SQUAD_GLYPH} from "../lib/squad";
 import {EQUIPMENT_ORDER} from "../database/equipment";
 import {
     retreatFromFight,
@@ -34,6 +32,7 @@ import {
     useEquipment
 } from "../redux/modules/planet";
 import EncounterPopup from "./encounter_popup";
+import CameraStrip from "./camera_strip";
 import {surveyAutomationUnlocked} from "../redux/reducer";
 
 const POI_PING_PERIOD_MS = 1200; // one full expand-and-fade cycle of the hovered marker's radar ping
@@ -47,6 +46,10 @@ const SHOW_MARKER_LEGEND = false;
 const SCOUT_PULSE_PERIOD_MS = 1800; // scouts breathe between dim and full brightness, phase-offset per tile
 const BEACON_GLYPH = '◎'; // the growth beacon: replication flows toward it
 const BEACON_PING_PERIOD_MS = 2600; // slow locator pulse on the placed beacon
+// When true, the map frame wears a rim in the color of the ground under the fielded squad (the #planet
+// .zone-* styles). Off while the sense-of-place treatment is being evaluated; the terminal's terrain notes
+// and the HUD's terrain line carry it alone.
+const SHOW_ZONE_RIM = false;
 import {PLANET_FPS} from "../singletons/game_clock";
 import * as fromClock from "../redux/modules/clock";
 
@@ -101,8 +104,10 @@ class Planet extends React.Component {
         this.canvasManager = new AsciiCanvas(
             this.canvasContainer.current, this.canvas.current, NUM_PLANET_ROWS, DISPLAY_COLS, null,
 
-            // charRatio roughly matches DOM rendering with 1.2 line-height
-            { fillContainer: true, charRatio: CHAR_RATIO, padding: 64 }
+            // charRatio roughly matches DOM rendering with 1.2 line-height. Vertical margin clears the
+            // strips floating over the frame's head (the deployed HUD: two meters + terrain line, ~104px
+            // with its offset) and foot (the camera strip); the globe centers between them.
+            { fillContainer: true, charRatio: CHAR_RATIO, padding: { x: 64, y: 90 } }
         );
         window.addEventListener('keydown', this.handleKeyDown);
         window.addEventListener('keyup', this.handleKeyUp);
@@ -543,8 +548,8 @@ class Planet extends React.Component {
         };
     }
 
-    // One half of the legend, parked in a bottom corner of the frame (see render). Renders nothing until it
-    // has entries, so the marker key stays absent until there is something on the map to key.
+    // The marker key, parked in a bottom corner of the frame (see render). Renders nothing until it has
+    // entries, so it stays absent until there is something on the map to key.
     renderLegend(title, entries, className, yielded) {
         if (entries.length === 0) return null;
 
@@ -565,11 +570,8 @@ class Planet extends React.Component {
     }
 
     render() {
-        // The ground itself, keyed bottom-right. Terrain drives movement cost and charge drain, so it stays
-        // spelled out; the marker key (units and sites, bottom-left) is built the same way but gated behind
-        // SHOW_MARKER_LEGEND.
-        const terrainLegend = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain,
-            TERRAINS.acid, TERRAINS.developed];
+        // The marker key (units and sites, bottom-left), gated behind SHOW_MARKER_LEGEND. The terrain key
+        // lives in the right column (terrain_legend.jsx).
         const markerLegend = [];
 
         if ((this.props.droids || []).length > 0) {
@@ -596,19 +598,21 @@ class Planet extends React.Component {
             ['cache', 'nest', 'storySite', 'gate'].forEach(type => {
                 markerLegend.push({ key: POI_COLOR_KEYS[type], display: POI_GLYPHS[type], label: POI_LABELS[type] });
             });
-            terrainLegend.push({ key: 'infested', display: TERRAINS.flatland.display, label: 'Infested' });
         }
 
-        // Both halves fold away while the encounter popup is up: at arena size it covers the corners anyway,
-        // and reference text competing with a live fight is noise (same condition the popup renders on)
+        // The key and the camera strip fold away while the encounter popup is up: at arena size it covers
+        // the corner anyway, and reference text or a camera control competing with a live fight is noise
+        // (same condition the popup renders on)
         const yielded = !!(this.props.prompt || (this.props.squad && this.props.squad.fighting));
 
         return (
-            <div id="planet" ref={this.canvasContainer} className={`${this.props.visible ? '' : 'hidden'}`}>
+            <div id="planet" ref={this.canvasContainer}
+                 className={`${this.props.visible ? '' : 'hidden'}` +
+                     `${SHOW_ZONE_RIM && this.props.squadZone ? ` zone-${this.props.squadZone}` : ''}`}>
                 <canvas id="planet-canvas" ref={this.canvas}
                         onClick={this.handleCanvasClick} onMouseDown={this.handleCanvasMouseDown}></canvas>
                 <EncounterPopup/>
-                {this.renderLegend('Terrain', terrainLegend, 'terrain-legend', yielded)}
+                <CameraStrip yielded={yielded}/>
                 {SHOW_MARKER_LEGEND && this.renderLegend('Markers', markerLegend, 'marker-legend', yielded)}
             </div>
         );
@@ -622,6 +626,9 @@ const mapStateToProps = state => {
         droids: state.planet.droids,
         pois: state.planet.pois,
         squad: state.planet.squad,
+        // The ground under the fielded squad, tinting the frame (see #planet .zone-* styles); null at home
+        squadZone: state.planet.squad && state.planet.map.length > 0 ?
+            squadZone(state.planet.map, state.planet.squad.coord) : null,
         prompt: state.planet.prompt,
         // The battle hotkey layout: carried gear in manifest order (stable through a fight, so slots
         // don't shift as charges run out; the popup's action row mirrors this)

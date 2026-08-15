@@ -1,5 +1,5 @@
 import {NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
-import {getCrossTime, getVisibleCoords, isOnGrid, STATUSES} from "./planet_map";
+import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, STATUSES} from "./planet_map";
 import {mod} from "./helpers";
 import {POI_STATUS} from "./expeditions";
 import {advanceBattle, DROID_BASE_STATS, fullDroidHp} from "./battle";
@@ -42,12 +42,38 @@ export const RESERVE_HP_PER_TILE = 1;     // hull every unit burns per tile on r
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
 export {isOnGrid} from "./planet_map";
 
+// The kind of ground a coord is, as far as the driver feels it: hive territory first (it overrides the
+// terrain), then powered grid, then the terrain itself. Zone changes drive the terminal's terrain notes and
+// the map frame's tint.
+export function squadZone(map, coord) {
+    const sector = map[coord[0]][coord[1]];
+    if (sector.infestedBy) return 'infested';
+    if (isOnGrid(map, coord)) return 'grid';
+    return getTerrain(sector.terrain).key;
+}
+
 export function squadDrainPerTile(squad) {
     return SQUAD_DRAIN_PER_DROID * (squad.assignedDroids || 5);
 }
 
 export function squadBatteryCapacity(squad) {
     return squad.batteryCapacity || SQUAD_BATTERY_CAPACITY;
+}
+
+/**
+ * The fielded squad's hull as {hp, hpMax}, summed over units. Mid-fight the settlement snapshot
+ * (squad.droidHp) is stale, so read the live battle instead: fielded units' current hp plus the wounds
+ * the escapees carried out. That way a bar tracks the fight in real time and already sits at the
+ * settlement value when it ends.
+ */
+export function squadHp(squad) {
+    const hpMax = squad.squadSize * ((squad.droidStats || DROID_BASE_STATS).hp);
+    const battle = squad.fighting && squad.fighting.battle;
+    const hp = battle ?
+        battle.units.reduce((sum, unit) => sum + (unit.side === 'droid' ? unit.hp : 0), 0) +
+            (battle.escapedHp || []).reduce((sum, unitHp) => sum + unitHp, 0) :
+        (squad.droidHp || []).reduce((sum, unitHp) => sum + unitHp, 0) || hpMax;
+    return { hp, hpMax };
 }
 
 /**
@@ -152,6 +178,11 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
 
         reveal(coord);
         getVisibleCoords(map, coord).forEach(reveal);
+
+        const zone = squadZone(map, coord);
+        if (zone !== squadZone(map, cameFrom)) {
+            events.push({ type: 'enteredZone', zone });
+        }
 
         if (isOnGrid(map, coord)) {
             battery = squadBatteryCapacity(squad);

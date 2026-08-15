@@ -27,6 +27,12 @@ import Tooltip from "./ui/tooltip";
  * planet component's input layer; the buttons mirror it. Connected on its own so updates aren't gated by
  * the canvas's FPS-throttled shouldComponentUpdate.
  */
+// Layout constants mirrored from the stylesheets: the top bar's min-height (app.scss) and the deployed HUD
+// strip's clearance within the planet frame ($hud-clearance, outside.scss). Big fights anchor the popup
+// to the viewport and must keep below the HUD by hand.
+const TOP_BAR_REM = 3.2;
+const HUD_CLEARANCE_REM = 6.5;
+
 class EncounterPopup extends React.Component {
     // Force fractions, alive/starting (escapees count as alive: off the field, not dead). Mirrored:
     // labels sit at the outer edges. The bug denominator is the swarm's high-water mark (bugsPeak),
@@ -190,11 +196,17 @@ class EncounterPopup extends React.Component {
         if (battleView) {
             const scale = (battleView.arenaW || ARENA_W) / ARENA_W;
             if (scale > 1) {
+                // Same centering rule as the stylesheet's frame-anchored case, in viewport terms: insets
+                // of top bar + HUD clearance keep the popup off the live health/battery readout, auto
+                // margins center it when it fits, top-align it when it doesn't. The width cap keeps the
+                // whole popup (5:3 arena + chrome) inside the top inset and a 1rem foot.
+                const inset = TOP_BAR_REM + HUD_CLEARANCE_REM;
                 style = {
-                    width: `min(${(34 * scale).toFixed(1)}rem, 94vw, calc(150vh - 13rem))`,
+                    width: `min(${(34 * scale).toFixed(1)}rem, 94vw, calc(150vh - ${(13 + 1.5 * inset + 1.5).toFixed(2)}rem))`,
                     position: 'fixed',
                     left: '50%',
-                    top: '50%', // true center: at this size the panel-relative 46% would run into the top bar
+                    top: `${inset.toFixed(2)}rem`,
+                    bottom: `${inset.toFixed(2)}rem`,
                     zIndex: 3
                 };
             }

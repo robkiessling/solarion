@@ -10,13 +10,6 @@
   .structure-list {
     padding: $component-padding;
   }
-
-  // On the planet tab the panel holds a single card (the droid factory) and shares the column with the
-  // expedition panel: size to content and sit below it (the expedition squad is the tab's primary tool)
-  &.planet-tab {
-    flex: 0 0 auto;
-    order: 1;
-  }
 }
 
 .structure {

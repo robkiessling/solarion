@@ -164,6 +164,13 @@ export function getStructureUpgradeIds(state, structure) {
     })
 }
 
+// Expedition-only upgrades (`squad: true` in database/upgrades.js, no structure): equipment, combat stats,
+// battery. Offered in the Expedition panel's Outfitting section, not on any structure's card.
+export function getSquadUpgradeIds(state) {
+    return fromUpgrades.visibleIds(state.upgrades).filter(upgradeId =>
+        fromUpgrades.getUpgrade(state.upgrades, upgradeId).squad);
+}
+
 export function canResearchUpgrade(state, upgrade) {
     if (!fromUpgrades.isResearchable(upgrade)) {
         return false;

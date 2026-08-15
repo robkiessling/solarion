@@ -1,11 +1,13 @@
 import React from 'react';
 import {connect} from "react-redux";
 import Expedition from "./expedition";
+import TerrainLegend from "./terrain_legend";
 import 'overlayscrollbars/styles/overlayscrollbars.css';
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 
 /**
- * Right column of the Planet tab: the expedition operations panel. Passive planet status (exploration,
+ * Right column of the Planet tab: the expedition operations panel, with the terrain key pinned below it
+ * (outside the scroll area so it can't scroll away). Passive planet status (the Planet card: exploration,
  * replication) lives in the left column instead (see planet_panels.jsx).
  */
 class PlanetTools extends React.Component {
@@ -20,6 +22,7 @@ class PlanetTools extends React.Component {
                 <OverlayScrollbarsComponent className="planet-tools-scroll" defer>
                     <Expedition />
                 </OverlayScrollbarsComponent>
+                <TerrainLegend />
             </div>
         );
     }

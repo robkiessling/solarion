@@ -5,11 +5,9 @@ import {deploySquad, disbandSquad} from "../redux/modules/planet";
 import {getQuantity, getResource} from "../redux/modules/resources";
 import {formatResourceList} from "../lib/expeditions";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
-import {isOnGrid, SQUAD_DRAIN_PER_DROID, squadBatteryCapacity, squadDrainPerTile} from "../lib/squad";
-import {DROID_BASE_STATS} from "../lib/battle";
-import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, ownedEquipment} from "../redux/reducer";
-import {getCrossTime, getTerrain, TERRAINS} from "../lib/planet_map";
-import {PLANET_COLORS} from "../lib/planet_render";
+import {isOnGrid, SQUAD_DRAIN_PER_DROID} from "../lib/squad";
+import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, getSquadUpgradeIds, ownedEquipment} from "../redux/reducer";
+import Upgrade from "./structures/upgrade";
 import Tooltip from "./ui/tooltip";
 
 const DEFAULT_TEAM_SIZE = 5;
@@ -29,21 +27,8 @@ class Expedition extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            teamSize: DEFAULT_TEAM_SIZE, // staged size; droids only leave the pool at Deploy
-            hpFlash: 0                   // bumps per reserve-power hull burn; keys the HP bar's bleed flash
+            teamSize: DEFAULT_TEAM_SIZE // staged size; droids only leave the pool at Deploy
         };
-    }
-
-    // Reserve power pays for tiles in hull; make each payment visible. Battle damage doesn't trip this
-    // (squad.droidHp only updates at fight end, and the battery can't be empty the moment a fight settles
-    // without reserve driving beforehand -- and then the flash is the right signal anyway).
-    componentDidUpdate(prevProps) {
-        const prev = prevProps.squad, cur = this.props.squad;
-        if (!prev || !cur || cur.battery > 0) return;
-        const sum = (s) => (s.droidHp || []).reduce((total, hp) => total + hp, 0);
-        if (sum(cur) < sum(prev)) {
-            this.setState({ hpFlash: this.state.hpFlash + 1 });
-        }
     }
 
     teamSize() {
@@ -67,24 +52,6 @@ class Expedition extends React.Component {
                 <Tooltip id="equipment-tip">
                     <p className="tooltip-header">Equipment</p>
                     <p>Fired with number keys mid-battle; charges reload on the powered grid.</p>
-                </Tooltip>
-            </React.Fragment>
-        );
-    }
-
-    // Droid combat specs: live (base + researched upgrades) while staging, the deploy-time snapshot once
-    // fielded -- so a squad running pre-refit stats shows what it actually fights with.
-    renderSpecs(stats) {
-        return (
-            <React.Fragment>
-                <span className="spec-line key-value-pair" data-tip data-for="droid-spec-tip">
-                    <span>Stats:</span>
-                    <span>HP {formatStat(stats.hp)} · Damage {formatStat(stats.damage)}</span>
-                </span>
-                <Tooltip id="droid-spec-tip">
-                    <p className="tooltip-header">Droid Stats</p>
-                    <p>{`Swings every ${(stats.attackMs / 1000).toFixed(1)}s · move speed ${stats.speed}.`}</p>
-                    <p>Upgrades refit the next deployed squad.</p>
                 </Tooltip>
             </React.Fragment>
         );
@@ -114,25 +81,37 @@ class Expedition extends React.Component {
                             </span>
                         </span>
                     </div>
-                    {this.renderVitals({
-                        stats: this.props.droidStats,
-                        rangeTiles: Math.floor(this.props.batteryCapacity / (SQUAD_DRAIN_PER_DROID * size)),
-                        rangeTipId: 'force-projection-tip',
-                        rangeTooltip:
-                            <React.Fragment>
-                                <p className="tooltip-header">Deployment</p>
-                                {multiplier > 1 &&
-                                    <p>Replication multiplies the fielded force, snapshotted at deploy.</p>}
-                                <p>{`Each assigned droid adds ${formatStat(SQUAD_DRAIN_PER_DROID)} / tile of ` +
-                                    'battery drain off the grid: bigger teams have shorter range.'}</p>
-                                <p>Past empty, the squad runs on reserve power: every droid burns hull
-                                    each tile.</p>
-                            </React.Fragment>,
-                        battery: this.props.batteryCapacity,
-                        capacity: this.props.batteryCapacity,
-                        hp: size * multiplier * this.props.droidStats.hp,
-                        hpMax: size * multiplier * this.props.droidStats.hp
-                    })}
+                    <span className="spec-line key-value-pair" data-tip data-for="staging-health-tip">
+                        <span>Squad Health:</span>
+                        <span>{formatStat(size * multiplier * this.props.droidStats.hp)}</span>
+                    </span>
+                    <Tooltip id="staging-health-tip">
+                        <p className="tooltip-header">Squad Health</p>
+                        <p>{`Every unit's health added up: ${size * multiplier} × ${formatStat(this.props.droidStats.hp)}. ` +
+                            'Battle damage and reserve-power burn come out of it in the field; it repairs on the ' +
+                            'powered grid.'}</p>
+                    </Tooltip>
+                    <span className="spec-line key-value-pair" data-tip data-for="staging-battery-tip">
+                        <span>Battery:</span>
+                        <span>{this.props.batteryCapacity}</span>
+                    </span>
+                    <Tooltip id="staging-battery-tip">
+                        <p className="tooltip-header">Battery</p>
+                        <p>Drains each tile off the grid; recharges on powered ground.</p>
+                        <p>At zero the squad runs on reserve power: every droid loses health each tile.</p>
+                    </Tooltip>
+                    {this.renderRange(
+                        Math.floor(this.props.batteryCapacity / (SQUAD_DRAIN_PER_DROID * size)),
+                        'force-projection-tip',
+                        <React.Fragment>
+                            <p className="tooltip-header">Deployment</p>
+                            {multiplier > 1 &&
+                                <p>Replication multiplies the fielded force, snapshotted at deploy.</p>}
+                            <p>{`Each assigned droid adds ${formatStat(SQUAD_DRAIN_PER_DROID)} / tile of ` +
+                                'battery drain off the grid: bigger teams have shorter range.'}</p>
+                            <p>Past empty, the squad runs on reserve power: every droid loses health
+                                each tile.</p>
+                        </React.Fragment>)}
                     {this.renderEquipment(this.props.ownedEquipment)}
                     <div className="squad-actions">
                         <span data-tip data-for="deploy-tip">
@@ -158,7 +137,7 @@ class Expedition extends React.Component {
                     <span className="key-value-pair">
                         <span>Droids:</span>
                         {/* Survivors / fielded, like the battle header's fractions: deaths only show here
-                            (the HP bar's max shrinks with the roster, and survivors repair on the grid).
+                            (the HUD's squad health max shrinks with the roster, and survivors repair on the grid).
                             A replicated force tints the icon pink instead of spelling out the math. */}
                         <span>
                             {squad.squadSize} / {(squad.assignedDroids || squad.squadSize) * (squad.multiplier || 1)}{' '}
@@ -166,27 +145,11 @@ class Expedition extends React.Component {
                         </span>
                     </span>
                 </div>
-                {this.renderVitals({
-                    stats: squad.droidStats || DROID_BASE_STATS,
-                    rangeTiles: Math.floor(squad.battery / squadDrainPerTile(squad)),
-                    rangeTipId: 'squad-range-tip',
-                    rangeTooltip:
-                        <React.Fragment>
-                            <p className="tooltip-header">Range</p>
-                            <p>{`Tiles left on the current battery — the team drains ` +
-                                `${formatStat(squadDrainPerTile(squad))} per tile. Recharges on the grid.`}</p>
-                        </React.Fragment>,
-                    battery: squad.battery,
-                    capacity: squadBatteryCapacity(squad),
-                    ...this.deployedHp(squad),
-                    // Cargo rides between the bars and the terrain rows, so the reserved (often empty)
-                    // warning rows trail the section instead of splitting it
-                    cargoRow:
-                        <span className="cargo-line key-value-pair">
-                            <span>Cargo:</span><span>{formatResourceList(squad.cargo) || 'Empty'}</span>
-                        </span>,
-                    terrainRows: this.renderTerrainRows()
-                })}
+                {/* Squad health, battery, range and the terrain underfoot all read live on the HUD above the
+                    map while fielded; the card keeps what the HUD doesn't carry */}
+                <span className="cargo-line key-value-pair">
+                    <span>Cargo:</span><span>{formatResourceList(squad.cargo) || 'Empty'}</span>
+                </span>
                 {this.renderEquipment(squad.equipment || {})}
                 <div className="squad-actions">
                     <span data-tip data-for="disband-tip">
@@ -205,129 +168,54 @@ class Expedition extends React.Component {
         );
     }
 
-    // The shared card core, one render path for both states so the rows can't drift apart: Droids spec ->
-    // Range -> battery/HP bars -> terrain readout. The staging card previews the next deployment (idle-full
-    // bars, blank terrain rows -- their heights still reserved, so deploying doesn't shift the card);
-    // the deployed card reads the fielded squad live.
-    renderVitals({ stats, rangeTiles, rangeTipId, rangeTooltip, battery, capacity, hp, hpMax, cargoRow, terrainRows }) {
+    // Range row (staging only; the HUD carries it live once deployed): tiles the battery buys the team
+    renderRange(rangeTiles, tipId, tooltip) {
         return (
             <React.Fragment>
-                {this.renderSpecs(stats)}
-                <span className="spec-line key-value-pair" data-tip data-for={rangeTipId}>
+                <span className="spec-line key-value-pair" data-tip data-for={tipId}>
                     <span>Range:</span>
                     <span>~{rangeTiles} tiles</span>
                 </span>
-                <Tooltip id={rangeTipId}>{rangeTooltip}</Tooltip>
-                <div className="field-telemetry">
-                    {this.renderBatteryBar(battery, capacity)}
-                    {this.renderHpBar(hp, hpMax)}
-                    {cargoRow}
-                    {terrainRows}
-                </div>
+                <Tooltip id={tipId}>{tooltip}</Tooltip>
             </React.Fragment>
         );
     }
 
-    // Mid-fight the settlement snapshot (squad.droidHp) is stale; read the live battle instead -- fielded
-    // units' current hp plus the wounds the escapees carried out -- so the bar tracks the fight in real
-    // time and is already sitting at the settlement value when it ends.
-    deployedHp(squad) {
-        const hpMax = squad.squadSize * ((squad.droidStats || DROID_BASE_STATS).hp);
-        const battle = squad.fighting && squad.fighting.battle;
-        const hp = battle ?
-            battle.units.reduce((sum, unit) => sum + (unit.side === 'droid' ? unit.hp : 0), 0) +
-                (battle.escapedHp || []).reduce((sum, unitHp) => sum + unitHp, 0) :
-            (squad.droidHp || []).reduce((sum, unitHp) => sum + unitHp, 0) || hpMax;
-        return { hp, hpMax };
-    }
-
-    // The terrain underfoot (deployed only): tile terrain, then its movement effects and the infestation
-    // warning on reserved-height rows. These trail the telemetry section (cargo sits above them), so the
-    // rows sitting empty read as bottom padding, not a hole in the readout.
-    renderTerrainRows() {
-        const { squad, sector, onGrid, unlockedTerrains } = this.props;
-        if (!sector) return null;
-
-        const terrain = getTerrain(sector.terrain);
-        // Crossing-time multiple relative to flatland (integer multiples by construction). Shown as a
-        // speed DIVISOR, and only when the ground actually slows the squad; drain isn't shown (it's
-        // constant per deployment -- the Range countdown carries it live, its tooltip has the number).
-        const slowdown = getCrossTime(sector.terrain, unlockedTerrains) / TERRAINS.flatland.crossTime;
-        const effectsText = !onGrid && slowdown > 1 ? `speed ÷${formatStat(slowdown)}` : '';
+    // Outfitting (staging only): the upgrades that exist purely for expeditions (equipment, combat stats,
+    // battery), offered here and nowhere else, under the droid spec line they modify. Refits apply to
+    // the next deployment, so the section folds away while a squad is out.
+    renderOutfitting() {
+        const { squad, squadUpgradeIds, droidStats } = this.props;
+        if (squad || squadUpgradeIds.length === 0) return null;
 
         return (
-            <React.Fragment>
-                <span className="terrain-line key-value-pair">
-                    <span className="row-label">Terrain:</span>
-                    <span style={{color: PLANET_COLORS[terrain.key]}}>{terrain.display} {terrain.label}</span>
+            <div className="outfitting">
+                <div className="section-title">Outfitting</div>
+                <span className="spec-line key-value-pair" data-tip data-for="droid-spec-tip">
+                    <span>Droid:</span>
+                    <span>
+                        Health {formatStat(droidStats.hp)} · Damage {formatStat(droidStats.damage)}
+                        {' · '}Swing {(droidStats.attackMs / 1000).toFixed(1)}s
+                    </span>
                 </span>
-                <span className="terrain-status">{effectsText}</span>
-                <span className="terrain-status terrain-warn">
-                    {sector.infestedBy ? '⚠ Hive territory' : ''}
-                </span>
-            </React.Fragment>
-        );
-    }
-
-    // The two squad bars, shared between the cards: the staging card previews them idle-full (the deploy
-    // snapshot to be), the deployed card shows them live. One card renders at a time, so the tooltip ids
-    // don't collide.
-    renderBatteryBar(battery, capacity) {
-        const reserve = battery <= 0;
-        const low = !reserve && battery <= capacity * 0.25;
-        const pct = Math.max(0, Math.min(100, (battery / capacity) * 100));
-
-        return (
-            <React.Fragment>
-                <div className="meter-row" data-tip data-for="squad-battery-tip">
-                    <span>Battery:</span>
-                    <div className={`meter-bar${reserve ? ' reserve' : low ? ' low' : ''}`}>
-                        <span className="fill" style={{width: `${pct}%`}}/>
-                        <span className="tick"/>
-                        <span className="value">
-                            {reserve ? 'RESERVE' : `${Math.ceil(battery)} / ${capacity}`}
-                        </span>
-                    </div>
-                </div>
-                <Tooltip id="squad-battery-tip">
-                    <p className="tooltip-header">Battery</p>
-                    <p>Drains each tile off the grid; recharges on powered ground.</p>
-                    <p>At zero the squad runs on reserve power: every droid burns hull each tile.</p>
+                <Tooltip id="droid-spec-tip">
+                    <p className="tooltip-header">Droid</p>
+                    <p>{`One expedition droid's combat spec (move speed ${droidStats.speed}). ` +
+                        'Upgrades refit the next deployed squad.'}</p>
                 </Tooltip>
-            </React.Fragment>
-        );
-    }
-
-    // Squad HP: battle wounds persist in the field and repair on the grid, exactly like the battery. The bar
-    // sums per-droid hp; green like the arena's unit bars (hp language), distinct from the cyan battery bar.
-    // Keyed by hpFlash so each reserve-power hull burn remounts the bar and restarts its bleed animation.
-    renderHpBar(hp, hpMax) {
-        const hpPct = Math.max(0, Math.min(100, (hp / hpMax) * 100));
-
-        return (
-            <React.Fragment>
-                <div className="meter-row" data-tip data-for="squad-hp-tip">
-                    <span>HP:</span>
-                    <div key={this.state.hpFlash}
-                         className={`meter-bar hull${hp <= hpMax * 0.5 ? ' low' : ''}` +
-                             `${this.state.hpFlash > 0 ? ' bleed' : ''}`}>
-                        <span className="fill" style={{width: `${hpPct}%`}}/>
-                        <span className="value">{formatStat(hp)} / {formatStat(hpMax)}</span>
-                    </div>
+                <div className="outfitting-list">
+                    {squadUpgradeIds.map(id => <Upgrade key={id} id={id}/>)}
                 </div>
-                <Tooltip id="squad-hp-tip">
-                    <p className="tooltip-header">HP</p>
-                    <p>Battle damage persists in the field; repairs on the grid.</p>
-                </Tooltip>
-            </React.Fragment>
+            </div>
         );
     }
 
     render() {
         return (
             <div className="expedition-status">
-                <div className="component-header">Expeditions</div>
+                <div className="component-header">Expedition</div>
                 {this.renderTeamCard()}
+                {this.renderOutfitting()}
             </div>
         );
     }
@@ -338,12 +226,11 @@ const mapStateToProps = (state, ownProps) => {
     return {
         squad,
         onGrid: !!(squad && state.planet.map.length > 0 && isOnGrid(state.planet.map, squad.coord)),
-        sector: squad && state.planet.map.length > 0 ? state.planet.map[squad.coord[0]][squad.coord[1]] : null,
-        unlockedTerrains: state.planet.unlockedTerrains,
         idleDroids: Math.floor(getQuantity(getResource(state.resources, 'standardDroids'))),
         droidStats: getDroidStats(state),
         batteryCapacity: getBatteryCapacity(state), // staging range preview; fielded squads use their snapshot
         ownedEquipment: ownedEquipment(state),
+        squadUpgradeIds: getSquadUpgradeIds(state),
         multiplier: getReplicationMultiplier(state)
     };
 };

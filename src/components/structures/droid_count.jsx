@@ -20,7 +20,7 @@ class DroidCount extends React.Component {
         const tipIdRemoveAll = `remove-all-droids-${this.props.tipId}`;
 
         return <div className="droid-count">
-            <div>Droids:</div>
+            <div>{this.props.label || 'Droids:'}</div>
             <div>
                 <span className="num-droids">{this.props.droidData.numDroidsAssigned}</span>
                 <span className={'icon-vintage-robot'}></span>

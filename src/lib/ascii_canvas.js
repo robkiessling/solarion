@@ -13,7 +13,8 @@ export default class AsciiCanvas {
     // options.fillContainer: the canvas covers the whole container and the char grid is contain-fit (fully visible,
     // scaled to the largest size that fits) and centered inside it. The letterbox area around the grid is still
     // drawable. Default mode: canvas is sized to the grid itself, fit to container height (sides may crop).
-    // options.padding: (fillContainer only) minimum px between the char grid and the container edges.
+    // options.padding: (fillContainer only) minimum px between the char grid and the container edges; a number,
+    // or {x, y} for different horizontal/vertical margins.
     // options.charRatio: width/height of one grid cell. Defaults to the glyph's natural ratio (FONT_RATIO). Smaller
     // values add vertical leading between rows (like CSS line-height), stretching the image taller; the font is
     // shrunk to fit the narrower cell so glyphs never overlap horizontally.
@@ -56,9 +57,9 @@ export default class AsciiCanvas {
         const outerHeight = this.container.getBoundingClientRect().height;
 
         if (this.options.fillContainer) {
-            const padding = this.options.padding || 0;
-            const availWidth = Math.max(outerWidth - padding * 2, 0);
-            const availHeight = Math.max(outerHeight - padding * 2, 0);
+            const [padX, padY] = this._padding();
+            const availWidth = Math.max(outerWidth - padX * 2, 0);
+            const availHeight = Math.max(outerHeight - padY * 2, 0);
 
             this.width = outerWidth;
             this.height = outerHeight;
@@ -91,6 +92,12 @@ export default class AsciiCanvas {
         }
 
         this._setFontSize();
+    }
+
+    // [horizontal, vertical] px margins from options.padding (see constructor)
+    _padding() {
+        const padding = this.options.padding || 0;
+        return typeof padding === 'number' ? [padding, padding] : [padding.x || 0, padding.y || 0];
     }
 
     // The font is sized so a glyph's natural advance width fits the cell width. When charRatio equals FONT_RATIO

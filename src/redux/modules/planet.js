@@ -35,6 +35,7 @@ import {applyEquipment, BATTLE_PHASES, createBattle, startWithdrawal} from "../.
 import {canConsume} from "./resources";
 import {advanceSquad, createSquad, droidsRecovered, isOnGrid} from "../../lib/squad";
 import {logInline} from "./log";
+import {TERRAIN_BLURBS} from "../../database/terrain_blurbs";
 import {batch} from "react-redux";
 import * as fromClock from "./clock";
 
@@ -952,6 +953,13 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
                 `${event.multiplier > 1 ? 'units' : 'droids'} gone dark.` +
                 (cargoLost ? ` Cargo lost: ${formatResourceList(cargoLost)}.` : '')));
             dispatch(recalculateState());
+            break;
+        }
+        case 'enteredZone': {
+            // Crossed into different ground: a one-line note in the zone's color (see database/terrain_blurbs.js)
+            if (TERRAIN_BLURBS[event.zone]) {
+                dispatch(logInline(TERRAIN_BLURBS[event.zone], `terrain-blurb zone-${event.zone}`));
+            }
             break;
         }
         case 'onGrid': {

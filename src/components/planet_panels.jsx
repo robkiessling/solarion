@@ -1,11 +1,11 @@
 import React from 'react';
 import {connect} from "react-redux";
-import Exploration from "./exploration";
-import Replication from "./replication";
+import PlanetCard from "./planet_card";
 
 /**
- * Left-column status panels for the Planet tab; fills the slot where the Command Center sits on the Base tab.
- * Passive planet status lives here; the active Expeditions panel owns the right column (see planet_tools.jsx).
+ * Left-column slot for the Planet tab; fills the space where the Command Center sits on the Base tab.
+ * Passive planet status lives here (one card); the active Expedition panel owns the right column
+ * (see planet_tools.jsx) and the camera controls ride under the globe itself (camera_strip.jsx).
  */
 class PlanetPanels extends React.Component {
     shouldComponentUpdate(nextProps, nextState) {
@@ -16,8 +16,7 @@ class PlanetPanels extends React.Component {
     render() {
         return (
             <div className={`planet-panels ${this.props.visible ? '' : 'hidden'}`}>
-                <Exploration/>
-                <Replication/>
+                <PlanetCard/>
             </div>
         );
     }

@@ -7,6 +7,10 @@ import ProgressButton from "../ui/progress_button";
 import _ from "lodash";
 import {highlightCosts} from "../../redux/modules/resources";
 
+/**
+ * An ability's cast button with its tooltip. `disabledReason` (optional, from the parent) holds the button
+ * disabled for a reason outside the ability's own readiness/cost, and says why in the tooltip.
+ */
 class Ability extends React.Component {
 
     render() {
@@ -14,7 +18,7 @@ class Ability extends React.Component {
             <ProgressButton
                 fullWidth={false}
                 onClick={() => this.props.castAbility(this.props.id)}
-                disabled={!this.props.canCast}
+                disabled={!this.props.canCast || !!this.props.disabledReason}
                 progress={this.props.progress}
                 className={`ability ${this.props.hidden ? 'hidden' : ''}`}
                 tooltipId={`ability-${this.props.id}-tip`}
@@ -28,6 +32,7 @@ class Ability extends React.Component {
                         {!_.isEmpty(this.props.cost) && <p>Cost: <ResourceAmounts amounts={this.props.cost} /></p>}
                         {this.props.castTime > 0 && <p>Time: {_.round(this.props.castTime)}s</p>}
                         {this.props.cooldown > 0 && <p>Cooldown: {_.round(this.props.cooldown)}s</p>}
+                        {this.props.disabledReason && <p>{this.props.disabledReason}</p>}
                     </div>
                 }>
                 {this.props.name}

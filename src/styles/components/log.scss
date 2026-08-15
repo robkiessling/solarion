@@ -50,6 +50,19 @@
     padding-top: 1.2em;
   }
 
+  // Terrain notes as the squad crosses into new ground (database/terrain_blurbs.js): italic, in the zone's
+  // map color (PLANET_COLORS in lib/planet_render.js), so the terminal reads like the map
+  .terrain-blurb {
+    font-style: italic;
+
+    &.zone-grid { color: #20d9ff; }
+    &.zone-flatland { color: #cc7171; }
+    &.zone-mountain { color: #bd0707; }
+    &.zone-acid { color: #9acd32; }
+    &.zone-ice { color: #ffffff; }
+    &.zone-infested { color: #a06bc9; }
+  }
+
   p {
     margin: 0;
     white-space: pre-wrap;
