@@ -11,7 +11,7 @@ import {
     STORY_TEXTS
 } from "../lib/expeditions";
 import {PLANET_COLORS} from "../lib/planet_render";
-import {ARENA_W, BATTLE_PHASES, countSpawners, countUnits} from "../lib/battle";
+import {ARENA_W, BATTLE_PHASES, battleBlurb, countSpawners, countUnits} from "../lib/battle";
 import {CONTACT_MS} from "../lib/squad";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import BattleCanvas from "./battle_canvas";
@@ -141,6 +141,7 @@ class EncounterPopup extends React.Component {
                 {this.renderBattleHeader(battle)}
                 <BattleCanvas battle={battle}/>
                 <div className="battle-footer">
+                    <div className="popup-body battle-blurb">{poi.blurb || battleBlurb(battle, poi.formation)}</div>
                     <div className="popup-actions">
                         {slots.map((id, i) => (
                             <React.Fragment key={id}>

@@ -36,6 +36,7 @@ export default function Tooltip(props) {
     return ReactDOM.createPortal(
         <ReactTooltip id={props.id} className={`game-tooltip ${alignmentClass}`}
                       place={place}
+                      delayShow={props.delayShow}
                       border effect={'solid'}
                       backgroundColor={'#151d1a'} textColor={'#f0e7e7'} borderColor={'#f0e7e7'}
         >

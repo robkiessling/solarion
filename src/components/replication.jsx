@@ -29,7 +29,7 @@ class Replication extends React.Component {
                 {/*</span>*/}
                 <span className="key-value-pair">
                     <span>Replication Multiplier:</span>
-                    <span>{this.props.developedLand}x</span>
+                    <span className="replication-x">×{this.props.developedLand}</span>
                 </span>
                 {
                     // The growth beacon (ships with Survey Automation): replication grows toward it

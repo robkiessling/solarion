@@ -1136,6 +1136,29 @@ const database = {
             damage: { multiply: 1.5 }
         }
     }),
+    // Squad battery upgrade: applied by getBatteryCapacity in redux/reducer.js (squad-level, not per-droid)
+    // and snapshotted at deploy like the combat stats above.
+    droidFactory_extendedCells: _.merge({}, base, {
+        name: "Extended Cells",
+        structure: 'droidFactory',
+        description: 'Higher-density battery cells for the expedition squad: +50 battery capacity. ' +
+            'Refits apply to the next deployed squad.',
+        discoverWhen: {
+            resources: {
+                standardDroids: 5
+            }
+        },
+        cost: {
+            ore: 5000,
+            refinedMinerals: 1000
+        },
+        affects: {
+            type: EFFECT_TARGETS.misc
+        },
+        effect: {
+            batteryCapacity: { add: 50 }
+        }
+    }),
 
     droidFactory_fasterExplore: _.merge({}, base, {
         name: "Research: Jet Propulsion",

@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import {getDroidStats, getReplicationMultiplier, ownedEquipment, recalculateState, surveyAutomationUnlocked, withRecalculation} from "../reducer";
+import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, ownedEquipment, recalculateState, surveyAutomationUnlocked, withRecalculation} from "../reducer";
 import {
     centeringRotation,
     COOK_TIME,
@@ -112,7 +112,7 @@ const initialState = {
 
     // Expedition system (see lib/expeditions.js for domain logic and shapes)
     pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
-    squad: null, // the player-driven squad (see createSquad): { coord, path, moveProgress, charge,
+    squad: null, // the player-driven squad (see createSquad): { coord, path, moveProgress, battery,
                  // assignedDroids, multiplier, squadSize (effective units), cargo, equipment, droidHp, fighting }
     // The encounter popup's state: null | { poiId, phase: 'offer'|'result', result }. Planet-level (not on the
     // squad) so a wipe can still narrate its ending after the squad object is gone.
@@ -251,7 +251,7 @@ export default function reducer(state = initialState, action) {
         case DEPLOY_SQUAD:
             return update(state, {
                 squad: { $set: createSquad(state.homeCoord, payload.assignedDroids, payload.multiplier,
-                    payload.equipment, payload.droidStats) }
+                    payload.equipment, payload.droidStats, payload.batteryCapacity) }
             });
         case DISBAND_SQUAD:
             return update(state, {
@@ -570,7 +570,7 @@ export function planetTick(timeDelta) {
                 newRotation = sunTrackingRotation(fromClock.fractionOfDay(getState().clock));
             }
 
-            // Advance the squad (movement or fight countdown + line-of-sight reveals + charge). Runs before
+            // Advance the squad (movement or fight countdown + line-of-sight reveals + battery). Runs before
             // the finished-map early-return so driving keeps working on a fully-explored map.
             let planetState = state;
             if (state.squad && (state.squad.path.length > 0 || state.squad.fighting)) {
@@ -672,7 +672,8 @@ export function deploySquad(assignedDroids) {
 
         dispatch(withRecalculation({ type: DEPLOY_SQUAD,
             payload: { assignedDroids, multiplier: getReplicationMultiplier(state),
-                equipment: ownedEquipment(state), droidStats: getDroidStats(state) } }));
+                equipment: ownedEquipment(state), droidStats: getDroidStats(state),
+                batteryCapacity: getBatteryCapacity(state) } }));
         dispatch(setRotationMode(ROTATION_MODES.squad)); // follow-cam makes driving feel right immediately
     }
 }
@@ -922,7 +923,7 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
                 dispatch(logInline(`Team fell back from ${poi.name} — ${event.survivors} of ` +
                     `${squad.squadSize} ${(squad.multiplier || 1) > 1 ? 'units' : 'droids'} escaped.`));
                 // Falling back is a real move off the nest tile, animated and paid for like any other step
-                // (a failed assault costs a tile of charge each way). Saves written before fromCoord existed
+                // (a failed assault costs a tile of battery each way). Saves written before fromCoord existed
                 // have none, in which case the squad just holds the ground it took.
                 if (event.fromCoord) dispatch(squadStep(event.fromCoord));
             }
@@ -940,6 +941,17 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
             // Walked onto a cache/story tile: movement stops and the interaction prompt opens (the player
             // chooses to take/explore via squadInteract, or leaves via squadLeavePrompt)
             dispatch({ type: SQUAD_PROMPT, payload: { poiId: event.poiId } });
+            break;
+        }
+        case 'fieldWiped': {
+            // Overextension death: battery spent, then the hull overdraft too. advanceSquad already
+            // returned a null squad (applied via ADVANCE_SQUAD), so there's nothing to delete -- no popup
+            // either (no site to anchor one; the map showed the squad go dark); the terminal keeps the record.
+            const cargoLost = event.cargoLost && Object.keys(event.cargoLost).length > 0 ? event.cargoLost : null;
+            dispatch(logInline(`Team lost in the field — battery spent, all ${event.unitsLost} ` +
+                `${event.multiplier > 1 ? 'units' : 'droids'} gone dark.` +
+                (cargoLost ? ` Cargo lost: ${formatResourceList(cargoLost)}.` : '')));
+            dispatch(recalculateState());
             break;
         }
         case 'onGrid': {

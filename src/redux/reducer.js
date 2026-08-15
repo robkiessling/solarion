@@ -20,6 +20,7 @@ import {aimMirrors, isTargetingPlanet, startEnergyBeam, TARGETS} from "./modules
 import {HYPER_BEAM_CHARGE_TIME} from "../lib/star";
 import {getStructure} from "./modules/structures";
 import {DROID_BASE_STATS} from "../lib/battle";
+import {SQUAD_BATTERY_CAPACITY} from "../lib/squad";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 
@@ -184,20 +185,37 @@ export function researchUpgrade(upgradeId) {
 // modifies the expedition droids' unit stats. New combat upgrades just join this list.
 const DROID_COMBAT_UPGRADE_IDS = ['droidFactory_reinforcedPlating', 'droidFactory_weaponCalibration'];
 
-// The effective expedition-droid stat block: DROID_BASE_STATS plus every researched combat upgrade.
-// Snapshotted onto the squad at deploy (see deploySquad), so refits apply to the NEXT deployment --
-// the squad in the field fights with the stats it left base with.
-export function getDroidStats(state) {
-    const stats = { ...DROID_BASE_STATS };
+// Squad battery upgrades (squad-level, not per-droid: capacity scaling with team size would erase the
+// big-team-short-legs range tradeoff).
+const BATTERY_UPGRADE_IDS = ['droidFactory_extendedCells'];
+
+// Folds every researched upgrade's effect from `upgradeIds` into the `variables` object, in place.
+function applyResearchedUpgradeEffects(state, upgradeIds, variables) {
     const operations = initOperations();
-    DROID_COMBAT_UPGRADE_IDS.forEach(upgradeId => {
+    upgradeIds.forEach(upgradeId => {
         const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
         if (upgrade && fromUpgrades.isResearched(upgrade) && upgrade.effect) {
             mergeEffectIntoOperations(upgrade.effect, operations);
         }
     });
-    applyOperationsToVariables(operations, stats);
+    applyOperationsToVariables(operations, variables);
+}
+
+// The effective expedition-droid stat block: DROID_BASE_STATS plus every researched combat upgrade.
+// Snapshotted onto the squad at deploy (see deploySquad), so refits apply to the NEXT deployment --
+// the squad in the field fights with the stats it left base with.
+export function getDroidStats(state) {
+    const stats = { ...DROID_BASE_STATS };
+    applyResearchedUpgradeEffects(state, DROID_COMBAT_UPGRADE_IDS, stats);
     return stats;
+}
+
+// The deployable squad's battery capacity: the base plus every researched battery upgrade. Snapshotted
+// onto the squad at deploy under the same refit rule as getDroidStats.
+export function getBatteryCapacity(state) {
+    const stats = { batteryCapacity: SQUAD_BATTERY_CAPACITY };
+    applyResearchedUpgradeEffects(state, BATTERY_UPGRADE_IDS, stats);
+    return stats.batteryCapacity;
 }
 
 // The battle gear squads carry automatically: each piece is owned once its one-time upgrade is

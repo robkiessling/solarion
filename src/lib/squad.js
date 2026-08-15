@@ -23,8 +23,11 @@ export const SQUAD_GLYPH = '@';
 // snappy (flatland 0.5s * 0.8 = 400ms/tile, ~2.5 tiles/sec).
 export const SQUAD_SPEED_FACTOR = 0.8;
 
-// Charge model: drains per tile entered while off the powered grid, snaps to full on the grid. At zero the
-// squad limps ("reserve power"): crossings take twice as long. A planning aid, never a fail state.
+// Battery model: drains per tile entered while off the powered grid, snaps to full capacity on the
+// grid. At zero the squad runs on reserve power: every unit burns hull each tile, so hull is the
+// overdraft on range -- overextend far enough and the squad dies in the field (cargo and all). Speed is
+// unaffected (the bleed is per tile, so slowness would only stretch the dying in real time, not raise
+// the stakes).
 // Drain scales with the assigned droids (not the replicated units, so growing the multiplier never shrinks
 // range): a bigger team is a shorter-legged team, which is what makes force sizing a real decision.
 // The contact beat between stepping onto a nest and the fight being shown: the squad shrinks into the hive
@@ -32,9 +35,9 @@ export const SQUAD_SPEED_FACTOR = 0.8;
 // the climb-back-out duration when the fight ends.
 export const CONTACT_MS = 400;
 
-export const SQUAD_MAX_CHARGE = 100;
+export const SQUAD_BATTERY_CAPACITY = 100;
 export const SQUAD_DRAIN_PER_DROID = 0.4; // per assigned droid per tile; the default 5-droid team drains 2
-export const RESERVE_SPEED_PENALTY = 2;
+export const RESERVE_HP_PER_TILE = 1;     // hull every unit burns per tile on reserve power
 
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
 export {isOnGrid} from "./planet_map";
@@ -43,19 +46,25 @@ export function squadDrainPerTile(squad) {
     return SQUAD_DRAIN_PER_DROID * (squad.assignedDroids || 5);
 }
 
+export function squadBatteryCapacity(squad) {
+    return squad.batteryCapacity || SQUAD_BATTERY_CAPACITY;
+}
+
 /**
  * Replication multiplies the fielded force: `assignedDroids` leave the pool, but the squad's roster is
  * assignedDroids x multiplier effective UNITS (snapshotted at deploy; replicating while deployed doesn't
  * grow a fielded squad). Everything downstream -- battles, wounds (droidHp), losses, the sidebar --
  * deals in units 1:1; whole droids only reappear at disband settlement (droidsRecovered).
  */
-export function createSquad(homeCoord, assignedDroids = 1, multiplier = 1, equipment = {}, droidStats = DROID_BASE_STATS) {
+export function createSquad(homeCoord, assignedDroids = 1, multiplier = 1, equipment = {}, droidStats = DROID_BASE_STATS,
+                            batteryCapacity = SQUAD_BATTERY_CAPACITY) {
     const numUnits = assignedDroids * multiplier;
     return {
         coord: homeCoord,
         path: [],
         moveProgress: 0,
-        charge: SQUAD_MAX_CHARGE,
+        battery: batteryCapacity,
+        batteryCapacity,         // deploy-time snapshot (base + battery upgrades): refit at base, like droidStats
         assignedDroids,          // droids consumed from the pool at deploy; the resource-side contract
         multiplier,              // replication multiplier snapshotted at deploy
         squadSize: numUnits,     // current roster in effective units (shrinks as units die)
@@ -82,15 +91,14 @@ export function poiAtCoord(pois, coord) {
     ) || null;
 }
 
-export function squadCrossMs(map, coord, unlocks, charge) {
-    const base = getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) * 1000 * SQUAD_SPEED_FACTOR;
-    return charge <= 0 ? base * RESERVE_SPEED_PENALTY : base;
+export function squadCrossMs(map, coord, unlocks) {
+    return getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) * 1000 * SQUAD_SPEED_FACTOR;
 }
 
 /**
  * Advances the squad one tick: battle sim when fighting (movement is locked), otherwise movement along
  * its path. Per tile entered: line-of-sight reveal (getVisibleCoords, so mountains wall off the view; scouts
- * see less, revealing only their 4 orthogonal neighbors, because a crewed squad has better eyes), charge
+ * see less, revealing only their 4 orthogonal neighbors, because a crewed squad has better eyes), battery
  * drain off-grid / snap-to-full on-grid, and contact events. Pure; returns the next squad, the coords newly
  * revealed this tick (still-unknown tiles only), and events for the caller to resolve:
  *   { type: 'battleOver', poiId, result, survivors, bugsRemaining, battle, fromCoord }  (live fight ended;
@@ -99,6 +107,8 @@ export function squadCrossMs(map, coord, unlocks, charge) {
  *   { type: 'enteredPoi', poiId, fromCoord } (stepped onto an available POI: resolve it. fromCoord is the
  *       tile just left, which a nest assault holds onto so a retreat can walk back out)
  *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)
+ *   { type: 'fieldWiped', unitsLost, multiplier, cargoLost } (reserve-power hull burn killed the last
+ *       unit; the returned squad is null and the caller settles the loss)
  */
 export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
     const events = [];
@@ -122,7 +132,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
         return { squad: {...squad, fighting: null}, reveals: [], events };
     }
 
-    let {coord, path, moveProgress, charge, droidHp, equipment} = squad;
+    let {coord, path, moveProgress, battery, droidHp, equipment, squadSize} = squad;
     path = path ? path.slice() : [];
     moveProgress = (moveProgress || 0) + moveAmountMs;
 
@@ -133,7 +143,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
 
     while (path.length > 0) {
         const next = path[0];
-        const tileCrossMs = squadCrossMs(map, next, unlocks, charge);
+        const tileCrossMs = squadCrossMs(map, next, unlocks);
         if (moveProgress < tileCrossMs) break;
         moveProgress -= tileCrossMs;
         const cameFrom = coord; // reported on contact: a failed assault falls back to the tile it came from
@@ -144,9 +154,9 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
         getVisibleCoords(map, coord).forEach(reveal);
 
         if (isOnGrid(map, coord)) {
-            charge = SQUAD_MAX_CHARGE;
+            battery = squadBatteryCapacity(squad);
             // Powered ground repairs battle wounds and reloads equipment charges the same way it refills
-            // charge (everyone heals at home, gear reloads at home)
+            // the battery (everyone heals at home, gear reloads at home)
             const maxHp = (squad.droidStats || DROID_BASE_STATS).hp;
             if (droidHp && droidHp.some(hp => hp < maxHp)) {
                 droidHp = fullDroidHp(droidHp.length, maxHp);
@@ -157,8 +167,21 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
             }
             events.push({ type: 'onGrid' });
         }
+        else if (battery <= 0) {
+            // Reserve power: the battery is spent, so the tile is paid in hull instead. Every unit burns
+            // RESERVE_HP_PER_TILE (wounded units go dark first); if the last one dies, the squad is lost
+            // where it stands and the caller settles the loss (see resolveSquadEvent's fieldWiped).
+            droidHp = (droidHp || fullDroidHp(squadSize, (squad.droidStats || DROID_BASE_STATS).hp))
+                .map(hp => hp - RESERVE_HP_PER_TILE).filter(hp => hp > 0);
+            if (droidHp.length === 0) {
+                events.push({ type: 'fieldWiped', unitsLost: squadSize,
+                    multiplier: squad.multiplier || 1, cargoLost: squad.cargo });
+                return { squad: null, reveals: [...reveals].map(key => key.split(',').map(Number)), events };
+            }
+            squadSize = droidHp.length;
+        }
         else {
-            charge = Math.max(0, charge - squadDrainPerTile(squad));
+            battery = Math.max(0, battery - squadDrainPerTile(squad));
         }
 
         const poi = poiAtCoord(pois, coord);
@@ -174,7 +197,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
     if (path.length === 0) moveProgress = 0;
 
     return {
-        squad: {...squad, coord, path, moveProgress, charge, droidHp, equipment},
+        squad: {...squad, coord, path, moveProgress, battery, droidHp, equipment, squadSize},
         reveals: [...reveals].map(key => key.split(',').map(Number)),
         events
     };

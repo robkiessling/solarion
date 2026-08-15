@@ -1,5 +1,9 @@
 import {EQUIPMENT_DEFS} from "../database/equipment";
 import {TERRAIN_PIECES} from "../database/battle_terrain";
+import {BUG_TYPES, DROID_BASE_STATS, GROUND_BLURBS, SWARM_BLURBS} from "../database/battle";
+
+// Content records (stats, scene text) live in database/battle.js; this module is the engine.
+export {BUG_TYPES, DROID_BASE_STATS} from "../database/battle";
 
 /**
  * Real-time per-unit battle sim: the skirmish that plays out in the encounter popup when the squad attacks
@@ -38,26 +42,8 @@ const ARENA_BASELINE_UNITS = 320;  // a 160v160 fills the baseline arena at desi
 const FRONT_GAP = 44;              // spawn distance between the two front lines, at any arena size
 
 // --- Tuning ---
-// Kill-time asymmetry is the balance dial: a stock droid is worth roughly two standard bugs, so matched
-// counts win with light losses and ~1.5x bug numbers is the break-even. Bugs are faster (they swarm),
-// droids hit harder.
-//
-// Droids have BASE stats: combat upgrades modify a copy (getDroidStats in redux/reducer.js) that is
-// snapshotted onto the squad at deploy (refits apply to the next deployment, not squads in the field).
-// Bug TYPES are static definitions, never upgraded; nests differ only in how many of each type they
-// field (their composition). New types (tougher variants, bosses) are new rows here; anything with hp
-// above the standard bug automatically earns an hp bar in the arena (battle_canvas.jsx).
-export const DROID_BASE_STATS = { hp: 9, damage: 1, attackMs: 1500, speed: 9 };
-export const BUG_TYPES = {
-    bug: { hp: 6, damage: 1, attackMs: 1300, speed: 11 },
-    // Spawner: the hive mouth itself. Stationary and harmless (speed/damage 0 route it around the whole
-    // combat loop; droids still path to it and kill it as the nearest enemy once the escorts are dead)
-    // but it disgorges spawnBatch fresh `spawns`-type bugs every spawnEveryMs until killed, holding fire
-    // while spawnCap non-spawner bugs are already afield (saturation, not an unbounded swarm). Winning
-    // stays emergent: 'won' fires when the bug side is empty and the hive is on the bug side, so "kill
-    // the source or it never ends" needs no special case.
-    hive: { hp: 40, damage: 0, attackMs: 0, speed: 0, spawns: 'bug', spawnEveryMs: 4000, spawnBatch: 2, spawnCap: 24 }
-};
+// The unit stat blocks (DROID_BASE_STATS, BUG_TYPES) are content records in database/battle.js; the
+// dials below are engine mechanics.
 const ATTACK_RANGE = 3;
 const UNIT_RADIUS = 1.2;        // hard collision radius, both sides: pairs closer than 2R get pushed apart,
                                 // so frontage is physical (only the units that fit can engage; ranks queue)
@@ -555,6 +541,20 @@ export const TERRAIN_LAYOUTS = {
     ruins: ruinsTerrain,     // broken structures over the whole field
     canyon: canyonTerrain    // one full-height wall with a single choke
 };
+
+// One-line scene description for the battle footer: ground clause + the garrison's opening (text records
+// in database/battle.js), matching what the arena actually shows. Pure presentation (derived at render
+// time, nothing reads it back), so existing mid-fight saves get it too.
+export function battleBlurb(battle, formation) {
+    const ground = GROUND_BLURBS[battle.terrain ? battle.terrain.id : 'open'] || GROUND_BLURBS.open;
+    let swarm = SWARM_BLURBS[formation] || SWARM_BLURBS.column;
+    // The ring's center slot is where a garrison's leading hive stands (see createBattle); name the
+    // objective when it's really there
+    if (formation === 'ring' && battle.startingSpawners > 0) {
+        swarm = `bugs circle tight around their ${battle.startingSpawners > 1 ? 'hives' : 'hive'}`;
+    }
+    return `${ground}; ${swarm}.`;
+}
 
 // One combat-ready unit. `base` selects the unit's deterministic hash streams (opening swing delay,
 // wobble phase/period, collision tie-break angle) and must be unique across every unit the battle will

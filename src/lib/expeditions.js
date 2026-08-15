@@ -1,7 +1,7 @@
 import {getRandomFromArray} from "./helpers";
 import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, REGIONS, STATUSES, TERRAINS} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {BANDS, GATE_DEFS, POI_DEFS, POI_TYPE_DEFAULTS, POI_TYPES, rollPoiReward} from "../database/pois";
+import {BANDS, GATE_DEFS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, POI_TYPES, rollPoiReward} from "../database/pois";
 
 /**
  * This module owns the point-of-interest (POI) domain logic: POI placement mechanics, encounter resolution
@@ -9,28 +9,16 @@ import {BANDS, GATE_DEFS, POI_DEFS, POI_TYPE_DEFAULTS, POI_TYPES, rollPoiReward}
  * movement/driving lives in squad.js (the squad is player-driven).
  */
 
-// POI content constants live in database/pois.js; re-exported here so consumers keep one import site.
-export {POI_TYPES, STORY_TEXTS} from "../database/pois";
-
-// The three tools. Stored in planet.unlockedTerrains (the shared capability set: terrain crossUpgrades and
-// POI `requires` both read it), granted via upgrades or POI salvage (reward.capability).
-export const CAPABILITY_LABELS = {
-    drill: 'Plasma Drill',
-    sealedChassis: 'Sealed Chassis',
-    overrideModule: 'Override Module'
-}
+// POI content records (types, texts, labels, glyphs) live in database/pois.js; re-exported here so
+// consumers keep one import site.
+export {CAPABILITY_LABELS, FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, POI_TYPES,
+    STORY_TEXTS} from "../database/pois";
 
 export const POI_STATUS = {
     hidden: 'hidden',       // tile not yet revealed by scouting
     available: 'available', // discovered, not yet resolved
     cleared: 'cleared'
 }
-
-// Display constants (colorKeys index into PLANET_COLORS in planet_render.js)
-export const POI_GLYPHS = { cache: '$', nest: '@', storySite: '?', gate: '∩' };
-export const POI_COLOR_KEYS = { cache: 'poiCache', nest: 'poiNest', storySite: 'poiStory', gate: 'poiGate' };
-export const POI_LABELS = { cache: 'Supply Cache', nest: 'Hive Nest', storySite: 'Ruins', gate: 'Barrier' };
-export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 
 /**
  * The region/stamp placement pass: the POI_DEFS content manifest scattered per placement band, gate POIs on
@@ -108,7 +96,7 @@ export function generatePois(map) {
             if (!clean) continue; // pick() already marked it used; just try another tile
 
             const poi = add(POI_TYPES.nest, sector, { difficulty: def.difficulty, infestRadius: def.infestRadius,
-                formation: def.formation, bugs: def.bugs });
+                formation: def.formation, bugs: def.bugs, terrain: def.terrain, blurb: def.blurb });
             [sector.coord, ...getCoordsWithinHops(sector.coord, def.infestRadius)].forEach(([r, c]) => {
                 if (map[r][c].terrain === TERRAINS.flatland.enum && !map[r][c].gated) {
                     map[r][c].infestedBy = poi.id;
@@ -178,16 +166,13 @@ export function formatResourceList(resources) {
 
 /**
  * Encounter popup content accessors: definition field if present, else the type default (POI_TYPE_DEFAULTS
- * in database/pois.js). Cache prompt text is composed here because it names the rolled loot.
+ * in database/pois.js). Prompt texts are templates; {loot} expands to the POI's rolled reward.
  */
 
 export function promptTextFor(poi) {
-    if (poi.promptText) return poi.promptText;
-    if (poi.type === POI_TYPES.cache) {
-        const loot = poi.reward && poi.reward.resources ? ` — ${formatResourceList(poi.reward.resources)}` : '';
-        return `Supply cache found${loot}. Take it?`;
-    }
-    return 'Structure of unknown origin. Investigate?';
+    const template = poi.promptText || POI_TYPE_DEFAULTS[poi.type].promptText || '';
+    const loot = poi.reward && poi.reward.resources ? ` — ${formatResourceList(poi.reward.resources)}` : '';
+    return template.replace('{loot}', loot);
 }
 
 export function actionLabelFor(poi) {

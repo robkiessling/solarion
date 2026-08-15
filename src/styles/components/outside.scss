@@ -230,9 +230,9 @@ $top-bar-float-padding: 0.875rem;
         }
       }
 
-      // Bottom strip under the canvas: the equipment/retreat row during the fight, the outcome text +
-      // Continue after it. A fixed floor height sized for either occupant, so the popup keeps its exact
-      // size through the ending and only the strip's contents swap.
+      // Bottom strip under the canvas: scene blurb + equipment/retreat row during the fight, the
+      // outcome text + Continue after it. A fixed floor height sized for either occupant, so the popup
+      // keeps its exact size through the ending and only the strip's contents swap.
       .battle-footer {
         min-height: 5.2rem;
         display: flex;
@@ -242,6 +242,13 @@ $top-bar-float-padding: 0.875rem;
         > .popup-body {
           flex: 1;
           margin-bottom: 0;
+        }
+
+        // The one-line scene description (battleBlurb): quiet narration, subordinate to the action row
+        > .battle-blurb {
+          font-style: italic;
+          font-size: 0.9em;
+          color: $ui-text-dim;
         }
 
         > .popup-actions {
@@ -337,69 +344,75 @@ $top-bar-float-padding: 0.875rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 
-    // All card states render the same three rows (team line / status / actions) at fixed heights, so switching
-    // between at-base, deployed, and holding never shifts the POI list below.
+    // The card's two text styles: dim labels, bright values. Key-value rows and the bar rows dim their
+    // label cell structurally; free-form labels (Terrain, Equipment) opt in via .row-label.
+    .row-label,
+    .key-value-pair > span:first-child {
+      color: $ui-text-dim;
+    }
+
+    // One shared height for every row: each row is a direct child of one of the card's two flex columns
+    // (which blockifies the span rows, letting min-height bite). Rows whose content can vanish (cargo,
+    // effects, warning) reserve their space for free, and new rows inherit the rhythm automatically.
+    // line-height matches the floor, so single-line text centers in its row exactly like the flex-centered
+    // meter rows (flex-centering everything would break the wrapping mixed-text rows, e.g. Equipment).
+    > *,
+    .field-telemetry > * {
+      min-height: 1.8em;
+      line-height: 1.8em;
+    }
+
+    // All card states render the same rows (team line / specs / telemetry / actions) at fixed heights, so
+    // switching between at-base and deployed never shifts the content below.
     .team-line {
       display: flex;
       align-items: center;
-      min-height: 1.8rem;
 
       .key-value-pair {
         flex: 1;
+        align-items: center;
+      }
+
+      // The staging stepper sits in the key-value value slot, so it right-aligns like the deployed readout
+      .team-stepper {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+
+        // Replicated force preview ("×2 = 10 units") trailing the stepper; the deployed readout words
+        // its team the same way
+        .fielded-units {
+          //color: $ui-text-dim;
+        }
       }
     }
 
-    .team-builder {
-      gap: 0.35rem;
+    // .spec-line (droid combat specs) and .cargo-line rows carry no styling of their own: shared row
+    // height above, label/value colors from the card-wide rules.
 
-      .idle-count {
-        opacity: 0.7;
-        font-size: 0.85em;
-      }
-    }
-
-    // Droid combat specs (hull/damage), shown while staging AND fielded; details in the tooltip
-    .spec-line {
-      font-size: 0.9em;
-      opacity: 0.8;
-      min-height: 1.4em;
-    }
-
-    .squad-status-text {
-      font-style: italic;
-      opacity: 0.85;
-
-      // Reserve two lines: longer statuses ("Holding at Hive Nest — hostiles detected") wrap, and pre-allocating
-      // the space keeps the card height identical across all states
-      display: block;
-      min-height: 2.4em;
-    }
-
-    .cargo-line {
-      opacity: 0.8;
-      font-size: 0.9em;
-      min-height: 1.2em; // fixed row in the card skeleton
-    }
-
-    // Deployed-squad telemetry: charge bar + terrain underfoot. The at-base card renders the block empty;
-    // every row reserves its height, so deploying (or an infestation warning appearing) never shifts the
-    // POI list below.
+    // Squad telemetry: battery/HP bars, then (deployed only) cargo + terrain underfoot. The deployed-only
+    // rows reserve their heights, so warnings appearing/clearing never shift the deployed card; the
+    // staging card simply ends after the bars.
     .field-telemetry {
       display: flex;
       flex-direction: column;
-      min-height: 5.4em;
 
-      .charge-row {
+      .meter-row {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        min-height: 1.5em;
+
+        // Fixed label column so the Battery and HP bars start at the same x and span the same width
+        > span:first-child {
+          flex: 0 0 5rem;
+          color: $ui-text-dim;
+        }
       }
 
-      .charge-bar {
+      .meter-bar {
         flex: 1;
         position: relative;
-        height: 8px;
+        height: 18px; // tall enough to carry its numeric readout
         background: $black-inset;
         border: 1px solid rgba(255, 255, 255, 0.25);
 
@@ -411,7 +424,7 @@ $top-bar-float-padding: 0.875rem;
           background: #20d9ff; // squad cyan (PLANET_COLORS.squad)
         }
 
-        // Marks the 25% low-charge threshold where the fill turns gold
+        // Marks the 25% low-battery threshold where the fill turns gold
         .tick {
           position: absolute;
           top: 0;
@@ -421,42 +434,87 @@ $top-bar-float-padding: 0.875rem;
           background: rgba(255, 255, 255, 0.25);
         }
 
+        // Numeric readout inside the bar ("86 / 100"; RESERVE when the battery is spent). Shadowed so it
+        // stays legible over the fill and the empty track alike
+        .value {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          right: 4px;
+          display: flex;
+          align-items: center;
+          color: #f0e7e7;
+          text-shadow: 0 0 3px rgba(1, 4, 9, 0.95), 0 1px 2px rgba(1, 4, 9, 0.95);
+        }
+
         &.low .fill { background: #ffd700; }
         &.reserve .fill { background: #ff4d4d; }
+        &.reserve .value { color: #ff4d4d; }
 
-        // Hull variant: squad health (green, matching the arena's unit hp bars) vs the cyan charge bar
+        // Hull variant: squad health (green, matching the arena's unit hp bars) vs the cyan battery bar
         &.hull .fill { background: #3fd66b; }
         &.hull.low .fill { background: #ffd700; }
+
+        // Reserve-power hull burn: the bar flashes red as each tile is paid in hull. Runs once per
+        // remount -- the component re-keys the bar on every burn to restart it.
+        &.bleed {
+          animation: hull-bleed 0.6s ease-out;
+
+          .fill { animation: hull-bleed-fill 0.6s ease-out; }
+        }
       }
 
-      .reserve-label {
-        color: #ff4d4d;
-        font-size: 0.8em;
-        letter-spacing: 1px;
+      @keyframes hull-bleed {
+        from {
+          border-color: #ff4d4d;
+          box-shadow: 0 0 8px rgba(255, 77, 77, 0.7);
+        }
       }
 
-      .terrain-line { min-height: 1.5em; }
-
-      .terrain-key { color: $ui-text-dim; }
-
-      .terrain-effects {
-        min-height: 1.2em;
-        font-size: 0.85em;
-        color: $ui-text-dim;
+      @keyframes hull-bleed-fill {
+        from { background: #ff4d4d; }
       }
 
-      .terrain-warn {
-        min-height: 1.2em;
-        font-size: 0.85em;
-        color: #a06bc9; // infested purple (PLANET_COLORS.infested)
+      // Movement effects and the infestation warning keep their (shared-height) rows when empty, so the
+      // card holds still as they appear/clear. Full row size and brightness: these are live conditions
+      // the driver should notice, not fine print.
+      .terrain-status {
+        &.terrain-warn { color: #a06bc9; } // infested purple (PLANET_COLORS.infested)
       }
     }
 
+    // The card's one primary action (Deploy / Disband), styled like the game's other action buttons
+    // (the .progress-button.ability look), centered, with clear air above so it doesn't read as part
+    // of the cargo line. A shared min-width keeps the two labels the same size.
     .squad-actions {
       display: flex;
+      justify-content: center;
       gap: 0.5rem;
-      margin-top: 0.25rem;
+      margin-top: 0.75rem;
       min-height: 1.75rem;
+
+      button {
+        padding: 0.5rem 1rem;
+        border: 1px solid $progress-button-border;
+        border-radius: 0.3rem;
+        color: $progress-button-text;
+        text-align: center;
+        cursor: pointer;
+
+        // Distinct at a glance despite the similar words: Deploy is the warm go-do-it action (the
+        // ability-button orange), Disband the quiet administrative one (the standard button green)
+        &.deploy { background: $progress-button-ability-bg; }
+        &.disband { background: $progress-button-bg; }
+
+        &:hover:not(:disabled) {
+          text-decoration: underline;
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+      }
     }
 
   }

@@ -20,12 +20,29 @@ export const POI_TYPES = {
 
 // Per-type encounter popup behavior; individual definitions override. `result` decides what accepting does:
 // 'auto' resolves and closes the popup (the map change is the feedback), 'narrate' holds it open on a result
-// phase (story text, salvage, losses) until the player continues or drives away.
+// phase (story text, salvage, losses) until the player continues or drives away. `promptText` is the offer
+// line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.js); gates carry theirs
+// per gate kind (GATE_DEFS), nests never prompt (the fight starts on entry).
 export const POI_TYPE_DEFAULTS = {
-    cache: { actionLabel: 'Take', result: 'auto' },
-    storySite: { actionLabel: 'Explore', result: 'narrate' },
+    cache: { actionLabel: 'Take', result: 'auto', promptText: 'Supply cache found{loot}. Take it?' },
+    storySite: { actionLabel: 'Explore', result: 'narrate', promptText: 'Structure of unknown origin. Investigate?' },
     gate: { actionLabel: 'Open', result: 'auto' },
     nest: { result: 'narrate' }
+}
+
+// Map display vocabulary (colorKeys index into PLANET_COLORS in planet_render.js; FIGHT_EFFECT_CHARS
+// animate over a nest tile while a battle runs there).
+export const POI_GLYPHS = { cache: '$', nest: '@', storySite: '?', gate: '∩' };
+export const POI_COLOR_KEYS = { cache: 'poiCache', nest: 'poiNest', storySite: 'poiStory', gate: 'poiGate' };
+export const POI_LABELS = { cache: 'Supply Cache', nest: 'Hive Nest', storySite: 'Ruins', gate: 'Barrier' };
+export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
+
+// The three tools. Stored in planet.unlockedTerrains (the shared capability set: terrain crossUpgrades and
+// POI `requires` both read it), granted via upgrades or POI salvage (reward.capability).
+export const CAPABILITY_LABELS = {
+    drill: 'Plasma Drill',
+    sealedChassis: 'Sealed Chassis',
+    overrideModule: 'Override Module'
 }
 
 // Placement bands. R1 is the bowl (tutorial), R3 the antipode (finale). R2 is cut in half by the acid belt;
@@ -61,6 +78,8 @@ export const POI_DEFS = [
     // `formation` is the nest's battle spawn layout (FORMATIONS in lib/battle.js); unset = column front.
     // `terrain` scatters impassable obstacles over the arena (TERRAIN_LAYOUTS in lib/battle.js); unset =
     // open ground. The battlefield is stable per nest (seeded from its map coord), so it can be learned.
+    // A nest may also declare `blurb`, a bespoke scene line for the battle footer; unset = generated from
+    // its terrain + formation (GROUND_BLURBS/SWARM_BLURBS in database/battle.js).
     { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 6, infestRadius: 2, terrain: 'rocks' },
     { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 10, infestRadius: 2, formation: 'scatter', terrain: 'rocks' },
     { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 14, infestRadius: 2, formation: 'clusters', terrain: 'ruins' },

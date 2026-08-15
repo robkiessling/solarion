@@ -234,6 +234,12 @@ button {
   justify-content: space-between;
 }
 
+// The replication multiplier accent (×N): pink wherever replication shows its hand, matching the
+// structures panel's replication count
+.replication-x {
+  color: $replication-pink;
+}
+
 
 .droid-count {
   display: flex;

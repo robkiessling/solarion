@@ -27,10 +27,10 @@ class Structure extends React.Component {
                     <div className="structure-name">
                         {this.props.structure.name}
                         <span className="build-count">
-                            {this.props.numBuilt < 1 || !this.props.buildable ? '' : ` x${this.props.numBuilt}`}
+                            {this.props.numBuilt < 1 || !this.props.buildable ? '' : ` ×${this.props.numBuilt}`}
                         </span>
                         <span className="replication-count">
-                            {this.props.numBuilt > 0 && this.props.replicationCount > 0 && ` (x${this.props.replicationCount})`}
+                            {this.props.numBuilt > 0 && this.props.replicationCount > 0 && ` (×${this.props.replicationCount})`}
                         </span>
                     </div>
                     <div className="build-area">
