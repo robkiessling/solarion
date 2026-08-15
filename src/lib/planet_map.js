@@ -73,9 +73,25 @@ export const TERRAINS = {
     flatland: { key: 'flatland', enum: 1, display: '*', label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
     developing: { key: 'developing', enum: 2, display: '+', label: 'Replicating', crossTime: EXPLORATION_TIME_FACTOR },
     developed: { key: 'developed', enum: 3, display: '+', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
-    mountain: { key: 'mountain', enum: 4, display: 'Λ', label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
-    ice: { key: 'ice', enum: 5, display: 'X', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
-    acid: { key: 'acid', enum: 6, display: '~', label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // The mid-world belt; binary gate (Sealed Chassis or no)
+    mountain: { key: 'mountain', enum: 4, display: 'Λ', variants: ['∧', '^'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
+    ice: { key: 'ice', enum: 5, display: '≡', variants: ['='], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
+    acid: { key: 'acid', enum: 6, display: '~', variants: ['≈'], label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // The mid-world belt; binary gate (Sealed Chassis or no)
+}
+
+// Hive-tainted flatland (sector.infestedBy) gets its own glyph, not just a tint: purple-on-'*' vs
+// salmon-on-'*' is hard to tell apart, and impossible on the night side. Only flatland is ever stamped
+// infested (see generatePois), so no other terrain loses its glyph to this.
+export const INFESTED_GLYPH = '%';
+
+// Terrains with `variants` draw the legend glyph on most tiles and a variant on the rest, chosen by a hash of
+// the tile's coord so the texture is stable frame to frame (no flicker) and the same at every rotation.
+const VARIANT_SHARE = 0.35; // fraction of tiles that show a variant glyph instead of the legend one
+export function terrainGlyph(terrainEnum, row, col) {
+    const attributes = TERRAINS_BY_ENUM[terrainEnum];
+    if (!attributes.variants) { return attributes.display; }
+    const hash = ((row * 7919 + col * 104729 + 12345) % 1000) / 1000;
+    if (hash >= VARIANT_SHARE) { return attributes.display; }
+    return attributes.variants[Math.floor((hash / VARIANT_SHARE) * attributes.variants.length)];
 }
 
 if (SHOW_DEBUG_MERIDIANS) {
@@ -841,12 +857,36 @@ function maskFactorAt(rowIndex, screenCol) {
     return a + (b - a) * t;
 }
 
+// The squad's lantern: a pool of daylight that moves with the team, the you-are-here cue and what keeps the
+// night side drivable. Distance is measured on screen in row units (a column counts as half a row, since
+// cells are half as wide as tall), so the pool is a disc, not a diamond. Both values are continuous; tune
+// freely.
+//   LANTERN_RADIUS: distance out to which tiles draw at FULL daylight brightness, whatever side of the
+//     terminator they are on. Tiles sit on integer positions, so the fully-lit set only changes when the
+//     radius crosses one of their distances (1.0 = the tiles directly above/below or two columns over,
+//     1.5 = three columns over, 2.0 = two rows up or four columns over, ...).
+//   LANTERN_FALLOFF: width of the rim past that radius over which the lift fades linearly from full back to
+//     the ambient shading. 0 would be a hard-edged disc; wider is a softer glow.
+export const LANTERN_RADIUS = 0.8;
+const LANTERN_FALLOFF = 1.2;
+// 0..1 lantern lift for a tile at (row, col) given the lantern at fractional (lRow, lCol)
+function lanternLift(row, col, lantern) {
+    const dRow = row - lantern.row;
+    // Cells are half as wide as tall (CHAR_RATIO 0.5), so a column counts for half a row on screen
+    const dCol = (mod(col - lantern.col + PLANET_COLS / 2, PLANET_COLS) - PLANET_COLS / 2) * 0.5;
+    const distance = Math.sqrt(dRow * dRow + dCol * dCol);
+    if (distance <= LANTERN_RADIUS) { return 1; }
+    if (distance >= LANTERN_RADIUS + LANTERN_FALLOFF) { return 0; }
+    return 1 - (distance - LANTERN_RADIUS) / LANTERN_FALLOFF;
+}
+
 // overlays: { "row,col": { char, colorKey, color?, ping? } } -- markers drawn over tiles (scout droids, POIs,
 // expedition squad, fight effects, path highlights). Keyed by planet coords, so they ride the rotation mapping.
 // cameraShift: sub-column camera offset in cell units (the follow-cam mid-slide). The sampled window widens by
 // one column per side and every char draws shifted by -cameraShift (see drawPlanetImage), so the whole scene
 // scrolls smoothly under the screen-fixed silhouette.
-export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, overlays = {}, cameraShift = 0) {
+// lantern: { row, col } (fractional planet coords, mid-slide) of the deployed squad's light, or null.
+export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, overlays = {}, cameraShift = 0, lantern = null) {
     let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
     let nightEnd = (fractionOfDay + NIGHT_END) % 1;
 
@@ -881,10 +921,10 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 colorKey = STATUSES.unknown.key;
             }
             else {
-                char = TERRAINS_BY_ENUM[sector.terrain].display;
+                char = terrainGlyph(sector.terrain, sector.coord[0], sector.coord[1]);
                 colorKey = TERRAINS_BY_ENUM[sector.terrain].key;
-                // Infested ground reads as a sick tint on the terrain glyph; retracts when its nest is cleared
-                if (sector.infestedBy) { colorKey = 'infested'; }
+                // Infested ground: its own glyph in the sick tint; both retract when the nest is cleared
+                if (sector.infestedBy) { char = INFESTED_GLYPH; colorKey = 'infested'; }
             }
 
             if (sector.sectorDividerLeft || sector.sectorDividerRight || sector.sectorDividerBottom) {
@@ -895,12 +935,13 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 }
             }
 
-            let ping, alpha, offsetX, offsetY, haloEdges, float;
+            let ping, alpha, offsetX, offsetY, haloEdges, float, selfLit;
             const overlay = overlays[`${sector.coord[0]},${sector.coord[1]}`];
             if (overlay) {
                 if (overlay.char) { char = overlay.char; } // color-only overlays keep the terrain glyph (e.g. path highlight)
                 if (overlay.colorKey) { colorKey = overlay.colorKey; } // edge-only overlays keep the terrain color too
                 if (overlay.color) { color = overlay.color; }
+                selfLit = overlay.selfLit; // marker with its own lights: shading floor, see planet_render
                 ping = overlay.ping;   // radar-ping cycle; drawn as expanding rings by planet_render
                 alpha = overlay.alpha; // per-cell brightness (e.g. scout pulse), multiplied with day/night shading
                 offsetX = overlay.offsetX; // sub-cell nudge in cell units (squad slide/bump; see planet_render)
@@ -945,6 +986,12 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 char = (light === 'day') ? COOKED_CHAR : TERRAINS.flatland.display;
             }
 
+            // The lantern only matters where the ambient shading is below day
+            let lit;
+            if (lantern && light !== 'day') {
+                lit = lanternLift(sector.coord[0], sector.coord[1], lantern) || undefined;
+            }
+
             if (maskFactor < 1) {
                 alpha = (alpha === undefined ? 1 : alpha) * maskFactor; // soft limb fade
                 // The limb fades a floating marker AND its occluding footprint, so neither survives as a
@@ -958,7 +1005,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 }
             }
 
-            displayRow.push({ char, colorKey, color, light, dividers, ping, alpha, offsetX, offsetY, haloEdges, float });
+            displayRow.push({ char, colorKey, color, light, lit, selfLit, dividers, ping, alpha, offsetX, offsetY, haloEdges, float });
         }
 
         return displayRow;

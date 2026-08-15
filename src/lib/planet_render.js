@@ -63,13 +63,26 @@ function glyphInkBox(context, char) {
     return box;
 }
 
-// Day/night shading levels (was CSS opacity on .night/.twilight-* classes)
+// Day/night shading levels (was CSS opacity on .night/.twilight-* classes). Night is deliberately deep:
+// the squad's lantern (cell.lit) and the markers' self-lit floor carry readability, so the ambient can go
+// dark enough that night is unmistakable next to day and the pool of light around the team means something.
 const LIGHT_ALPHA = {
     day: 1,
     twilightDay: 0.7,
-    twilightNight: 0.5,
-    night: 0.3
+    twilightNight: 0.4,
+    night: 0.2
 };
+// Markers with their own running lights (units, sites, the beacon) never sink below this in the dark:
+// dimmed enough to still read as night, bright enough to stay findable.
+const SELF_LIT_ALPHA = 0.8;
+
+// Effective brightness of a cell or float from its shading level, self-lit floor, and lantern lift
+function shadeAlpha(light, selfLit, lit) {
+    let alpha = LIGHT_ALPHA[light] !== undefined ? LIGHT_ALPHA[light] : 1;
+    if (selfLit) { alpha = Math.max(alpha, SELF_LIT_ALPHA); }
+    if (lit) { alpha += (1 - alpha) * lit; }
+    return alpha;
+}
 
 const SECTOR_DIVIDER_COLOR = 'rgba(62,192,218,0.5)';
 
@@ -130,8 +143,9 @@ export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
             const offsetY = (cell.offsetY || 0) * fontHeight;
             const x = originX + colIndex * fontWidth + offsetX;
             const color = cell.color || PLANET_COLORS[cell.colorKey] || '#ffffff';
-            // Day/night shading, multiplied by any per-cell alpha (e.g. the scouts' pulse animation)
-            let alpha = LIGHT_ALPHA[cell.light] !== undefined ? LIGHT_ALPHA[cell.light] : 1;
+            // Day/night shading (lifted by the lantern / self-lit floor), multiplied by any per-cell alpha
+            // (e.g. the scouts' pulse animation)
+            let alpha = shadeAlpha(cell.light, cell.selfLit, cell.lit);
             if (cell.alpha !== undefined) { alpha *= cell.alpha; }
 
             if (alpha !== currentAlpha) {
@@ -159,8 +173,8 @@ export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
                     top: floatTop,
                     char: cell.float.char,
                     color: cell.float.color || PLANET_COLORS[cell.float.colorKey] || '#ffffff',
-                    // Day/night shades the marker like anything else on the ground
-                    alpha: (LIGHT_ALPHA[cell.light] !== undefined ? LIGHT_ALPHA[cell.light] : 1) *
+                    // Day/night shades the marker like anything else on the ground, unless it is self-lit
+                    alpha: shadeAlpha(cell.light, cell.float.selfLit, cell.lit) *
                         (cell.float.alpha === undefined ? 1 : cell.float.alpha),
                     maskAlpha: cell.float.mask ?
                         (cell.float.maskAlpha === undefined ? 1 : cell.float.maskAlpha) : 0,

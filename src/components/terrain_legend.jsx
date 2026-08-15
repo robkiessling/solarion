@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {STATUSES, TERRAINS} from "../lib/planet_map";
+import {INFESTED_GLYPH, STATUSES, TERRAINS} from "../lib/planet_map";
 import {PLANET_COLORS} from "../lib/planet_render";
 import {POI_STATUS} from "../lib/expeditions";
 
@@ -14,7 +14,7 @@ class TerrainLegend extends React.Component {
         const entries = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.acid,
             TERRAINS.developed];
         if (this.props.anyPoiVisible) {
-            entries.push({ key: 'infested', display: TERRAINS.flatland.display, label: 'Infested' });
+            entries.push({ key: 'infested', display: INFESTED_GLYPH, label: 'Infested' });
         }
 
         return (

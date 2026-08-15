@@ -369,7 +369,8 @@ class Planet extends React.Component {
             this.props.sunTracking,
             this.props.cookedPct,
             this.buildOverlays(),
-            cameraShift
+            cameraShift,
+            this.lantern()
         );
 
         this.canvasManager.clearAll();
@@ -407,7 +408,8 @@ class Planet extends React.Component {
             overlays[key] = {
                 char: (SHOW_DROID_STACK_COUNTS && count > 1) ? stackChar : DROID_GLYPH,
                 colorKey: anyActive ? 'droid' : 'droidReturning',
-                alpha: pulse
+                alpha: pulse,
+                selfLit: true // running lights: stays findable on the night side
             };
         });
 
@@ -417,6 +419,7 @@ class Planet extends React.Component {
             overlays[`${poi.coord[0]},${poi.coord[1]}`] = {
                 char: POI_GLYPHS[poi.type],
                 colorKey: hovered ? 'poiHighlight' : POI_COLOR_KEYS[poi.type],
+                selfLit: true, // a found site stays legible at night; the ground around it does not
                 // Radar ping on the hovered marker: 0..1 through the expand-and-fade cycle (drawn in planet_render)
                 ping: hovered ?
                     { fraction: (this.props.elapsedTime % POI_PING_PERIOD_MS) / POI_PING_PERIOD_MS, variant: 'hover' } :
@@ -431,6 +434,7 @@ class Planet extends React.Component {
             overlays[`${beacon[0]},${beacon[1]}`] = {
                 char: BEACON_GLYPH,
                 colorKey: 'beacon',
+                selfLit: true,
                 ping: { fraction: (this.props.elapsedTime % BEACON_PING_PERIOD_MS) / BEACON_PING_PERIOD_MS, variant: 'beacon' }
             };
         }
@@ -464,6 +468,31 @@ class Planet extends React.Component {
         });
     }
 
+    // The deployed squad's sub-cell slide toward the next tile on its path, in display cell units [dx, dy]
+    // (from moveProgress). Under the follow-cam the horizontal part is cancelled exactly by the scene-wide
+    // cameraShift, pinning the glyph at center while the terrain scrolls beneath it.
+    squadSlideOffset() {
+        const squad = this.props.squad;
+        if (!squad || squad.path.length === 0) return [0, 0];
+
+        const next = squad.path[0];
+        const crossMs = squadCrossMs(this.props.map, next, this.props.unlockedTerrains);
+        const fraction = Math.min(squad.moveProgress / crossMs, 1);
+        const fromCell = coordToImageCell(squad.coord, this.props.rotation);
+        const toCell = coordToImageCell(next, this.props.rotation);
+        if (!fromCell || !toCell) return [0, 0];
+        return [(toCell[1] - fromCell[1]) * fraction, (toCell[0] - fromCell[0]) * fraction];
+    }
+
+    // The squad's lantern position (fractional planet coords, riding the slide), or null when no team is out.
+    // Feeds generateImage, which lifts the ground around it out of the night shading.
+    lantern() {
+        const squad = this.props.squad;
+        if (!squad) return null;
+        const [dx, dy] = this.squadSlideOffset();
+        return { row: squad.coord[0] + dy, col: squad.coord[1] + dx };
+    }
+
     // The squad: the team glyph sliding smoothly between tiles (sub-cell offset from moveProgress),
     // skirmish effect on the nest while fighting, and bump/wall-flash feedback.
     addSquadOverlays(overlays) {
@@ -480,22 +509,7 @@ class Planet extends React.Component {
             }
         }
 
-        let offsetX = 0;
-        let offsetY = 0;
-
-        if (squad.path.length > 0) {
-            const next = squad.path[0];
-            const crossMs = squadCrossMs(this.props.map, next, this.props.unlockedTerrains);
-            const fraction = Math.min(squad.moveProgress / crossMs, 1);
-            const fromCell = coordToImageCell(squad.coord, this.props.rotation);
-            const toCell = coordToImageCell(next, this.props.rotation);
-            if (fromCell && toCell) {
-                // Under the follow-cam this horizontal offset is cancelled exactly by the scene-wide
-                // cameraShift, pinning the glyph at center while the terrain scrolls beneath it
-                offsetX = (toCell[1] - fromCell[1]) * fraction;
-                offsetY = (toCell[0] - fromCell[0]) * fraction;
-            }
-        }
+        let [offsetX, offsetY] = this.squadSlideOffset();
 
         if (this.bump) {
             const sinceBump = this.props.elapsedTime - this.bump.at;
@@ -542,6 +556,7 @@ class Planet extends React.Component {
                 offsetY,
                 scale,
                 mask: true,
+                selfLit: true, // the team carries the lantern; it is never in the dark
                 // Quiet locator pulse so the deployed team is followable at a glance
                 ping: { fraction: (this.props.elapsedTime % SQUAD_PING_PERIOD_MS) / SQUAD_PING_PERIOD_MS, variant: 'squad' }
             }

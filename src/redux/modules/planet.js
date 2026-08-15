@@ -36,6 +36,11 @@ import {canConsume} from "./resources";
 import {advanceSquad, createSquad, droidsRecovered, isOnGrid} from "../../lib/squad";
 import {logInline} from "./log";
 import {TERRAIN_BLURBS} from "../../database/terrain_blurbs";
+
+// Terrain notes: elapsed game time each zone was last noted (session-only; not worth persisting), and the
+// window inside which re-entering that zone stays quiet
+const lastBlurbAt = {};
+const BLURB_REPEAT_MS = 45000;
 import {batch} from "react-redux";
 import * as fromClock from "./clock";
 
@@ -956,8 +961,12 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
             break;
         }
         case 'enteredZone': {
-            // Crossed into different ground: a one-line note in the zone's color (see database/terrain_blurbs.js)
-            if (TERRAIN_BLURBS[event.zone]) {
+            // Crossed into different ground: a one-line note in the zone's color (see database/terrain_blurbs.js).
+            // Not repeated for a zone the terminal noted recently: skirting a hive edge or a coastline flips
+            // zones every step, and the same line three times in a row kills the atmosphere it's there for.
+            const now = getState().clock.elapsedTime;
+            if (TERRAIN_BLURBS[event.zone] && !(now - (lastBlurbAt[event.zone] || -Infinity) < BLURB_REPEAT_MS)) {
+                lastBlurbAt[event.zone] = now;
                 dispatch(logInline(TERRAIN_BLURBS[event.zone], `terrain-blurb zone-${event.zone}`));
             }
             break;
