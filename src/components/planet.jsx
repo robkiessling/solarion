@@ -26,6 +26,7 @@ import {
     setBeaconAt,
     setRotation,
     setRotationMode,
+    squadFace,
     squadInteract,
     squadLeavePrompt,
     squadStepInto,
@@ -256,6 +257,11 @@ class Planet extends React.Component {
     tryStep(dir, tap) {
         const squad = this.props.squad;
         if (!squad || squad.path.length > 0) return;
+
+        // Every attempt turns the team that way, moved or bumped (the vista looks where you push)
+        if (!squad.facing || squad.facing[0] !== dir[0] || squad.facing[1] !== dir[1]) {
+            this.props.squadFace(dir);
+        }
 
         const target = stepInDirection(squad.coord, dir);
         if (!target) {
@@ -667,6 +673,6 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadStepInto, squadInteract, squadLeavePrompt, useEquipment, retreatFromFight,
+    { squadStepInto, squadFace, squadInteract, squadLeavePrompt, useEquipment, retreatFromFight,
       setBeaconAt, setRotation, setRotationMode }
 )(Planet);

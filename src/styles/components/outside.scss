@@ -537,6 +537,39 @@ $hud-clearance: 6.5rem;
     }
   }
 
+  // The vista (components/vista.jsx): the view out the squad's front window, a small ASCII skyline of the
+  // ground ahead. A framed dark strip at the top of the panel, like a viewport; the caption names the
+  // heading so the picture is orientable against the globe.
+  .vista {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 0.75rem;
+
+    .vista-window {
+      margin: 0;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid $ui-border;
+      background: rgba(0, 0, 0, 0.35);
+      font-family: $font-family;
+      font-size: 0.875rem;
+      line-height: 1.05;
+      letter-spacing: 0;
+      white-space: pre;
+    }
+
+    .vista-row {
+      white-space: pre;
+    }
+
+    .vista-caption {
+      margin-top: 0.2rem;
+      color: $ui-text-dim;
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+    }
+  }
+
   .squad-card {
     display: flex;
     flex-direction: column;

@@ -9,6 +9,7 @@ import {isOnGrid, SQUAD_DRAIN_PER_DROID} from "../lib/squad";
 import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, getSquadUpgradeIds, ownedEquipment} from "../redux/reducer";
 import Upgrade from "./structures/upgrade";
 import Tooltip from "./ui/tooltip";
+import Vista from "./vista";
 
 const DEFAULT_TEAM_SIZE = 5;
 
@@ -214,6 +215,7 @@ class Expedition extends React.Component {
         return (
             <div className="expedition-status">
                 <div className="component-header">Expedition</div>
+                <Vista/>
                 {this.renderTeamCard()}
                 {this.renderOutfitting()}
             </div>

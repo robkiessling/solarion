@@ -89,6 +89,7 @@ export function createSquad(homeCoord, assignedDroids = 1, multiplier = 1, equip
         coord: homeCoord,
         path: [],
         moveProgress: 0,
+        facing: [0, -1],          // screen-space [dx, dy] the driver last pushed toward (north until they do)
         battery: batteryCapacity,
         batteryCapacity,         // deploy-time snapshot (base + battery upgrades): refit at base, like droidStats
         assignedDroids,          // droids consumed from the pool at deploy; the resource-side contract

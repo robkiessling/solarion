@@ -64,6 +64,7 @@ export const INCREMENT_COOK = 'planet/INCREMENT_COOK';
 export const DEPLOY_SQUAD = 'planet/DEPLOY_SQUAD';
 export const DISBAND_SQUAD = 'planet/DISBAND_SQUAD';
 export const SQUAD_SET_PATH = 'planet/SQUAD_SET_PATH';
+export const SQUAD_FACE = 'planet/SQUAD_FACE';
 export const ADVANCE_SQUAD = 'planet/ADVANCE_SQUAD';
 export const SQUAD_START_FIGHT = 'planet/SQUAD_START_FIGHT';
 export const SQUAD_FIGHT_WON = 'planet/SQUAD_FIGHT_WON';
@@ -264,6 +265,11 @@ export default function reducer(state = initialState, action) {
                 squad: { $set: null },
                 prompt: { $set: null }
             });
+        case SQUAD_FACE:
+            // The way the driver is looking (screen-space [dx, dy]); drives the Expedition panel's vista.
+            // Set on every attempted step, so bumping into a ridge turns the team to face it.
+            if (!state.squad) return state;
+            return update(state, { squad: { facing: { $set: payload.facing } } });
         case SQUAD_SET_PATH:
             // Safety net: any new path clears a lingering prompt (the input layer blocks movement while one
             // is open, so this shouldn't fire in practice)
@@ -713,6 +719,11 @@ export function disbandSquad() {
 // Keyboard step onto an adjacent tile. Stepping into an unknown impassable tile reveals it (you probed the
 // wall and learned something) but does not move -- the caller shows a bump either way on `false`.
 // POI blocking (nests, sealed sites) is the component's concern: it decides bump-vs-attack per input rules.
+// Turn the squad to look along dir ([dx, dy] in screen space, see KEY_DIRS in the planet component)
+export function squadFace(dir) {
+    return { type: SQUAD_FACE, payload: { facing: dir } };
+}
+
 export function squadStep(coord) {
     return function(dispatch, getState) {
         const planet = getState().planet;
