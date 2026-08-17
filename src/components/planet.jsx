@@ -375,7 +375,6 @@ class Planet extends React.Component {
             this.props.map,
             this.props.fractionOfDay,
             this.props.rotation,
-            this.props.sunTracking,
             this.props.cookedPct,
             this.buildOverlays(),
             cameraShift,
@@ -679,7 +678,6 @@ const mapStateToProps = state => {
         rotation: state.planet.rotation,
         rotationMode: state.planet.rotationMode,
         cookedPct: state.planet.cookedPct,
-        sunTracking: state.planet.rotationMode === 'sun', // generateImage's shading special-case
     }
 };
 

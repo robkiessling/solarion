@@ -18,16 +18,40 @@ export { NUM_SECTORS } from "./planet_geometry";
 
 
 const HOME_FRACTION = 0.75; // Defining home to be 75% of the way into planet, this way it lines up with 50% on slider
-const NIGHT_WIDTH = 0.45; // How much of the planet night should occupy
-const SUN_TRACKING_INSET = 0.05; // How much to offset rotation when sunTracking is enabled, so that you can see a little twilight
-const TWILIGHT_LENGTH = 0.03; // How much each twilight region should take up
 
-const NIGHT_START = mod(HOME_FRACTION - NIGHT_WIDTH / 2, 1); // Fraction start of night window
-const NIGHT_END = mod(HOME_FRACTION + NIGHT_WIDTH / 2, 1); // Fraction end of night window
-const TWILIGHT_LENGTH_DISPLAY = TWILIGHT_LENGTH * 2; // When dealing with display lengths, double the twilight length
-const SUN_TRACKING_NIGHT_CUTOFF = 1 - SUN_TRACKING_INSET;
-const SUN_TRACKING_TWI_NIGHT_CUTOFF = SUN_TRACKING_NIGHT_CUTOFF - TWILIGHT_LENGTH_DISPLAY;
-const SUN_TRACKING_TWI_DAY_CUTOFF = SUN_TRACKING_TWI_NIGHT_CUTOFF - TWILIGHT_LENGTH_DISPLAY;
+/**
+ * Lighting: one light direction, everything else derived from it. The sun stands over the sub-solar
+ * meridian (subsolarFraction); a tile's daylight is a smooth function of its angular distance from that
+ * meridian: full day, easing through twilight to night across the terminator (a quarter turn away, as on a
+ * real sphere; the ease is the atmosphere). The sky's sun, if drawn, and the sun-tracking camera both take
+ * the same direction, so nothing can disagree with the shading.
+ *   NOON_FRACTION_OF_DAY: the clock's 12:00. At noon the sun is directly over the command center.
+ *   TERMINATOR_HALF_WIDTH: turns either side of the terminator over which daylight eases from full to none
+ *     (twilight; 0.05 = 18 degrees each side, about astronomical twilight).
+ *   SUN_TRACKING_NIGHT_SLIVER: under the sun-tracking camera, the fraction of the disc's width (at the
+ *     equator) in full night at the right edge, with the twilight crescent inboard of it. Some night in view
+ *     is what makes the lit disc read as a sphere rather than a lit plate (the Google Earth look).
+ */
+const NOON_FRACTION_OF_DAY = 0.5;
+const TERMINATOR_HALF_WIDTH = 0.05;
+const SUN_TRACKING_NIGHT_SLIVER = 0.1;
+// How far past the sub-solar meridian the sun-tracking camera looks: night begins a quarter turn plus a
+// twilight half-width from the sun, and the disc's half-width is a quarter turn, so the sliver's width (in
+// turns, half the disc being 0.5 wide) is what is left over
+const SUN_TRACKING_INSET = TERMINATOR_HALF_WIDTH + SUN_TRACKING_NIGHT_SLIVER / 2;
+
+// The planet fraction the sun is directly over at this time of day
+export function subsolarFraction(fractionOfDay) {
+    return mod(HOME_FRACTION + fractionOfDay - NOON_FRACTION_OF_DAY, 1);
+}
+
+// Daylight (0 night .. 1 full day) at `deltaTurns` (0..0.5) from the sub-solar meridian
+function daylightAt(deltaTurns) {
+    const t = (deltaTurns - (0.25 - TERMINATOR_HALF_WIDTH)) / (2 * TERMINATOR_HALF_WIDTH);
+    if (t <= 0) return 1;
+    if (t >= 1) return 0;
+    return 0.5 + 0.5 * Math.cos(Math.PI * t); // cosine ease, so the terminator has no visible edges
+}
 
 
 // Ice cap run-length rows (alternating [ice, gap, ice, gap, ...]), sized for the uniform 120-col rows.
@@ -792,15 +816,10 @@ export function numSectorsMatching(map, status, terrain) {
 }
 
 // If sunTracking is enabled, the camera is always from the sun's POV; the planet rotates in place
+// The rotation that keeps the sun-tracking camera fixed relative to the sun: the sub-solar meridian just left
+// of the disc's centre (by SUN_TRACKING_INSET), so the ground turns under a still terminator
 export function sunTrackingRotation(fractionOfDay) {
-    return mod(fractionOfDay + SUN_TRACKING_INSET, 1);
-}
-
-// The planet fraction at the display's centre column: what the camera is looking straight down at. Steps with
-// the display window (floor of the rotation) and slides with the follow-cam's sub-column shift, so the
-// terminator slides instead of stepping per column.
-function displayCenterFraction(rotation, cameraShift = 0) {
-    return mod((floor(rotation * PLANET_COLS) + cameraShift + DISPLAY_COLS / 2) / PLANET_COLS, 1);
+    return mod(subsolarFraction(fractionOfDay) - DISPLAY_COLS / 2 / PLANET_COLS + SUN_TRACKING_INSET, 1);
 }
 
 // Returns the rotation that horizontally centers `coord` in the display window (the follow-team camera).
@@ -960,16 +979,21 @@ function groundLife(sector, timeMs) {
 // scrolls smoothly under the screen-fixed silhouette.
 // lantern: { row, col } (fractional planet coords, mid-slide) of the deployed squad's light, or null.
 // timeMs: the game clock that animates the ground (groundLife); undefined leaves the map still.
-export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, overlays = {}, cameraShift = 0, lantern = null, timeMs = undefined) {
-    let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
-    let nightEnd = (fractionOfDay + NIGHT_END) % 1;
-
+export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays = {}, cameraShift = 0, lantern = null, timeMs = undefined) {
     const displayStart = floor(rotation * PLANET_COLS);
     const pad = cameraShift === 0 ? 0 : 1;
 
-    // Anchor of the fake-sphere projection (see ROW_CURVE_SCALE): the planet fraction at the disc's center
-    // column, continuous with the camera shift so the terminator slides instead of stepping per column
-    const centerFraction = displayCenterFraction(rotation, cameraShift);
+    // Lighting is computed by screen position, not by tile: the longitude under a screen column is the
+    // camera's true (continuous) longitude plus the column's offset. That is exact whenever the camera sits
+    // on a whole column (follow-cam, keyboard steps) and at most a column off while it doesn't (a drag, or
+    // sun-tracking's continuous creep), which nobody can see; what it buys is a terminator that never
+    // stutters: under sun-tracking it holds perfectly still on screen while the ground steps beneath it,
+    // and under a drag it glides with the camera. The sub-solar meridian is measured from the disc's centre
+    // and each column's offset from the centre is stretched by row (ROW_CURVE_SCALE), so the terminator
+    // bows into a crescent like a great circle on a sphere.
+    const subsolar = subsolarFraction(fractionOfDay);
+    const centerFraction = rotation + cameraShift / PLANET_COLS + DISPLAY_COLS / 2 / PLANET_COLS;
+    const centerToSun = mod(subsolar - centerFraction + 0.5, 1) - 0.5; // signed turns from disc centre to the sun
 
     let asciiImage = map.map((planetRow, rowIndex) => {
         const displayRow = [];
@@ -986,7 +1010,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
             //   char: the glyph
             //   colorKey: key into PLANET_COLORS (terrain/status key, 'droid', 'laserBeam')
             //   color: explicit color string; overrides colorKey (used by the cook sequence)
-            //   light: 'day' | 'twilightDay' | 'twilightNight' | 'night' (shading level)
+            //   daylight: 0 (night) .. 1 (full day), smooth through the terminator
             //   selfLit: brightness floor under the night shading (a marker's running lights, the grid's lights)
             //   dividers: { left, right, bottom } debug sector borders
             let char, colorKey, color, dividers, selfLit;
@@ -1035,38 +1059,14 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 float = overlay.float;
             }
 
-            let light = 'day';
-            if (sunTracking) {
-                // sunTracking is enabled: shading the far-right side of the planet accordingly
-                // (Ideally, the sunTracking:disabled shading would work for this use case too, but I couldn't get it to
-                //  work without stuttering. So I have to make this special case for sunTracking:enabled)
-                // How far into the display length the sector is, curved by row so the cutoffs arc like a sphere's limb
-                const displayFraction = 0.5 + (screenCol / DISPLAY_COLS - 0.5) * ROW_CURVE_SCALE[rowIndex];
-                if (displayFraction >= SUN_TRACKING_NIGHT_CUTOFF) {
-                    light = 'night';
-                }
-                else if (displayFraction >= SUN_TRACKING_TWI_NIGHT_CUTOFF) {
-                    light = 'twilightNight';
-                }
-                else if (displayFraction >= SUN_TRACKING_TWI_DAY_CUTOFF) {
-                    light = 'twilightDay';
-                }
-            }
-            else {
-                // sunTracking is disabled: shading the night side of the planet. The cell's planet fraction is
-                // curved by row (stretched away from the display center; see ROW_CURVE_SCALE) so the world-fixed
-                // night band renders with a crescent-shaped terminator instead of straight vertical edges.
-                const planetFraction = sector.coord[1] / PLANET_COLS; // How far into the planet length the sector is
-                const centerOffset = mod(planetFraction - centerFraction + 0.5, 1) - 0.5; // signed, wrap-aware
-                const curvedFraction = mod(centerFraction + centerOffset * ROW_CURVE_SCALE[rowIndex], 1);
-                light = getTwilightLight(curvedFraction, nightStart, nightEnd) ||
-                    getNightLight(curvedFraction, nightStart, nightEnd) ||
-                    'day';
-            }
+            // Angular distance from the sub-solar meridian: the column's offset from the disc centre, curved by
+            // row, minus where the sun is
+            const centerOffset = (screenCol - DISPLAY_COLS / 2) / PLANET_COLS * ROW_CURVE_SCALE[rowIndex];
+            const daylight = daylightAt(Math.abs(centerOffset - centerToSun));
 
             if (cookedPct) {
                 color = getIntermediateColor(COOK_COLOR_START, COOK_COLOR_END, cookedPct)
-                char = (light === 'day') ? COOKED_CHAR : TERRAINS.flatland.display;
+                char = daylight > 0.5 ? COOKED_CHAR : TERRAINS.flatland.display;
             }
 
             // Living ground on bare tiles (a marker's own char/alpha wins over the ground under it)
@@ -1078,9 +1078,9 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 }
             }
 
-            // The lantern only matters where the ambient shading is below day
+            // The lantern only matters where the ambient shading is below full day
             let lit;
-            if (lantern && light !== 'day') {
+            if (lantern && daylight < 1) {
                 lit = lanternLift(sector.coord[0], sector.coord[1], lantern) || undefined;
             }
 
@@ -1097,7 +1097,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 }
             }
 
-            displayRow.push({ char, colorKey, color, light, lit, selfLit, dividers, ping, alpha, offsetX, offsetY, haloEdges, float });
+            displayRow.push({ char, colorKey, color, daylight, lit, selfLit, dividers, ping, alpha, offsetX, offsetY, haloEdges, float });
         }
 
         return displayRow;
@@ -1110,77 +1110,6 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
     return asciiImage;
 }
 
-// There are 2 levels of twilight: a darker section is shaded towards night and a lighter section is shaded towards day.
-function getTwilightLight(planetFraction, nightStart, nightEnd) {
-    /**
-     * nightStart is the meridian at the boundary between day and night, when night is to the right:
-     *   .-----.
-     *  /   |XXX\       The | line in the middle is nightStart, where X represents nighttime
-     *  \   |XXX/
-     *   `-----`
-     * If we are within range to the left, we shade it lighter. If within range to the right, shade it darker:
-     */
-    if (isWithinRange(planetFraction, [nightStart - TWILIGHT_LENGTH, nightStart])) {
-        return 'twilightDay';
-    }
-    if (isWithinRange(planetFraction, [nightStart, nightStart + TWILIGHT_LENGTH])) {
-        return 'twilightNight';
-    }
-
-    /**
-     * nightEnd is the meridian at the boundary between day and night, when night is to the left:
-     *   .-----.
-     *  /XXX|   \       The | line in the middle is nightEnd, where X represents nighttime
-     *  \XXX|   /
-     *   `-----`
-     * If we are within range to the left, we shade it darker. If within range to the right, shade it lighter:
-     */
-    if (isWithinRange(planetFraction, [nightEnd - TWILIGHT_LENGTH, nightEnd])) {
-        return 'twilightNight';
-    }
-    if (isWithinRange(planetFraction, [nightEnd, nightEnd + TWILIGHT_LENGTH])) {
-        return 'twilightDay';
-    }
-
-    return ''
-}
-
-
-function getNightLight(planetFraction, nightStart, nightEnd) {
-    if (nightStart <= nightEnd) {
-        if (planetFraction >= nightStart && planetFraction < nightEnd) {
-            return 'night';
-        }
-    }
-    else {
-        if (planetFraction >= nightStart || planetFraction < nightEnd) {
-            return 'night';
-        }
-    }
-
-    return '';
-}
-
-function isWithinRange(planetFraction, range) {
-    let [rangeStart, rangeEnd] = range;
-    
-    if (rangeStart < 0 || rangeEnd > 1) {
-        // range wraps around planet endpoints; have to use modulo
-        rangeStart = mod(rangeStart, 1);
-        rangeEnd = mod(rangeEnd, 1);
-
-        if (planetFraction >= rangeStart || planetFraction < rangeEnd) {
-            return true;
-        }
-    }
-    else {
-        if (planetFraction >= rangeStart && planetFraction < rangeEnd) {
-            return true;
-        }
-    }
-
-    return false;
-}
 
 
 

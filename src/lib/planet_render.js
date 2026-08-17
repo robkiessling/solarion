@@ -62,9 +62,9 @@ const HALO_EDGE_ALPHA = 0.45; // how faint the survey-range boundary line is
  * few bright '*', mostly dim '·'), and a slow per-star twinkle. Drawn over the whole canvas, then the disc
  * is filled with the backdrop colour to occlude what's behind the planet.
  *
- * (A sun glyph in the margin was tried and dropped: the shading is stylized, with night at 45% of the
- * planet, twilight bands, a screen-fixed cutoff in sun-tracking and a fake-sphere terminator, so no
- * physical sun position ever lined up with the lit edge, and a nearly-right sun reads as wrong.)
+ * (A sun glyph in the margin was tried once against the old banded shading and dropped because it never
+ * lined up with the lit edge. The shading now derives from one light direction, planet_map's
+ * subsolarFraction, so a sun placed from the same direction would match by construction if it comes back.)
  */
 const STAR_PARALLAX = 1.5;   // sky columns per planet column: how much faster the sky pans than the near-side ground
 const STAR_DENSITY = 0.05;   // chance a sky cell holds a star
@@ -160,15 +160,11 @@ function glyphInkBox(context, char) {
     return box;
 }
 
-// Day/night shading levels (was CSS opacity on .night/.twilight-* classes). Night is deliberately deep:
-// the squad's lantern (cell.lit) and the markers' self-lit floor carry readability, so the ambient can go
-// dark enough that night is unmistakable next to day and the pool of light around the team means something.
-const LIGHT_ALPHA = {
-    day: 1,
-    twilightDay: 0.7,
-    twilightNight: 0.35,
-    night: 0.05
-};
+// Brightness of ground in full night; full day is 1 and a cell's daylight (0..1, smooth through the terminator,
+// see planet_map's daylightAt) interpolates between them. Night is deliberately deep: the squad's lantern
+// (cell.lit) and the markers' self-lit floor carry readability, so the ambient can go dark enough that night
+// is unmistakable next to day and the pool of light around the team means something.
+const NIGHT_ALPHA = 0.05;
 // Things with their own light never sink below a floor in the dark. selfLit is that floor (0..1); `true`
 // means the standard running-lights level below (units, the beacon, the command center; replicated land
 // uses a dimmer floor of its own): dimmed enough to still read as night, bright enough to stay findable.
@@ -176,9 +172,9 @@ const LIGHT_ALPHA = {
 // lantern.
 const SELF_LIT_ALPHA = 0.8;
 
-// Effective brightness of a cell or float from its shading level, self-lit floor, and lantern lift
-function shadeAlpha(light, selfLit, lit) {
-    let alpha = LIGHT_ALPHA[light] !== undefined ? LIGHT_ALPHA[light] : 1;
+// Effective brightness of a cell or float from its daylight, self-lit floor, and lantern lift
+function shadeAlpha(daylight, selfLit, lit) {
+    let alpha = daylight === undefined ? 1 : NIGHT_ALPHA + (1 - NIGHT_ALPHA) * daylight;
     if (selfLit) { alpha = Math.max(alpha, selfLit === true ? SELF_LIT_ALPHA : selfLit); }
     if (lit) { alpha += (1 - alpha) * lit; }
     return alpha;
@@ -200,7 +196,7 @@ const PING_VARIANTS = {
  * area and clip at the canvas edge.
  *
  * @param canvasManager {AsciiCanvas} must be constructed with the fillContainer option
- * @param image {Array} 2d array of cells from generateImage: { char, colorKey, color, light, dividers }
+ * @param image {Array} 2d array of cells from generateImage: { char, colorKey, color, daylight, dividers }
  * @param cameraShift {number} sub-column camera offset in cell units (the follow-cam mid-slide); shifts the
  *        whole scene -- chars, halo segments, pings -- while the canvas/silhouette stays put. generateImage
  *        must have been called with the same value (it widens the window and masks by screen position).
@@ -245,7 +241,7 @@ export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
             const color = cell.color || PLANET_COLORS[cell.colorKey] || '#ffffff';
             // Day/night shading (lifted by the lantern / self-lit floor), multiplied by any per-cell alpha
             // (e.g. the scouts' pulse animation)
-            let alpha = shadeAlpha(cell.light, cell.selfLit, cell.lit);
+            let alpha = shadeAlpha(cell.daylight, cell.selfLit, cell.lit);
             if (cell.alpha !== undefined) { alpha *= cell.alpha; }
 
             if (alpha !== currentAlpha) {
@@ -274,7 +270,7 @@ export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
                     char: cell.float.char,
                     color: cell.float.color || PLANET_COLORS[cell.float.colorKey] || '#ffffff',
                     // Day/night shades the marker like anything else on the ground, unless it is self-lit
-                    alpha: shadeAlpha(cell.light, cell.float.selfLit, cell.lit) *
+                    alpha: shadeAlpha(cell.daylight, cell.float.selfLit, cell.lit) *
                         (cell.float.alpha === undefined ? 1 : cell.float.alpha),
                     maskAlpha: cell.float.mask ?
                         (cell.float.maskAlpha === undefined ? 1 : cell.float.maskAlpha) : 0,
