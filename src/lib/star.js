@@ -18,6 +18,7 @@ const SUN_CHAR_B = ')';
 const STARS_ENABLED = true;
 const GLARE_INNER = 1.2;
 const GLARE_OUTER = 2.8;
+const SKY_DRIFT_COLS_PER_S = 0.25; // the camera's slow drift around the sun: the sky slides at this rate (0 = still)
 
 
 const PROBE_RADIUS_A = 130;
@@ -148,10 +149,11 @@ export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numPro
     const orbitTheta = ((elapsedTime / 1000) % PROBE_ORBIT_TIME) / PROBE_ORBIT_TIME * 2 * Math.PI;
 
     if (STARS_ENABLED) {
-        // The sky first, so the sun's backing and the swarm draw over it. The camera here is fixed on the sun,
-        // so the field does not pan; the twinkle is its only motion.
+        // The sky first, so the sun's backing and the swarm draw over it. The camera holds the sun centred
+        // while drifting slowly around it, so the sky slides gently behind (SKY_DRIFT_COLS_PER_S).
         const [glareX, glareY] = canvas.center();
         drawStarField(canvas, {
+            offsetCols: -elapsedTime / 1000 * SKY_DRIFT_COLS_PER_S,
             timeMs: elapsedTime,
             glare: { x: glareX, y: glareY, innerRadius: SUN_SIZE * GLARE_INNER, outerRadius: SUN_SIZE * GLARE_OUTER }
         });

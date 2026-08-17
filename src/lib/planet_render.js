@@ -11,8 +11,9 @@ export const PLANET_COLORS = {
     unknown: '#3f4652',   // fog: dim and cool (blue-grey), so warm flatland reads as new ground next to it
     home: '#20d9ff',
     flatland: '#7f5d47',  // dusty clay: warm like the mountains but desaturated, so ground recedes yet never matches the cool fog
-    developing: '#d1eeff',
-    developed: '#90EE90',
+    developing: '#8c8c8c',    // replicating: inert grey until the cast finishes and the tiles power up
+    developed: '#6fd3b0',  // grown land; the same hue toned down so a built-up day side doesn't outshout the terrain
+    developedNight: '#ffb455', // city lights: replicated land warms toward sodium amber as daylight falls
     mountain: '#e07f30',  // the horizon peaks' orange in the base view (backgrounds.planet), so it is the same rock
     ice: '#ffffff',
     acid: '#9acd32',     // the mid-world belt
@@ -30,7 +31,7 @@ export const PLANET_COLORS = {
     squad: '#20d9ff',    // friendly cyan like home base; keeps the squad readable next to yellow scouts
     battle: '#ff6b35',
     haloRing: '#3ec0da', // survey-range boundary (stroked cell-edge segments, not a char tint)
-    beacon: '#90EE90'    // growth beacon; matches developed land, which grows toward it
+    beacon: '#6fd3b0'    // growth beacon; matches developed land, which grows toward it
 };
 
 // The map colour of a squad zone (lib/squad.js squadZone: a terrain key, 'infested', or 'grid' for powered
@@ -41,6 +42,19 @@ export function zoneColor(zone) {
 }
 
 const HALO_EDGE_ALPHA = 0.45; // how faint the survey-range boundary line is
+
+// Linear blend of two '#rrggbb' colours, t = 0 -> a, 1 -> b (cached per pair at 1% steps: this runs per cell)
+const mixCache = new Map();
+function mixHex(a, b, t) {
+    const key = `${a}|${b}|${Math.round(t * 100)}`;
+    let mixed = mixCache.get(key);
+    if (mixed) return mixed;
+    const ch = (hex, i) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+    const q = Math.round(t * 100) / 100;
+    mixed = `rgb(${Math.round(ch(a, 0) + (ch(b, 0) - ch(a, 0)) * q)},${Math.round(ch(a, 1) + (ch(b, 1) - ch(a, 1)) * q)},${Math.round(ch(a, 2) + (ch(b, 2) - ch(a, 2)) * q)})`;
+    mixCache.set(key, mixed);
+    return mixed;
+}
 
 /**
  * The sky behind the planet: the shared star field (lib/star_field.js), then the disc's occluding fill.
@@ -73,6 +87,10 @@ export function drawSky(canvasManager, phase, timeMs) {
     const fontWidth = canvasManager.fontWidth;
     const fontHeight = canvasManager.fontHeight;
     const [originX, originY] = canvasManager.gridOrigin();
+    const cx = originX + canvasManager.numCols * fontWidth / 2;
+    const cy = originY + canvasManager.numRows * fontHeight / 2;
+    const rx = canvasManager.numCols * fontWidth / 2;
+    const ry = canvasManager.numRows * fontHeight / 2;
 
     drawStarField(canvasManager, { offsetCols: phase * SKY_COLS, periodCols: SKY_COLS, timeMs });
 
@@ -80,9 +98,7 @@ export function drawSky(canvasManager, phase, timeMs) {
     // planet_map's DISPLAY_MASK) with the backdrop, so only what lies beyond the limb survives
     context.fillStyle = PLANET_BACKDROP;
     context.beginPath();
-    context.ellipse(
-        originX + canvasManager.numCols * fontWidth / 2, originY + canvasManager.numRows * fontHeight / 2,
-        canvasManager.numCols * fontWidth / 2, canvasManager.numRows * fontHeight / 2, 0, 0, 2 * Math.PI);
+    context.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
     context.fill();
 }
 
@@ -122,7 +138,7 @@ function glyphInkBox(context, char) {
 // see planet_map's daylightAt) interpolates between them. Night is deliberately deep: the squad's lantern
 // (cell.lit) and the markers' self-lit floor carry readability, so the ambient can go dark enough that night
 // is unmistakable next to day and the pool of light around the team means something.
-const NIGHT_ALPHA = 0.05;
+const NIGHT_ALPHA = 0.00;
 // Things with their own light never sink below a floor in the dark. selfLit is that floor (0..1); `true`
 // means the standard running-lights level below (units, the beacon, the command center; replicated land
 // uses a dimmer floor of its own): dimmed enough to still read as night, bright enough to stay findable.
@@ -145,7 +161,7 @@ const SECTOR_DIVIDER_COLOR = 'rgba(62,192,218,0.5)';
 const PING_VARIANTS = {
     hover: { color: '#7fe3f5', maxRadiusCells: 2.2, lineWidth: 1.5, rings: 2, maxAlpha: 1 },
     squad: { color: '#20d9ff', maxRadiusCells: 1.5, lineWidth: 1, rings: 1, maxAlpha: 0.45 },
-    beacon: { color: '#90EE90', maxRadiusCells: 1.8, lineWidth: 1, rings: 1, maxAlpha: 0.5 }
+    beacon: { color: PLANET_COLORS.beacon, maxRadiusCells: 1.8, lineWidth: 1, rings: 1, maxAlpha: 0.5 }
 };
 
 /**
@@ -196,7 +212,13 @@ export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
             const offsetX = (cell.offsetX || 0) * fontWidth;
             const offsetY = (cell.offsetY || 0) * fontHeight;
             const x = originX + colIndex * fontWidth + offsetX;
-            const color = cell.color || PLANET_COLORS[cell.colorKey] || '#ffffff';
+            let color = cell.color || PLANET_COLORS[cell.colorKey] || '#ffffff';
+            // Night colouring (city lights) follows the darkness the tile actually sits in: the lantern is white
+            // light, so inside its pool the amber washes out and true colours return (mountains and grid stay
+            // tellable apart when driving at night). An explicit color (the cook sequence) wins.
+            if (cell.nightColorKey && !cell.color && cell.daylight < 1) {
+                color = mixHex(color, PLANET_COLORS[cell.nightColorKey], (1 - cell.daylight) * (1 - (cell.lit || 0)));
+            }
             // Day/night shading (lifted by the lantern / self-lit floor), multiplied by any per-cell alpha
             // (e.g. the scouts' pulse animation)
             let alpha = shadeAlpha(cell.daylight, cell.selfLit, cell.lit);

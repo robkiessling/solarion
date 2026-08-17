@@ -45,6 +45,13 @@ export function subsolarFraction(fractionOfDay) {
     return mod(HOME_FRACTION + fractionOfDay - NOON_FRACTION_OF_DAY, 1);
 }
 
+// Signed turns from the disc's centre to the sun (positive = to the right on screen), for a camera at
+// `rotation` plus the follow-cam's sub-column shift: the lighting anchor generateImage shades from.
+function sunDirection(fractionOfDay, rotation, cameraShift = 0) {
+    const centerFraction = rotation + cameraShift / PLANET_COLS + DISPLAY_COLS / 2 / PLANET_COLS;
+    return mod(subsolarFraction(fractionOfDay) - centerFraction + 0.5, 1) - 0.5;
+}
+
 // Daylight (0 night .. 1 full day) at `deltaTurns` (0..0.5) from the sub-solar meridian
 function daylightAt(deltaTurns) {
     const t = (deltaTurns - (0.25 - TERMINATOR_HALF_WIDTH)) / (2 * TERMINATOR_HALF_WIDTH);
@@ -108,10 +115,25 @@ export const TERRAINS = {
 // territory. Only flatland is ever stamped infested (see generatePois), so no other terrain loses its glyph
 // to this.
 export const INFESTED_GLYPH = 'ω';
-// The powered grid is lit at night: the command center at full running-lights brightness (planet_render's
-// SELF_LIT_ALPHA), replicated land at this dimmer floor, so your footprint reads like city lights on the dark
-// side while wild ground goes black. Replicating tiles are still under construction: unpowered, unlit.
-const GRID_GLOW_ALPHA = 0.5;
+// City lights: the powered grid is lit at night the way a city looks from orbit. The command center is the
+// hub: full running-lights brightness (planet_render's SELF_LIT_ALPHA) plus the same lantern pool as the
+// squad. Replicated land is a field of warm points that never spill onto the ground around them and vary
+// in brightness: dense cores bright, the sprawl's edge dim (DEVELOPED_NIGHT_LIGHT_MIN..MAX by the share of developed
+// 8-neighbours, see getGridNight), with a per-tile jitter so it speckles, and the colour warms from the day
+// green toward PLANET_COLORS.developedNight as daylight falls. Kept well below day brightness so a heavily
+// built planet still shows its terminator and reads as a sphere. Replicating tiles are still under
+// construction: unpowered, just dim work lights.
+const DEVELOPED_NIGHT_LIGHT_MIN = 0.2;
+const DEVELOPED_NIGHT_LIGHT_MAX = 0.5;
+const DEVELOPED_NIGHT_LIGHT_JITTER = 0.3; // fraction of a tile's brightness that its hash may take away
+const DEVELOPING_NIGHT_LIGHT = 0.15;   // replicating tiles at night: dim work lights on a construction site
+// Replicated land is textured, day and night: per-tile brightness varies with a hash (skewed so most tiles
+// are near full and a few are properly dim, like a fabric of buildings with the odd dark lot) and a little
+// with density (the sprawl's edge dimmer than the cores). DEVELOPED_TEXTURE is how far the dimmest tile drops
+// below the brightest (0 = flat); DEVELOPED_TEXTURE_EDGE is the density part's share of that.
+const DEVELOPED_TEXTURE = 0.6;
+const DEVELOPED_TEXTURE_EDGE = 0.25;
+const DEVELOPING_TEXTURE = 0.4; // replicating tiles: the same speckle, shallower, hash only (no density mid-cast)
 
 
 // A stable 0..1 value per tile (and per `salt`, so independent uses don't correlate). Anything that varies
@@ -582,7 +604,7 @@ function isSameCoord(coord1, coord2) {
 // halo radiates from here, and development grows from here. Mid-replication ('developing') tiles are still
 // under construction -- not powered until the cast finishes. (They also never exist when development picks
 // its next batch: replicate is single-flight and the previous batch completes before the next cast starts.)
-export const GRID_TERRAINS = new Set([TERRAINS.home.enum, TERRAINS.developed.enum, TERRAINS.flatland.enum]);
+export const GRID_TERRAINS = new Set([TERRAINS.home.enum, TERRAINS.developed.enum]);
 
 export function isOnGrid(map, coord) {
     return GRID_TERRAINS.has(map[coord[0]][coord[1]].terrain);
@@ -915,21 +937,76 @@ function maskFactorAt(rowIndex, screenCol) {
 //     the ambient shading. 0 would be a hard-edged disc; wider is a softer glow.
 export const LANTERN_RADIUS = 0.8;
 const LANTERN_FALLOFF = 1.2;
-// 0..1 lantern lift for a tile at (row, col) given the lantern at fractional (lRow, lCol)
-function lanternLift(row, col, lantern) {
-    const dRow = row - lantern.row;
-    // Cells are half as wide as tall (CHAR_RATIO 0.5), so a column counts for half a row on screen
-    const dCol = (mod(col - lantern.col + PLANET_COLS / 2, PLANET_COLS) - PLANET_COLS / 2) * 0.5;
-    const distance = Math.sqrt(dRow * dRow + dCol * dCol);
+// 0..1 lantern lift at a screen distance (row units) from a light
+function liftAtDistance(distance) {
     if (distance <= LANTERN_RADIUS) { return 1; }
     if (distance >= LANTERN_RADIUS + LANTERN_FALLOFF) { return 0; }
     return 1 - (distance - LANTERN_RADIUS) / LANTERN_FALLOFF;
 }
 
+// 0..1 lantern lift for a tile at (row, col) given the lantern at fractional (lRow, lCol)
+function lanternLift(row, col, lantern) {
+    const dRow = row - lantern.row;
+    // Cells are half as wide as tall (CHAR_RATIO 0.5), so a column counts for half a row on screen
+    const dCol = (mod(col - lantern.col + PLANET_COLS / 2, PLANET_COLS) - PLANET_COLS / 2) * 0.5;
+    return liftAtDistance(Math.sqrt(dRow * dRow + dCol * dCol));
+}
+
+// The grid at night, precomputed per map and memoized on the map reference like getGridHalo (any change to
+// the map is a new array, so identity is a correct cache key):
+//   lift: the command center's lantern, the same pool as the squad's, splatted through a fixed offset
+//     kernel so the ground around the hub is lit at night like the ground around the team
+//   density: per tile, the share of its 8 neighbours that are developed (0..1); city lights are brighter
+//     in dense cores than at the sprawl's edge (see DEVELOPED_NIGHT_LIGHT_MIN/MAX)
+const GRID_LANTERN = true;
+const LANTERN_TERRAINS = new Set([TERRAINS.home.enum]);
+const LANTERN_KERNEL = (() => {
+    const kernel = [];
+    const reach = LANTERN_RADIUS + LANTERN_FALLOFF;
+    for (let dRow = -Math.ceil(reach); dRow <= Math.ceil(reach); dRow++) {
+        for (let dCol = -Math.ceil(reach * 2); dCol <= Math.ceil(reach * 2); dCol++) {
+            const lift = liftAtDistance(Math.sqrt(dRow * dRow + (dCol * 0.5) * (dCol * 0.5)));
+            if (lift > 0) { kernel.push([dRow, dCol, lift]); }
+        }
+    }
+    return kernel;
+})();
+let gridNightCache = null;
+function getGridNight(map) {
+    if (gridNightCache && gridNightCache.map === map) { return gridNightCache.result; }
+    const lift = createArray(map.length, () => new Float32Array(PLANET_COLS));
+    const density = createArray(map.length, () => new Float32Array(PLANET_COLS));
+    const isDeveloped = (r, c) => r >= 0 && r < map.length && map[r][mod(c, PLANET_COLS)].terrain === TERRAINS.developed.enum;
+    map.forEach((row, rowIndex) => {
+        row.forEach((sector, colIndex) => {
+            if (GRID_LANTERN && LANTERN_TERRAINS.has(sector.terrain)) {
+                LANTERN_KERNEL.forEach(([dRow, dCol, l]) => {
+                    const r = rowIndex + dRow;
+                    if (r < 0 || r >= map.length) return;
+                    const c = mod(colIndex + dCol, PLANET_COLS);
+                    if (l > lift[r][c]) { lift[r][c] = l; }
+                });
+            }
+            if (sector.terrain === TERRAINS.developed.enum) {
+                let neighbours = 0;
+                for (let dRow = -1; dRow <= 1; dRow++) {
+                    for (let dCol = -1; dCol <= 1; dCol++) {
+                        if ((dRow || dCol) && isDeveloped(rowIndex + dRow, colIndex + dCol)) neighbours++;
+                    }
+                }
+                density[rowIndex][colIndex] = neighbours / 8;
+            }
+        });
+    });
+    gridNightCache = { map, result: { lift, density } };
+    return gridNightCache.result;
+}
+
 // Living ground: the whole known map moves a little, always (deployed or not), so the planet reads as a
 // place rather than a chart. One entry per kind of ground that moves, keyed by terrain key ('infested' is
-// the override for hive-tainted tiles); each holds its own tuning and an animate(timeMs, row, col, hash)
-// returning { char?, alpha? } for this frame, or null for "at rest". Only ever applied to bare ground (no
+// the override for hive-tainted tiles); each holds its own tuning and an animate(timeMs, row, col, hash,
+// daylight) returning { char?, alpha? } for this frame, or null for "at rest"; `enabled: false` parks an
+// entry. Only ever applied to bare ground (no
 // marker on the tile), never to unknown tiles. Set the table to {} to switch it all off. New glyphs must
 // exist in the common monospace fonts (Menlo, Consolas, DejaVu).
 const GROUND_LIFE = {
@@ -953,6 +1030,26 @@ const GROUND_LIFE = {
             };
         }
     },
+    // Replication in progress: the batch pulses out of phase (so it crawls) and tiles flicker briefly to
+    // a dot, as if still assembling. PARKED (enabled: false): what read as alive here turned out to be the
+    // brightness variation, which replicated land now has statically (DEVELOPED_TEXTURE); kept with its tuning
+    // in case a whisper of motion is wanted back.
+    developing: {
+        enabled: false,
+        pulsePeriodMs: 5000,
+        pulseDepth: 0.45,     // how far a tile dims at the bottom of its pulse
+        flickerEveryMs: 15000,  // per-tile flicker cycle; a short slice of it shows the dot
+        flickerMs: 110,
+        flickerGlyph: '·',
+        animate(timeMs, row, col, hash) {
+            const pulse = 0.5 + 0.5 * Math.sin(2 * Math.PI * (timeMs / this.pulsePeriodMs + hash));
+            const flickerAt = (timeMs + tileHash(row, col, 97) * this.flickerEveryMs) % this.flickerEveryMs;
+            return {
+                alpha: 1 - this.pulseDepth * pulse,
+                char: flickerAt < this.flickerMs ? this.flickerGlyph : undefined
+            };
+        }
+    },
     // Acid ripples: a crest glyph travelling diagonally across the flats.
     acid: {
         stepMs: 420,          // the wave advances one tile per this
@@ -964,12 +1061,12 @@ const GROUND_LIFE = {
         }
     }
 };
-function groundLife(sector, timeMs) {
+function groundLife(sector, timeMs, daylight) {
     if (timeMs === undefined || sector.status === STATUSES.unknown.enum) return null;
     const life = GROUND_LIFE[sector.infestedBy ? 'infested' : TERRAINS_BY_ENUM[sector.terrain].key];
-    if (!life) return null;
+    if (!life || life.enabled === false) return null;
     const [row, col] = sector.coord;
-    return life.animate(timeMs, row, col, tileHash(row, col, 777));
+    return life.animate(timeMs, row, col, tileHash(row, col, 777), daylight);
 }
 
 // overlays: { "row,col": { char, colorKey, color?, ping? } } -- markers drawn over tiles (scout droids, POIs,
@@ -991,9 +1088,8 @@ export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays 
     // and under a drag it glides with the camera. The sub-solar meridian is measured from the disc's centre
     // and each column's offset from the centre is stretched by row (ROW_CURVE_SCALE), so the terminator
     // bows into a crescent like a great circle on a sphere.
-    const subsolar = subsolarFraction(fractionOfDay);
-    const centerFraction = rotation + cameraShift / PLANET_COLS + DISPLAY_COLS / 2 / PLANET_COLS;
-    const centerToSun = mod(subsolar - centerFraction + 0.5, 1) - 0.5; // signed turns from disc centre to the sun
+    const centerToSun = sunDirection(fractionOfDay, rotation, cameraShift);
+    const gridNight = getGridNight(map);
 
     let asciiImage = map.map((planetRow, rowIndex) => {
         const displayRow = [];
@@ -1012,8 +1108,10 @@ export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays 
             //   color: explicit color string; overrides colorKey (used by the cook sequence)
             //   daylight: 0 (night) .. 1 (full day), smooth through the terminator
             //   selfLit: brightness floor under the night shading (a marker's running lights, the grid's lights)
+            //   nightColorKey: colour to blend toward as daylight falls (city lights warm up at night)
             //   dividers: { left, right, bottom } debug sector borders
-            let char, colorKey, color, dividers, selfLit;
+            let char, colorKey, color, dividers, selfLit, nightColorKey;
+            let textureAlpha; // static per-tile brightness texture (replicated land), applied to bare tiles
 
             // Unknown ground draws as a full, dim dot field, not blank or sparse: the limb fade and the
             // terminator only read as a sphere when there is a continuous surface for them to shade, and the
@@ -1029,9 +1127,23 @@ export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays 
                 colorKey = TERRAINS_BY_ENUM[sector.terrain].key;
                 // Infested ground: its own glyph in the sick tint; both retract when the nest is cleared
                 if (sector.infestedBy) { char = INFESTED_GLYPH; colorKey = 'infested'; }
-                // The grid's lights (see GRID_GLOW_ALPHA)
+                // City lights (see DEVELOPED_NIGHT_LIGHT_MIN)
                 if (sector.terrain === TERRAINS.home.enum) { selfLit = true; }
-                else if (sector.terrain === TERRAINS.developed.enum) { selfLit = GRID_GLOW_ALPHA; }
+                else if (sector.terrain === TERRAINS.developed.enum) {
+                    const [row, col] = sector.coord;
+                    const density = gridNight.density[row][col];
+                    const jitter = tileHash(row, col, 4321);
+                    const core = DEVELOPED_NIGHT_LIGHT_MIN + (DEVELOPED_NIGHT_LIGHT_MAX - DEVELOPED_NIGHT_LIGHT_MIN) * density;
+                    selfLit = core * (1 - DEVELOPED_NIGHT_LIGHT_JITTER * jitter);
+                    nightColorKey = 'developedNight';
+                    textureAlpha = 1 - DEVELOPED_TEXTURE * (DEVELOPED_TEXTURE_EDGE * (1 - density) + (1 - DEVELOPED_TEXTURE_EDGE) * jitter * jitter);
+                }
+                else if (sector.terrain === TERRAINS.developing.enum) {
+                    const [row, col] = sector.coord;
+                    const jitter = tileHash(row, col, 4321); // same hash as developed, so a tile keeps its spot in the fabric when it powers up
+                    selfLit = DEVELOPING_NIGHT_LIGHT;
+                    textureAlpha = 1 - DEVELOPING_TEXTURE * jitter * jitter;
+                }
             }
 
             if (sector.sectorDividerLeft || sector.sectorDividerRight || sector.sectorDividerBottom) {
@@ -1069,19 +1181,23 @@ export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays 
                 char = daylight > 0.5 ? COOKED_CHAR : TERRAINS.flatland.display;
             }
 
-            // Living ground on bare tiles (a marker's own char/alpha wins over the ground under it)
-            if (!overlay || (!overlay.char && overlay.alpha === undefined)) {
-                const life = groundLife(sector, timeMs);
+            // Living ground and brightness texture on bare tiles (a marker's own char/alpha wins over the
+            // ground under it, and the cook sequence over everything: a planet being burned lies still)
+            if (!cookedPct && (!overlay || (!overlay.char && overlay.alpha === undefined))) {
+                if (textureAlpha !== undefined) { alpha = (alpha === undefined ? 1 : alpha) * textureAlpha; }
+                const life = groundLife(sector, timeMs, daylight);
                 if (life) {
                     if (life.char) { char = life.char; }
                     if (life.alpha !== undefined) { alpha = (alpha === undefined ? 1 : alpha) * life.alpha; }
                 }
             }
 
-            // The lantern only matters where the ambient shading is below full day
+            // Lanterns (the squad's, the grid's) only matter where the ambient shading is below full day
             let lit;
-            if (lantern && daylight < 1) {
-                lit = lanternLift(sector.coord[0], sector.coord[1], lantern) || undefined;
+            if (daylight < 1) {
+                let lift = gridNight.lift[sector.coord[0]][sector.coord[1]];
+                if (lantern) { lift = Math.max(lift, lanternLift(sector.coord[0], sector.coord[1], lantern)); }
+                if (lift > 0) { lit = lift; }
             }
 
             if (maskFactor < 1) {
@@ -1097,7 +1213,7 @@ export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays 
                 }
             }
 
-            displayRow.push({ char, colorKey, color, daylight, lit, selfLit, dividers, ping, alpha, offsetX, offsetY, haloEdges, float });
+            displayRow.push({ char, colorKey, color, nightColorKey, daylight, lit, selfLit, dividers, ping, alpha, offsetX, offsetY, haloEdges, float });
         }
 
         return displayRow;
