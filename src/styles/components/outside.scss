@@ -153,7 +153,7 @@ $hud-clearance: 6.5rem;
 
 
 #planet {
-  background: $top-bar-background;
+  background: $space-black;
   flex: 1 0 auto;
   position: relative;
   overflow: hidden;
@@ -764,7 +764,7 @@ $hud-clearance: 6.5rem;
   flex: 1;
   position: relative;
   overflow: hidden; // sides (left/right) can get truncated based on screen size
-  background: #000;
+  background: $space-black;
 
   canvas {
 

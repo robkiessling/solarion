@@ -5,6 +5,7 @@
  */
 
 import {PLANET_COLS} from "./planet_geometry";
+import {drawStarField} from "./star_field";
 
 export const PLANET_COLORS = {
     unknown: '#3f4652',   // fog: dim and cool (blue-grey), so warm flatland reads as new ground next to it
@@ -42,96 +43,53 @@ export function zoneColor(zone) {
 const HALO_EDGE_ALPHA = 0.45; // how faint the survey-range boundary line is
 
 /**
- * The sky behind the planet: the star field, then the disc's occluding fill.
+ * The sky behind the planet: the shared star field (lib/star_field.js), then the disc's occluding fill.
  *
- * The star field is the depth cue that makes the disc read as a ball being orbited
- * rather than a flat map under a spotlight: the camera pivots about the planet's centre, so the near-side
- * ground slides one way on screen while the sky (beyond the pivot) slides the other, and the disc's hard
- * limb occludes stars, drawing the silhouette for free on the night side and over unexplored ground.
+ * The star field is the depth cue that makes the disc read as a ball being orbited rather than a flat map
+ * under a spotlight: the camera pivots about the planet's centre, so the near-side ground slides one way on
+ * screen while the sky (beyond the pivot) slides the other, and the disc's hard limb occludes stars, drawing
+ * the silhouette for free on the night side and over unexplored ground.
  *
  * `phase` is the camera's longitude over the ground, in turns (rotation, plus the follow-cam's sub-column
  * shift). The sky is referenced to the ground frame, not the sun's: strictly the planet's spin should also
  * drift the stars (a camera parked over one longitude rides the spin), but that drift and a following
- * camera's motion oppose each other whenever the squad outruns the spin, so the sky visibly reversed as the
- * team set off. Tying it to the ground instead gives one rule with no reversals: the sky only moves when
- * the camera moves over the ground, always opposite to it (a pan, the follow-cam, or sun-tracking's
- * eastward creep), and stands still whenever the camera does.
- *
- * Stars are hashed from integer sky cells (row, column) so the field is stable and periodic over one turn,
- * with continuous sub-cell offsets so they don't sit on the char grid, a faint-heavy brightness spread (a
- * few bright '*', mostly dim '·'), and a slow per-star twinkle. Drawn over the whole canvas, then the disc
- * is filled with the backdrop colour to occlude what's behind the planet.
+ * camera's motion oppose each other whenever the squad outruns the spin (it walks at about twice the spin),
+ * so the sky visibly reversed as the team set off. Tying it to the ground instead gives one rule with no
+ * reversals: the sky only moves when the camera moves over the ground, always opposite to it (a pan, the
+ * follow-cam, or sun-tracking's eastward creep), and stands still whenever the camera does. The sky is
+ * periodic over one turn, so a full orbit brings the same stars back.
  *
  * (A sun glyph in the margin was tried once against the old banded shading and dropped because it never
  * lined up with the lit edge. The shading now derives from one light direction, planet_map's
- * subsolarFraction, so a sun placed from the same direction would match by construction if it comes back.)
+ * subsolarFraction, so a sun placed from the same direction would match by construction if it comes back;
+ * note though that under the ground-frame sky it could not be a rigid part of the star field, and that in
+ * the default sun-tracking view it is behind the camera anyway. The star tab is the sun's home.)
  */
 const STAR_PARALLAX = 1.5;   // sky columns per planet column: how much faster the sky pans than the near-side ground
-const STAR_DENSITY = 0.05;   // chance a sky cell holds a star
-const STAR_TWINKLE = 0.3;    // twinkle amplitude, as a fraction of the star's own brightness
-const STAR_TWINKLE_MS = [2200, 5200]; // per-star twinkle period, spread across this range
-const STAR_BRIGHT_SHARE = 0.06; // fraction of stars that are bright ('*'); the rest are '·'
-const STAR_TINTS = ['#ffffff', '#ffffff', '#ffe9c4', '#c9d8ff']; // white, warm, cool
 const SKY_COLS = Math.round(PLANET_COLS * STAR_PARALLAX);
-
-// Well-mixed 0..1 hash of two integers and a salt (a plain linear hash mod 1000 stripes at these densities)
-function skyHash(a, b, salt) {
-    let h = (a * 374761393 + b * 668265263 + salt * 2246822519) | 0;
-    h = Math.imul(h ^ (h >>> 13), 1274126177);
-    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
 
 export function drawSky(canvasManager, phase, timeMs) {
     const context = canvasManager.context;
     const fontWidth = canvasManager.fontWidth;
     const fontHeight = canvasManager.fontHeight;
-    const [originX, originY] = canvasManager.gridOrigin(); // sky cells are anchored to the char grid, so the field is fixed relative to the disc across resizes
-    const phaseCols = phase * SKY_COLS; // where sky column 0 currently sits, in screen columns from the grid origin
+    const [originX, originY] = canvasManager.gridOrigin();
 
-    const firstRow = Math.floor(-originY / fontHeight) - 1;
-    const lastRow = Math.ceil((canvasManager.height - originY) / fontHeight);
-    const firstCol = Math.floor(-originX / fontWidth - phaseCols) - 1;
-    const lastCol = Math.ceil((canvasManager.width - originX) / fontWidth - phaseCols);
-    const baseline = fontHeight - (fontHeight - canvasManager.fontSize) / 2 - 2; // as drawPlanetImage
-
-    let currentColor = null;
-    for (let row = firstRow; row <= lastRow; row++) {
-        for (let col = firstCol; col <= lastCol; col++) {
-            const skyCol = ((col % SKY_COLS) + SKY_COLS) % SKY_COLS; // the sky repeats every turn
-            if (skyHash(row, skyCol, 1) >= STAR_DENSITY) continue;
-
-            const magnitude = skyHash(row, skyCol, 2);
-            const brightness = 0.15 + 0.85 * magnitude * magnitude * magnitude; // faint-heavy
-            const bright = skyHash(row, skyCol, 3) < STAR_BRIGHT_SHARE;
-            const periodMs = STAR_TWINKLE_MS[0] + (STAR_TWINKLE_MS[1] - STAR_TWINKLE_MS[0]) * skyHash(row, skyCol, 4);
-            const twinkle = 0.5 + 0.5 * Math.sin(2 * Math.PI * (timeMs / periodMs + skyHash(row, skyCol, 5)));
-            const color = STAR_TINTS[Math.floor(skyHash(row, skyCol, 6) * STAR_TINTS.length)];
-
-            const x = originX + (col + phaseCols + skyHash(row, skyCol, 7)) * fontWidth;
-            const y = originY + (row + skyHash(row, skyCol, 8)) * fontHeight + baseline;
-            if (color !== currentColor) { context.fillStyle = color; currentColor = color; }
-            context.globalAlpha = brightness * (1 - STAR_TWINKLE * twinkle);
-            context.fillText(bright ? '*' : '·', x, y);
-        }
-    }
-    context.globalAlpha = 1;
-
-    const discX = originX + canvasManager.numCols * fontWidth / 2;
-    const discY = originY + canvasManager.numRows * fontHeight / 2;
-    const discRadiusX = canvasManager.numCols * fontWidth / 2;
-    const discRadiusY = canvasManager.numRows * fontHeight / 2;
+    drawStarField(canvasManager, { offsetCols: phase * SKY_COLS, periodCols: SKY_COLS, timeMs });
 
     // The planet occludes the sky: fill the disc (the ellipse inscribed in the char grid, the same shape as
     // planet_map's DISPLAY_MASK) with the backdrop, so only what lies beyond the limb survives
     context.fillStyle = PLANET_BACKDROP;
     context.beginPath();
-    context.ellipse(discX, discY, discRadiusX, discRadiusY, 0, 0, 2 * Math.PI);
+    context.ellipse(
+        originX + canvasManager.numCols * fontWidth / 2, originY + canvasManager.numRows * fontHeight / 2,
+        canvasManager.numCols * fontWidth / 2, canvasManager.numRows * fontHeight / 2, 0, 0, 2 * Math.PI);
     context.fill();
 }
 
-// The flat color sitting behind the (transparent) canvas: #planet's background in outside.scss. Floating
-// markers paint their footprint with it to occlude the tile underneath, so keep the two in sync.
-const PLANET_BACKDROP = '#0d1117';
+// The flat color sitting behind the (transparent) canvas: $space-black in styles/variables.scss (#planet's
+// background). Floating markers paint their footprint with it to occlude the tile underneath, and the sky
+// pass fills the disc with it to occlude the stars, so keep the two in sync.
+const PLANET_BACKDROP = '#000000';
 
 // Grown around a floating marker's ink box so its footprint swallows the antialiased fringe of whatever it
 // covers. Raise it if a wide terrain glyph peeks out from behind a narrower marker.

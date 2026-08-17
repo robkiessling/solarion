@@ -1,6 +1,7 @@
 import {shuffleArray} from "./helpers";
 import Ellipse from "./ellipse";
 import {QUEUE_TYPES} from "./ascii_canvas";
+import {drawStarField} from "./star_field";
 
 
 const USE_CACHED_CANVAS = true;
@@ -12,6 +13,11 @@ const SUN_FOREGROUND = 'yellow';
 const SUN_BACKGROUND = '#343400';
 const SUN_CHAR_A = '('; // We use two different characters when drawing the sun's body
 const SUN_CHAR_B = ')';
+// The star field behind everything (lib/star_field.js), fading out toward the sun's glare: gone within
+// GLARE_INNER of its centre, full brightness beyond GLARE_OUTER (both in sun radii)
+const STARS_ENABLED = true;
+const GLARE_INNER = 1.2;
+const GLARE_OUTER = 2.8;
 
 
 const PROBE_RADIUS_A = 130;
@@ -140,6 +146,16 @@ export function setupCache(manager) {
 export function drawStarAndProbes(canvas, elapsedTime, probeDistribution, numProbes, mirrorSettings) {
     // How far into their orbit each probe is (in radians)
     const orbitTheta = ((elapsedTime / 1000) % PROBE_ORBIT_TIME) / PROBE_ORBIT_TIME * 2 * Math.PI;
+
+    if (STARS_ENABLED) {
+        // The sky first, so the sun's backing and the swarm draw over it. The camera here is fixed on the sun,
+        // so the field does not pan; the twinkle is its only motion.
+        const [glareX, glareY] = canvas.center();
+        drawStarField(canvas, {
+            timeMs: elapsedTime,
+            glare: { x: glareX, y: glareY, innerRadius: SUN_SIZE * GLARE_INNER, outerRadius: SUN_SIZE * GLARE_OUTER }
+        });
+    }
 
     numProbes = Math.ceil(numProbes / PROBES_PER_CHAR);
 
