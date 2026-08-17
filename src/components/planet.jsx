@@ -10,7 +10,7 @@ import {
 } from "../lib/planet_map";
 import {NUM_PLANET_ROWS, DISPLAY_COLS, PLANET_COLS} from "../lib/planet_geometry";
 import {mod} from "../lib/helpers";
-import {drawPlanetImage, PLANET_COLORS, zoneColor} from "../lib/planet_render";
+import {drawPlanetImage, drawSky, PLANET_COLORS, zoneColor} from "../lib/planet_render";
 import {
     FIGHT_EFFECT_CHARS,
     POI_COLOR_KEYS,
@@ -52,6 +52,8 @@ const BEACON_PING_PERIOD_MS = 2600; // slow locator pulse on the placed beacon
 // being evaluated; the terminal's terrain notes and the HUD's terrain line carry it alone. Grid ground wears
 // no rim: returning to it reads as "back to normal".
 const SHOW_ZONE_RIM = false;
+// The sky behind the planet: stars panning opposite to the ground (see planet_render's drawSky)
+const SHOW_SKY = true;
 import {PLANET_FPS} from "../singletons/game_clock";
 import * as fromClock from "../redux/modules/clock";
 
@@ -382,6 +384,11 @@ class Planet extends React.Component {
         );
 
         this.canvasManager.clearAll();
+        if (SHOW_SKY) {
+            // Stars pan with the camera's longitude over the ground (rotation, plus its true sub-column position
+            // mid-slide; the sky is referenced to the ground frame, see drawSky)
+            drawSky(this.canvasManager, this.props.rotation + cameraShift / PLANET_COLS, this.props.elapsedTime);
+        }
         drawPlanetImage(this.canvasManager, planetImage, cameraShift);
     }
 

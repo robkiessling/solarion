@@ -796,6 +796,13 @@ export function sunTrackingRotation(fractionOfDay) {
     return mod(fractionOfDay + SUN_TRACKING_INSET, 1);
 }
 
+// The planet fraction at the display's centre column: what the camera is looking straight down at. Steps with
+// the display window (floor of the rotation) and slides with the follow-cam's sub-column shift, so the
+// terminator slides instead of stepping per column.
+function displayCenterFraction(rotation, cameraShift = 0) {
+    return mod((floor(rotation * PLANET_COLS) + cameraShift + DISPLAY_COLS / 2) / PLANET_COLS, 1);
+}
+
 // Returns the rotation that horizontally centers `coord` in the display window (the follow-team camera).
 // displayStart = floor(rotation * PLANET_COLS), so centering means starting half a display-window before the column.
 export function centeringRotation(coord) {
@@ -962,7 +969,7 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
 
     // Anchor of the fake-sphere projection (see ROW_CURVE_SCALE): the planet fraction at the disc's center
     // column, continuous with the camera shift so the terminator slides instead of stepping per column
-    const displayCenterFraction = mod((displayStart + cameraShift + DISPLAY_COLS / 2) / PLANET_COLS, 1);
+    const centerFraction = displayCenterFraction(rotation, cameraShift);
 
     let asciiImage = map.map((planetRow, rowIndex) => {
         const displayRow = [];
@@ -1050,8 +1057,8 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 // curved by row (stretched away from the display center; see ROW_CURVE_SCALE) so the world-fixed
                 // night band renders with a crescent-shaped terminator instead of straight vertical edges.
                 const planetFraction = sector.coord[1] / PLANET_COLS; // How far into the planet length the sector is
-                const centerOffset = mod(planetFraction - displayCenterFraction + 0.5, 1) - 0.5; // signed, wrap-aware
-                const curvedFraction = mod(displayCenterFraction + centerOffset * ROW_CURVE_SCALE[rowIndex], 1);
+                const centerOffset = mod(planetFraction - centerFraction + 0.5, 1) - 0.5; // signed, wrap-aware
+                const curvedFraction = mod(centerFraction + centerOffset * ROW_CURVE_SCALE[rowIndex], 1);
                 light = getTwilightLight(curvedFraction, nightStart, nightEnd) ||
                     getNightLight(curvedFraction, nightStart, nightEnd) ||
                     'day';
