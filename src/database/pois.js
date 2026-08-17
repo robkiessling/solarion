@@ -32,7 +32,7 @@ export const POI_TYPE_DEFAULTS = {
 
 // Map display vocabulary (colorKeys index into PLANET_COLORS in planet_render.js; FIGHT_EFFECT_CHARS
 // animate over a nest tile while a battle runs there).
-export const POI_GLYPHS = { cache: '$', nest: 'Ω', storySite: '?', gate: '∩' };
+export const POI_GLYPHS = { cache: '□', nest: 'Ω', storySite: '?', gate: '∩' }; // cache: a crate; nest: the hive's Ω (its ground is 'ω'); gate: a cave mouth
 export const POI_COLOR_KEYS = { cache: 'poiCache', nest: 'poiNest', storySite: 'poiStory', gate: 'poiGate' };
 export const POI_LABELS = { cache: 'Supply Cache', nest: 'Hive Nest', storySite: 'Ruins', gate: 'Barrier' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];

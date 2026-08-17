@@ -9,14 +9,16 @@ import {
     getGridHalo,
     getHomeBasePosition,
     getNextDevelopmentArea,
+    getVisibleCoords,
     isPassable,
     NUM_SECTORS,
     numSectorsMatching,
+    SCOUT_VISION_HOPS,
     STATUSES, sunTrackingRotation,
     SURVEY_HALO_RADIUS,
     TERRAINS
 } from "../../lib/planet_map";
-import {getAdjacentCoords, getCoordsWithinHops} from "../../lib/planet_geometry";
+import {getCoordsWithinHops} from "../../lib/planet_geometry";
 import {
     findNearestLookout,
     findNearestLookoutFromGrid,
@@ -35,6 +37,7 @@ import {applyEquipment, BATTLE_PHASES, createBattle, startWithdrawal} from "../.
 import {canConsume} from "./resources";
 import {advanceSquad, createSquad, droidsRecovered, isOnGrid} from "../../lib/squad";
 import {logInline} from "./log";
+import {zoneColor} from "../../lib/planet_render";
 import {TERRAIN_BLURBS} from "../../database/terrain_blurbs";
 
 // Terrain notes: elapsed game time each zone was last noted (session-only; not worth persisting), and the
@@ -978,7 +981,7 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
             const now = getState().clock.elapsedTime;
             if (TERRAIN_BLURBS[event.zone] && !(now - (lastBlurbAt[event.zone] || -Infinity) < BLURB_REPEAT_MS)) {
                 lastBlurbAt[event.zone] = now;
-                dispatch(logInline(TERRAIN_BLURBS[event.zone], `terrain-blurb zone-${event.zone}`));
+                dispatch(logInline(TERRAIN_BLURBS[event.zone], 'terrain-blurb', { color: zoneColor(event.zone) }));
             }
             break;
         }
@@ -1015,13 +1018,14 @@ function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget, halo = n
     const reveal = (row, col) => {
         if (map[row][col].status === STATUSES.unknown.enum) reveals.add(`${row},${col}`);
     };
-    // Line-of-sight from a tile a droid is standing on: reveal it and its immediate neighbors (mountains included).
+    // Line-of-sight from a tile a droid is standing on: reveal it and everything within SCOUT_VISION_HOPS
+    // (mountains show up as walls and hide what is behind them, as for the squad).
     const revealFrom = (origin) => {
         reveal(origin[0], origin[1]);
-        getAdjacentCoords(origin).forEach(([r, c]) => reveal(r, c));
+        getVisibleCoords(map, origin, SCOUT_VISION_HOPS).forEach(([r, c]) => reveal(r, c));
     };
-    // A lookout target is only worth heading to while it still has an IN-HALO unknown neighbor left to reveal.
-    const isUsefulLookout = (coord) => getAdjacentCoords(coord)
+    // A lookout target is only worth heading to while it would still reveal an IN-HALO unknown tile.
+    const isUsefulLookout = (coord) => getVisibleCoords(map, coord, SCOUT_VISION_HOPS)
         .some(([r, c]) => !isRevealed(r, c) && (!halo || halo.has(`${r},${c}`)));
     // Targets currently spoken for, so two droids don't walk to the same tile.
     const claimed = new Set(droids.map(d => d.target).filter(Boolean).map(t => `${t[0]},${t[1]}`));

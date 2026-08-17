@@ -124,7 +124,7 @@ $hud-clearance: 6.5rem;
       animation: hud-label-in 0.2s ease-out 0.4s both;
 
       .hud-terrain-effect { color: white; }
-      .hud-terrain-warn { color: #a06bc9; } // infested purple (PLANET_COLORS.infested)
+      // .hud-terrain-warn takes the infested map color inline (PLANET_COLORS.infested)
     }
 
     // Reserve-power health burn: the health meter flashes red per tile paid in health (remounted per burn)
@@ -164,16 +164,13 @@ $hud-clearance: 6.5rem;
   // Sense of place: while a squad is fielded the frame wears a rim in the color of the ground under it (a
   // thin inner ring plus a short inset glow in the terrain's map color; hive territory overrides its
   // terrain). Kept tight so it reads as a status ring around the viewport, not a wash over the map.
-  // Powered grid and home carry no tint, so returning reads as "back to normal". Slow crossfade.
+  // The colour arrives as --zone-ring/--zone-glow (a PLANET_COLORS hex, set inline by planet.jsx, with the
+  // ring and glow alphas appended as hex-alpha bytes). Powered grid and home carry no tint, so returning reads as
+  // "back to normal". Slow crossfade.
   transition: box-shadow 1.5s ease;
-  @mixin zone-rim($r, $g, $b) {
-    box-shadow: inset 0 0 0 2px rgba($r, $g, $b, 0.55), inset 0 0 36px rgba($r, $g, $b, 0.35);
+  &.zoned {
+    box-shadow: inset 0 0 0 2px var(--zone-ring), inset 0 0 36px var(--zone-glow);
   }
-  &.zone-flatland { @include zone-rim(204, 113, 113); }
-  &.zone-mountain { @include zone-rim(189, 7, 7); }
-  &.zone-acid { @include zone-rim(154, 205, 50); }
-  &.zone-ice { @include zone-rim(255, 255, 255); }
-  &.zone-infested { @include zone-rim(160, 107, 201); }
 
   // Tile rendering (colors, day/night shading, etc.) moved to canvas; see lib/planet_render.js
   // Scoped by id: the battle arena canvas inside the encounter popup lays out in normal flow

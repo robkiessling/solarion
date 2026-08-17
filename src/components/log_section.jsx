@@ -48,6 +48,9 @@ class LogSection extends React.Component {
         if (this.props.logData.className) {
             node.className = this.props.logData.className;
         }
+        if (this.props.logData.style) {
+            Object.assign(node.style, this.props.logData.style);
+        }
         this.logSectionRef.current.appendChild(node);
         this.props.onUpdate();
     }

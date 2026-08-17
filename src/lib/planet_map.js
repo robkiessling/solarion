@@ -52,7 +52,7 @@ const MOUNTAIN_WIDEN_CHANCE = 0.6; // per step, chance of a second mountain besi
 const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
-const EXPLORE_EVERYTHING = false;
+const EXPLORE_EVERYTHING = true;
 const MARK_SECTORS = false;
 const LOG_MAP = false;
 
@@ -70,28 +70,44 @@ const START_WITH_ADJ_EXPLORED = true;
  */
 export const TERRAINS = {
     home: { key: 'home', enum: 0, display: '#', label: 'Command Center', crossTime: EXPLORATION_TIME_FACTOR },
-    flatland: { key: 'flatland', enum: 1, display: '*', label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining
+    flatland: { key: 'flatland', enum: 1, display: ',', variants: ['.'], variantShare: 0.15, label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining. Dust and pebbles: deliberately the quietest glyphs on the map, so features stand out against the ground
     developing: { key: 'developing', enum: 2, display: '+', label: 'Replicating', crossTime: EXPLORATION_TIME_FACTOR },
     developed: { key: 'developed', enum: 3, display: '+', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
-    mountain: { key: 'mountain', enum: 4, display: 'Λ', variants: ['∧', '^'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
-    ice: { key: 'ice', enum: 5, display: '≡', variants: ['='], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross
+    mountain: { key: 'mountain', enum: 4, display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
+    // ice: { key: 'ice', enum: 5, display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
+    ice: { key: 'ice', enum: 5, display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
     acid: { key: 'acid', enum: 6, display: '~', variants: ['≈'], label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // The mid-world belt; binary gate (Sealed Chassis or no)
 }
 
-// Hive-tainted flatland (sector.infestedBy) gets its own glyph, not just a tint: purple-on-'*' vs
-// salmon-on-'*' is hard to tell apart, and impossible on the night side. Only flatland is ever stamped
-// infested (see generatePois), so no other terrain loses its glyph to this.
-export const INFESTED_GLYPH = '%';
+// Hive-tainted flatland (sector.infestedBy) gets its own glyph, not just a tint (a tint alone is impossible
+// to tell on the night side): a carpet of little omegas spreading out from the nest's big 'Ω', the nest's
+// territory. Only flatland is ever stamped infested (see generatePois), so no other terrain loses its glyph
+// to this.
+export const INFESTED_GLYPH = 'ω';
+// The powered grid is lit at night: the command center at full running-lights brightness (planet_render's
+// SELF_LIT_ALPHA), replicated land at this dimmer floor, so your footprint reads like city lights on the dark
+// side while wild ground goes black. Replicating tiles are still under construction: unpowered, unlit.
+const GRID_GLOW_ALPHA = 0.5;
 
-// Terrains with `variants` draw the legend glyph on most tiles and a variant on the rest, chosen by a hash of
-// the tile's coord so the texture is stable frame to frame (no flicker) and the same at every rotation.
+
+// A stable 0..1 value per tile (and per `salt`, so independent uses don't correlate). Anything that varies
+// tile to tile (glyph variants, animation phase) keys off this rather than the clock or Math.random, so the
+// texture never flickers frame to frame and looks the same at every rotation.
+function tileHash(row, col, salt) {
+    return ((row * 7919 + col * 104729 + salt) % 1000) / 1000;
+}
+
+// Terrains with `variants` draw the legend glyph on most tiles and a variant on the rest, chosen by tileHash.
+// A terrain's `variantShare` overrides the default share (flatland keeps its texture sparse: it covers most
+// of the map, and every variant there is visual noise).
 const VARIANT_SHARE = 0.35; // fraction of tiles that show a variant glyph instead of the legend one
 export function terrainGlyph(terrainEnum, row, col) {
     const attributes = TERRAINS_BY_ENUM[terrainEnum];
     if (!attributes.variants) { return attributes.display; }
-    const hash = ((row * 7919 + col * 104729 + 12345) % 1000) / 1000;
-    if (hash >= VARIANT_SHARE) { return attributes.display; }
-    return attributes.variants[Math.floor((hash / VARIANT_SHARE) * attributes.variants.length)];
+    const share = attributes.variantShare === undefined ? VARIANT_SHARE : attributes.variantShare;
+    const hash = tileHash(row, col, 12345);
+    if (hash >= share) { return attributes.display; }
+    return attributes.variants[Math.floor((hash / share) * attributes.variants.length)];
 }
 
 if (SHOW_DEBUG_MERIDIANS) {
@@ -542,7 +558,7 @@ function isSameCoord(coord1, coord2) {
 // halo radiates from here, and development grows from here. Mid-replication ('developing') tiles are still
 // under construction -- not powered until the cast finishes. (They also never exist when development picks
 // its next batch: replicate is single-flight and the previous batch completes before the next cast starts.)
-export const GRID_TERRAINS = new Set([TERRAINS.home.enum, TERRAINS.developed.enum]);
+export const GRID_TERRAINS = new Set([TERRAINS.home.enum, TERRAINS.developed.enum, TERRAINS.flatland.enum]);
 
 export function isOnGrid(map, coord) {
     return GRID_TERRAINS.has(map[coord[0]][coord[1]].terrain);
@@ -620,8 +636,12 @@ export function isPassable(map, coord, unlocks = {}) {
 }
 
 // Line-of-sight range of the driven squad, in hops. Sight walks the 4-neighbor adjacency graph, so an
-// unobstructed blob is a diamond (12 tiles at 2 hops), not a square.
-export const VISION_HOPS = 2;
+// unobstructed blob is a diamond (12 tiles at 2 hops), not a square. Also the starting clearing around home.
+export const VISION_HOPS = 3;
+// Reveal range of a scout droid from the tile it stands on, in hops (same line-of-sight walk, so mountains
+// wall off a scout's view too). Their lookout targeting uses the same range, so a scout never walks to a
+// tile it has already fully revealed from a distance.
+export const SCOUT_VISION_HOPS = 1;
 
 export function blocksVision(terrainEnum) {
     return !!TERRAINS_BY_ENUM[terrainEnum].blocksVision;
@@ -880,13 +900,60 @@ function lanternLift(row, col, lantern) {
     return 1 - (distance - LANTERN_RADIUS) / LANTERN_FALLOFF;
 }
 
+// Living ground: the whole known map moves a little, always (deployed or not), so the planet reads as a
+// place rather than a chart. One entry per kind of ground that moves, keyed by terrain key ('infested' is
+// the override for hive-tainted tiles); each holds its own tuning and an animate(timeMs, row, col, hash)
+// returning { char?, alpha? } for this frame, or null for "at rest". Only ever applied to bare ground (no
+// marker on the tile), never to unknown tiles. Set the table to {} to switch it all off. New glyphs must
+// exist in the common monospace fonts (Menlo, Consolas, DejaVu).
+const GROUND_LIFE = {
+    // Hive tissue breathes: a slow brightness swell, tiles nearly in phase (one organism) with a little
+    // per-tile drift; and once in a while a tile twitches, a tendril whipping up and pulling back.
+    infested: {
+        breathPeriodMs: 2600,
+        breathDepth: 0.4,     // how far a full exhale dims a tile
+        breathDrift: 0.3,     // max per-tile phase offset (fraction of a breath)
+        twitchEveryMs: 5000,  // per-tile cycle length; where in it the twitch falls comes from the hash
+        twitchMs: 320,        // whole twitch, split evenly across the frames
+        twitchFrames: ['ξ', 'ζ'],
+        animate(timeMs, row, col, hash) {
+            const phase = (timeMs / this.breathPeriodMs + hash * this.breathDrift) % 1;
+            const swell = 0.5 - 0.5 * Math.cos(2 * Math.PI * phase); // 0 (inhaled) .. 1 (exhaled)
+            const twitchAt = (timeMs + hash * this.twitchEveryMs) % this.twitchEveryMs;
+            const twitching = twitchAt < this.twitchMs;
+            return {
+                alpha: 1 - this.breathDepth * swell,
+                char: twitching ? this.twitchFrames[Math.floor(twitchAt / this.twitchMs * this.twitchFrames.length)] : undefined
+            };
+        }
+    },
+    // Acid ripples: a crest glyph travelling diagonally across the flats.
+    acid: {
+        stepMs: 420,          // the wave advances one tile per this
+        wavelength: 4,        // tiles from crest to crest
+        crestGlyph: '≈',
+        animate(timeMs, row, col) {
+            const crest = (Math.floor(timeMs / this.stepMs) + row + col) % this.wavelength === 0;
+            return crest ? { char: this.crestGlyph } : null;
+        }
+    }
+};
+function groundLife(sector, timeMs) {
+    if (timeMs === undefined || sector.status === STATUSES.unknown.enum) return null;
+    const life = GROUND_LIFE[sector.infestedBy ? 'infested' : TERRAINS_BY_ENUM[sector.terrain].key];
+    if (!life) return null;
+    const [row, col] = sector.coord;
+    return life.animate(timeMs, row, col, tileHash(row, col, 777));
+}
+
 // overlays: { "row,col": { char, colorKey, color?, ping? } } -- markers drawn over tiles (scout droids, POIs,
 // expedition squad, fight effects, path highlights). Keyed by planet coords, so they ride the rotation mapping.
 // cameraShift: sub-column camera offset in cell units (the follow-cam mid-slide). The sampled window widens by
 // one column per side and every char draws shifted by -cameraShift (see drawPlanetImage), so the whole scene
 // scrolls smoothly under the screen-fixed silhouette.
 // lantern: { row, col } (fractional planet coords, mid-slide) of the deployed squad's light, or null.
-export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, overlays = {}, cameraShift = 0, lantern = null) {
+// timeMs: the game clock that animates the ground (groundLife); undefined leaves the map still.
+export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedPct, overlays = {}, cameraShift = 0, lantern = null, timeMs = undefined) {
     let nightStart = (fractionOfDay + NIGHT_START) % 1; // fraction of entire planet where nightfall starts
     let nightEnd = (fractionOfDay + NIGHT_END) % 1;
 
@@ -913,9 +980,15 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
             //   colorKey: key into PLANET_COLORS (terrain/status key, 'droid', 'laserBeam')
             //   color: explicit color string; overrides colorKey (used by the cook sequence)
             //   light: 'day' | 'twilightDay' | 'twilightNight' | 'night' (shading level)
+            //   selfLit: brightness floor under the night shading (a marker's running lights, the grid's lights)
             //   dividers: { left, right, bottom } debug sector borders
-            let char, colorKey, color, dividers;
+            let char, colorKey, color, dividers, selfLit;
 
+            // Unknown ground draws as a full, dim dot field, not blank or sparse: the limb fade and the
+            // terminator only read as a sphere when there is a continuous surface for them to shade, and the
+            // fog is that surface before anything is explored (blank fog made the known patch look like a
+            // spotlight sliding over a flat map; sparse fog looked like noise). Fog vs ground is carried by
+            // colour instead: cool grey fog against warm ground (PLANET_COLORS.unknown / flatland).
             if (sector.status === STATUSES.unknown.enum) {
                 char = STATUSES.unknown.display;
                 colorKey = STATUSES.unknown.key;
@@ -925,6 +998,9 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 colorKey = TERRAINS_BY_ENUM[sector.terrain].key;
                 // Infested ground: its own glyph in the sick tint; both retract when the nest is cleared
                 if (sector.infestedBy) { char = INFESTED_GLYPH; colorKey = 'infested'; }
+                // The grid's lights (see GRID_GLOW_ALPHA)
+                if (sector.terrain === TERRAINS.home.enum) { selfLit = true; }
+                else if (sector.terrain === TERRAINS.developed.enum) { selfLit = GRID_GLOW_ALPHA; }
             }
 
             if (sector.sectorDividerLeft || sector.sectorDividerRight || sector.sectorDividerBottom) {
@@ -935,13 +1011,13 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
                 }
             }
 
-            let ping, alpha, offsetX, offsetY, haloEdges, float, selfLit;
+            let ping, alpha, offsetX, offsetY, haloEdges, float;
             const overlay = overlays[`${sector.coord[0]},${sector.coord[1]}`];
             if (overlay) {
                 if (overlay.char) { char = overlay.char; } // color-only overlays keep the terrain glyph (e.g. path highlight)
                 if (overlay.colorKey) { colorKey = overlay.colorKey; } // edge-only overlays keep the terrain color too
                 if (overlay.color) { color = overlay.color; }
-                selfLit = overlay.selfLit; // marker with its own lights: shading floor, see planet_render
+                if (overlay.selfLit !== undefined) { selfLit = overlay.selfLit; } // marker with its own lights: shading floor, see planet_render
                 ping = overlay.ping;   // radar-ping cycle; drawn as expanding rings by planet_render
                 alpha = overlay.alpha; // per-cell brightness (e.g. scout pulse), multiplied with day/night shading
                 offsetX = overlay.offsetX; // sub-cell nudge in cell units (squad slide/bump; see planet_render)
@@ -984,6 +1060,15 @@ export function generateImage(map, fractionOfDay, rotation, sunTracking, cookedP
             if (cookedPct) {
                 color = getIntermediateColor(COOK_COLOR_START, COOK_COLOR_END, cookedPct)
                 char = (light === 'day') ? COOKED_CHAR : TERRAINS.flatland.display;
+            }
+
+            // Living ground on bare tiles (a marker's own char/alpha wins over the ground under it)
+            if (!overlay || (!overlay.char && overlay.alpha === undefined)) {
+                const life = groundLife(sector, timeMs);
+                if (life) {
+                    if (life.char) { char = life.char; }
+                    if (life.alpha !== undefined) { alpha = (alpha === undefined ? 1 : alpha) * life.alpha; }
+                }
             }
 
             // The lantern only matters where the ambient shading is below day

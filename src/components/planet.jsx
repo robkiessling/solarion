@@ -10,7 +10,7 @@ import {
 } from "../lib/planet_map";
 import {NUM_PLANET_ROWS, DISPLAY_COLS, PLANET_COLS} from "../lib/planet_geometry";
 import {mod} from "../lib/helpers";
-import {drawPlanetImage, PLANET_COLORS} from "../lib/planet_render";
+import {drawPlanetImage, PLANET_COLORS, zoneColor} from "../lib/planet_render";
 import {
     FIGHT_EFFECT_CHARS,
     POI_COLOR_KEYS,
@@ -47,9 +47,10 @@ const SHOW_MARKER_LEGEND = false;
 const SCOUT_PULSE_PERIOD_MS = 1800; // scouts breathe between dim and full brightness, phase-offset per tile
 const BEACON_GLYPH = '◎'; // the growth beacon: replication flows toward it
 const BEACON_PING_PERIOD_MS = 2600; // slow locator pulse on the placed beacon
-// When true, the map frame wears a rim in the color of the ground under the fielded squad (the #planet
-// .zone-* styles). Off while the sense-of-place treatment is being evaluated; the terminal's terrain notes
-// and the HUD's terrain line carry it alone.
+// When true, the map frame wears a rim in the color of the ground under the fielded squad (#planet.zoned,
+// coloured via --zone-ring/--zone-glow from the map palette). Off while the sense-of-place treatment is
+// being evaluated; the terminal's terrain notes and the HUD's terrain line carry it alone. Grid ground wears
+// no rim: returning to it reads as "back to normal".
 const SHOW_ZONE_RIM = false;
 import {PLANET_FPS} from "../singletons/game_clock";
 import * as fromClock from "../redux/modules/clock";
@@ -376,7 +377,8 @@ class Planet extends React.Component {
             this.props.cookedPct,
             this.buildOverlays(),
             cameraShift,
-            this.lantern()
+            this.lantern(),
+            this.props.elapsedTime
         );
 
         this.canvasManager.clearAll();
@@ -425,7 +427,8 @@ class Planet extends React.Component {
             overlays[`${poi.coord[0]},${poi.coord[1]}`] = {
                 char: POI_GLYPHS[poi.type],
                 colorKey: hovered ? 'poiHighlight' : POI_COLOR_KEYS[poi.type],
-                selfLit: true, // a found site stays legible at night; the ground around it does not
+                // No selfLit: sites are things on the ground, not lights, and vanish into the night like the
+                // ground they sit on (only the powered grid and units carry lights)
                 // Radar ping on the hovered marker: 0..1 through the expand-and-fade cycle (drawn in planet_render)
                 ping: hovered ?
                     { fraction: (this.props.elapsedTime % POI_PING_PERIOD_MS) / POI_PING_PERIOD_MS, variant: 'hover' } :
@@ -626,10 +629,12 @@ class Planet extends React.Component {
         // (same condition the popup renders on)
         const yielded = !!(this.props.prompt || (this.props.squad && this.props.squad.fighting));
 
+        const zone = SHOW_ZONE_RIM && this.props.squadZone && this.props.squadZone !== 'grid' ? this.props.squadZone : null;
+        const zoneStyle = zone ? { '--zone-ring': `${zoneColor(zone)}8c`, '--zone-glow': `${zoneColor(zone)}59` } : undefined;
+
         return (
-            <div id="planet" ref={this.canvasContainer}
-                 className={`${this.props.visible ? '' : 'hidden'}` +
-                     `${SHOW_ZONE_RIM && this.props.squadZone ? ` zone-${this.props.squadZone}` : ''}`}>
+            <div id="planet" ref={this.canvasContainer} style={zoneStyle}
+                 className={`${this.props.visible ? '' : 'hidden'}${zone ? ' zoned' : ''}`}>
                 <canvas id="planet-canvas" ref={this.canvas}
                         onClick={this.handleCanvasClick} onMouseDown={this.handleCanvasMouseDown}></canvas>
                 <EncounterPopup/>
@@ -647,7 +652,7 @@ const mapStateToProps = state => {
         droids: state.planet.droids,
         pois: state.planet.pois,
         squad: state.planet.squad,
-        // The ground under the fielded squad, tinting the frame (see #planet .zone-* styles); null at home
+        // The ground under the fielded squad, tinting the frame (see #planet.zoned); null at home
         squadZone: state.planet.squad && state.planet.map.length > 0 ?
             squadZone(state.planet.map, state.planet.squad.coord) : null,
         prompt: state.planet.prompt,

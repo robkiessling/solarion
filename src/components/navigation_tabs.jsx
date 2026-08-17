@@ -102,7 +102,7 @@ class NavigationTabs extends React.Component {
             <div className="hud-terrain">
                 <span style={{ color: PLANET_COLORS[terrain.key] }}>{terrain.display} {terrain.label}</span>
                 {slow && <span className="hud-terrain-effect">· speed ÷{formatStat(slowdown)}</span>}
-                {sector.infestedBy && <span className="hud-terrain-warn">· ⚠ Hive territory</span>}
+                {sector.infestedBy && <span className="hud-terrain-warn" style={{ color: PLANET_COLORS.infested }}>· ⚠ Hive territory</span>}
             </div>
         );
     }

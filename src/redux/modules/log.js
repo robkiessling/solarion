@@ -73,8 +73,9 @@ export function logMessage(id) {
 // the logs database, so it can contain runtime values. The text is stored in the save -- terminal history is
 // a record, so old lines keeping their old copy is correct. (Used for ambient expedition telemetry: cargo
 // banked, sealed sites, disband summaries, squad wipes.)
-export function logInline(text, className = '') {
-    return { type: LOG, payload: { id: null, entryType: 'inline', text, className, sequence: v4(), timestamp: null } };
+// style: optional inline CSS properties for the entry (e.g. a colour taken from the map palette)
+export function logInline(text, className = '', style = null) {
+    return { type: LOG, payload: { id: null, entryType: 'inline', text, className, style, sequence: v4(), timestamp: null } };
 }
 
 // Starts a log sequence (outputs the text over time)

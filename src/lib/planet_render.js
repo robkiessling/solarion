@@ -5,12 +5,12 @@
  */
 
 export const PLANET_COLORS = {
-    unknown: '#888888',
+    unknown: '#3f4652',   // fog: dim and cool (blue-grey), so warm flatland reads as new ground next to it
     home: '#20d9ff',
-    flatland: '#cc7171',
+    flatland: '#7f5d47',  // dusty clay: warm like the mountains but desaturated, so ground recedes yet never matches the cool fog
     developing: '#d1eeff',
     developed: '#90EE90',
-    mountain: '#bd0707',
+    mountain: '#e07f30',  // the horizon peaks' orange in the base view (backgrounds.planet), so it is the same rock
     ice: '#ffffff',
     acid: '#9acd32',     // the mid-world belt
     infested: '#a06bc9', // hive-tainted ground around a nest; retracts when the nest is cleared
@@ -29,6 +29,13 @@ export const PLANET_COLORS = {
     haloRing: '#3ec0da', // survey-range boundary (stroked cell-edge segments, not a char tint)
     beacon: '#90EE90'    // growth beacon; matches developed land, which grows toward it
 };
+
+// The map colour of a squad zone (lib/squad.js squadZone: a terrain key, 'infested', or 'grid' for powered
+// ground). DOM chrome that echoes the ground the squad is on (terminal terrain notes, the HUD, the frame rim)
+// reads this instead of restating the hex in scss, so the palette has one home.
+export function zoneColor(zone) {
+    return PLANET_COLORS[zone === 'grid' ? 'home' : zone];
+}
 
 const HALO_EDGE_ALPHA = 0.45; // how faint the survey-range boundary line is
 
@@ -69,17 +76,20 @@ function glyphInkBox(context, char) {
 const LIGHT_ALPHA = {
     day: 1,
     twilightDay: 0.7,
-    twilightNight: 0.4,
-    night: 0.2
+    twilightNight: 0.35,
+    night: 0.05
 };
-// Markers with their own running lights (units, sites, the beacon) never sink below this in the dark:
-// dimmed enough to still read as night, bright enough to stay findable.
+// Things with their own light never sink below a floor in the dark. selfLit is that floor (0..1); `true`
+// means the standard running-lights level below (units, the beacon, the command center; replicated land
+// uses a dimmer floor of its own): dimmed enough to still read as night, bright enough to stay findable.
+// Everything else (sites, wild ground) goes as dark as the ambient says, and is seen only by the squad's
+// lantern.
 const SELF_LIT_ALPHA = 0.8;
 
 // Effective brightness of a cell or float from its shading level, self-lit floor, and lantern lift
 function shadeAlpha(light, selfLit, lit) {
     let alpha = LIGHT_ALPHA[light] !== undefined ? LIGHT_ALPHA[light] : 1;
-    if (selfLit) { alpha = Math.max(alpha, SELF_LIT_ALPHA); }
+    if (selfLit) { alpha = Math.max(alpha, selfLit === true ? SELF_LIT_ALPHA : selfLit); }
     if (lit) { alpha += (1 - alpha) * lit; }
     return alpha;
 }
