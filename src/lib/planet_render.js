@@ -17,6 +17,7 @@ export const PLANET_COLORS = {
     mountain: '#e07f30',  // the horizon peaks' orange in the base view (backgrounds.planet), so it is the same rock
     ice: '#ffffff',
     acid: '#9acd32',     // the mid-world belt
+    water: '#2f6b8f',    // open sea: deep steel blue, cooler and bluer than the fog so unexplored ground never reads as coast
     infested: '#a06bc9', // hive-tainted ground around a nest; retracts when the nest is cleared
     droid: '#ffe14d',
     droidReturning: '#9a9a9a', // recalled scouts walking home ("off duty")
@@ -70,7 +71,7 @@ function mixHex(a, b, t) {
  * camera's motion oppose each other whenever the squad outruns the spin (it walks at about twice the spin),
  * so the sky visibly reversed as the team set off. Tying it to the ground instead gives one rule with no
  * reversals: the sky only moves when the camera moves over the ground, always opposite to it (a pan, the
- * follow-cam, or sun-tracking's eastward creep), and stands still whenever the camera does. The sky is
+ * follow-cam, or sun-tracking's westward creep), and stands still whenever the camera does. The sky is
  * periodic over one turn, so a full orbit brings the same stars back.
  *
  * (A sun glyph in the margin was tried once against the old banded shading and dropped because it never
@@ -138,7 +139,7 @@ function glyphInkBox(context, char) {
 // see planet_map's daylightAt) interpolates between them. Night is deliberately deep: the squad's lantern
 // (cell.lit) and the markers' self-lit floor carry readability, so the ambient can go dark enough that night
 // is unmistakable next to day and the pool of light around the team means something.
-const NIGHT_ALPHA = 0.00;
+const NIGHT_ALPHA = 0.08;
 // Things with their own light never sink below a floor in the dark. selfLit is that floor (0..1); `true`
 // means the standard running-lights level below (units, the beacon, the command center; replicated land
 // uses a dimmer floor of its own): dimmed enough to still read as night, bright enough to stay findable.

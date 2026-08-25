@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import {createArray, getIntermediateColor, getRandomFromArray, getRandomIntInclusive, mod, floor, nTimes} from "./helpers";
 import {MinHeap} from "./min_heap";
+import AUTHORED_MAP_TEXT from "../database/planet_map.txt?raw";
 import {
     ALL_DIRECTIONS,
     DISPLAY_COLS,
@@ -40,9 +41,11 @@ const SUN_TRACKING_NIGHT_SLIVER = 0.1;
 // turns, half the disc being 0.5 wide) is what is left over
 const SUN_TRACKING_INSET = TERMINATOR_HALF_WIDTH + SUN_TRACKING_NIGHT_SLIVER / 2;
 
-// The planet fraction the sun is directly over at this time of day
+// The planet fraction the sun is directly over at this time of day. The planet spins west to east (columns
+// increase eastward, as on Earth), so the sub-solar meridian travels WEST as the day goes on: dawn arrives
+// from the east, and the terminator sweeps right to left across the disc.
 export function subsolarFraction(fractionOfDay) {
-    return mod(HOME_FRACTION + fractionOfDay - NOON_FRACTION_OF_DAY, 1);
+    return mod(HOME_FRACTION - (fractionOfDay - NOON_FRACTION_OF_DAY), 1);
 }
 
 // Signed turns from the disc's centre to the sun (positive = to the right on screen), for a camera at
@@ -83,7 +86,7 @@ const MOUNTAIN_WIDEN_CHANCE = 0.6; // per step, chance of a second mountain besi
 const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
-const EXPLORE_EVERYTHING = false;
+const EXPLORE_EVERYTHING = true;
 const MARK_SECTORS = false;
 const LOG_MAP = false;
 
@@ -108,6 +111,9 @@ export const TERRAINS = {
     // ice: { key: 'ice', enum: 5, display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
     ice: { key: 'ice', enum: 5, display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
     acid: { key: 'acid', enum: 6, display: '~', variants: ['≈'], label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // The mid-world belt; binary gate (Sealed Chassis or no)
+    // Open water: a permanent wall like ice (the crossUpgrade is never granted). The authored map's oceans; the
+    // only ways across are the land the map leaves and, later, tunnels.
+    water: { key: 'water', enum: 7, display: '~', variants: ['≈'], variantShare: 0.2, label: 'Sea', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'seafaring' },
 }
 
 // Hive-tainted flatland (sector.infestedBy) gets its own glyph, not just a tint (a tint alone is impossible
@@ -210,6 +216,111 @@ const LASER_BEAM_STREAKS = { // some beams make a streak onto the planet itself
 
 
 
+
+/**
+ * --- The authored map ---
+ * The planet is hand-drawn (database/planet_map.txt: NUM_PLANET_ROWS lines of PLANET_COLS chars, an
+ * equirectangular grid, so col = (lon + 180) / 3 and row = (90 - lat) / 6). One char per tile:
+ *   .      flatland
+ *   a-z    flatland in placement zone <letter> (sector.zone; POI placement will target zones)
+ *   1-9    tunnel mouth; every mouth sharing a digit belongs to one tunnel system (sector.tunnel; mechanics later)
+ *   ^      mountain      ~  water (sea)      *  ice
+ *   #      home (exactly one; column floor(HOME_FRACTION * PLANET_COLS) keeps the noon/slider math honest)
+ *   [  ]   flat gate tiles: cave (opens with the drill) / door (opens with the override module)
+ * Walls are permanent (mountain, water, ice), so every pocket of land is reachable only through what the
+ * drawing leaves open; the load-time check below counts orphaned land so a bad edit shows up in the console.
+ * USE_AUTHORED_MAP = false falls back to the procedural generator (kept as a drafting tool).
+ */
+const USE_AUTHORED_MAP = true;
+
+export function generatePlanetMap() {
+    return USE_AUTHORED_MAP ? generateAuthoredMap() : generateRandomMap();
+}
+
+export function parseAuthoredMap(text) {
+    const lines = text.replace(/\r/g, '').split('\n').filter(line => line.length > 0);
+    if (lines.length !== NUM_PLANET_ROWS) {
+        throw new Error(`Authored map has ${lines.length} rows, expected ${NUM_PLANET_ROWS}`);
+    }
+    let homeCoord = null;
+    const map = lines.map((line, rowIndex) => {
+        if (line.length !== PLANET_COLS) {
+            throw new Error(`Authored map row ${rowIndex} has ${line.length} cols, expected ${PLANET_COLS}`);
+        }
+        return Array.from(line).map((char, colIndex) => {
+            const flat = () => createSector(TERRAINS.flatland, STATUSES.unknown);
+            switch (char) {
+                case '.': return flat();
+                case '^': return createSector(TERRAINS.mountain, STATUSES.unknown);
+                case '~': return createSector(TERRAINS.water, STATUSES.unknown);
+                case '*': return createSector(TERRAINS.ice, STATUSES.unknown);
+                case '#':
+                    if (homeCoord) throw new Error(`Authored map has two homes: ${homeCoord} and ${[rowIndex, colIndex]}`);
+                    homeCoord = [rowIndex, colIndex];
+                    return createSector(TERRAINS.home, STATUSES.explored);
+                case '[': case ']': {
+                    const sector = flat();
+                    sector.gated = true;
+                    sector.gateKind = char === '[' ? GATE_KINDS.cave : GATE_KINDS.door;
+                    return sector;
+                }
+                default:
+                    if (char >= 'a' && char <= 'z') { const sector = flat(); sector.zone = char; return sector; }
+                    if (char >= '1' && char <= '9') { const sector = flat(); sector.tunnel = char; return sector; }
+                    throw new Error(`Authored map: unknown char '${char}' at row ${rowIndex} col ${colIndex}`);
+            }
+        });
+    });
+    if (!homeCoord) throw new Error('Authored map has no home (#)');
+    return { map, homeCoord };
+}
+
+function generateAuthoredMap() {
+    const { map, homeCoord } = parseAuthoredMap(AUTHORED_MAP_TEXT);
+
+    if (START_WITH_ADJ_EXPLORED) {
+        getVisibleCoords(map, homeCoord).forEach(([row, col]) => {
+            map[row][col].status = STATUSES.explored.enum;
+        });
+    }
+    if (EXPLORE_EVERYTHING) {
+        map.forEach(row => row.forEach(sector => { sector.status = STATUSES.explored.enum; }));
+    }
+
+    cacheDistancesToHome(map, homeCoord);
+    cacheCoords(map);
+    warnAboutOrphanedLand(map, homeCoord);
+    return map;
+}
+
+// Dev aid for the drawing: floods from home over everything a fully-tooled squad could ever cross (gates
+// open, tunnels ignored for now) and reports the flat tiles it can never reach, so a range that seals a
+// valley by accident is caught at load instead of by a player.
+function warnAboutOrphanedLand(map, homeCoord) {
+    const walkable = (sector) => sector.terrain !== TERRAINS.mountain.enum &&
+        sector.terrain !== TERRAINS.water.enum && sector.terrain !== TERRAINS.ice.enum;
+    const seen = new Set([`${homeCoord[0]},${homeCoord[1]}`]);
+    let frontier = [homeCoord];
+    while (frontier.length > 0) {
+        const next = [];
+        frontier.forEach(coord => getAdjacentCoords(coord).forEach(([row, col]) => {
+            const key = `${row},${col}`;
+            if (seen.has(key) || !walkable(map[row][col])) return;
+            seen.add(key);
+            next.push([row, col]);
+        }));
+        frontier = next;
+    }
+    let orphaned = 0, total = 0;
+    map.forEach((row, rowIndex) => row.forEach((sector, colIndex) => {
+        if (!walkable(sector)) return;
+        total++;
+        if (!seen.has(`${rowIndex},${colIndex}`)) orphaned++;
+    }));
+    if (orphaned > 0) {
+        console.warn(`Authored map: ${orphaned} of ${total} land tiles are unreachable from home (walled off by mountains/water/ice)`);
+    }
+}
 
 export function generateRandomMap() {
     const map = [];

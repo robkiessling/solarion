@@ -3,7 +3,7 @@ import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, ownedEquipm
 import {
     centeringRotation,
     COOK_TIME,
-    generateRandomMap,
+    generatePlanetMap,
     getCrossTime,
     getCurrentDevelopmentArea,
     getGridHalo,
@@ -151,7 +151,7 @@ export default function reducer(state = initialState, action) {
                 droids: { $set: payload.droids }
             }
 
-            if (payload.newRotation) {
+            if (payload.newRotation !== undefined) { // 0 is a real rotation (the seam), not "no update"
                 updates.rotation = { $set: payload.newRotation };
             }
 
@@ -453,7 +453,7 @@ export function startCooking() {
 }
 
 export function generateMap() {
-    const map = generateRandomMap();
+    const map = generatePlanetMap();
     const homeCoord = getHomeBasePosition(map).coord;
     const pois = generatePois(map); // also stamps infestation flags onto the map
     return { type: GENERATE_MAP, payload: { map, homeCoord, pois } };
@@ -627,7 +627,7 @@ export function planetTick(timeDelta) {
             // FINISH_DEVELOPMENT (halo growth) -- so it never permanently locks out droids that could still do work.
             // Exception: droids still walking to the grid (recalled or docking) must keep advancing.
             if (finished && allSettled) {
-                if (newRotation) {
+                if (newRotation !== undefined) {
                     dispatch({ type: PROGRESS, payload: { newRotation, droids: planetState.droids, reveals: [], revealedFlatland: 0, numArrivedHome: 0 } });
                 }
                 return;

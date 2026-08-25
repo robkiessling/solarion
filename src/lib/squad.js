@@ -37,6 +37,7 @@ export const CONTACT_MS = 400;
 
 export const SQUAD_BATTERY_CAPACITY = 100;
 export const SQUAD_DRAIN_PER_DROID = 0.4; // per assigned droid per tile; the default 5-droid team drains 2
+const INFINITE_CHARGE = true; // testing toggle: the battery never drains off-grid (no reserve power, no field wipes)
 export const RESERVE_HP_PER_TILE = 1;     // hull every unit burns per tile on reserve power
 
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
@@ -53,6 +54,7 @@ export function squadZone(map, coord) {
 }
 
 export function squadDrainPerTile(squad) {
+    if (INFINITE_CHARGE) return 0;
     return SQUAD_DRAIN_PER_DROID * (squad.assignedDroids || 5);
 }
 

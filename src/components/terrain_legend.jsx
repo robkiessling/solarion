@@ -11,7 +11,7 @@ import {POI_STATUS} from "../lib/expeditions";
  */
 class TerrainLegend extends React.Component {
     render() {
-        const entries = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.acid,
+        const entries = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.water,
             TERRAINS.developed];
         if (this.props.anyPoiVisible) {
             entries.push({ key: 'infested', display: INFESTED_GLYPH, label: 'Infested' });

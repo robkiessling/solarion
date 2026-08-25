@@ -72,7 +72,7 @@ class NavigationTabs extends React.Component {
                     <div className="hud-label">
                         <span>Battery</span>
                         <span className="hud-value">
-                            {reserve ? 'RESERVE' : `${Math.ceil(battery)} / ${capacity} · ~${rangeTiles} tiles`}
+                            {reserve ? 'RESERVE' : `${Math.ceil(battery)} / ${capacity} · ${isFinite(rangeTiles) ? `~${rangeTiles} tiles` : 'no drain'}`}
                         </span>
                     </div>
                     <div className="hud-bar">

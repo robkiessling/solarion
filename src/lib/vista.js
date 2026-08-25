@@ -30,6 +30,7 @@ const GROUND = {
     mountain: '_____', // the rocky foot under a peak that fills the sky rows
     ice: '=====',
     acid: '~~~~~',
+    water: '~~~~~',
     infested: '%%%%%',
     unknown: '·····',
     void: '     ' // past the pole rows: nothing there
