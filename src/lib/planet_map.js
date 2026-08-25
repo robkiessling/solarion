@@ -1285,7 +1285,11 @@ export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays 
             // Angular distance from the sub-solar meridian: the column's offset from the disc centre, curved by
             // row, minus where the sun is
             const centerOffset = (screenCol - DISPLAY_COLS / 2) / PLANET_COLS * ROW_CURVE_SCALE[rowIndex];
-            const daylight = daylightAt(Math.abs(centerOffset - centerToSun));
+            
+            // Distance measured on the circle (like lanternLift), not linearly: sunDirection wraps at +-0.5
+            // when the sun passes directly behind the planet, exactly when the terminator reaches the limb,
+            // and a linear difference made the twilight sliver at the edge vanish in one frame.
+            const daylight = daylightAt(Math.abs(mod(centerOffset - centerToSun + 0.5, 1) - 0.5));
 
             if (cookedPct) {
                 color = getIntermediateColor(COOK_COLOR_START, COOK_COLOR_END, cookedPct)
