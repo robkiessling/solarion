@@ -18,32 +18,29 @@ export default function reducer(state = initialState, action) {
 
     switch (action.type) {
         case LOG:
-            if (state.bySequenceId[payload.sequence]) { return state; } // already logged (e.g. previous save state)
-
             return update(state, {
                 bySequenceId: {
                     [payload.sequence]: {
                         $set: {
                             id: payload.id,
                             sequence: payload.sequence,
-                            timestamp: payload.timestamp,
                             status: 'completed',
+                            vars: payload.vars,
                             // Inline entries (see logInline) carry their own text instead of a database id
                             entryType: payload.entryType,
                             text: payload.text,
-                            className: payload.className
+                            className: payload.className,
+                            style: payload.style
                         }
                     }
                 },
                 visibleSequenceIds: { $push: [payload.sequence] }
             });
         case START_LOG_SEQUENCE:
-            if (state.bySequenceId[payload.sequence]) { return state; } // already logged (e.g. previous save state)
-
             return update(state, {
                 bySequenceId: {
                     [payload.sequence]: {
-                        $set: { id: payload.id, sequence: payload.sequence, timestamp: payload.timestamp, status: 'in_progress' }
+                        $set: { id: payload.id, sequence: payload.sequence, vars: payload.vars, status: 'in_progress' }
                     }
                 },
                 visibleSequenceIds: { $push: [payload.sequence] }
@@ -65,8 +62,10 @@ export default function reducer(state = initialState, action) {
 
 // Logs a message in the 'completed' state (instantly rendering it)
 // sequence is a random uuid, just has to be unique: https://egghead.io/lessons/javascript-redux-persisting-the-state-to-the-local-storage
-export function logMessage(id) {
-    return { type: LOG, payload: { id: id, sequence: v4(), timestamp: null } };
+// vars: optional {placeholder: value} map for {placeholders} in the database text. Values are captured
+// here at dispatch time and stored on the entry, so backfilled history re-renders the original text.
+export function logMessage(id, vars = null) {
+    return { type: LOG, payload: { id: id, vars: vars, sequence: v4() } };
 }
 
 // Logs a one-off line of dynamic text. Unlike logMessage, the text lives on the entry itself rather than in
@@ -75,12 +74,12 @@ export function logMessage(id) {
 // banked, sealed sites, disband summaries, squad wipes.)
 // style: optional inline CSS properties for the entry (e.g. a colour taken from the map palette)
 export function logInline(text, className = '', style = null) {
-    return { type: LOG, payload: { id: null, entryType: 'inline', text, className, style, sequence: v4(), timestamp: null } };
+    return { type: LOG, payload: { id: null, entryType: 'inline', text, className, style, sequence: v4() } };
 }
 
-// Starts a log sequence (outputs the text over time)
-export function startLogSequence(id) {
-    return { type: START_LOG_SEQUENCE, payload: { id: id, sequence: v4(), timestamp: null } };
+// Starts a log sequence (outputs the text over time). vars: see logMessage.
+export function startLogSequence(id, vars = null) {
+    return { type: START_LOG_SEQUENCE, payload: { id: id, vars: vars, sequence: v4() } };
 }
 export function endLogSequence(sequence) {
     return { type: END_LOG_SEQUENCE, payload: { sequence } };

@@ -1,10 +1,24 @@
-import _ from 'lodash';
 import React from 'react';
 import {batch, connect} from 'react-redux';
 import database from '../database/logs';
 import {endLogSequence, getLogData} from "../redux/modules/log";
 
 const DEBUG = false;
+
+const DEFAULT_CHAR_DELAY = 30; // ms per character in 'chars' mode
+
+// Database lines come in two shapes: the legacy tuple [text, delayAfterMs, flash] and an options
+// object { text, delay, flash, className, style, mode: 'chars', charDelay }.
+function normalizeLine(line) {
+    return Array.isArray(line) ? { text: line[0], delay: line[1], flash: line[2] } : line;
+}
+
+// Fills {placeholders} from the vars stored on the log entry (see startLogSequence). Unknown
+// placeholders are left as-is so a typo is visible rather than silently blank.
+function interpolate(text, vars) {
+    if (!vars) { return text; }
+    return text.replace(/\{(\w+)\}/g, (match, key) => (key in vars ? String(vars[key]) : match));
+}
 
 class LogSection extends React.Component {
     constructor(props) {
@@ -37,8 +51,6 @@ class LogSection extends React.Component {
         else {
             this.logSequence(databaseRecord);
         }
-
-        // this.unsubscribe = store.subscribe(this.onStoreChange);
     }
 
     // Inline entries carry their own text (dynamic content like expedition reports); always rendered instantly
@@ -62,23 +74,27 @@ class LogSection extends React.Component {
         this.pendingTimeouts.clear();
     }
 
-    // Just displaying it for historical purposes; skipping all callbacks
+    // Builds the <p> for a line, with its full text already in place (backfill and non-animated lines)
+    buildLineNode(line) {
+        const node = this.buildEmptyLineNode(line);
+        node.appendChild(document.createTextNode(interpolate(line.text, this.props.logData.vars)));
+        return node;
+    }
+
+    buildEmptyLineNode(line) {
+        const node = document.createElement('p');
+        if (line.className) { node.className = line.className; }
+        if (line.style) { Object.assign(node.style, line.style); }
+        return node;
+    }
+
+    // Just displaying it for historical purposes; skipping all callbacks and animation
     backfillSequence(databaseRecord) {
         const logSection = this.logSectionRef.current;
-        const text = databaseRecord.text;
 
-        if (_.isArray(text)) {
-            for (let i = 0, len = text.length; i < len; i++) {
-                let node = document.createElement('p');
-                node.appendChild(document.createTextNode(text[i][0]));
-                logSection.appendChild(node);
-            }
-        }
-        else {
-            let node = document.createElement('p');
-            node.appendChild(document.createTextNode(text));
-            logSection.appendChild(node);
-        }
+        databaseRecord.text.forEach((rawLine) => {
+            logSection.appendChild(this.buildLineNode(normalizeLine(rawLine)));
+        });
 
         this.props.onUpdate();
     }
@@ -90,24 +106,29 @@ class LogSection extends React.Component {
         const text = databaseRecord.text;
         let i = 0, len = text.length;
 
+        const finishSequence = (delay) => {
+            this.scheduleTimeout(() => {
+                batch(() => {
+                    if (databaseRecord.onFinish) { databaseRecord.onFinish(dispatch); }
+                    dispatch(endLogSequence(this.props.logData.sequence));
+                })
+            }, delay);
+        };
+
         if (len === 0) {
-            batch(() => {
-                if (databaseRecord.onFinish) { databaseRecord.onFinish(dispatch); }
-                dispatch(endLogSequence(this.props.logData.sequence));
-            })
+            finishSequence(0);
             return;
         }
 
-        // Each line has 3 elements in an array:
-        //  0: The text to display
-        //  1: How long to delay after the text is shown
-        //  2: If true, briefly flashes the text
         const printNextLine = (delay) => {
             this.scheduleTimeout(() => {
-                let node = document.createElement('p');
-                node.appendChild(document.createTextNode(text[i][0]));
+                const line = normalizeLine(text[i]);
+                const content = interpolate(line.text, this.props.logData.vars);
+                const typing = line.mode === 'chars' && content;
 
-                if (text[i][2] && text[i][0]) {
+                const node = typing ? this.buildEmptyLineNode(line) : this.buildLineNode(line);
+
+                if (line.flash && content) {
                     node.classList.add('flash');
                     this.scheduleTimeout(() => {
                         node.classList.add('fade-flash');
@@ -116,20 +137,40 @@ class LogSection extends React.Component {
 
                 logSection.appendChild(node);
                 this.props.onUpdate();
-                let nextDelay = text[i][1];
-                if (DEBUG) { nextDelay /= 10; } // makes the log go 10x faster
 
-                i++;
-                if (i < len) {
-                    printNextLine(nextDelay);
+                const advance = () => {
+                    let nextDelay = line.delay;
+                    if (DEBUG) { nextDelay /= 10; } // makes the log go 10x faster
+
+                    i++;
+                    if (i < len) {
+                        printNextLine(nextDelay);
+                    }
+                    else {
+                        finishSequence(nextDelay);
+                    }
+                };
+
+                if (typing) {
+                    let shown = 0;
+                    let charDelay = line.charDelay || DEFAULT_CHAR_DELAY;
+                    if (DEBUG) { charDelay /= 10; }
+
+                    const typeNextChar = () => {
+                        shown++;
+                        node.textContent = content.slice(0, shown);
+                        if (shown < content.length) {
+                            this.scheduleTimeout(typeNextChar, charDelay);
+                        }
+                        else {
+                            this.props.onUpdate(); // the line may have wrapped while typing
+                            advance();
+                        }
+                    };
+                    typeNextChar();
                 }
                 else {
-                    this.scheduleTimeout(() => {
-                        batch(() => {
-                            if (databaseRecord.onFinish) { databaseRecord.onFinish(dispatch); }
-                            dispatch(endLogSequence(this.props.logData.sequence));
-                        })
-                    }, nextDelay)
+                    advance();
                 }
             }, delay);
         }

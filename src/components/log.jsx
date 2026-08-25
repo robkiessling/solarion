@@ -52,6 +52,14 @@ class Log extends React.Component {
         this.flashTimeout = setTimeout(() => this.setState({ flashing: false }), 3000);
     }
 
+    // Called by sections as lines print. Follow the feed only if the player was already at the
+    // bottom -- same rule as the resize path; reading scrollback shouldn't be interrupted.
+    onSectionUpdate() {
+        if (this.wasAtBottom) {
+            this.scrollToBottom();
+        }
+    }
+
     scrollToBottom() {
         this.jumpToBottom();
 
@@ -92,7 +100,7 @@ class Log extends React.Component {
                         this.props.visibleSequenceIds.map((sequenceId, index) => {
                             return <LogSection sequenceId={sequenceId}
                                                key={sequenceId}
-                                               onUpdate={() => this.scrollToBottom()}
+                                               onUpdate={() => this.onSectionUpdate()}
                                                active={index === (this.props.visibleSequenceIds.length - 1)}
                             />;
                         })

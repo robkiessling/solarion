@@ -12,16 +12,17 @@ import './styles/app.scss';
 // Note: Singleton imports are necessary despite not being used in this file; they initialize the singletons
 import gameClock from "./singletons/game_clock"
 
-import {hasStartedGame, startLogSequence} from "./redux/modules/log";
+import {hasStartedGame} from "./redux/modules/log";
 import {syncTriggers} from "./redux/modules/triggers";
+import {runGameMode} from "./dev/skips";
 
 
 if (hasStartedGame(store.getState().log)) {
     // initialize store subscriptions from previous saved state
     syncTriggers(store.getState().triggers)
 } else {
-    // fresh start!
-    store.dispatch(startLogSequence('startup'));
+    // fresh start! boots the campaign, or a dev skip mode (see dev/skips.js)
+    runGameMode(store.dispatch);
 }
 
 ReactDOM.render(
