@@ -7,6 +7,7 @@ import {upgradesTick, upgradesTickSlow} from "../redux/modules/upgrades";
 import {abilitiesTick} from "../redux/modules/abilities";
 import {structuresTick} from "../redux/modules/structures";
 import {planetTick} from "../redux/modules/planet";
+import {panelsTick} from "../redux/modules/panels";
 
 const CLOCK_FPS = 30;
 export const OUTSIDE_FPS = 10;
@@ -66,6 +67,7 @@ class GameClock {
         this.setInterval('Summable', (iterations, period) => {
             store.dispatch(upgradesTick(iterations * period));
             store.dispatch(abilitiesTick(iterations * period));
+            store.dispatch(panelsTick(iterations * period));
         }, 1000 / ABILITIES_FPS);
 
         this.setInterval('SummableSlow', (iterations, period) => {

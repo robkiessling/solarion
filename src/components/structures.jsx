@@ -3,6 +3,7 @@ import {connect} from "react-redux";
 import Structure from "./structures/structure";
 import ProbeFactory from "./structures/probe_factory";
 import EnergyBay from "./structures/energy_bay";
+import DroidFactory from "./structures/droid_factory";
 import {getStructure, getVisibleIds} from "../redux/modules/structures";
 import {TYPES} from "../database/structures";
 import Tabs from "./ui/tabs";
@@ -52,6 +53,8 @@ class Structures extends React.Component {
                                     return <EnergyBay key={id}/>
                                 case 'probeFactory':
                                     return <ProbeFactory key={id}/>
+                                case 'droidFactory':
+                                    return <DroidFactory key={id}/>
                                 default:
                                     return <Structure type={id} key={id}/>
                             }

@@ -254,8 +254,9 @@ $hud-clearance: 6.5rem;
     }
   }
 
-  // The encounter popup: centered over the canvas (slightly high, clear of the legend). No backdrop dim --
-  // the world stays live behind it -- but it blocks squad movement until answered (accept or Esc).
+  // The encounter popup: centered over the canvas (slightly high, clear of the legend). The shared
+  // PopupFrame supplies the backdrop dim + surface + title chrome (popup.scss); the world stays live
+  // behind the dim, and the popup blocks squad movement until answered (accept or Esc).
   .encounter-popup {
     position: absolute;
     left: 50%;
@@ -263,22 +264,8 @@ $hud-clearance: 6.5rem;
     transform: translate(-50%, -50%);
     width: 21rem;
     padding: 1rem 0.9rem 0.7rem;
-    background: rgba(13, 17, 23, 0.93);
-    border: 1px solid rgba(32, 217, 255, 0.45); // the squad's cyan channel
-    box-shadow: 0 0 0 1px rgba(1, 4, 9, 0.8), 0 6px 24px rgba(0, 0, 0, 0.7);
-
-    // Site name embedded in the border, fieldset-legend style, with the POI glyph in its map color
-    .popup-title {
-      position: absolute;
-      top: -0.7em;
-      left: 10px;
-      padding: 0 7px;
-      background: $black-inset;
-      font-size: 0.8em;
-      letter-spacing: 2px;
-      color: $ui-text-dim;
-      white-space: nowrap;
-    }
+    background: rgba(13, 17, 23, 0.93); // slightly clearer than the shared surface: the map shows through
+    border-color: rgba(32, 217, 255, 0.45); // the squad's cyan channel
 
     .popup-body {
       margin-bottom: 0.7rem;

@@ -1,0 +1,45 @@
+@use '../variables' as *;
+
+// Shared popup chrome (components/ui/popup_frame.jsx): backdrop + surface + legend title + ✕.
+// Positioning is the caller's job (.encounter-popup anchors itself in the planet frame;
+// .special-panel centers inside .panel-overlay). Callers override surface border-color /
+// background where they diverge; everything here is the part that must not drift apart.
+
+.popup-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(1, 4, 9, 0.5);
+}
+
+.popup-surface {
+  position: relative;
+  background: rgba(13, 17, 23, 0.95);
+  border: 1px solid $ui-border;
+  box-shadow: 0 0 0 1px rgba(1, 4, 9, 0.8), 0 6px 24px rgba(0, 0, 0, 0.7);
+
+  // Title embedded in the border, fieldset-legend style
+  .popup-title {
+    position: absolute;
+    top: -0.7em;
+    left: 10px;
+    padding: 0 7px;
+    background: $black-inset;
+    font-size: 0.8em;
+    letter-spacing: 2px;
+    color: $ui-text-dim;
+    white-space: nowrap;
+  }
+
+  .popup-close {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.4rem;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 0.9em;
+    color: $ui-text-dim;
+    cursor: pointer;
+    &:hover { color: $ui-text; }
+  }
+}

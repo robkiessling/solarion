@@ -16,16 +16,18 @@ import {CONTACT_MS} from "../lib/squad";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import BattleCanvas from "./battle_canvas";
 import Tooltip from "./ui/tooltip";
+import PopupFrame from "./ui/popup_frame";
 
 /**
  * The centered encounter popup over the planet canvas, in one of three modes: the squad is standing on a
  * site awaiting a choice (offer phase), reading what happened there (result phase, including a wipe's
  * ending), or fighting -- the live battle arena with the equipment action row. Offer/result are views of
  * planet.prompt (planet-level, so a wipe's popup outlives the squad); the battle is a view of
- * squad.fighting. The world stays live behind it (no backdrop dim, nothing pauses), but the popup blocks
+ * squad.fighting. The world stays live behind the backdrop dim (nothing pauses), but the popup blocks
  * squad movement. Keyboard mapping (1..N actions, Enter/Space accept, Esc leave/retreat) lives in the
  * planet component's input layer; the buttons mirror it. Connected on its own so updates aren't gated by
- * the canvas's FPS-throttled shouldComponentUpdate.
+ * the canvas's FPS-throttled shouldComponentUpdate. Chrome (backdrop/surface/title) is the shared
+ * PopupFrame; no dismissal props are passed -- leaving is an explicit action, never a stray click.
  */
 // Layout constants mirrored from the stylesheets: the top bar's min-height (app.scss) and the deployed HUD
 // strip's clearance within the planet frame ($hud-clearance, outside.scss). Big fights anchor the popup
@@ -212,15 +214,18 @@ class EncounterPopup extends React.Component {
             }
         }
 
+        // Site name with the POI glyph in its map color, embedded in the border
+        const title = (
+            <React.Fragment>
+                <span style={{color: PLANET_COLORS[POI_COLOR_KEYS[poi.type]]}}>{POI_GLYPHS[poi.type]}</span>
+                {' '}{poi.name.toUpperCase()}
+            </React.Fragment>
+        );
         return (
-            <div className={`encounter-popup${battleView ? ' battle' : ''}`} style={style}>
-                <div className="popup-title">
-                    <span style={{color: PLANET_COLORS[POI_COLOR_KEYS[poi.type]]}}>{POI_GLYPHS[poi.type]}</span>
-                    {' '}{poi.name.toUpperCase()}
-                </div>
+            <PopupFrame className={`encounter-popup${battleView ? ' battle' : ''}`} style={style} title={title}>
                 {fighting ? this.renderBattle(poi, fighting) :
                     prompt.phase === 'result' ? this.renderResult(prompt.result) : this.renderOffer(poi)}
-            </div>
+            </PopupFrame>
         );
     }
 }

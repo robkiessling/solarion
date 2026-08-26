@@ -13,6 +13,7 @@ import resources, * as fromResources from './modules/resources';
 import abilities, * as fromAbilities from "./modules/abilities";
 import planet, * as fromPlanet from "./modules/planet";
 import star, * as fromStar from "./modules/star";
+import panels, * as fromPanels from "./modules/panels";
 import {mapObject, roundToDecimal} from "../lib/helpers";
 import {STATUSES} from "../database/structures";
 import {getQuantity, getResource} from "./modules/resources";
@@ -39,7 +40,8 @@ export default reduceReducers(
         upgrades,
         abilities,
         planet,
-        star
+        star,
+        panels
     }),
 
     // cross-cutting entire state
@@ -208,20 +210,23 @@ function applyResearchedUpgradeEffects(state, upgradeIds, variables) {
     applyOperationsToVariables(operations, variables);
 }
 
-// The effective expedition-droid stat block: DROID_BASE_STATS plus every researched combat upgrade.
+// The effective expedition-droid stat block: DROID_BASE_STATS plus every researched combat upgrade
+// plus the authorized chassis spec (the schematic index panel; fleet-wide, no per-droid variants).
 // Snapshotted onto the squad at deploy (see deploySquad), so refits apply to the NEXT deployment --
 // the squad in the field fights with the stats it left base with.
 export function getDroidStats(state) {
     const stats = { ...DROID_BASE_STATS };
     applyResearchedUpgradeEffects(state, DROID_COMBAT_UPGRADE_IDS, stats);
+    fromPanels.applyChassisEffects(state.panels, stats);
     return stats;
 }
 
-// The deployable squad's battery capacity: the base plus every researched battery upgrade. Snapshotted
-// onto the squad at deploy under the same refit rule as getDroidStats.
+// The deployable squad's battery capacity: the base plus every researched battery upgrade plus the
+// authorized chassis spec. Snapshotted onto the squad at deploy under the same refit rule as getDroidStats.
 export function getBatteryCapacity(state) {
     const stats = { batteryCapacity: SQUAD_BATTERY_CAPACITY };
     applyResearchedUpgradeEffects(state, BATTERY_UPGRADE_IDS, stats);
+    fromPanels.applyChassisEffects(state.panels, stats);
     return stats.batteryCapacity;
 }
 

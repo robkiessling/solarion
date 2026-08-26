@@ -1,0 +1,209 @@
+@use '../variables' as *;
+
+// Special upgrade panels (schematic index etc.): structure-owned popups. The chrome
+// (backdrop/surface/title/✕) is the shared PopupFrame (ui/popup_frame.jsx + popup.scss);
+// this file owns the panel sizing and each panel's body styles. Layout contract for panel
+// bodies: .special-panel is a capped-height flex column, so a panel keeps its header static
+// and wraps its scrolling region in an OverlayScrollbars host with flex:1/min-height:0
+// (see .schematic-index below).
+
+.panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3; // below the settings modal (4), same rule as the battle popup
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // The shared .popup-backdrop fills this overlay = the whole viewport
+}
+
+.special-panel {
+  width: 46rem;
+  max-width: 92vw;
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(13, 17, 23, 0.97); // more opaque than the shared surface: it's a document, not a window
+  padding: 1.2rem 1.1rem 0.9rem;
+}
+
+// The opener button on a structure card ("▤ SCHEMATIC INDEX")
+button.panel-opener {
+  display: block;
+  margin: 0.3rem 0;
+  padding: 2px 8px;
+  background: none;
+  border: 1px solid $ui-border;
+  font-family: inherit;
+  font-size: 0.85em;
+  letter-spacing: 1px;
+  color: $ui-text-dim;
+  cursor: pointer;
+  &:hover { color: $ui-text; border-color: $ui-text-dim; }
+
+  // Something in the panel deserves a visit (new row, or an affordable unsigned one)
+  &.attention {
+    color: $structure-quantity-color;
+    border-color: $structure-quantity-color;
+    animation: panel-opener-pulse 2.2s ease-in-out infinite;
+  }
+}
+
+@keyframes panel-opener-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(237, 230, 203, 0); }
+  50% { box-shadow: 0 0 6px 1px rgba(237, 230, 203, 0.35); }
+}
+
+// ── The schematic index (droid factory) ────────────────────────────────────────
+
+.schematic-index {
+  display: flex;
+  flex-direction: column;
+  min-height: 0; // let the scroll region shrink inside the capped-height panel
+
+  .index-header {
+    color: $ui-text-dim;
+    letter-spacing: 1px;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid $ui-border;
+
+    .index-counts {
+      font-size: 0.85em;
+      margin-top: 0.2rem;
+    }
+  }
+
+  // The scrolling region (OverlayScrollbars host): everything below the header
+  .index-scroll {
+    flex: 1;
+    min-height: 0;
+
+    // The scrollbar overlays content rather than reserving space; keep a gutter clear of it
+    .index-rows { padding-right: 0.9rem; }
+  }
+
+  .index-row {
+    margin: 0.55rem 0;
+
+    .row-line {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+
+      .row-num { color: $ui-text-dim; }
+      .row-marker { color: $ui-text-dim; }
+      .row-name { letter-spacing: 1px; }
+      .row-auth {
+        margin-left: auto;
+        color: $structure-quantity-color;
+        font-size: 0.85em;
+        white-space: nowrap;
+      }
+    }
+
+    .row-sub {
+      margin-left: 2.4rem;
+      color: $ui-text-dim;
+      font-size: 0.85em;
+    }
+
+    .row-corrupted {
+      color: rgba($ui-text-dim, 0.8);
+      animation: corruption-flicker 3.1s ease-in-out infinite;
+    }
+
+    // Unnumbered rows appended past the end of the human index (the AI's own designs)
+    &.post-index .row-num { color: $replication-pink; }
+  }
+
+  .option-cards {
+    display: flex;
+    gap: 0.6rem;
+    margin: 0.45rem 0 0.2rem 2.4rem;
+
+    .option-card {
+      flex: 1;
+      max-width: 18rem;
+      border: 1px solid $ui-border;
+      padding: 0.5rem 0.6rem;
+      display: flex;
+      flex-direction: column;
+
+      &.declined { opacity: 0.6; }
+      &.active { border-color: $structure-quantity-color; }
+
+      .option-name {
+        letter-spacing: 1px;
+        margin-bottom: 0.3rem;
+      }
+
+      .stat-line {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85em;
+
+        .stat-good { color: #9be29b; } // report-success green
+        .stat-bad { color: #d98c8c; }
+      }
+
+      .margin-note {
+        font-style: italic;
+        color: $ui-text-dim;
+        font-size: 0.85em;
+        margin: 0.35rem 0;
+      }
+
+      .option-cost {
+        font-size: 0.85em;
+        color: $ui-text-dim;
+        margin-top: auto; // costs + button pin to the card bottom so paired cards align
+      }
+
+      // The active card's footer: sits where the button sits on its sibling, so paired cards align
+      .active-badge {
+        margin-top: 0.45rem;
+        padding: 3px 0;
+        text-align: center;
+        border: 1px solid transparent; // same box as the button, minus the chrome
+        font-size: 0.9em;
+        letter-spacing: 1px;
+        color: $structure-quantity-color;
+      }
+
+      button.authorize {
+        margin-top: 0.45rem;
+        padding: 3px 0;
+        width: 100%;
+        background: $progress-button-bg;
+        border: 1px solid $progress-button-border;
+        font-family: inherit;
+        font-size: 0.9em;
+        letter-spacing: 1px;
+        color: $progress-button-text;
+        cursor: pointer;
+
+        &:hover:not(:disabled) { filter: brightness(1.25); }
+        &:disabled {
+          background: $black-muted;
+          border-color: $ui-border;
+          color: $ui-text-dim;
+          cursor: default;
+        }
+      }
+    }
+  }
+
+  .index-end {
+    text-align: center;
+    color: $ui-text-dim;
+    letter-spacing: 2px;
+    font-size: 0.85em;
+    margin: 0.9rem 0 0.3rem;
+  }
+}
+
+@keyframes corruption-flicker {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.55; }
+}

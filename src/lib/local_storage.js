@@ -15,6 +15,10 @@ export const loadState = () => {
         if (parsedState && parsedState.game) {
             parsedState.game.settingsModalOpen = false;
         }
+        // Same rule for special upgrade panels (schematic index etc.): never load with one open
+        if (parsedState && parsedState.panels) {
+            parsedState.panels.openPanelId = null;
+        }
 
         return parsedState;
     } catch (err) {
