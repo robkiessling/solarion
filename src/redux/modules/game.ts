@@ -12,7 +12,7 @@ export const NAV_TAB_TITLES = {
     star: 'Solarion',
 }
 
-const initialState = {
+const initialState: GameState = {
     saveFormatVersion: SAVE_FORMAT_VERSION,
     gameSpeed: 1,
     lastSavedAt: null,
@@ -48,7 +48,7 @@ const initialState = {
 }
 
 // Reducers
-export default function reducer(state = initialState, action) {
+export default function reducer(state: GameState = initialState, action: GameAction): GameState {
     const payload = action.payload;
 
     switch (action.type) {
@@ -80,6 +80,6 @@ export function updateLastSavedAt() {
 export function resetLastSavedAt() {
     return { type: UPDATE_SETTING, payload: { key: 'lastSavedAt', value: null } }
 }
-export function formattedLastSavedAt(state) {
+export function formattedLastSavedAt(state: GameState) {
     return state && state.lastSavedAt ? (new Date(state.lastSavedAt)).toLocaleString() : 'Never'
 }

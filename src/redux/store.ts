@@ -1,4 +1,4 @@
-import {applyMiddleware, compose, createStore} from 'redux';
+import {applyMiddleware, compose, createStore, Store} from 'redux';
 import thunk from 'redux-thunk';
 import reducer from './reducer';
 import {batchedSubscribe} from 'redux-batched-subscribe';
@@ -22,11 +22,12 @@ const enhancer = composeEnhancers(
 // current default state instead of loading them raw (which crashes or silently freezes the game).
 const defaultState = reducer(undefined, { type: '@@INIT' });
 
+// Thunk middleware widens dispatch to accept functions; the loose Dispatch type reflects that
 const store = createStore(
     reducer,
     migrateSavedState(loadState(), defaultState),
     enhancer
-);
+) as Store<RootState> & { dispatch: Dispatch };
 
 store.subscribe(throttle(() => {
     const state = store.getState();
@@ -42,7 +43,7 @@ store.subscribe(throttle(() => {
     saveState(state);
 }, AUTO_SAVE_INTERVAL));
 
-function readSetting(state, setting) {
+function readSetting(state: RootState, setting: keyof GameState) {
     return state && state.game && state.game[setting];
 }
 

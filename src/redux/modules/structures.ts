@@ -18,13 +18,13 @@ export const REMOVE_DROID = 'structures/REMOVE_DROID';
 export const DISABLE = 'structures/DISABLE';
 
 // Initial State
-const initialState = {
+const initialState: StructuresState = {
     byId: {},
     visibleIds: []
 }
 
 // Reducers
-export default function reducer(state = initialState, action) {
+export default function reducer(state: StructuresState = initialState, action: GameAction): StructuresState {
     const payload = action.payload;
 
     switch (action.type) {
@@ -160,15 +160,14 @@ export function disable(id) {
 }
 
 // Unlike other action creators, we are passing the dispatch as a parameter because we don't always end up dispatching
-/** @param {Dispatch} dispatch @param {Structure} structure @param {StructureStatus} status */
-export function setStatus(dispatch, structure, status) {
+export function setStatus(dispatch: Dispatch, structure: Structure, status: StructureStatus) {
     if (structure.status !== status) {
         return dispatch(withRecalculation({ type: SET_STATUS, payload: { id: structure.id, status: status } }))
     }
 }
 
 export function structuresTick(timeDelta) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         dispatch({ type: PROGRESS, payload: { timeDelta } });
 
         if (getState().game.rapidlyRecalcEnergy) {
@@ -183,39 +182,32 @@ export function structuresTick(timeDelta) {
 
 
 // Standard Functions
-/** @param {StructuresState} state @param {StructureId} id @returns {Structure} */
-export function getStructure(state, id) {
+export function getStructure(state: StructuresState, id: StructureId): Structure {
     return state.byId[id];
 }
-/** @param {Structure} structure @returns {ResourceAmounts} */
-export function getBuildCost(structure) {
+export function getBuildCost(structure: Structure): ResourceAmounts {
     return structure.cost; // todo floor
 }
-/** @param {Structure} structure @returns {number} */
-export function getNumBuilt(structure) {
+export function getNumBuilt(structure: Structure): number {
     if (!structure) { return 0; }
     return structure.count.total;
 }
-/** @param {StructuresState} state @returns {number} */
-export function countAllStructuresBuilt(state) {
+export function countAllStructuresBuilt(state: StructuresState): number {
     return Object.values(state.byId).reduce((acc, structure) => {
         return acc + getNumBuilt(structure)
     }, 0);
 }
-/** @param {Structure} structure @returns {number} */
-export function getRunningRate(structure) {
+export function getRunningRate(structure: Structure): number {
     return structure.runnable ? structure.runningRate : 1;
 }
-/** @param {Structure} structure @returns {boolean} */
-export function isRunning(structure) {
+export function isRunning(structure: Structure): boolean {
     return structure.runnable ? (structure.runningRate > 0) : false;
 }
-/** @param {Structure} structure @returns {boolean} */
-export function hasInsufficientResources(structure) {
+export function hasInsufficientResources(structure: Structure): boolean {
     return structure.status === STATUSES.insufficient;
 }
 
-export function getVisibleIds(state, type) {
+export function getVisibleIds(state: StructuresState, type?: StructureType) {
     if (type === undefined) {
         return state.visibleIds;
     }
@@ -225,7 +217,7 @@ export function getVisibleIds(state, type) {
     });
 }
 
-export function animationData(state) {
+export function animationData(state: StructuresState) {
     const result = {};
     state.visibleIds.forEach(id => {
         const structure = getStructure(state, id)
@@ -238,8 +230,7 @@ export function animationData(state) {
 }
 
 // Helpers
-/** @param {StructuresState} state @param {(structure: Structure) => void} callback */
-export function iterateVisible(state, callback) {
+export function iterateVisible(state: StructuresState, callback: (structure: Structure) => void) {
     state.visibleIds.forEach(id => {
         callback(getStructure(state, id));
     });

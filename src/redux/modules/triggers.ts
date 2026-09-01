@@ -5,11 +5,11 @@ import database from '../../database/triggers';
 export const ADD_TRIGGER = 'triggers/ADD_TRIGGER';
 export const REMOVE_TRIGGER = 'triggers/REMOVE_TRIGGER';
 
-const initialState = {
+const initialState: TriggersState = {
     byId: {},
 }
 
-export default function reducer(state = initialState, action) {
+export default function reducer(state: TriggersState = initialState, action: GameAction): TriggersState {
     const payload = action.payload;
 
     switch(action.type) {
@@ -41,7 +41,7 @@ export default function reducer(state = initialState, action) {
 }
 
 export function addTrigger(id) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         if (!isTriggered(getState().triggers, id)) {
             dispatch({ type: ADD_TRIGGER, payload: { id } })
             syncTriggers(getState().triggers);
@@ -58,7 +58,7 @@ function isTriggered(state, id) {
 
 // todo explain this process better (syncTriggers is similar to a react component)
 
-export function syncTriggers(state) {
+export function syncTriggers(state: TriggersState) {
     for (const [id, trigger] of Object.entries(state.byId)) {
         if (isPending(state, id) && !activeTriggers[id]) {
             const dbRecord = database[id];

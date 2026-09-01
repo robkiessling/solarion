@@ -2,7 +2,7 @@ import update from 'immutability-helper';
 import {recalculateState, withRecalculation} from "../reducer";
 import {generateRandomProbeDist} from "../../lib/star";
 
-export const TARGETS = {
+export const TARGETS: { NONE: 'none', PLANET: 'planet' } = {
     NONE: 'none',
     PLANET: 'planet'
 }
@@ -16,7 +16,7 @@ export const GENERATE_PROBE_DIST = 'star/GENERATE_PROBE_DIST';
 export const UPDATE_SETTING = 'star/UPDATE_SETTING';
 
 // Initial State
-const initialState = {
+const initialState: StarState = {
     distribution: [],
     mirrorsOnline: false,
     mirrorTarget: TARGETS.NONE,
@@ -24,7 +24,7 @@ const initialState = {
 }
 
 // Reducer
-export default function reducer(state = initialState, action) {
+export default function reducer(state: StarState = initialState, action: GameAction): StarState {
     const payload = action.payload;
 
     switch (action.type) {
@@ -60,7 +60,6 @@ export function startEnergyBeam(time) {
     return { type: UPDATE_SETTING, payload: { key: 'hyperBeamStartedAt', value: time } }
 }
 
-/** @param {StarState} state @returns {boolean} */
-export function isTargetingPlanet(state) {
+export function isTargetingPlanet(state: StarState): boolean {
     return state && state.mirrorTarget && state.mirrorTarget === TARGETS.PLANET;
 }

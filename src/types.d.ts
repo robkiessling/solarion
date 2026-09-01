@@ -45,7 +45,8 @@ interface EffectAffects { type: EffectTarget; id?: string }
 /** Recursively optional: the shape of a database override merged over a `base` record */
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends (...args: any[]) => any ? T[K] : T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
-/** Redux thunk plumbing, loosely typed */
+/** Redux plumbing, loosely typed: actions are checked by their string type, payloads are free-form */
+interface GameAction { type: string; payload?: any }
 type Dispatch = (action: any) => any;
 type GetState = () => RootState;
 type Thunk = (dispatch: Dispatch, getState: GetState) => void;
@@ -65,6 +66,8 @@ interface DroidData {
     droidAssignmentType: 'structure' | 'planet';
     assignTooltipPrefix?: string;
 }
+/** The part of DroidData the droid assign/remove actions read; the planet slice carries only this much */
+type DroidAssignment = Pick<DroidData, 'numDroidsAssigned' | 'droidAssignmentType'>;
 
 /** A structure as authored in the database (before LEARN copies it into state) */
 interface StructureRecord {
@@ -296,20 +299,17 @@ type EquipmentCharges = Partial<Record<EquipmentId, number>>;
 // Battle (database/battle.js, lib/battle.js)
 // ---------------------------------------------------------------------------------------------------------------
 
-interface UnitStats {
-    hp: number;
-    damage: number;
-    attackMs: number;
-    speed: number;
+/** The expedition droid stat block: DROID_BASE_STATS plus researched combat upgrades and the authorized chassis spec.
+ * A type alias (not an interface) so it is assignable to Variables, which the upgrade effects are applied through. */
+type DroidStats = { hp: number; damage: number; attackMs: number; speed: number };
+
+interface UnitStats extends DroidStats {
     /** spawner-type bugs only */
     spawns?: string;
     spawnEveryMs?: number;
     spawnBatch?: number;
     spawnCap?: number;
 }
-
-/** DROID_BASE_STATS plus every researched combat upgrade and the authorized chassis spec */
-type DroidStats = UnitStats;
 
 type BattleSide = 'droid' | 'bug';
 
@@ -511,7 +511,8 @@ interface ScoutDroid {
     path: Coord[];
     target: Coord | null;
     moveProgress: number;
-    heading: string | null;
+    /** [dRow, dCol] the scout last walked toward; equidistant lookouts are picked along it */
+    heading: [number, number] | null;
     docked?: boolean;
     docking?: boolean;
     returning?: boolean;
@@ -590,10 +591,13 @@ interface AbilitiesState {
     visibleIds: string[];
 }
 
+/** TARGETS in redux/modules/star.ts */
+type MirrorTarget = 'none' | 'planet';
+
 interface StarState {
     distribution: number[];
     mirrorsOnline: boolean;
-    mirrorTarget: 'none' | 'planet';
+    mirrorTarget: MirrorTarget;
     hyperBeamStartedAt: number | null;
 }
 
@@ -608,13 +612,16 @@ interface PanelsState {
     };
 }
 
+/** OVERALL_MAP_STATUS in redux/modules/planet.ts */
+type MapStatus = 'unstarted' | 'inProgress' | 'finished';
+
 interface PlanetState {
     map: PlanetMap;
     homeCoord: Coord | null;
-    overallStatus: number;
+    overallStatus: MapStatus;
     rotation: number;
     rotationMode: string;
-    droidData: DroidData;
+    droidData: DroidAssignment;
     droids: ScoutDroid[];
     unlockedTerrains: Unlocks;
     haloRadius: number;
@@ -640,4 +647,11 @@ interface RootState {
     planet: PlanetState;
     star: StarState;
     panels: PanelsState;
+}
+
+// Dev-console handles set in redux/store.ts
+interface Window {
+    solarionStore?: any;
+    solarionBattle?: any;
+    __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: any;
 }

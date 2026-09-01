@@ -34,13 +34,13 @@ const STARTING_TOD_FRACTION = 0.25;
 const STARTING_TOD_SECONDS = DAY_LENGTH * STARTING_TOD_FRACTION;
 
 // Initial State
-const initialState = {
+const initialState: ClockState = {
     elapsedTime: 0, // in milliseconds
     dayLength: DAY_LENGTH, // in seconds
 }
 
 // Reducer
-export default function reducer(state = initialState, action) {
+export default function reducer(state: ClockState = initialState, action: GameAction): ClockState {
     switch (action.type) {
         case TICK:
             return update(state, {
@@ -59,7 +59,7 @@ export default function reducer(state = initialState, action) {
 
 // Note: This is an example of how to dispatch another action during a reduction
 export function clockTick(timeDelta) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             const startingDaylight = daylightPercent(getState().clock);
             const startingWindSpeed = windSpeed(getState().clock);
@@ -75,16 +75,14 @@ export function clockTick(timeDelta) {
     }
 }
 
-/** @param {ClockState} state @returns {number} */
-export function dayLength(state) {
+export function dayLength(state: ClockState): number {
     return state.dayLength;
 }
-/** @param {ClockState} state @returns {number} */
-export function fractionOfDay(state) {
+export function fractionOfDay(state: ClockState): number {
     const secondsIntoDay = elapsedTime(state) % state.dayLength;
     return secondsIntoDay / state.dayLength;
 }
-export function dayNumber(state, includeDecimal = false) {
+export function dayNumber(state: ClockState, includeDecimal = false) {
     const day = elapsedTime(state) / state.dayLength + 1
     return includeDecimal ? day : Math.floor(day);
 }
@@ -94,7 +92,7 @@ function elapsedTime(state) {
 }
 
 // duration (fraction of day), label, % daylight
-const TIME_PERIODS = [
+const TIME_PERIODS: [number, string, number][] = [
     [5/24, 'Night', 0],
     [1/24, 'Dawn', 0.25], // 5 - 6
     [4/24, 'Morning', 0.5], // 6 - 10
@@ -121,23 +119,20 @@ export function timePeriodData(fractionOfDay) {
         }
     }
 }
-export function timePeriodName(state) {
+export function timePeriodName(state: ClockState) {
     return timePeriodData(fractionOfDay(state))[1];
 }
-/** @param {ClockState} state @returns {number} */
-export function daylightPercent(state) {
+export function daylightPercent(state: ClockState): number {
     return timePeriodData(fractionOfDay(state))[2];
 }
 
 const MIN_TEMPERATURE = -105;
 const MAX_TEMPERATURE = 190;
-/** @param {ClockState} state @returns {number} */
-export function surfaceTemperature(state) {
+export function surfaceTemperature(state: ClockState): number {
     return daylightPercent(state) * (MAX_TEMPERATURE - MIN_TEMPERATURE) + MIN_TEMPERATURE;
 }
 
-/** @param {ClockState} state @returns {number} */
-export function windSpeed(state) {
+export function windSpeed(state: ClockState): number {
     const step = Math.floor(state.elapsedTime / WIND_STEP_SIZE) % WIND_SPEEDS_SPLAT.length;
     return WIND_SPEEDS_SPLAT[step];
 }

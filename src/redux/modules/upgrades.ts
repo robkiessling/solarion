@@ -18,12 +18,12 @@ export const FINISH = 'upgrades/FINISH';
 export const SKIP = 'upgrades/SKIP'; // same as finish but no callbacks (used for testing)
 
 // Initial State
-const initialState = {
+const initialState: UpgradesState = {
     byId: {}
 }
 
 // Reducers
-export default function reducer(state = initialState, action) {
+export default function reducer(state: UpgradesState = initialState, action: GameAction): UpgradesState {
     const payload = action.payload;
 
     switch (action.type) {
@@ -105,7 +105,7 @@ export function researchUnsafe(upgrade) {
         return { type: RESEARCH, payload: { upgrade } };
     }
     else {
-        return function(dispatch, getState) {
+        return function(dispatch: Dispatch, getState: GetState) {
             batch(() => {
                 dispatch({ type: RESEARCH, payload: { upgrade } }); // Still need to dispatch RESEARCH to trigger research cost
                 finishResearch(dispatch, getState, upgrade.id); // Then immediately finish research
@@ -114,7 +114,7 @@ export function researchUnsafe(upgrade) {
     }
 }
 export function researchForFree(upgradeId) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             finishResearch(dispatch, getState, upgradeId)
         })
@@ -122,7 +122,7 @@ export function researchForFree(upgradeId) {
 }
 
 export function skipResearch(upgradeId) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             dispatch({ type: SKIP, payload: { id: upgradeId } });
             dispatch(recalculateState());
@@ -138,7 +138,7 @@ export function resume(id) {
 }
 
 export function upgradesTick(timeDelta) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             dispatch({ type: PROGRESS, payload: { timeDelta } });
 
@@ -167,7 +167,7 @@ function checkForUpgradeDiscoveries(state, dispatch) {
     return hasDiscovery;
 }
 
-function shouldDiscover(discoverWhen, state) {
+function shouldDiscover(discoverWhen: DiscoverWhen | undefined, state: RootState) {
     if (!discoverWhen) {
         // discoverWhen must be defined for upgrade to be auto-discovered
         return false;
@@ -179,7 +179,7 @@ function shouldDiscover(discoverWhen, state) {
     }
 
     if (discoverWhen.structures &&
-        !Object.entries(discoverWhen.structures).every(([k,v]) => getNumBuilt(getStructure(state.structures, k)) >= v)) {
+        !(Object.entries(discoverWhen.structures) as [StructureId, number][]).every(([k,v]) => getNumBuilt(getStructure(state.structures, k)) >= v)) {
         return false;
     }
 
@@ -193,7 +193,7 @@ function shouldDiscover(discoverWhen, state) {
 
 // This runs at a slower rate to save processing power (it is not important that it updates immediately)
 export function upgradesTickSlow(timeDelta) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             if (checkForUpgradeDiscoveries(getState(), dispatch)) {
                 dispatch(recalculateState())
@@ -217,32 +217,27 @@ function finishResearch(dispatch, getState, upgradeId) {
 
 
 // Standard Functions
-/** @param {UpgradesState} state @param {string} id @returns {Upgrade} */
-export function getUpgrade(state, id) {
+export function getUpgrade(state: UpgradesState, id: string): Upgrade {
     return state.byId[id];
 }
-/** @param {Upgrade} upgrade @returns {ResourceAmounts} */
-export function getResearchCost(upgrade) {
+export function getResearchCost(upgrade: Upgrade): ResourceAmounts {
     return upgrade.cost;
 }
-/** @param {Upgrade} upgrade @returns {boolean} */
-export function isResearchable(upgrade) {
+export function isResearchable(upgrade: Upgrade): boolean {
     return upgrade && upgrade.state === STATES.discovered;
 }
-/** @param {Upgrade} upgrade @returns {boolean} */
-export function isResearched(upgrade) {
+export function isResearched(upgrade: Upgrade): boolean {
     return upgrade && upgrade.state === STATES.researched;
 }
 
-/** @param {UpgradesState} state @returns {string[]} */
-export function visibleIds(state) {
+export function visibleIds(state: UpgradesState): string[] {
     return Object.keys(state.byId).filter(id => {
         const upgrade = getUpgrade(state, id);
         return !isResearched(upgrade); // all states before 'researched' are visible
     });
 }
 
-export function getStandaloneIds(state) {
+export function getStandaloneIds(state: UpgradesState) {
     return Object.keys(state.byId).filter(id => {
         const upgrade = getUpgrade(state, id);
         return upgrade.standalone && upgrade.state !== STATES.researched;

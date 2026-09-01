@@ -17,13 +17,13 @@ export const CONSUME = 'resources/CONSUME';
 export const PRODUCE = 'resources/PRODUCE';
 
 // Initial State
-const initialState = {
+const initialState: ResourcesState = {
     byId: {},
     visibleIds: []
 }
 
 // Reducer
-export default function reducer(state = initialState, action) {
+export default function reducer(state: ResourcesState = initialState, action: GameAction): ResourcesState {
     const payload = action.payload;
 
     switch (action.type) {
@@ -149,69 +149,58 @@ function produceReducer(state, amounts, incrementLifetimeTotal = true) {
 }
 
 // Action Creators
-/** @param {ResourceId} id */
-export function learn(id) {
+export function learn(id: ResourceId) {
     return withRecalculation({ type: LEARN, payload: { id } });
 }
 
 export function consume(amounts) {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         if (canConsume(getState().resources, amounts)) {
             dispatch(consumeUnsafe(amounts));
         }
     }
 }
-/** @param {ResourceAmounts} amounts */
-export function consumeUnsafe(amounts) {
+export function consumeUnsafe(amounts: ResourceAmounts) {
     return { type: CONSUME, payload: { amounts } };
 }
 
-/** @param {ResourceAmounts} amounts */
-export function produce(amounts) {
+export function produce(amounts: ResourceAmounts) {
     return { type: PRODUCE, payload: { amounts } };
 }
 
 
 // Standard Functions
-/** @param {ResourcesState} state @param {ResourceId} id @returns {Resource} */
-export function getResource(state, id) {
+export function getResource(state: ResourcesState, id: ResourceId): Resource {
     return state.byId[id];
 }
-/** @param {ResourcesState} state @param {ResourceAmounts} amounts @returns {boolean} */
-export function canConsume(state, amounts) {
-    return Object.entries(amounts).every(([k,v]) => getQuantity(getResource(state, k)) >= v);
+export function canConsume(state: ResourcesState, amounts: ResourceAmounts): boolean {
+    return (Object.entries(amounts) as [ResourceId, number][]).every(([k,v]) => getQuantity(getResource(state, k)) >= v);
 }
-/** @param {ResourcesState} state @param {ResourceAmounts} amounts @returns {boolean} */
-export function hasLifetimeQuantities(state, amounts) {
-    return Object.entries(amounts).every(([k,v]) => getLifetimeQuantity(getResource(state, k)) >= v);
+export function hasLifetimeQuantities(state: ResourcesState, amounts: ResourceAmounts): boolean {
+    return (Object.entries(amounts) as [ResourceId, number][]).every(([k,v]) => getLifetimeQuantity(getResource(state, k)) >= v);
 }
-/** @param {Resource} resource @returns {number} */
-export function getQuantity(resource) {
+export function getQuantity(resource: Resource): number {
     if (!resource) {
         return 0;
     }
     return resource.amount;
 }
-/** @param {Resource} resource @returns {number} */
-export function getLifetimeQuantity(resource) {
+export function getLifetimeQuantity(resource: Resource): number {
     if (!resource) {
         return 0;
     }
     return resource.lifetimeTotal;
 }
-/** @param {Resource} resource @returns {number} */
-export function getCapacity(resource) {
+export function getCapacity(resource: Resource): number {
     return resource.capacity;
 }
-/** @param {ResourceId} id @returns {string} */
-export function getIcon(id) {
+export function getIcon(id: ResourceId): string {
     return database[id].icon;
 }
-/** @param {ResourceId} id @param {boolean} [skinny] @param {boolean} [colorless] @returns {string} */
-export function getIconSpan(id, skinny = false, colorless = true) {
+export function getIconSpan(id: ResourceId, skinny: boolean = false, colorless: boolean = true): string {
     return `<span class="${getIcon(id)} ${skinny ? 'skinny-icon' : ''} ${colorless ? 'colorless-icon' : ''}"></span>`;
 }
-export function highlightCosts(state, amounts) {
+export function highlightCosts(state: ResourcesState, amounts: ResourceAmounts) {
     return mapObject(amounts, (resourceId, resourceCost) => {
         return {
             amount: resourceCost,

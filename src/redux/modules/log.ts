@@ -7,13 +7,13 @@ export const START_LOG_SEQUENCE = 'log/START_LOG_SEQUENCE';
 export const END_LOG_SEQUENCE = 'log/END_LOG_SEQUENCE';
 
 // Initial State
-const initialState = {
+const initialState: LogState = {
     bySequenceId: {},
     visibleSequenceIds: []
 }
 
 // Reducers
-export default function reducer(state = initialState, action) {
+export default function reducer(state: LogState = initialState, action: GameAction): LogState {
     const payload = action.payload;
 
     switch (action.type) {
@@ -87,10 +87,10 @@ export function endLogSequence(sequence) {
 
 
 // Standard Functions
-export function getLogData(state, sequenceId) {
+export function getLogData(state: LogState, sequenceId: string) {
     return state.bySequenceId[sequenceId];
 }
 
-export function hasStartedGame(state) {
+export function hasStartedGame(state: LogState) {
     return state && state.visibleSequenceIds && state.visibleSequenceIds.length;
 }

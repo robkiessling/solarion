@@ -352,6 +352,6 @@ function pickByHeading(candidates, fromCoord, heading) {
 }
 
 // Direction from one coord to another. Column wrap is ignored (this is only ever used for nearby targets).
-function bearing(fromCoord, toCoord) {
+function bearing(fromCoord: Coord, toCoord: Coord): [number, number] {
     return [toCoord[0] - fromCoord[0], toCoord[1] - fromCoord[1]];
 }

@@ -26,7 +26,7 @@ export const CHASSIS_COMMIT = 'panels/CHASSIS_COMMIT';
 export const CHASSIS_UNLOCK_ROW = 'panels/CHASSIS_UNLOCK_ROW';
 
 // Initial State
-const initialState = {
+const initialState: PanelsState = {
     openPanelId: null, // which special panel is showing (cleared on save load)
     authorizationCount: 311, // last used authorization number (Mk.1 FRAME carries #311 pre-war)
     chassis: {
@@ -38,7 +38,7 @@ const initialState = {
 };
 
 // Reducer
-export default function reducer(state = initialState, action) {
+export default function reducer(state: PanelsState = initialState, action: GameAction): PanelsState {
     const payload = action.payload;
 
     switch (action.type) {
@@ -111,8 +111,7 @@ export function unlockChassisRow(rowId) {
     return { type: CHASSIS_UNLOCK_ROW, payload: { rowId } };
 }
 
-/** @param {PanelsState} panelsState @param {ChassisRow} row @returns {boolean} */
-export function isChassisRowUnlocked(panelsState, row) {
+export function isChassisRowUnlocked(panelsState: PanelsState, row: ChassisRow): boolean {
     return !!(row.preAuthorized || row.unlock === 'start' || panelsState.chassis.unlocked.includes(row.id));
 }
 
@@ -125,7 +124,7 @@ export function getAuthorizedRecord(panelsState, row) {
     return null;
 }
 
-export function canAuthorizeChassis(state, rowId, optionId) {
+export function canAuthorizeChassis(state: RootState, rowId: string, optionId: string) {
     const row = CHASSIS_ROWS_BY_ID[rowId];
     const option = getChassisOption(rowId, optionId);
     if (!row || !option) return false;
@@ -139,7 +138,7 @@ export function canAuthorizeChassis(state, rowId, optionId) {
 // Sign an option: pay its cost and start the factory downtime (instant when downtime is 0).
 // On a row that's already authorized this IS the retool — same cost, same downtime, new spec.
 export function authorizeChassis(rowId, optionId) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         if (!canAuthorizeChassis(getState(), rowId, optionId)) return;
         const option = getChassisOption(rowId, optionId);
         const downtimeMs = (option.downtime || 0) * 1000;
@@ -156,7 +155,7 @@ export function authorizeChassis(rowId, optionId) {
 
 // Advances factory downtime (called from the game clock's summable tick group).
 export function panelsTick(timeDelta) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         if (!getState().panels.chassis.retooling) return;
         batch(() => {
             dispatch({ type: CHASSIS_TICK, payload: { timeDelta } });
@@ -181,7 +180,7 @@ function logAuthorization(dispatch, getState, rowId) {
 // row is actionable right now (unlocked + affordable + factory idle; goes dark when it isn't, so
 // it never nags forever). Deliberately ignores retools of already-signed forks — those would keep
 // it lit for the rest of the game.
-export function chassisNeedsAttention(state) {
+export function chassisNeedsAttention(state: RootState) {
     return Object.values(CHASSIS_ROWS_BY_ID).some(row => {
         if (!isChassisRowUnlocked(state.panels, row)) return false;
         if (!state.panels.chassis.seenRowIds.includes(row.id)) return true; // new arrival
@@ -193,8 +192,7 @@ export function chassisNeedsAttention(state) {
 // Folds every authorized chassis option's effect into `variables`, in place — but only for
 // variables the caller's block actually has (so a batteryCapacity effect can't smear NaN onto a
 // droid stat block and vice versa). getDroidStats / getBatteryCapacity call this.
-/** @param {PanelsState} panelsState @param {Variables} variables */
-export function applyChassisEffects(panelsState, variables) {
+export function applyChassisEffects(panelsState: PanelsState, variables: Variables) {
     const operations = initOperations();
     Object.values(CHASSIS_ROWS_BY_ID).forEach(row => {
         const record = getAuthorizedRecord(panelsState, row);

@@ -80,7 +80,7 @@ export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT';
 export const SQUAD_RESOLVE_POI = 'planet/SQUAD_RESOLVE_POI';
 export const SQUAD_DELIVER_CARGO = 'planet/SQUAD_DELIVER_CARGO';
 
-const OVERALL_MAP_STATUS = {
+const OVERALL_MAP_STATUS: { [K in MapStatus]: K } = {
     unstarted: 'unstarted',
     inProgress: 'inProgress',
     finished: 'finished',
@@ -95,7 +95,7 @@ export const ROTATION_MODES = {
 }
 
 // Initial State
-const initialState = {
+const initialState: PlanetState = {
     map: [],
     homeCoord: null, // [row, col] of the command center; droids spawn here
     overallStatus: OVERALL_MAP_STATUS.unstarted,
@@ -130,7 +130,7 @@ const initialState = {
 }
 
 // Reducer
-export default function reducer(state = initialState, action) {
+export default function reducer(state: PlanetState = initialState, action: GameAction): PlanetState {
     const payload = action.payload;
     let updates;
 
@@ -408,7 +408,7 @@ export default function reducer(state = initialState, action) {
 }
 
 // Folds a POI reward's resources into the squad's cargo (pure).
-function mergeCargo(cargo, reward) {
+function mergeCargo(cargo: ResourceAmounts, reward: PoiReward) {
     if (!(reward && reward.resources)) return cargo || {};
     const next = { ...(cargo || {}) };
     Object.entries(reward.resources).forEach(([id, amount]) => {
@@ -419,7 +419,7 @@ function mergeCargo(cargo, reward) {
 
 // Shared by PROGRESS (scout reveals) and ADVANCE_SQUAD (squad reveals): mutates `updates` to mark the given
 // tiles explored, bump numExplored, and flip any hidden POI on a revealed tile to available.
-function addRevealUpdates(state, updates, reveals) {
+function addRevealUpdates(state: PlanetState, updates: Record<string, any>, reveals: Coord[]) {
     if (!reveals || reveals.length === 0) return;
 
     updates.map = updates.map || {};
@@ -526,7 +526,7 @@ function finishExploringMap() {
     return { type: FINISH_EXPLORING_MAP, payload: {} };
 }
 
-export function startDevelopment(dispatch, getState, size) {
+export function startDevelopment(dispatch: Dispatch, getState: GetState, size: number) {
     const planet = getState().planet;
     // Growth flows toward the beacon when one is set, otherwise stays huddled around home
     const anchorCoord = planet.beaconCoord || planet.homeCoord;
@@ -534,7 +534,7 @@ export function startDevelopment(dispatch, getState, size) {
     dispatch({ type: START_DEVELOPMENT, payload: { coords } })
     dispatch(recalculateState());
 }
-export function finishDevelopment(dispatch, getState) {
+export function finishDevelopment(dispatch: Dispatch, getState: GetState) {
     const coords = getCurrentDevelopmentArea(getState().planet.map);
     dispatch({ type: FINISH_DEVELOPMENT, payload: { coords } });
     dispatch(recalculateState());
@@ -547,7 +547,7 @@ export function setExploreSpeed(value) {
 // Growth beacon (ships with Survey Automation): one optional map click sets the expansion vector; replication
 // then consumes frontier tiles nearest it (nearest home when unset). Clicking the beacon's own tile clears it.
 export function setBeaconAt(coord) {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         if (!surveyAutomationUnlocked(getState())) return;
 
         const current = getState().planet.beaconCoord;
@@ -567,7 +567,7 @@ export function unlockTerrain(upgrade) {
 }
 
 export function planetTick(timeDelta) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             const state = getState().planet;
 
@@ -670,7 +670,7 @@ export function planetTick(timeDelta) {
 // Ambient expedition telemetry (cargo banked, sealed sites, disband summaries) goes to the main terminal as
 // inline lines; anything the player is standing in front of narrates through the encounter popup instead.
 
-function sealedText(poi) {
+function sealedText(poi: Poi) {
     return `${poi.name} is sealed — requires ${CAPABILITY_LABELS[poi.requires] || poi.requires}.`;
 }
 
@@ -679,7 +679,7 @@ function sealedText(poi) {
 // fielded squad). The squad automatically carries every owned equipment piece at full charges, and its
 // unit stats (base + researched combat upgrades) are snapshotted here: refit at base.
 export function deploySquad(assignedDroids) {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         const state = getState();
         const planet = state.planet;
         if (planet.squad || !planet.homeCoord) return;
@@ -697,7 +697,7 @@ export function deploySquad(assignedDroids) {
 // Surviving units settle back into whole droids to the nearest (droidsRecovered): partial losses
 // re-replicate at home.
 export function disbandSquad() {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
         const squad = planet.squad;
         if (!squad || squad.fighting) return;
@@ -728,7 +728,7 @@ export function squadFace(dir) {
 }
 
 export function squadStep(coord) {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
         const squad = planet.squad;
         if (!squad || squad.fighting) return false;
@@ -757,7 +757,7 @@ export function squadStep(coord) {
  * wall -- you discover the danger, and the NEXT step in commits.
  */
 export function squadStepInto(coord, tap) {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
         const squad = planet.squad;
         if (!squad || squad.fighting) return 'busy';
@@ -790,7 +790,7 @@ export function squadStepInto(coord, tap) {
 // Player accepts the open interaction prompt (take the cache / explore the site): resolve the POI, load any
 // reward as cargo, file the report.
 export function squadInteract() {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
         const squad = planet.squad;
         if (!squad || !planet.prompt || planet.prompt.phase !== 'offer') return false;
@@ -826,7 +826,7 @@ export function squadLeavePrompt() {
 // current garrison, played out in the encounter popup. `fromCoord` is the tile the squad stepped in from,
 // held for the duration so a retreat can walk back out the way it came.
 export function squadAttack(poiId, fromCoord) {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
         const squad = planet.squad;
         const poi = planet.pois[poiId];
@@ -859,7 +859,7 @@ export function squadAttack(poiId, fromCoord) {
 
 // Fires a carried equipment piece into the live battle (the popup's action row / number hotkeys).
 export function useEquipment(itemId) {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         const squad = getState().planet.squad;
         if (!squad || !squad.fighting) return false;
         if (!squad.equipment || !(squad.equipment[itemId] > 0)) return false;
@@ -872,7 +872,7 @@ export function useEquipment(itemId) {
 // Orders a fighting squad to fall back (Esc). Droids stop attacking and run for the field edge while bugs
 // keep swinging, so the cost is emergent: fleeing at first contact is nearly free, mid-rout is not.
 export function retreatFromFight() {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         const squad = getState().planet.squad;
         if (!squad || !squad.fighting) return false;
         if (squad.fighting.battle.phase === BATTLE_PHASES.withdrawing) return false;
@@ -883,7 +883,7 @@ export function retreatFromFight() {
 }
 
 // Applies advanceSquad's contact/fight events (dispatched from planetTick).
-function resolveSquadEvent(dispatch, getState, squad, event) {
+function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad, event: any) {
     const pois = getState().planet.pois;
 
     switch (event.type) {
@@ -1000,7 +1000,7 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
 
 // Standard functions
 
-export function percentExplored(state) {
+export function percentExplored(state: PlanetState) {
     return state.numExplored / NUM_SECTORS * 100;
 }
 
@@ -1012,8 +1012,8 @@ export function percentExplored(state) {
 //     (counted in numArrivedHome; the resources reducer credits the pool from it)
 // Targeting is bounded to `halo`, the scouts' sweep area (see getGridHalo).
 // Pure: reads `map` but never mutates it -- returns the new droid array plus the list of newly-revealed coords.
-function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget, halo = null) {
-    const reveals = new Set();
+function advanceDroids(map: PlanetMap, droids: ScoutDroid[], moveAmount: number, unlocks: Unlocks, allowRetarget: boolean, halo: Set<string> | null = null) {
+    const reveals = new Set<string>();
     const isRevealed = (row, col) => map[row][col].status !== STATUSES.unknown.key || reveals.has(`${row},${col}`);
     const reveal = (row, col) => {
         if (map[row][col].status === STATUSES.unknown.key) reveals.add(`${row},${col}`);
@@ -1162,7 +1162,7 @@ function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget, halo = n
 
     return {
         droids: nextDroids,
-        reveals: Array.from(reveals).map(key => key.split(',').map(Number)),
+        reveals: Array.from(reveals).map(key => key.split(',').map(Number) as Coord),
         numArrivedHome
     };
 }

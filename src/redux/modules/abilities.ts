@@ -18,13 +18,13 @@ export const END_COOLDOWN = 'abilities/END_COOLDOWN';
 export const CHARGE_RNG = 'abilities/CHARGE_RNG';
 
 // Initial State
-const initialState = {
+const initialState: AbilitiesState = {
     byId: {},
     visibleIds: []
 }
 
 // Reducers
-export default function reducer(state = initialState, action) {
+export default function reducer(state: AbilitiesState = initialState, action: GameAction): AbilitiesState {
     const payload = action.payload;
 
     switch (action.type) {
@@ -121,7 +121,7 @@ export function learn(id) {
     return withRecalculation({ type: LEARN, payload: { id } }); // recalculate so we immediately calculate costs
 }
 export function startCastUnsafe(ability) {
-    return function(dispatch, getState) {
+    return function(dispatch: Dispatch, getState: GetState) {
         batch(() => {
             dispatch({ type: START_CAST, payload: { ability } });
             if (callbacks[ability.id] && callbacks[ability.id].onStart) {
@@ -141,15 +141,14 @@ export function startCastUnsafe(ability) {
 // The commandCenter_charge ability is a bit special. It has RNG components (e.g. 5% chance to generate a crystal)
 // which is hard to build into the normal `produces` handler (and we don't want randomness in reducers). It also needs
 // to trigger animations, some of which only happen some of the time (e.g. special animation when crystal is found).
-/** @param {Dispatch} dispatch @param {GetState} getState */
-export function chargeRNG(dispatch, getState) {
+export function chargeRNG(dispatch: Dispatch, getState: GetState) {
     const charge = getAbility(getState().abilities, 'commandCenter_charge');
 
     const resources = {
         energy: 0,
         refinedMinerals: 0,
     }
-    const animations = {};
+    const animations: Record<string, any> = {}; // immutability-helper specs for the CHARGE_RNG reducer
 
     // 100% chance to generate energy
     resources.energy += charge.variables.energy;
@@ -167,7 +166,7 @@ export function chargeRNG(dispatch, getState) {
 }
 
 export function abilitiesTick(timeDelta) {
-    return (dispatch, getState) => {
+    return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             dispatch({ type: PROGRESS, payload: { timeDelta } });
 
@@ -200,29 +199,23 @@ function endCooldown(dispatch, getState, ability) {
 
 
 // Standard Functions
-/** @param {AbilitiesState} state @param {string} id @returns {Ability} */
-export function getAbility(state, id) {
+export function getAbility(state: AbilitiesState, id: string): Ability {
     return state.byId[id];
 }
-/** @param {Ability} ability @returns {ResourceAmounts} */
-export function getAbilityCost(ability) {
+export function getAbilityCost(ability: Ability): ResourceAmounts {
     return ability.cost; // todo floor
 }
-/** @param {Ability} ability @returns {ResourceAmounts} */
-export function getAbilityProduction(ability) {
+export function getAbilityProduction(ability: Ability): ResourceAmounts {
     return ability.produces;
 }
-/** @param {Ability} ability @returns {boolean} */
-export function isReady(ability) {
+export function isReady(ability: Ability): boolean {
     return ability.state === STATES.ready;
 }
-/** @param {Ability} ability @returns {boolean} */
-export function isCasting(ability) {
+export function isCasting(ability: Ability): boolean {
     return ability.state === STATES.casting;
 }
 
-/** @param {AbilitiesState} state @returns {string[]} */
-export function visibleIds(state) {
+export function visibleIds(state: AbilitiesState): string[] {
     return Object.keys(state.byId); // every ability that is learned is visible
 }
 
