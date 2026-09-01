@@ -60,6 +60,7 @@ export function startEnergyBeam(time) {
     return { type: UPDATE_SETTING, payload: { key: 'hyperBeamStartedAt', value: time } }
 }
 
+/** @param {StarState} state @returns {boolean} */
 export function isTargetingPlanet(state) {
     return state && state.mirrorTarget && state.mirrorTarget === TARGETS.PLANET;
 }

@@ -29,7 +29,7 @@ export const EQUIPMENT_DEFS = {
         charges: 1,
         effect: { kind: 'overcharge', durationMs: 6000, rateMultiplier: 2 }
     }
-};
+} satisfies Record<EquipmentId, EquipmentDef>;
 
 // Display/hotkey order (mid-fight buttons are 1..N in this order)
-export const EQUIPMENT_ORDER = ['demoCharge', 'repairKit', 'overchargeCell'];
+export const EQUIPMENT_ORDER: EquipmentId[] = ['demoCharge', 'repairKit', 'overchargeCell'];

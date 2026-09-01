@@ -111,6 +111,7 @@ export function unlockChassisRow(rowId) {
     return { type: CHASSIS_UNLOCK_ROW, payload: { rowId } };
 }
 
+/** @param {PanelsState} panelsState @param {ChassisRow} row @returns {boolean} */
 export function isChassisRowUnlocked(panelsState, row) {
     return !!(row.preAuthorized || row.unlock === 'start' || panelsState.chassis.unlocked.includes(row.id));
 }
@@ -192,6 +193,7 @@ export function chassisNeedsAttention(state) {
 // Folds every authorized chassis option's effect into `variables`, in place — but only for
 // variables the caller's block actually has (so a batteryCapacity effect can't smear NaN onto a
 // droid stat block and vice versa). getDroidStats / getBatteryCapacity call this.
+/** @param {PanelsState} panelsState @param {Variables} variables */
 export function applyChassisEffects(panelsState, variables) {
     const operations = initOperations();
     Object.values(CHASSIS_ROWS_BY_ID).forEach(row => {

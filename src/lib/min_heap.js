@@ -1,3 +1,4 @@
+// @ts-check
 // A standard binary min-heap priority queue: push(priority, value), then pop() returns the lowest-priority entry.
 // It exists to keep graph search (Dijkstra) at O(E log V) instead of the O(V^2) you'd get from scanning an array
 // for the minimum on every pop.

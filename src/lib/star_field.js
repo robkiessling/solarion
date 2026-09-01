@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * The star field: a hashed, twinkling sky drawn across a whole canvas, shared by every view that looks out
  * into space (the planet tab's sky behind the globe, the star tab's sky behind the sun and swarm).

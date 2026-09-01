@@ -75,9 +75,11 @@ export function clockTick(timeDelta) {
     }
 }
 
+/** @param {ClockState} state @returns {number} */
 export function dayLength(state) {
     return state.dayLength;
 }
+/** @param {ClockState} state @returns {number} */
 export function fractionOfDay(state) {
     const secondsIntoDay = elapsedTime(state) % state.dayLength;
     return secondsIntoDay / state.dayLength;
@@ -122,16 +124,19 @@ export function timePeriodData(fractionOfDay) {
 export function timePeriodName(state) {
     return timePeriodData(fractionOfDay(state))[1];
 }
+/** @param {ClockState} state @returns {number} */
 export function daylightPercent(state) {
     return timePeriodData(fractionOfDay(state))[2];
 }
 
 const MIN_TEMPERATURE = -105;
 const MAX_TEMPERATURE = 190;
+/** @param {ClockState} state @returns {number} */
 export function surfaceTemperature(state) {
     return daylightPercent(state) * (MAX_TEMPERATURE - MIN_TEMPERATURE) + MIN_TEMPERATURE;
 }
 
+/** @param {ClockState} state @returns {number} */
 export function windSpeed(state) {
     const step = Math.floor(state.elapsedTime / WIND_STEP_SIZE) % WIND_SPEEDS_SPLAT.length;
     return WIND_SPEEDS_SPLAT[step];

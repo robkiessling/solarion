@@ -139,8 +139,8 @@ export default function reducer(state = initialState, action) {
             return update(state, {
                 map: { $set: payload.map },
                 homeCoord: { $set: payload.homeCoord },
-                numExplored: { $set: numSectorsMatching(payload.map, STATUSES.explored.enum) },
-                maxDevelopedLand: { $set: numSectorsMatching(payload.map, undefined, TERRAINS.flatland.enum) + 1 }, // add 1 for home base
+                numExplored: { $set: numSectorsMatching(payload.map, STATUSES.explored.key) },
+                maxDevelopedLand: { $set: numSectorsMatching(payload.map, undefined, TERRAINS.flatland.key) + 1 }, // add 1 for home base
                 pois: { $set: payload.pois },
                 squad: { $set: null },
                 prompt: { $set: null },
@@ -216,7 +216,7 @@ export default function reducer(state = initialState, action) {
             payload.coords.forEach(coord => {
                 if (updates.map[coord[0]] === undefined) { updates.map[coord[0]] = {} }
                 updates.map[coord[0]][coord[1]] = {
-                    terrain: { $set: TERRAINS.developing.enum }
+                    terrain: { $set: TERRAINS.developing.key }
                 }
             })
             return update(state, updates);
@@ -230,7 +230,7 @@ export default function reducer(state = initialState, action) {
             payload.coords.forEach(coord => {
                 if (updates.map[coord[0]] === undefined) { updates.map[coord[0]] = {} }
                 updates.map[coord[0]][coord[1]] = {
-                    terrain: { $set: TERRAINS.developed.enum }
+                    terrain: { $set: TERRAINS.developed.key }
                 }
             })
             return update(state, updates);
@@ -425,7 +425,7 @@ function addRevealUpdates(state, updates, reveals) {
     updates.map = updates.map || {};
     reveals.forEach(([rowIndex, colIndex]) => {
         if (updates.map[rowIndex] === undefined) updates.map[rowIndex] = {};
-        updates.map[rowIndex][colIndex] = { status: { $set: STATUSES.explored.enum } };
+        updates.map[rowIndex][colIndex] = { status: { $set: STATUSES.explored.key } };
     });
     updates.numExplored = { $apply: x => x + reveals.length };
     updates.overallStatus = { $set: OVERALL_MAP_STATUS.inProgress };
@@ -593,7 +593,7 @@ export function planetTick(timeDelta) {
                     state.map, state.pois, state.squad, timeDelta, state.unlockedTerrains
                 );
                 const revealedFlatland = reveals.filter(
-                    ([r, c]) => state.map[r][c].terrain === TERRAINS.flatland.enum && !state.map[r][c].infestedBy
+                    ([r, c]) => state.map[r][c].terrain === TERRAINS.flatland.key && !state.map[r][c].infestedBy
                 ).length;
                 dispatch({ type: ADVANCE_SQUAD, payload: { squad, reveals, revealedFlatland } });
                 if (revealedFlatland > 0) {
@@ -646,7 +646,7 @@ export function planetTick(timeDelta) {
             // Newly-revealed flatland becomes buildable land (resources reducer listens for this on PROGRESS).
             // Infested flatland doesn't count -- it credits later, when its nest is cleared.
             const revealedFlatland = reveals.filter(
-                ([r, c]) => planetState.map[r][c].terrain === TERRAINS.flatland.enum && !planetState.map[r][c].infestedBy
+                ([r, c]) => planetState.map[r][c].terrain === TERRAINS.flatland.key && !planetState.map[r][c].infestedBy
             ).length;
 
             dispatch({ type: PROGRESS, payload: { newRotation, droids, reveals, revealedFlatland, numArrivedHome } });
@@ -734,7 +734,7 @@ export function squadStep(coord) {
         if (!squad || squad.fighting) return false;
 
         if (!isPassable(planet.map, coord, planet.unlockedTerrains)) {
-            if (planet.map[coord[0]][coord[1]].status === STATUSES.unknown.enum) {
+            if (planet.map[coord[0]][coord[1]].status === STATUSES.unknown.key) {
                 // Reveal the wall: same action shape as movement, with the squad itself unchanged
                 dispatch({ type: ADVANCE_SQUAD, payload: { squad, reveals: [coord], revealedFlatland: 0 } });
             }
@@ -900,8 +900,8 @@ function resolveSquadEvent(dispatch, getState, squad, event) {
                     const planetMap = getState().planet.map;
                     [poi.coord, ...getCoordsWithinHops(poi.coord, poi.infestRadius)].forEach(([r, c]) => {
                         const sector = planetMap[r][c];
-                        if (sector.infestedBy === event.poiId && sector.status === STATUSES.explored.enum &&
-                            sector.terrain === TERRAINS.flatland.enum) {
+                        if (sector.infestedBy === event.poiId && sector.status === STATUSES.explored.key &&
+                            sector.terrain === TERRAINS.flatland.key) {
                             landCredit++;
                         }
                     });
@@ -1014,9 +1014,9 @@ export function percentExplored(state) {
 // Pure: reads `map` but never mutates it -- returns the new droid array plus the list of newly-revealed coords.
 function advanceDroids(map, droids, moveAmount, unlocks, allowRetarget, halo = null) {
     const reveals = new Set();
-    const isRevealed = (row, col) => map[row][col].status !== STATUSES.unknown.enum || reveals.has(`${row},${col}`);
+    const isRevealed = (row, col) => map[row][col].status !== STATUSES.unknown.key || reveals.has(`${row},${col}`);
     const reveal = (row, col) => {
-        if (map[row][col].status === STATUSES.unknown.enum) reveals.add(`${row},${col}`);
+        if (map[row][col].status === STATUSES.unknown.key) reveals.add(`${row},${col}`);
     };
     // Line-of-sight from a tile a droid is standing on: reveal it and everything within SCOUT_VISION_HOPS
     // (mountains show up as walls and hide what is behind them, as for the squad).

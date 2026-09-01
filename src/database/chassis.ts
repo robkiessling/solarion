@@ -62,7 +62,7 @@ export const CHASSIS_PANEL = {
     corpusHeader: 'SOLARION PROGRAM — CHASSIS DESIGN CORPUS',
 };
 
-export const CHASSIS_ROWS = [
+export const CHASSIS_ROWS: ChassisRow[] = [
     {
         id: 'mk1Frame',
         name: 'Mk.1 FRAME',
@@ -192,10 +192,10 @@ export const CHASSIS_ROWS = [
     },
 ];
 
-export const CHASSIS_ROWS_BY_ID = {};
+export const CHASSIS_ROWS_BY_ID: Record<string, ChassisRow> = {};
 CHASSIS_ROWS.forEach(row => { CHASSIS_ROWS_BY_ID[row.id] = row; });
 
-export function getChassisOption(rowId, optionId) {
+export function getChassisOption(rowId: string, optionId: string): ChassisOption | null {
     const row = CHASSIS_ROWS_BY_ID[rowId];
     if (!row) return null;
     return row.options.find(option => option.id === optionId) || null;

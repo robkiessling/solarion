@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * Canvas renderer for the planet view. Takes the cell grid produced by planet_map's generateImage and draws it
  * onto an AsciiCanvas. Colors used to live in outside.scss as tile classNames; the canvas needs them in JS, so
@@ -170,7 +171,7 @@ const PING_VARIANTS = {
  * (the endgame laser-beam overlay is much wider than the planet); extra cells draw into the canvas letterbox
  * area and clip at the canvas edge.
  *
- * @param canvasManager {AsciiCanvas} must be constructed with the fillContainer option
+ * @param canvasManager {import('./ascii_canvas').default} must be constructed with the fillContainer option
  * @param image {Array} 2d array of cells from generateImage: { char, colorKey, color, daylight, dividers }
  * @param cameraShift {number} sub-column camera offset in cell units (the follow-cam mid-slide); shifts the
  *        whole scene -- chars, halo segments, pings -- while the canvas/silhouette stays put. generateImage

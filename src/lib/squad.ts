@@ -46,19 +46,19 @@ export {isOnGrid} from "./planet_map";
 // The kind of ground a coord is, as far as the driver feels it: hive territory first (it overrides the
 // terrain), then powered grid, then the terrain itself. Zone changes drive the terminal's terrain notes and
 // the map frame's tint.
-export function squadZone(map, coord) {
+export function squadZone(map: PlanetMap, coord: Coord): string {
     const sector = map[coord[0]][coord[1]];
     if (sector.infestedBy) return 'infested';
     if (isOnGrid(map, coord)) return 'grid';
     return getTerrain(sector.terrain).key;
 }
 
-export function squadDrainPerTile(squad) {
+export function squadDrainPerTile(squad: Squad) {
     if (INFINITE_CHARGE) return 0;
     return SQUAD_DRAIN_PER_DROID * (squad.assignedDroids || 5);
 }
 
-export function squadBatteryCapacity(squad) {
+export function squadBatteryCapacity(squad: Squad) {
     return squad.batteryCapacity || SQUAD_BATTERY_CAPACITY;
 }
 
@@ -68,7 +68,7 @@ export function squadBatteryCapacity(squad) {
  * the escapees carried out. That way a bar tracks the fight in real time and already sits at the
  * settlement value when it ends.
  */
-export function squadHp(squad) {
+export function squadHp(squad: Squad): { hp: number, hpMax: number } {
     const hpMax = squad.squadSize * ((squad.droidStats || DROID_BASE_STATS).hp);
     const battle = squad.fighting && squad.fighting.battle;
     const hp = battle ?
@@ -84,8 +84,8 @@ export function squadHp(squad) {
  * grow a fielded squad). Everything downstream -- battles, wounds (droidHp), losses, the sidebar --
  * deals in units 1:1; whole droids only reappear at disband settlement (droidsRecovered).
  */
-export function createSquad(homeCoord, assignedDroids = 1, multiplier = 1, equipment = {}, droidStats = DROID_BASE_STATS,
-                            batteryCapacity = SQUAD_BATTERY_CAPACITY) {
+export function createSquad(homeCoord: Coord, assignedDroids = 1, multiplier = 1, equipment: EquipmentCharges = {},
+                            droidStats: DroidStats = DROID_BASE_STATS, batteryCapacity = SQUAD_BATTERY_CAPACITY): Squad {
     const numUnits = assignedDroids * multiplier;
     return {
         coord: homeCoord,
@@ -108,19 +108,19 @@ export function createSquad(homeCoord, assignedDroids = 1, multiplier = 1, equip
 // Disband settlement: surviving units round back to whole droids, to the nearest (losing less than half a
 // multiplier's worth of units costs nothing: partial stacks re-replicate at home, the same fiction as
 // heals-at-home; unexploitable because nests reset fully between engagements).
-export function droidsRecovered(squad) {
+export function droidsRecovered(squad: Squad): number {
     return Math.min(squad.assignedDroids || squad.squadSize,
         Math.round(squad.squadSize / (squad.multiplier || 1)));
 }
 
 // The available (discovered, unresolved) POI standing on `coord`, or null.
-export function poiAtCoord(pois, coord) {
+export function poiAtCoord(pois: Record<string, Poi>, coord: Coord): Poi | null {
     return Object.values(pois || {}).find(poi =>
         poi.status === POI_STATUS.available && poi.coord[0] === coord[0] && poi.coord[1] === coord[1]
     ) || null;
 }
 
-export function squadCrossMs(map, coord, unlocks) {
+export function squadCrossMs(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
     return getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) * 1000 * SQUAD_SPEED_FACTOR;
 }
 
@@ -139,7 +139,8 @@ export function squadCrossMs(map, coord, unlocks) {
  *   { type: 'fieldWiped', unitsLost, multiplier, cargoLost } (reserve-power hull burn killed the last
  *       unit; the returned squad is null and the caller settles the loss)
  */
-export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
+export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: Squad, moveAmountMs: number, unlocks: Unlocks):
+    { squad: Squad | null, reveals: Coord[], events: any[] } {
     const events = [];
 
     if (squad.fighting) {
@@ -165,9 +166,9 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
     path = path ? path.slice() : [];
     moveProgress = (moveProgress || 0) + moveAmountMs;
 
-    const reveals = new Set();
+    const reveals = new Set<string>();
     const reveal = ([r, c]) => {
-        if (map[r][c].status === STATUSES.unknown.enum) reveals.add(`${r},${c}`);
+        if (map[r][c].status === STATUSES.unknown.key) reveals.add(`${r},${c}`);
     };
 
     while (path.length > 0) {
@@ -210,7 +211,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
             if (droidHp.length === 0) {
                 events.push({ type: 'fieldWiped', unitsLost: squadSize,
                     multiplier: squad.multiplier || 1, cargoLost: squad.cargo });
-                return { squad: null, reveals: [...reveals].map(key => key.split(',').map(Number)), events };
+                return { squad: null, reveals: [...reveals].map(key => key.split(',').map(Number) as Coord), events };
             }
             squadSize = droidHp.length;
         }
@@ -232,7 +233,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
 
     return {
         squad: {...squad, coord, path, moveProgress, battery, droidHp, equipment, squadSize},
-        reveals: [...reveals].map(key => key.split(',').map(Number)),
+        reveals: [...reveals].map(key => key.split(',').map(Number) as Coord),
         events
     };
 }
@@ -244,7 +245,7 @@ export function advanceSquad(map, pois, squad, moveAmountMs, unlocks) {
  * rotation, which is what makes movement reversible and camera-independent. Ignores passability -- the caller
  * decides whether a blocked target means "reveal the wall" or "bump".
  */
-export function stepInDirection(coord, dirVec) {
+export function stepInDirection(coord: Coord, dirVec: [number, number]): Coord | null {
     const [dx, dy] = dirVec;
 
     if (dy !== 0) {

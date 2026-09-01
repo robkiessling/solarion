@@ -13,20 +13,20 @@
  */
 
 
-export const EFFECT_TARGETS = {
-    structure: 0, // Affects the entire structure (all structure variables)
-    ability: 1, // Affects a specific ability (all variables of that ability)
-    misc: 2 // Affects a one-off thing, will be applied manually
+export const EFFECT_TARGETS: { [K in EffectTarget]: K } = {
+    structure: 'structure', // Affects the entire structure (all structure variables)
+    ability: 'ability', // Affects a specific ability (all variables of that ability)
+    misc: 'misc' // Affects a one-off thing, will be applied manually
 }
 
-export function initOperations() {
+export function initOperations(): EffectOperations {
     return {
         add: [],
         multiply: []
     }
 }
 
-export function mergeEffectIntoOperations(effect, operations) {
+export function mergeEffectIntoOperations(effect: Effect, operations: EffectOperations) {
     parseEffect(effect, (variable, operation, value) => {
         operations[operation].push({
             variable: variable,
@@ -35,7 +35,7 @@ export function mergeEffectIntoOperations(effect, operations) {
     })
 }
 
-export function applyOperationsToVariables(operations, variables) {
+export function applyOperationsToVariables(operations: EffectOperations, variables: Variables) {
     // Have to add first, then multiply
     operations.add.forEach(operation => {
         variables[operation.variable] += operation.value;
@@ -48,16 +48,16 @@ export function applyOperationsToVariables(operations, variables) {
 // Applies a single effect to the variables.
 // Note: This should not be used in sequence with other applyEffect calls; if you do this you may accidentally apply multiplication
 //       before addition. See `applyAllEffects` function(s) for an example of how to correctly apply multiple effects.
-export function applySingleEffect(effect, variables) {
+export function applySingleEffect(effect: Effect, variables: Variables) {
     const operations = initOperations();
     mergeEffectIntoOperations(effect, operations);
     applyOperationsToVariables(operations, variables);
 }
 
-function parseEffect(effect, callback) {
+function parseEffect(effect: Effect, callback: (variable: string, operation: 'add' | 'multiply', value: number) => void) {
     for (const [variable, operations] of Object.entries(effect)) {
         for (const [operation, value] of Object.entries(operations)) {
-            callback(variable, operation, value);
+            callback(variable, (operation as 'add' | 'multiply'), value);
         }
     }
 }

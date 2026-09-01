@@ -1,3 +1,4 @@
+// @ts-check
 import {mod} from "./helpers";
 
 const MAX_THETA = 2 * Math.PI;

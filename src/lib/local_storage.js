@@ -1,3 +1,4 @@
+// @ts-check
 import {resetLastSavedAt, updateLastSavedAt, updateSetting} from "../redux/modules/game";
 import store from "../redux/store";
 
@@ -26,6 +27,7 @@ export const loadState = () => {
     }
 }
 
+/** @param {RootState} state */
 export const saveState = (state) => {
     try {
         const serializedState = JSON.stringify(state);

@@ -53,10 +53,10 @@ const ESCAPE_X = 1.5;           // a withdrawing droid past this x has left the 
 const SUBSTEP_MS = 50;          // integration cap; callers may pass any dt (catch-up replays big ones)
 export const FX_TTL_MS = 600;   // hit/death/bomb markers linger this long for the renderer
 
-export const BATTLE_PHASES = { active: 'active', withdrawing: 'withdrawing' };
+export const BATTLE_PHASES: { active: 'active', withdrawing: 'withdrawing' } = { active: 'active', withdrawing: 'withdrawing' };
 
 // A fresh squad's per-droid hp list (persistence helpers: squad state and save migration use it too).
-export function fullDroidHp(count, maxHp = DROID_BASE_STATS.hp) {
+export function fullDroidHp(count: number, maxHp: number = DROID_BASE_STATS.hp): number[] {
     return new Array(count).fill(maxHp);
 }
 
@@ -299,7 +299,7 @@ export const TERRAIN_CELL_H = 3.2;  // matches the renderer's glyph height, so a
 // the spawn fixup checks, so nothing ever starts sealed inside a hollow.
 const TERRAIN_GRID_CACHE = new WeakMap();
 
-export function getTerrainGrid(battle) {
+export function getTerrainGrid(battle: Battle) {
     const terrain = battle.terrain;
     if (!terrain || !terrain.pieces || terrain.pieces.length === 0) return null;
     let grid = TERRAIN_GRID_CACHE.get(terrain);
@@ -545,7 +545,7 @@ export const TERRAIN_LAYOUTS = {
 // One-line scene description for the battle footer: ground clause + the garrison's opening (text records
 // in database/battle.js), matching what the arena actually shows. Pure presentation (derived at render
 // time, nothing reads it back), so existing mid-fight saves get it too.
-export function battleBlurb(battle, formation) {
+export function battleBlurb(battle: Battle, formation?: string): string {
     const ground = GROUND_BLURBS[battle.terrain ? battle.terrain.id : 'open'] || GROUND_BLURBS.open;
     let swarm = SWARM_BLURBS[formation] || SWARM_BLURBS.column;
     // The ring's center slot is where a garrison's leading hive stands (see createBattle); name the
@@ -559,8 +559,8 @@ export function battleBlurb(battle, formation) {
 // One combat-ready unit. `base` selects the unit's deterministic hash streams (opening swing delay,
 // wobble phase/period, collision tie-break angle) and must be unique across every unit the battle will
 // ever hold, including bugs a spawner adds mid-fight.
-function makeUnit(id, side, type, stats, base, x, y, arenaW, arenaH, hp) {
-    const unit = {
+function makeUnit(id: string, side: BattleSide, type: string, stats: UnitStats, base: number, x: number, y: number, arenaW: number, arenaH: number, hp?: number): BattleUnit {
+    const unit: BattleUnit = {
         id, side, type,
         x: Math.min(arenaW - 2, Math.max(2, x)),
         y: Math.min(arenaH - 2, Math.max(2, y)),
@@ -608,8 +608,9 @@ function spawnUnits(side, roster, statsByType, arenaW, arenaH, formation, terrai
  * from `terrainSalt`. Callers pass a salt derived from the nest's map position, so the same nest always
  * fights on the same ground; unset = open field.
  */
-export function createBattle(droids, bugs, droidStats = DROID_BASE_STATS, bugFormation = 'column',
-                             terrainId = null, terrainSalt = 0) {
+export function createBattle(droids: number | number[], bugs: number | { [bugType: string]: number },
+                             droidStats: DroidStats = DROID_BASE_STATS, bugFormation = 'column',
+                             terrainId: string | null = null, terrainSalt = 0): Battle {
     const droidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
     const composition = typeof bugs === 'number' ? { bug: bugs } : bugs;
 
@@ -662,12 +663,12 @@ export function createBattle(droids, bugs, droidStats = DROID_BASE_STATS, bugFor
     };
 }
 
-export function countUnits(battle, side) {
+export function countUnits(battle: Battle, side: BattleSide): number {
     return battle.units.reduce((n, u) => n + (u.side === side ? 1 : 0), 0);
 }
 
 // Living spawners afield: the header's "Hives x/y" fraction reads these against startingSpawners.
-export function countSpawners(battle) {
+export function countSpawners(battle: Battle): number {
     return battle.units.reduce((n, u) => n + (battle.stats[u.type].spawnEveryMs ? 1 : 0), 0);
 }
 
@@ -835,7 +836,7 @@ const CATCHUP_BUDGET_MS = 30;
  * droidHp is the survivors' per-droid hp (arena standers + escapees); the squad carries these wounds
  * until the powered grid repairs them. bugsRemaining is informational only: nests reset fully.
  */
-export function advanceBattle(battle, dtMs) {
+export function advanceBattle(battle: Battle, dtMs: number): { battle: Battle, events: any[] } {
     const events = [];
     let current = battle;
     let remaining = dtMs;
@@ -1089,7 +1090,7 @@ function advanceStep(battle, dtMs, events) {
  * accounting is the caller's job. All effects are instant and untargeted for now (aiming is a later
  * positional upgrade): the demo charge self-targets the densest bug clump and never harms droids.
  */
-export function applyEquipment(battle, itemId) {
+export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
     const def = EQUIPMENT_DEFS[itemId];
     if (!def) return battle;
     const effect = def.effect;
@@ -1107,7 +1108,7 @@ export function applyEquipment(battle, itemId) {
             }
             if (neighbors > most) { most = neighbors; center = candidate; }
         }
-        const fx = [...battle.fx, { type: 'bomb', x: center.x, y: center.y, t: battle.elapsedMs }];
+        const fx: BattleFx[] = [...battle.fx, { type: 'bomb', x: center.x, y: center.y, t: battle.elapsedMs }];
         const units = [];
         for (const u of battle.units) {
             const dx = u.x - center.x, dy = u.y - center.y;
@@ -1140,6 +1141,6 @@ export function applyEquipment(battle, itemId) {
 
 // Orders the withdrawal; droids stop fighting and run for the edge while bugs keep swinging at whoever is
 // in reach, so the cost of retreating scales with how engaged you were. No-op if already withdrawing.
-export function startWithdrawal(battle) {
+export function startWithdrawal(battle: Battle): Battle {
     return battle.phase === BATTLE_PHASES.withdrawing ? battle : { ...battle, phase: BATTLE_PHASES.withdrawing };
 }

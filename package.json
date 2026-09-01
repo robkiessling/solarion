@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy-github": "npm run build && gh-pages -d dist"
+    "deploy-github": "npm run build && gh-pages -d dist",
+    "typecheck": "tsc"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -23,10 +24,12 @@
   },
   "homepage": "https://github.com/robkiessling/solarion#readme",
   "devDependencies": {
+    "@types/lodash": "^4.17.25",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
     "gh-pages": "^6.1.1",
     "sass": "^1.83.0",
+    "typescript": "^7.0.2",
     "vite": "^6.4.3"
   },
   "dependencies": {

@@ -1,3 +1,4 @@
+// @ts-check
 import {shuffleArray} from "./helpers";
 import Ellipse from "./ellipse";
 import {QUEUE_TYPES} from "./ascii_canvas";

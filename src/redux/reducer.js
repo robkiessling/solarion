@@ -214,6 +214,7 @@ function applyResearchedUpgradeEffects(state, upgradeIds, variables) {
 // plus the authorized chassis spec (the schematic index panel; fleet-wide, no per-droid variants).
 // Snapshotted onto the squad at deploy (see deploySquad), so refits apply to the NEXT deployment --
 // the squad in the field fights with the stats it left base with.
+/** @param {RootState} state @returns {DroidStats} */
 export function getDroidStats(state) {
     const stats = { ...DROID_BASE_STATS };
     applyResearchedUpgradeEffects(state, DROID_COMBAT_UPGRADE_IDS, stats);
@@ -223,6 +224,7 @@ export function getDroidStats(state) {
 
 // The deployable squad's battery capacity: the base plus every researched battery upgrade plus the
 // authorized chassis spec. Snapshotted onto the squad at deploy under the same refit rule as getDroidStats.
+/** @param {RootState} state @returns {number} */
 export function getBatteryCapacity(state) {
     const stats = { batteryCapacity: SQUAD_BATTERY_CAPACITY };
     applyResearchedUpgradeEffects(state, BATTERY_UPGRADE_IDS, stats);
@@ -233,6 +235,7 @@ export function getBatteryCapacity(state) {
 // The battle gear squads carry automatically: each piece is owned once its one-time upgrade is
 // researched (story salvage can researchForFree the same upgrade ids later). Returns the fresh
 // loadout { itemId: maxCharges } a deploying squad walks out with.
+/** @param {RootState} state @returns {EquipmentCharges} */
 export function ownedEquipment(state) {
     const equipment = {};
     EQUIPMENT_ORDER.forEach(itemId => {
@@ -280,6 +283,7 @@ export function buildStructure(id, amount) {
     }
 }
 
+/** @param {Structure} structure @param {RootState} state @returns {number} */
 export function getReplicatedStructureCount(structure, state) {
     const developedLand = fromResources.getResource(state.resources, 'developedLand')
     const replicationMultiplier = developedLand ? fromResources.getQuantity(developedLand) : 1;
@@ -289,12 +293,14 @@ export function getReplicatedStructureCount(structure, state) {
 // The squad's replication multiplier: each assigned droid fields this many effective units, snapshotted at
 // deploy time (see createSquad). Whole-number version of the structure multiplier above (a squad can't
 // field a fractional unit).
+/** @param {RootState} state @returns {number} */
 export function getReplicationMultiplier(state) {
     const developedLand = fromResources.getResource(state.resources, 'developedLand');
     return Math.max(1, Math.floor(developedLand ? fromResources.getQuantity(developedLand) : 1));
 }
 
 // Gets structure statistic based on how many of the structures are built. Statistics can be any keys on the structure record.
+/** @param {RootState} state @param {Structure} structure @param {string} statistic @param {boolean} [includeReplications] @returns {ResourceAmounts} */
 export function getStructureStatistic(state, structure, statistic, includeReplications = true) {
     if (structure === undefined || structure[statistic] === undefined) {
         return {};
@@ -417,6 +423,7 @@ export function showDroidsForStructure(state, structure) {
     return showDroidsUI(state) && structure.droidData.usesDroids;
 }
 
+/** @param {RootState} state @returns {number} */
 export function numStandardDroids(state) {
     let total = 0;
 
@@ -510,6 +517,7 @@ export function planetDevelopmentProgress(state) {
 }
 
 
+/** @param {RootState} state @returns {number} */
 export function energyBeamStrengthPct(state) {
     if (!state.star || !state.star.mirrorTarget || state.star.mirrorTarget === TARGETS.NONE) {
         return 0;
@@ -539,6 +547,7 @@ export function energyBeamStrengthPct(state) {
 // The value is arbitrarily high, however the probeFactory_exponentialGrowth upgrade discover/cost should be somewhat proportional it.
 const ENERGY_BEAM_BASE_VALUE = 1.5e13;
 
+/** @param {RootState} state @returns {number} */
 export function energyBeamStrengthEnergy(state) {
     const numProbes = getQuantity(getResource(state.resources, 'probes'));
 

@@ -17,13 +17,13 @@ import {energyBeamStrengthEnergy, energyBeamStrengthPct, getStructureStatistic} 
 import {isTargetingPlanet, TARGETS} from "../redux/modules/star";
 import {probeCapacity} from "../lib/star";
 
-export const STATUSES = {
-    normal: 0,
-    insufficient: 1,
+export const STATUSES: { [K in StructureStatus]: K } = {
+    normal: 'normal',
+    insufficient: 'insufficient',
 }
-export const TYPES = {
-    generator: 0,
-    consumer: 1
+export const TYPES: { [K in StructureType]: K } = {
+    generator: 'generator',
+    consumer: 'consumer'
 }
 
 const IDLE_LABEL = 'Idle';
@@ -36,7 +36,7 @@ export const STANDARD_COST_EXP = 1.5; // Default exponential growth of structure
 const COMMAND_CENTER_NAME = 'Command Center';
 const COMMAND_CENTER_NAME_GARBLED = 'C◌░▒▓▓█▒░░░▒▓█';
 
-const base = {
+const base: StructureRecord = {
     name: 'Unknown',
     description: '',
     runnable: false,
@@ -66,45 +66,45 @@ export default {
     commandCenter: _.merge({}, base, {
         name: COMMAND_CENTER_NAME_GARBLED,
         // description: "A twisted mass of cables, switches and monitors surround a large device.",
-        types: TYPES.generator,
+        type: TYPES.generator,
         count: {
             max: 1
         },
         droidData: {
             usesDroids: false
         }
-    }),
+    } satisfies DeepPartial<StructureRecord>),
     harvester: _.merge({}, base, {
         name: "Harvester",
         description: "Drills into the planet's surface to gather ore." +
             " Less energy efficient as harvesting rate is increased.",
         runnable: true,
         type: TYPES.consumer,
-    }),
+    } satisfies DeepPartial<StructureRecord>),
     solarPanel: _.merge({}, base, {
         name: "Solar Farm",
-    }),
+    } satisfies DeepPartial<StructureRecord>),
     windTurbine: _.merge({}, base, {
         name: "Wind Turbine",
-    }),
+    } satisfies DeepPartial<StructureRecord>),
     thermalVent: _.merge({}, base, {
         name: "Geothermal Vent",
         // count: {
         //     total: 10
         // },
-    }),
+    } satisfies DeepPartial<StructureRecord>),
     energyBay: _.merge({}, base, {
         name: "Energy Bay",
         droidData: {
             assignTooltipPrefix: 'Each droid boosts capacity by '
         }
-    }),
+    } satisfies DeepPartial<StructureRecord>),
     refinery: _.merge({}, base, {
         name: "Refinery",
         runnable: true,
         type: TYPES.consumer,
         description: "Filters rare minerals out of ore.",
-    }),
+    } satisfies DeepPartial<StructureRecord>),
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
         description: "Constructs droids that can assist with production.",
@@ -115,7 +115,7 @@ export default {
         count: {
             max: 1
         }
-    }),
+    } satisfies DeepPartial<StructureRecord>),
     probeFactory: _.merge({}, base, {
         name: "Probe Launcher",
         description: "Manufactures and launches probes towards Solarion.",
@@ -127,11 +127,11 @@ export default {
         count: {
             max: 1
         }
-    }),
+    } satisfies DeepPartial<StructureRecord>),
 
-};
+} satisfies Record<StructureId, StructureRecord>;
 
-const baseCalculator = {
+const baseCalculator: CalculatorSet<Structure> = {
     animationTag: (state, structure) => { // todo rename animationKey?
         if (hasInsufficientResources(structure)) {
             return 'idle';
@@ -147,7 +147,7 @@ const baseCalculator = {
  * Note: `variables` is a special object that is calculated first; its result is provided to the rest of the functions as a
  * third parameter (that way many functions can be built off the same variables)
  */
-export const calculators = {
+export const calculators: Partial<Record<StructureId, CalculatorSet<Structure>>> = {
     commandCenter: {
         name: (state, structure) => {
             return state.game.showTerminal ? COMMAND_CENTER_NAME : COMMAND_CENTER_NAME_GARBLED;
@@ -227,7 +227,7 @@ export const calculators = {
                 return `${_.round(variables.efficiency * 100)}% efficiency`
             }
         },
-    }),
+    } satisfies CalculatorSet<Structure>),
     solarPanel: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
@@ -280,7 +280,7 @@ export const calculators = {
 
             return `Produces up to ${formatInteger(variables.peakEnergy, true)}${getIconSpan('energy', true)} per second depending on sunlight.`;
         },
-    }),
+    } satisfies CalculatorSet<Structure>),
     windTurbine: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
@@ -360,7 +360,7 @@ export const calculators = {
             const wind = windSpeed(state.clock);
             return wind < variables.cutInSpeed || wind > variables.cutOutSpeed ? 'idle' : 'running'; // todo these should be a animation constant
         }
-    }),
+    } satisfies CalculatorSet<Structure>),
     thermalVent: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             return {
@@ -379,7 +379,7 @@ export const calculators = {
         description: (state, structure, variables) => {
             return `Produces ${formatInteger(variables.energy, true)}${getIconSpan('energy', true)} per second with occasional bursts of energy. `
         }
-    }),
+    } satisfies CalculatorSet<Structure>),
     energyBay: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
@@ -406,7 +406,7 @@ export const calculators = {
         description: (state, structure, variables) => {
             return `Provides ${variables.capacity}${getIconSpan('energy', true)} storage capacity.`;
         }
-    }),
+    } satisfies CalculatorSet<Structure>),
     refinery: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
@@ -453,14 +453,14 @@ export const calculators = {
                 return RUNNING_LABEL
             }
         },
-    }),
+    } satisfies CalculatorSet<Structure>),
     droidFactory: _.merge({}, baseCalculator, {
         cost: (state, structure) => ({
             ore: 2500 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
             refinedMinerals: 100 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
             energy: 2000 * (STANDARD_COST_EXP)**(getNumBuilt(structure)),
         }),
-    }),
+    } satisfies CalculatorSet<Structure>),
     probeFactory: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
             const variables = {
@@ -501,7 +501,7 @@ export const calculators = {
                 probes: variables.probes * getRunningRate(structure)
             }
         },
-    })
+    } satisfies CalculatorSet<Structure>)
 
 }
 
@@ -521,7 +521,7 @@ export const calculators = {
  *
  * So instead of doing that, we implement custom functions here.
  */
-export function droidPerformanceBoost(state) {
+export function droidPerformanceBoost(state: RootState) {
     const variables = {
         boost: 0.15
     }
@@ -534,12 +534,12 @@ export function droidPerformanceBoost(state) {
     return variables.boost;
 }
 
-function netDroidPerformanceBoost(state, structure) {
+function netDroidPerformanceBoost(state: RootState, structure: Structure) {
     return 1 + (droidPerformanceBoost(state) * structure.droidData.numDroidsAssigned);
 }
 
 
-export function energyBayBoost(state) {
+export function energyBayBoost(state: RootState) {
     const variables = {
         energyBoost: 0
     };
@@ -555,13 +555,13 @@ export function energyBayBoost(state) {
     return variables.energyBoost;
 }
 
-function netEnergyBayBoost(state) {
+function netEnergyBayBoost(state: RootState) {
     return 1 + energyBayBoost(state) * getNumBuilt(getStructure(state.structures, 'energyBay'))
     // return 1 + getStructureStatistic(state, getStructure(state.structures, 'energyBay'), 'boost', false).energy;
 }
 
 
-function netProbeMirrorBoost(state) {
+function netProbeMirrorBoost(state: RootState) {
     let boost = 1;
     if (isTargetingPlanet(state.star) && isResearched(getUpgrade(state.upgrades, 'probeFactory_exponentialGrowth'))) {
         const probes = getResource(state.resources, 'probes')
@@ -571,7 +571,7 @@ function netProbeMirrorBoost(state) {
     }
     return boost;
 }
-function applyMirrorBoost(state, variables, applicableKeys) {
+function applyMirrorBoost(state: RootState, variables: Variables, applicableKeys: string[]) {
     const boost = netProbeMirrorBoost(state);
     if (boost !== 1) applicableKeys.forEach(key => variables[key] *= boost);
 }
@@ -582,7 +582,7 @@ function applyMirrorBoost(state, variables, applicableKeys) {
 // Note: order of application matters (we always add before multiplying).
 // Therefore this should always be called before applying droid bonus (which is a multiplication)
 // Probably best to always call this right after instantiating variables
-function applyAllEffects(state, variables, structure) {
+function applyAllEffects(state: RootState, variables: Variables, structure: Structure) {
     const operations = initOperations();
 
     const upgradeIds = upgradesAffectingStructure[structure.id];

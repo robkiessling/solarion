@@ -6,7 +6,7 @@ import {probeCapacity} from "../lib/star";
 import {isTargetingPlanet} from "../redux/modules/star";
 import {INFINITY} from "../lib/helpers";
 
-const base = {
+const base: ResourceRecord = {
     name: 'Unknown',
     amount: 0,
     lifetimeTotal: 0,
@@ -20,46 +20,46 @@ export default {
         name: "Ore",
         amount: 0,
         icon: 'icon-stone-pile'
-    }),
+    } satisfies DeepPartial<ResourceRecord>),
     energy: _.merge({}, base, {
         name: "Energy",
         amount: 0,
         icon: 'icon-electric'
-    }),
+    } satisfies DeepPartial<ResourceRecord>),
     vents: _.merge({}, base, {
         name: "Thermal Vent",
         amount: 1,
         icon: 'icon-caldera',
         visible: false
-    }),
+    } satisfies DeepPartial<ResourceRecord>),
     refinedMinerals: _.merge({}, base, {
         name: "Minerals",
         amount: 0,
         icon: 'icon-crystal-growth'
-    }),
+    } satisfies DeepPartial<ResourceRecord>),
     standardDroids: _.merge({}, base, {
         name: "Droids",
         amount: 0,
         icon: 'icon-vintage-robot',
         showRate: false // the resource bar shows the idle count in the rate slot instead
-    }),
+    } satisfies DeepPartial<ResourceRecord>),
     buildableLand: _.merge({}, base, {
         name: "Land",
         amount: 0,
         icon: 'icon-globe',
         visible: false
-    }),
+    } satisfies DeepPartial<ResourceRecord>),
     developedLand: _.merge({}, base, {
         name: "Dev Land",
         amount: 1, // starts at 1 for home base
         visible: false
-    }),
+    } satisfies DeepPartial<ResourceRecord>),
     probes: _.merge({}, base, {
         name: "Probes",
         amount: 0,
         icon: 'icon-satellite',
-    }),
-};
+    } satisfies DeepPartial<ResourceRecord>),
+} satisfies Record<ResourceId, ResourceRecord>;
 
 /**
  * These resource values vary depending on the rest of the state. We define them as functions here, and the RESULT
@@ -68,7 +68,7 @@ export default {
  * Note: `variables` is a special object that is calculated first; its result is provided to the rest of the functions as a
  * third parameter (that way many functions can be built off the same variables)
  */
-export const calculators = {
+export const calculators: Partial<Record<ResourceId, CalculatorSet<Resource>>> = {
     energy: {
         capacity: state => {
             let capacity = 100;

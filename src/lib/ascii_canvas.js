@@ -1,3 +1,4 @@
+// @ts-check
 import {debounce} from "./helpers";
 
 const FONT_RATIO = 3/5;
@@ -130,7 +131,7 @@ export default class AsciiCanvas {
 
     /**
      * Draws an ellipse shape out of characters.
-     * @param ellipse {Ellipse} Ellipse object used to shape the ellipse
+     * @param ellipse {import('./ellipse').default} Ellipse object used to shape the ellipse
      * @param char {String} The character to repeat over the ellipse's arc
      * @param numPoints {Number} The number of points (chars) that make up the ellipse
      * @param thetaOffset {Number} How much to offset the ring of characters

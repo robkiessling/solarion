@@ -18,11 +18,11 @@ import { getCrossTime, GRID_TERRAINS, isScoutPassable, STATUSES } from "./planet
  * line-of-sight spill past the ring is fine (you can see from where you stand), it's the TARGETING that's bounded.
  */
 
-const UNKNOWN = STATUSES.unknown.enum;
-const EXPLORED = STATUSES.explored.enum;
+const UNKNOWN = STATUSES.unknown.key;
+const EXPLORED = STATUSES.explored.key;
 
 // True if `coord` borders at least one still-unknown tile (inside the halo, when one is given).
-export function hasUnknownNeighbor(map, coord, halo = null) {
+export function hasUnknownNeighbor(map: PlanetMap, coord: Coord, halo: Set<string> | null = null): boolean {
     return getAdjacentCoords(coord).some(([r, c]) =>
         map[r][c].status === UNKNOWN && (!halo || halo.has(`${r},${c}`)));
 }
@@ -31,7 +31,7 @@ export function hasUnknownNeighbor(map, coord, halo = null) {
  * The "lookout" tiles: explored, passable tiles that still border an unknown. Standing on one reveals that unknown, so
  * these are the tiles worth visiting (one next to an unknown mountain counts too; visiting it reveals the wall).
  */
-export function getExplorationFrontier(map, unlocks = {}, halo = null) {
+export function getExplorationFrontier(map: PlanetMap, unlocks: Unlocks = {}, halo: Set<string> | null = null): Coord[] {
     const frontier = [];
 
     map.forEach((row, rowIndex) => {
@@ -51,7 +51,7 @@ export function getExplorationFrontier(map, unlocks = {}, halo = null) {
  * job), or unviewable from reachable ground (mountain interiors, sealed pockets) until a crossing upgrade (via
  * `unlocks`) re-opens the frontier. Development growth re-arms this by extending the halo.
  */
-export function isExplorationComplete(map, unlocks = {}, halo = null) {
+export function isExplorationComplete(map: PlanetMap, unlocks: Unlocks = {}, halo: Set<string> | null = null): boolean {
     return getExplorationFrontier(map, unlocks, halo).length === 0;
 }
 
@@ -70,7 +70,7 @@ export function isExplorationComplete(map, unlocks = {}, halo = null) {
  * null if unreachable. `toCoord` may be an unknown frontier tile; it's reached as the final step off an adjacent
  * traversable tile.
  */
-export function findPath(map, fromCoord, toCoord, { unlocks = {} } = {}) {
+export function findPath(map: PlanetMap, fromCoord: Coord, toCoord: Coord, { unlocks = {} }: { unlocks?: Unlocks } = {}): Coord[] | null {
     const { dist, prev } = dijkstra(map, fromCoord, unlocks);
     const toK = coordKey(toCoord);
 
@@ -237,7 +237,7 @@ export function findNearestLookoutFromGrid(map, { claimed = new Set(), unlocks =
  * despawning into the pool). Returns the step coords (excludes start, ends on the grid tile), [] when
  * already standing on powered ground, or null when the grid is unreachable from here.
  */
-export function findPathToGrid(map, fromCoord, { unlocks = {} } = {}) {
+export function findPathToGrid(map: PlanetMap, fromCoord: Coord, { unlocks = {} }: { unlocks?: Unlocks } = {}): Coord[] | null {
     if (GRID_TERRAINS.has(map[fromCoord[0]][fromCoord[1]].terrain)) return [];
 
     const dist = { [coordKey(fromCoord)]: 0 };

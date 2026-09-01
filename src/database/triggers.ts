@@ -73,4 +73,4 @@ export default {
     },
 
 
-}
+} satisfies Record<string, TriggerRecord>;

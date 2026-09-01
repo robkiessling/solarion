@@ -160,6 +160,7 @@ export function disable(id) {
 }
 
 // Unlike other action creators, we are passing the dispatch as a parameter because we don't always end up dispatching
+/** @param {Dispatch} dispatch @param {Structure} structure @param {StructureStatus} status */
 export function setStatus(dispatch, structure, status) {
     if (structure.status !== status) {
         return dispatch(withRecalculation({ type: SET_STATUS, payload: { id: structure.id, status: status } }))
@@ -182,27 +183,34 @@ export function structuresTick(timeDelta) {
 
 
 // Standard Functions
+/** @param {StructuresState} state @param {StructureId} id @returns {Structure} */
 export function getStructure(state, id) {
     return state.byId[id];
 }
+/** @param {Structure} structure @returns {ResourceAmounts} */
 export function getBuildCost(structure) {
     return structure.cost; // todo floor
 }
+/** @param {Structure} structure @returns {number} */
 export function getNumBuilt(structure) {
     if (!structure) { return 0; }
     return structure.count.total;
 }
+/** @param {StructuresState} state @returns {number} */
 export function countAllStructuresBuilt(state) {
     return Object.values(state.byId).reduce((acc, structure) => {
         return acc + getNumBuilt(structure)
     }, 0);
 }
+/** @param {Structure} structure @returns {number} */
 export function getRunningRate(structure) {
     return structure.runnable ? structure.runningRate : 1;
 }
+/** @param {Structure} structure @returns {boolean} */
 export function isRunning(structure) {
     return structure.runnable ? (structure.runningRate > 0) : false;
 }
+/** @param {Structure} structure @returns {boolean} */
 export function hasInsufficientResources(structure) {
     return structure.status === STATUSES.insufficient;
 }
@@ -230,6 +238,7 @@ export function animationData(state) {
 }
 
 // Helpers
+/** @param {StructuresState} state @param {(structure: Structure) => void} callback */
 export function iterateVisible(state, callback) {
     state.visibleIds.forEach(id => {
         callback(getStructure(state, id));

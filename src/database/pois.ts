@@ -11,7 +11,7 @@ import {GATE_KINDS} from "../lib/planet_map";
  * pass edits.
  */
 
-export const POI_TYPES = {
+export const POI_TYPES: Record<PoiType, PoiType> = {
     cache: 'cache',
     nest: 'nest',
     storySite: 'storySite',
@@ -23,7 +23,7 @@ export const POI_TYPES = {
 // phase (story text, salvage, losses) until the player continues or drives away. `promptText` is the offer
 // line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.js); gates carry theirs
 // per gate kind (GATE_DEFS), nests never prompt (the fight starts on entry).
-export const POI_TYPE_DEFAULTS = {
+export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: 'auto' | 'narrate', promptText?: string }> = {
     cache: { actionLabel: 'Take', result: 'auto', promptText: 'Supply cache found{loot}. Take it?' },
     storySite: { actionLabel: 'Explore', result: 'narrate', promptText: 'Structure of unknown origin. Investigate?' },
     gate: { actionLabel: 'Open', result: 'auto' },
@@ -39,7 +39,7 @@ export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 
 // The three tools. Stored in planet.unlockedTerrains (the shared capability set: terrain crossUpgrades and
 // POI `requires` both read it), granted via upgrades or POI salvage (reward.capability).
-export const CAPABILITY_LABELS = {
+export const CAPABILITY_LABELS: Record<Capability, string> = {
     drill: 'Plasma Drill',
     sealedChassis: 'Sealed Chassis',
     overrideModule: 'Override Module'
@@ -47,7 +47,7 @@ export const CAPABILITY_LABELS = {
 
 // Placement bands. R1 is the bowl (tutorial), R3 the antipode (finale). R2 is cut in half by the acid belt;
 // the near/far split keeps e.g. the Sealed Chassis salvage reachable BEFORE the acid it unlocks.
-export const BANDS = {
+export const BANDS: Record<Band, Band> = {
     r1: 'r1',
     r2near: 'r2near',
     r2far: 'r2far',
@@ -67,7 +67,7 @@ export const STORY_TEXTS = {
 }
 
 // Resource reward amounts are [lo, hi] ranges, rolled to a multiple of 100 at map generation (rollPoiReward).
-export const POI_DEFS = [
+export const POI_DEFS: PoiDef[] = [
     // R1, the bowl (tutorial): one easy nest, two caches, the dead-droid story site
     { type: POI_TYPES.nest, band: BANDS.r1, difficulty: 3, infestRadius: 1 },
     { type: POI_TYPES.cache, band: BANDS.r1, reward: { resources: { ore: [500, 1000] } } },
@@ -115,7 +115,7 @@ export const POI_DEFS = [
 ]
 
 // Gate POIs, one definition per gate kind (the map-gen stamp pass marks sector.gated/gateKind tiles).
-export const GATE_DEFS = {
+export const GATE_DEFS: Record<string, GateDef> = {
     [GATE_KINDS.cave]: {
         name: 'Collapsed Cave',
         requires: 'drill',
@@ -132,11 +132,12 @@ export const GATE_DEFS = {
 
 // Resolves a definition's reward at generation time: [lo, hi] resource ranges roll to a multiple of 100;
 // capability rewards pass through unchanged.
-export function rollPoiReward(rewardDef) {
-    const reward = {...rewardDef};
-    if (rewardDef.resources) {
+export function rollPoiReward(rewardDef: PoiDef['reward']): PoiReward {
+    const { resources, ...rest } = rewardDef;
+    const reward: PoiReward = { ...rest };
+    if (resources) {
         reward.resources = {};
-        Object.entries(rewardDef.resources).forEach(([resource, [lo, hi]]) => {
+        Object.entries(resources).forEach(([resource, [lo, hi]]) => {
             reward.resources[resource] = getRandomIntInclusive(lo / 100, hi / 100) * 100;
         });
     }

@@ -91,8 +91,8 @@ export default function reducer(state = initialState, action) {
             // its nest is cleared (see SQUAD_FIGHT_WON below).
             let startingLand = 0;
             payload.map.forEach(row => row.forEach(sector => {
-                if (sector.status === STATUSES.explored.enum &&
-                    sector.terrain === TERRAINS.flatland.enum && !sector.infestedBy) {
+                if (sector.status === STATUSES.explored.key &&
+                    sector.terrain === TERRAINS.flatland.key && !sector.infestedBy) {
                     startingLand++;
                 }
             }));
@@ -149,6 +149,7 @@ function produceReducer(state, amounts, incrementLifetimeTotal = true) {
 }
 
 // Action Creators
+/** @param {ResourceId} id */
 export function learn(id) {
     return withRecalculation({ type: LEARN, payload: { id } });
 }
@@ -160,43 +161,53 @@ export function consume(amounts) {
         }
     }
 }
+/** @param {ResourceAmounts} amounts */
 export function consumeUnsafe(amounts) {
     return { type: CONSUME, payload: { amounts } };
 }
 
+/** @param {ResourceAmounts} amounts */
 export function produce(amounts) {
     return { type: PRODUCE, payload: { amounts } };
 }
 
 
 // Standard Functions
+/** @param {ResourcesState} state @param {ResourceId} id @returns {Resource} */
 export function getResource(state, id) {
     return state.byId[id];
 }
+/** @param {ResourcesState} state @param {ResourceAmounts} amounts @returns {boolean} */
 export function canConsume(state, amounts) {
     return Object.entries(amounts).every(([k,v]) => getQuantity(getResource(state, k)) >= v);
 }
+/** @param {ResourcesState} state @param {ResourceAmounts} amounts @returns {boolean} */
 export function hasLifetimeQuantities(state, amounts) {
     return Object.entries(amounts).every(([k,v]) => getLifetimeQuantity(getResource(state, k)) >= v);
 }
+/** @param {Resource} resource @returns {number} */
 export function getQuantity(resource) {
     if (!resource) {
         return 0;
     }
     return resource.amount;
 }
+/** @param {Resource} resource @returns {number} */
 export function getLifetimeQuantity(resource) {
     if (!resource) {
         return 0;
     }
     return resource.lifetimeTotal;
 }
+/** @param {Resource} resource @returns {number} */
 export function getCapacity(resource) {
     return resource.capacity;
 }
+/** @param {ResourceId} id @returns {string} */
 export function getIcon(id) {
     return database[id].icon;
 }
+/** @param {ResourceId} id @param {boolean} [skinny] @param {boolean} [colorless] @returns {string} */
 export function getIconSpan(id, skinny = false, colorless = true) {
     return `<span class="${getIcon(id)} ${skinny ? 'skinny-icon' : ''} ${colorless ? 'colorless-icon' : ''}"></span>`;
 }

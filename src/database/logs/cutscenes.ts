@@ -86,4 +86,4 @@ export default {
             dispatch(fromGame.updateSetting('gameOver', true));
         }
     }
-}
+} satisfies Record<string, LogRecord>;

@@ -19,4 +19,4 @@ export default {
     ...system,
     ...story,
     ...cutscenes
-};
+} satisfies Record<string, LogRecord>;

@@ -1,3 +1,4 @@
+// @ts-check
 import {debounce, getRandomIntInclusive, nTimes} from "./helpers";
 
 let animationIdSeq = 1;

@@ -20,8 +20,8 @@
 // Bug TYPES are static definitions, never upgraded; nests differ only in how many of each type they
 // field (their composition). New types (tougher variants, bosses) are new rows here; anything with hp
 // above the standard bug automatically earns an hp bar in the arena (battle_canvas.jsx).
-export const DROID_BASE_STATS = { hp: 9, damage: 1, attackMs: 1500, speed: 9 };
-export const BUG_TYPES = {
+export const DROID_BASE_STATS: UnitStats = { hp: 9, damage: 1, attackMs: 1500, speed: 9 };
+export const BUG_TYPES: Record<string, UnitStats> = {
     bug: { hp: 6, damage: 1, attackMs: 1300, speed: 11 },
     // Spawner: the hive mouth itself. Stationary and harmless (speed/damage 0 route it around the whole
     // combat loop; droids still path to it and kill it as the nearest enemy once the escorts are dead)

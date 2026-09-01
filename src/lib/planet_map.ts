@@ -102,18 +102,18 @@ const START_WITH_ADJ_EXPLORED = true;
  *   what is on the far side.
  * exploreLength: legacy per-tile explore cost used by the old sector-exploration model; removed once droids land.
  */
-export const TERRAINS = {
-    home: { key: 'home', enum: 0, display: '#', label: 'Command Center', crossTime: EXPLORATION_TIME_FACTOR },
-    flatland: { key: 'flatland', enum: 1, display: ',', variants: ['.'], variantShare: 0.15, label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining. Dust and pebbles: deliberately the quietest glyphs on the map, so features stand out against the ground
-    developing: { key: 'developing', enum: 2, display: '+', label: 'Replicating', crossTime: EXPLORATION_TIME_FACTOR },
-    developed: { key: 'developed', enum: 3, display: '+', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
-    mountain: { key: 'mountain', enum: 4, display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
-    // ice: { key: 'ice', enum: 5, display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
-    ice: { key: 'ice', enum: 5, display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
-    acid: { key: 'acid', enum: 6, display: '~', variants: ['≈'], label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // The mid-world belt; binary gate (Sealed Chassis or no)
+export const TERRAINS: Record<TerrainKey, TerrainDef> = {
+    home: { key: 'home', display: '#', label: 'Command Center', crossTime: EXPLORATION_TIME_FACTOR },
+    flatland: { key: 'flatland', display: ',', variants: ['.'], variantShare: 0.15, label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining. Dust and pebbles: deliberately the quietest glyphs on the map, so features stand out against the ground
+    developing: { key: 'developing', display: '+', label: 'Replicating', crossTime: EXPLORATION_TIME_FACTOR },
+    developed: { key: 'developed', display: '+', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
+    mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
+    // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
+    ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
+    acid: { key: 'acid', display: '~', variants: ['≈'], label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // The mid-world belt; binary gate (Sealed Chassis or no)
     // Open water: a permanent wall like ice (the crossUpgrade is never granted). The authored map's oceans; the
     // only ways across are the land the map leaves and, later, tunnels.
-    water: { key: 'water', enum: 7, display: '~', variants: ['≈'], variantShare: 0.2, label: 'Sea', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'seafaring' },
+    water: { key: 'water', display: '~', variants: ['≈'], variantShare: 0.2, label: 'Sea', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'seafaring' },
 }
 
 // Hive-tainted flatland (sector.infestedBy) gets its own glyph, not just a tint (a tint alone is impossible
@@ -153,8 +153,8 @@ function tileHash(row, col, salt) {
 // A terrain's `variantShare` overrides the default share (flatland keeps its texture sparse: it covers most
 // of the map, and every variant there is visual noise).
 const VARIANT_SHARE = 0.35; // fraction of tiles that show a variant glyph instead of the legend one
-export function terrainGlyph(terrainEnum, row, col) {
-    const attributes = TERRAINS_BY_ENUM[terrainEnum];
+export function terrainGlyph(terrainKey, row, col) {
+    const attributes = TERRAINS[terrainKey];
     if (!attributes.variants) { return attributes.display; }
     const share = attributes.variantShare === undefined ? VARIANT_SHARE : attributes.variantShare;
     const hash = tileHash(row, col, 12345);
@@ -165,24 +165,14 @@ export function terrainGlyph(terrainEnum, row, col) {
 if (SHOW_DEBUG_MERIDIANS) {
     nTimes(NUM_DEBUG_MERIDIANS, i => {
         const key = `meridian_${i}`;
-        TERRAINS[key] = { key: key, enum: 100 + i, display: (i % 16).toString(16).toUpperCase(), exploreLength: EXPLORATION_TIME_FACTOR }
-        // TERRAINS[key] = { key: key, enum: 100 + i, display: '*', exploreLength: EXPLORATION_TIME_FACTOR }
+        (TERRAINS as Record<string, TerrainDef>)[key] = { key: key as TerrainKey, display: (i % 16).toString(16).toUpperCase(), exploreLength: EXPLORATION_TIME_FACTOR }
     })
 }
 
-const TERRAINS_BY_ENUM = {};
-for (const [key, attributes] of Object.entries(TERRAINS)) {
-    TERRAINS_BY_ENUM[attributes.enum] = attributes;
-}
-
-export const STATUSES = {
-    unknown: { key: 'unknown', enum: 0, display: '·', label: 'Unknown' },
-    exploring: { key: 'exploring', enum: 1, label: 'Exploring' },
-    explored: { key: 'explored', enum: 2, label: 'Explored' }
-}
-const STATUSES_BY_ENUM = {};
-for (const [key, attributes] of Object.entries(STATUSES)) {
-    STATUSES_BY_ENUM[attributes.enum] = attributes;
+export const STATUSES: Record<'unknown' | 'exploring' | 'explored', SectorStatusDef> = {
+    unknown: { key: 'unknown', display: '·', label: 'Unknown' },
+    exploring: { key: 'exploring', label: 'Exploring' },
+    explored: { key: 'explored', label: 'Explored' }
 }
 
 
@@ -233,16 +223,16 @@ const LASER_BEAM_STREAKS = { // some beams make a streak onto the planet itself
  */
 const USE_AUTHORED_MAP = true;
 
-export function generatePlanetMap() {
+export function generatePlanetMap(): PlanetMap {
     return USE_AUTHORED_MAP ? generateAuthoredMap() : generateRandomMap();
 }
 
-export function parseAuthoredMap(text) {
+export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coord } {
     const lines = text.replace(/\r/g, '').split('\n').filter(line => line.length > 0);
     if (lines.length !== NUM_PLANET_ROWS) {
         throw new Error(`Authored map has ${lines.length} rows, expected ${NUM_PLANET_ROWS}`);
     }
-    let homeCoord = null;
+    let homeCoord: Coord | null = null;
     const map = lines.map((line, rowIndex) => {
         if (line.length !== PLANET_COLS) {
             throw new Error(`Authored map row ${rowIndex} has ${line.length} cols, expected ${PLANET_COLS}`);
@@ -280,11 +270,11 @@ function generateAuthoredMap() {
 
     if (START_WITH_ADJ_EXPLORED) {
         getVisibleCoords(map, homeCoord).forEach(([row, col]) => {
-            map[row][col].status = STATUSES.explored.enum;
+            map[row][col].status = STATUSES.explored.key;
         });
     }
     if (EXPLORE_EVERYTHING) {
-        map.forEach(row => row.forEach(sector => { sector.status = STATUSES.explored.enum; }));
+        map.forEach(row => row.forEach(sector => { sector.status = STATUSES.explored.key; }));
     }
 
     cacheDistancesToHome(map, homeCoord);
@@ -296,9 +286,9 @@ function generateAuthoredMap() {
 // Dev aid for the drawing: floods from home over everything a fully-tooled squad could ever cross (gates
 // open, tunnels ignored for now) and reports the flat tiles it can never reach, so a range that seals a
 // valley by accident is caught at load instead of by a player.
-function warnAboutOrphanedLand(map, homeCoord) {
-    const walkable = (sector) => sector.terrain !== TERRAINS.mountain.enum &&
-        sector.terrain !== TERRAINS.water.enum && sector.terrain !== TERRAINS.ice.enum;
+function warnAboutOrphanedLand(map: PlanetMap, homeCoord: Coord) {
+    const walkable = (sector) => sector.terrain !== TERRAINS.mountain.key &&
+        sector.terrain !== TERRAINS.water.key && sector.terrain !== TERRAINS.ice.key;
     const seen = new Set([`${homeCoord[0]},${homeCoord[1]}`]);
     let frontier = [homeCoord];
     while (frontier.length > 0) {
@@ -322,8 +312,8 @@ function warnAboutOrphanedLand(map, homeCoord) {
     }
 }
 
-export function generateRandomMap() {
-    const map = [];
+export function generateRandomMap(): PlanetMap {
+    const map: PlanetMap = [];
 
     // Start by initializing entire map as flatland
     nTimes(NUM_PLANET_ROWS, () => {
@@ -356,14 +346,14 @@ function logMap(map) {
 
     map.forEach((row, rowIndex) => {
         row.forEach(sector => {
-            str += TERRAINS_BY_ENUM[sector.terrain].display;
+            str += TERRAINS[sector.terrain].display;
         });
         str += '\n'
     })
     console.log(str);
 }
 
-function cacheCoords(map) {
+function cacheCoords(map: PlanetMap) {
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
             sector.coord = [rowIndex, colIndex];
@@ -372,10 +362,10 @@ function cacheCoords(map) {
 }
 
 // A 'sector' is one tile on the map. I.e. the map is a 2d array of sectors
-function createSector(terrain, status) {
+function createSector(terrain: TerrainDef, status: SectorStatusDef): Sector {
     return {
-        terrain: terrain.enum,
-        status: status.enum,
+        terrain: terrain.key,
+        status: status.key,
         exploreLength: terrain.exploreLength
     }
 }
@@ -407,7 +397,7 @@ function generateDebugMeridians(map) {
     for (let i = 0; i < NUM_DEBUG_MERIDIANS; i++) {
         const colIndex = floor(i / NUM_DEBUG_MERIDIANS * PLANET_COLS);
         for (let rowIndex = 0; rowIndex < NUM_PLANET_ROWS; rowIndex++) {
-            if (map[rowIndex][colIndex].terrain < 100) {
+            if (!map[rowIndex][colIndex].terrain.startsWith('meridian_')) {
                 map[rowIndex][colIndex] = createSector(TERRAINS[`meridian_${i}`], STATUSES.explored);
             }
         }
@@ -466,12 +456,12 @@ function addMountainRange(map, size, startingRow, startingCol) {
     const secondaryDirections = primaryDirection.length === 2 ? primaryDirection.split('') :
         ALL_DIRECTIONS.filter(dir => dir.length === 2 && dir.includes(primaryDirection));
 
-    let currentCoord = [startingRow, startingCol];
+    let currentCoord: Coord = [startingRow, startingCol];
 
     // Mountains never overwrite ice: the home-adjacent range is stamped AFTER the ice caps, and it must not
     // punch holes in the polar walls.
     const raise = ([row, col]) => {
-        if (map[row][col].terrain !== TERRAINS.ice.enum) {
+        if (map[row][col].terrain !== TERRAINS.ice.key) {
             map[row][col] = createSector(TERRAINS.mountain, STATUSES.unknown);
         }
     };
@@ -497,7 +487,7 @@ function addMountainRange(map, size, startingRow, startingCol) {
     }
 }
 
-function addHomeBase(map) {
+function addHomeBase(map: PlanetMap): Coord {
     const homeRow = getRandomIntInclusive(...HOME_STARTING_ROW_RANGE);
     const homeCol = floor(HOME_FRACTION * PLANET_COLS);
 
@@ -512,8 +502,8 @@ function addHomeBase(map) {
     // Home must never spawn walled in (the squad couldn't leave until mountaineering): if the scenery range
     // enclosed it, flatten one neighbor as an opening.
     const neighbors = getAdjacentCoords([homeRow, homeCol]);
-    if (!neighbors.some(([row, col]) => map[row][col].terrain === TERRAINS.flatland.enum)) {
-        const opening = getRandomFromArray(neighbors.filter(([row, col]) => map[row][col].terrain !== TERRAINS.ice.enum));
+    if (!neighbors.some(([row, col]) => map[row][col].terrain === TERRAINS.flatland.key)) {
+        const opening = getRandomFromArray(neighbors.filter(([row, col]) => map[row][col].terrain !== TERRAINS.ice.key));
         if (opening) {
             map[opening[0]][opening[1]] = createSector(TERRAINS.flatland, STATUSES.unknown);
         }
@@ -524,7 +514,7 @@ function addHomeBase(map) {
     // next to home therefore walls off part of the view from the first frame.
     if (START_WITH_ADJ_EXPLORED) {
         getVisibleCoords(map, [homeRow, homeCol]).forEach(([row, col]) => {
-            map[row][col].status = STATUSES.explored.enum
+            map[row][col].status = STATUSES.explored.key
         });
     }
 
@@ -532,7 +522,7 @@ function addHomeBase(map) {
         map.forEach((row, rowIndex) => {
             row.forEach((sector, colIndex) => {
                 if (rowIndex !== map.length) {
-                    sector.status = STATUSES.explored.enum
+                    sector.status = STATUSES.explored.key
                 }
             });
         });
@@ -556,20 +546,20 @@ function addHomeBase(map) {
  * Because neighboring tiles differ by at most 1 in hop distance, making every tile AT the ring distance
  * impassable (except the gate) fully seals the interior; single-tile thickness is enough.
  */
-export const REGIONS = { bowl: 1, belt: 2, antipode: 3 };
+export const REGIONS: { [K in Region]: K } = { bowl: 'bowl', belt: 'belt', antipode: 'antipode' };
 export const BOWL_RING_DISTANCE = 8;       // ring at this hop distance from home; interior is R1
 export const ANTIPODE_RING_DISTANCE = 7;   // ring around the antipode; interior is R3
 export const ACID_BAND_DISTANCES = [38, 40]; // inclusive hop-distance band of acid (the mid-world gate)
-export const GATE_KINDS = { cave: 'cave', door: 'door' };
+export const GATE_KINDS: Record<GateKind, GateKind> = { cave: 'cave', door: 'door' };
 
 function stampRegions(map, homeCoord) {
-    const antipodeCoord = [
+    const antipodeCoord: Coord = [
         NUM_PLANET_ROWS - 1 - homeCoord[0],
         mod(homeCoord[1] + PLANET_COLS / 2, PLANET_COLS)
     ];
     const antipodeDistances = getGraphDistancesFrom(antipodeCoord);
     const isStampable = (sector) => // ice (the polar walls) and home are never restamped
-        sector.terrain !== TERRAINS.ice.enum && sector.terrain !== TERRAINS.home.enum;
+        sector.terrain !== TERRAINS.ice.key && sector.terrain !== TERRAINS.home.key;
 
     const bowlRing = [];
     const antipodeRing = [];
@@ -591,7 +581,7 @@ function stampRegions(map, homeCoord) {
                 antipodeRing.push({ sector, coord: [rowIndex, colIndex] });
             }
             else if (homeDist >= ACID_BAND_DISTANCES[0] && homeDist <= ACID_BAND_DISTANCES[1]) {
-                sector.terrain = TERRAINS.acid.enum; // mutate in place: cached distances/coords must survive
+                sector.terrain = TERRAINS.acid.key; // mutate in place: cached distances/coords must survive
             }
         });
     });
@@ -638,10 +628,10 @@ function carveCorridor(map, fromCoord, toCoord, isRingTile) {
         getAdjacentCoords(coord).forEach(neighbor => {
             const nk = key(neighbor);
             const sector = map[neighbor[0]][neighbor[1]];
-            if (sector.terrain === TERRAINS.ice.enum) return;
+            if (sector.terrain === TERRAINS.ice.key) return;
             if (nk !== toK && nk !== fromK && isRingTile(neighbor)) return;
 
-            const stepCost = sector.terrain === TERRAINS.mountain.enum ? 1 : 0;
+            const stepCost = sector.terrain === TERRAINS.mountain.key ? 1 : 0;
             const newDist = distance + stepCost;
             if (newDist < (dist[nk] ?? Infinity)) {
                 dist[nk] = newDist;
@@ -654,8 +644,8 @@ function carveCorridor(map, fromCoord, toCoord, isRingTile) {
     let current = toCoord;
     while (current !== undefined && key(current) !== fromK) {
         const sector = map[current[0]][current[1]];
-        if (sector.terrain === TERRAINS.mountain.enum) {
-            sector.terrain = TERRAINS.flatland.enum;
+        if (sector.terrain === TERRAINS.mountain.key) {
+            sector.terrain = TERRAINS.flatland.key;
         }
         current = prev[key(current)];
     }
@@ -666,7 +656,7 @@ function carveCorridor(map, fromCoord, toCoord, isRingTile) {
 // Prefers a gate whose interior and exterior neighbors are both flat, so scenery mountains can't leave the
 // opened gate facing a wall; falls back to any flat ring tile, then to converting a mountain one.
 function stampRingWithGate(map, ringEntries, ringDistance, distAt, gateKind) {
-    const isFlat = ([r, c]) => map[r][c].terrain === TERRAINS.flatland.enum;
+    const isFlat = ([r, c]) => map[r][c].terrain === TERRAINS.flatland.key;
 
     const openable = ringEntries.filter(({ coord }) =>
         isFlat(coord) &&
@@ -678,24 +668,24 @@ function stampRingWithGate(map, ringEntries, ringDistance, distAt, gateKind) {
 
     ringEntries.forEach(({ sector }) => {
         if (gate && sector === gate.sector) {
-            sector.terrain = TERRAINS.flatland.enum;
+            sector.terrain = TERRAINS.flatland.key;
             sector.gated = true;
             sector.gateKind = gateKind;
         }
         else {
-            sector.terrain = TERRAINS.mountain.enum;
+            sector.terrain = TERRAINS.mountain.key;
         }
     });
 
     return gate ? gate.coord : null;
 }
 
-export function getHomeBasePosition(map) {
-    let coord;
+export function getHomeBasePosition(map: PlanetMap): { coord: Coord, rotation: number } {
+    let coord: Coord;
 
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
-            if (sector.terrain === TERRAINS.home.enum) {
+            if (sector.terrain === TERRAINS.home.key) {
                 coord = [rowIndex, colIndex];
             }
         });
@@ -715,9 +705,9 @@ function isSameCoord(coord1, coord2) {
 // halo radiates from here, and development grows from here. Mid-replication ('developing') tiles are still
 // under construction -- not powered until the cast finishes. (They also never exist when development picks
 // its next batch: replicate is single-flight and the previous batch completes before the next cast starts.)
-export const GRID_TERRAINS = new Set([TERRAINS.home.enum, TERRAINS.developed.enum]);
+export const GRID_TERRAINS = new Set<TerrainKey>([TERRAINS.home.key, TERRAINS.developed.key]);
 
-export function isOnGrid(map, coord) {
+export function isOnGrid(map: PlanetMap, coord: Coord): boolean {
     return GRID_TERRAINS.has(map[coord[0]][coord[1]].terrain);
 }
 
@@ -736,13 +726,13 @@ export const SURVEY_HALO_RADIUS = 7;
  * development) produces a new array from immutability-helper, so identity is a correct cache key.
  */
 let gridHaloCache = null;
-export function getGridHalo(map, radius) {
+export function getGridHalo(map: PlanetMap, radius: number): { halo: Set<string>, ring: Set<string> } {
     if (gridHaloCache && gridHaloCache.map === map && gridHaloCache.radius === radius) {
         return gridHaloCache.result;
     }
 
-    const halo = new Set();
-    const ring = new Set();
+    const halo = new Set<string>();
+    const ring = new Set<string>();
     let frontier = [];
 
     map.forEach((row, rowIndex) => {
@@ -775,19 +765,19 @@ export function getGridHalo(map, radius) {
 }
 
 // The TERRAINS attributes object for a sector's terrain enum (display char, label, colorKey, crossTime).
-export function getTerrain(terrainEnum) {
-    return TERRAINS_BY_ENUM[terrainEnum];
+export function getTerrain(terrainKey: TerrainKey): TerrainDef {
+    return TERRAINS[terrainKey];
 }
 
 // ms to cross one tile of the given terrain, given the set of unlocked crossing upgrades. Returns Infinity when the
 // terrain is currently blocked (its crossUpgrade hasn't been researched). `unlocks` is a map like { mountaineering: true }.
-export function getCrossTime(terrainEnum, unlocks = {}) {
-    const terrain = TERRAINS_BY_ENUM[terrainEnum];
+export function getCrossTime(terrainKey: TerrainKey, unlocks: Unlocks = {}): number {
+    const terrain = TERRAINS[terrainKey];
     if (terrain.crossUpgrade && !unlocks[terrain.crossUpgrade]) { return Infinity; }
     return terrain.crossTime;
 }
 
-export function isPassable(map, coord, unlocks = {}) {
+export function isPassable(map: PlanetMap, coord: Coord | null, unlocks: Unlocks = {}): boolean {
     if (coord === null) { return false; }
     return getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) < Infinity;
 }
@@ -800,8 +790,8 @@ export const VISION_HOPS = 3;
 // tile it has already fully revealed from a distance.
 export const SCOUT_VISION_HOPS = 1;
 
-export function blocksVision(terrainEnum) {
-    return !!TERRAINS_BY_ENUM[terrainEnum].blocksVision;
+export function blocksVision(terrainKey: TerrainKey): boolean {
+    return !!TERRAINS[terrainKey].blocksVision;
 }
 
 /**
@@ -811,7 +801,7 @@ export function blocksVision(terrainEnum) {
  * same way movement does, a lone peak only hides the tile directly behind it; a run of them hides an arc.
  * The tile being looked FROM never blocks (standing on a summit shouldn't blind you).
  */
-export function getVisibleCoords(map, coord, hops = VISION_HOPS) {
+export function getVisibleCoords(map: PlanetMap, coord: Coord, hops: number = VISION_HOPS): Coord[] {
     const visited = new Set([`${coord[0]},${coord[1]}`]);
     let frontier = [coord];
     const result = [];
@@ -836,13 +826,13 @@ export function getVisibleCoords(map, coord, hops = VISION_HOPS) {
 // Scout passability: beyond raw terrain, infested ground (sector.infestedBy, stamped around nests) and
 // unopened gate tiles (sector.gated) stop the dumb remotes. The player-driven squad ignores both -- it can
 // cross infestation freely and opens gates through the POI flow.
-export function isScoutPassable(map, coord, unlocks = {}) {
+export function isScoutPassable(map: PlanetMap, coord: Coord | null, unlocks: Unlocks = {}): boolean {
     if (!isPassable(map, coord, unlocks)) { return false; }
     const sector = map[coord[0]][coord[1]];
     return !sector.infestedBy && !sector.gated;
 }
 
-function cacheDistancesToHome(map, homeCoord) {
+function cacheDistancesToHome(map: PlanetMap, homeCoord: Coord) {
     // graphDistanceHome (BFS hops on the coverage graph) is the unbiased metric used to order exploration; distanceHome
     // (the centered-column metric) is kept for development ordering. See planet_geometry for the difference.
     const graphDistances = getGraphDistancesFrom(homeCoord);
@@ -858,14 +848,14 @@ function cacheDistancesToHome(map, homeCoord) {
  * Returns the coords to develop next. Candidates are explored from the frontier towards `anchorCoord` (if given),
  * otherwise it expands equally in all directions. Will not pass through walls/ice.
  */
-export function getNextDevelopmentArea(map, size, anchorCoord) {
+export function getNextDevelopmentArea(map: PlanetMap, size: number, anchorCoord: Coord | null): Coord[] {
     const distanceTo = (coord) => anchorCoord ?
         getApproxDistance(anchorCoord, coord) : map[coord[0]][coord[1]].distanceHome;
 
     // Infested ground isn't developable until its nest is cleared; an unopened gate tile isn't either.
     const isCandidate = ([row, col]) =>
-        map[row][col].terrain === TERRAINS.flatland.enum &&
-        map[row][col].status === STATUSES.explored.enum &&
+        map[row][col].terrain === TERRAINS.flatland.key &&
+        map[row][col].status === STATUSES.explored.key &&
         !map[row][col].infestedBy && !map[row][col].gated;
 
     const seen = new Set(); // candidate or chosen already (never re-added)
@@ -901,7 +891,7 @@ export function getNextDevelopmentArea(map, size, anchorCoord) {
         const leftovers = [];
         map.forEach((row, rowIndex) => {
             row.forEach((sector, colIndex) => {
-                const coord = [rowIndex, colIndex];
+                const coord: Coord = [rowIndex, colIndex];
                 if (!seen.has(`${rowIndex},${colIndex}`) && isCandidate(coord)) leftovers.push(coord);
             });
         });
@@ -913,11 +903,11 @@ export function getNextDevelopmentArea(map, size, anchorCoord) {
     return chosen;
 }
 
-export function getCurrentDevelopmentArea(map) {
+export function getCurrentDevelopmentArea(map: PlanetMap): Coord[] {
     const coords = []
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
-            if (sector.terrain === TERRAINS.developing.enum) {
+            if (sector.terrain === TERRAINS.developing.key) {
                 coords.push([rowIndex, colIndex])
             }
         });
@@ -926,15 +916,15 @@ export function getCurrentDevelopmentArea(map) {
 }
 
 
-export function isMapFullyExplored(map) {
+export function isMapFullyExplored(map: PlanetMap): boolean {
     return map.every(row => {
         return row.every(sector => {
-            return sector.status === STATUSES.explored.enum;
+            return sector.status === STATUSES.explored.key;
         })
     })
 }
 
-export function numSectorsMatching(map, status, terrain) {
+export function numSectorsMatching(map: PlanetMap, status?: SectorStatus, terrain?: TerrainKey): number {
     let count = 0;
 
     map.forEach((row, rowIndex) => {
@@ -957,7 +947,7 @@ export function sunTrackingRotation(fractionOfDay) {
 
 // Returns the rotation that horizontally centers `coord` in the display window (the follow-team camera).
 // displayStart = floor(rotation * PLANET_COLS), so centering means starting half a display-window before the column.
-export function centeringRotation(coord) {
+export function centeringRotation(coord: Coord): number {
     return mod(coord[1] - DISPLAY_COLS / 2, PLANET_COLS) / PLANET_COLS;
 }
 
@@ -1007,7 +997,7 @@ const ROW_CURVE_SCALE = createArray(NUM_PLANET_ROWS, (rowIndex) => {
  * returns [imageRow, imageCol], or null when the coord is outside the current display window. The inverse,
  * imageCellToCoord, turns a clicked image cell back into a planet coord (null for letterbox padding / off-planet).
  */
-export function coordToImageCell(coord, rotation) {
+export function coordToImageCell(coord: Coord, rotation: number) {
     const [row, col] = coord;
     if (row < 0 || row >= NUM_PLANET_ROWS) return null;
 
@@ -1017,7 +1007,7 @@ export function coordToImageCell(coord, rotation) {
     return [row, displayColIndex];
 }
 
-export function imageCellToCoord(imageRow, imageCol, rotation) {
+export function imageCellToCoord(imageRow: number, imageCol: number, rotation: number): Coord | null {
     if (imageRow < 0 || imageRow >= NUM_PLANET_ROWS) return null;
     if (imageCol < 0 || imageCol >= DISPLAY_COLS) return null;
 
@@ -1070,7 +1060,7 @@ function lanternLift(row, col, lantern) {
 //   density: per tile, the share of its 8 neighbours that are developed (0..1); city lights are brighter
 //     in dense cores than at the sprawl's edge (see DEVELOPED_NIGHT_LIGHT_MIN/MAX)
 const GRID_LANTERN = true;
-const LANTERN_TERRAINS = new Set([TERRAINS.home.enum]);
+const LANTERN_TERRAINS = new Set([TERRAINS.home.key]);
 const LANTERN_KERNEL = (() => {
     const kernel = [];
     const reach = LANTERN_RADIUS + LANTERN_FALLOFF;
@@ -1087,7 +1077,7 @@ function getGridNight(map) {
     if (gridNightCache && gridNightCache.map === map) { return gridNightCache.result; }
     const lift = createArray(map.length, () => new Float32Array(PLANET_COLS));
     const density = createArray(map.length, () => new Float32Array(PLANET_COLS));
-    const isDeveloped = (r, c) => r >= 0 && r < map.length && map[r][mod(c, PLANET_COLS)].terrain === TERRAINS.developed.enum;
+    const isDeveloped = (r, c) => r >= 0 && r < map.length && map[r][mod(c, PLANET_COLS)].terrain === TERRAINS.developed.key;
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
             if (GRID_LANTERN && LANTERN_TERRAINS.has(sector.terrain)) {
@@ -1098,7 +1088,7 @@ function getGridNight(map) {
                     if (l > lift[r][c]) { lift[r][c] = l; }
                 });
             }
-            if (sector.terrain === TERRAINS.developed.enum) {
+            if (sector.terrain === TERRAINS.developed.key) {
                 let neighbours = 0;
                 for (let dRow = -1; dRow <= 1; dRow++) {
                     for (let dCol = -1; dCol <= 1; dCol++) {
@@ -1173,8 +1163,8 @@ const GROUND_LIFE = {
     }
 };
 function groundLife(sector, timeMs, daylight) {
-    if (timeMs === undefined || sector.status === STATUSES.unknown.enum) return null;
-    const life = GROUND_LIFE[sector.infestedBy ? 'infested' : TERRAINS_BY_ENUM[sector.terrain].key];
+    if (timeMs === undefined || sector.status === STATUSES.unknown.key) return null;
+    const life = GROUND_LIFE[sector.infestedBy ? 'infested' : TERRAINS[sector.terrain].key];
     if (!life || life.enabled === false) return null;
     const [row, col] = sector.coord;
     return life.animate(timeMs, row, col, tileHash(row, col, 777), daylight);
@@ -1187,7 +1177,7 @@ function groundLife(sector, timeMs, daylight) {
 // scrolls smoothly under the screen-fixed silhouette.
 // lantern: { row, col } (fractional planet coords, mid-slide) of the deployed squad's light, or null.
 // timeMs: the game clock that animates the ground (groundLife); undefined leaves the map still.
-export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays = {}, cameraShift = 0, lantern = null, timeMs = undefined) {
+export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: number, cookedPct: number, overlays = {}, cameraShift = 0, lantern = null, timeMs = undefined) {
     const displayStart = floor(rotation * PLANET_COLS);
     const pad = cameraShift === 0 ? 0 : 1;
 
@@ -1229,18 +1219,18 @@ export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays 
             // fog is that surface before anything is explored (blank fog made the known patch look like a
             // spotlight sliding over a flat map; sparse fog looked like noise). Fog vs ground is carried by
             // colour instead: cool grey fog against warm ground (PLANET_COLORS.unknown / flatland).
-            if (sector.status === STATUSES.unknown.enum) {
+            if (sector.status === STATUSES.unknown.key) {
                 char = STATUSES.unknown.display;
                 colorKey = STATUSES.unknown.key;
             }
             else {
                 char = terrainGlyph(sector.terrain, sector.coord[0], sector.coord[1]);
-                colorKey = TERRAINS_BY_ENUM[sector.terrain].key;
+                colorKey = TERRAINS[sector.terrain].key;
                 // Infested ground: its own glyph in the sick tint; both retract when the nest is cleared
                 if (sector.infestedBy) { char = INFESTED_GLYPH; colorKey = 'infested'; }
                 // City lights (see DEVELOPED_NIGHT_LIGHT_MIN)
-                if (sector.terrain === TERRAINS.home.enum) { selfLit = true; }
-                else if (sector.terrain === TERRAINS.developed.enum) {
+                if (sector.terrain === TERRAINS.home.key) { selfLit = true; }
+                else if (sector.terrain === TERRAINS.developed.key) {
                     const [row, col] = sector.coord;
                     const density = gridNight.density[row][col];
                     const jitter = tileHash(row, col, 4321);
@@ -1249,7 +1239,7 @@ export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays 
                     nightColorKey = 'developedNight';
                     textureAlpha = 1 - DEVELOPED_TEXTURE * (DEVELOPED_TEXTURE_EDGE * (1 - density) + (1 - DEVELOPED_TEXTURE_EDGE) * jitter * jitter);
                 }
-                else if (sector.terrain === TERRAINS.developing.enum) {
+                else if (sector.terrain === TERRAINS.developing.key) {
                     const [row, col] = sector.coord;
                     const jitter = tileHash(row, col, 4321); // same hash as developed, so a tile keeps its spot in the fabric when it powers up
                     selfLit = DEVELOPING_NIGHT_LIGHT;
@@ -1285,7 +1275,7 @@ export function generateImage(map, fractionOfDay, rotation, cookedPct, overlays 
             // Angular distance from the sub-solar meridian: the column's offset from the disc centre, curved by
             // row, minus where the sun is
             const centerOffset = (screenCol - DISPLAY_COLS / 2) / PLANET_COLS * ROW_CURVE_SCALE[rowIndex];
-            
+
             // Distance measured on the circle (like lanternLift), not linearly: sunDirection wraps at +-0.5
             // when the sun passes directly behind the planet, exactly when the terminator reaches the limb,
             // and a linear difference made the twilight sliver at the edge vanish in one frame.

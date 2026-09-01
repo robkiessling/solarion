@@ -31,7 +31,7 @@ export const ALL_DIRECTIONS = Object.values(DIRECTIONS);
 
 // Steps one tile in a compass direction: columns wrap, rows stop at the poles (returns null past them).
 // Used by map generation (mountain ranges walk in a direction); gameplay movement uses getAdjacentCoords.
-export function stepInCompassDirection(currentCoord, direction) {
+export function stepInCompassDirection(currentCoord: Coord, direction: string): Coord | null {
     const [rowOffset, colOffset] = directionToOffset(direction);
     const newRow = currentCoord[0] + rowOffset;
     if (newRow < 0 || newRow >= NUM_PLANET_ROWS) return null;
@@ -66,7 +66,7 @@ const ADJACENT_COORDS = createArray(NUM_PLANET_ROWS, (rowIndex) => {
 });
 
 // Gameplay adjacency. NOTE: returns the cached neighbor list -- treat as read-only.
-export function getAdjacentCoords(coord) {
+export function getAdjacentCoords(coord: Coord): Coord[] {
     return ADJACENT_COORDS[coord[0]][coord[1]];
 }
 
@@ -89,13 +89,13 @@ const SURROUNDING_COORDS = createArray(NUM_PLANET_ROWS, (rowIndex) => {
 });
 
 // Line-of-sight neighborhood (8-way). NOTE: returns the cached list -- treat as read-only.
-export function getSurroundingCoords(coord) {
+export function getSurroundingCoords(coord: Coord): Coord[] {
     return SURROUNDING_COORDS[coord[0]][coord[1]];
 }
 
 // Flood-fills outward from `coord` along the adjacency graph and returns every coord within `steps` hops
 // (excluding `coord` itself). Used to reveal a small contiguous blob, e.g. the area around the home base.
-export function getCoordsWithinHops(coord, steps = 1) {
+export function getCoordsWithinHops(coord: Coord, steps: number = 1): Coord[] {
     const visited = new Set([`${coord[0]},${coord[1]}`]);
     let frontier = [coord];
     const result = [];
@@ -126,7 +126,7 @@ export function getCoordsWithinHops(coord, steps = 1) {
 // Cheap heuristic distance (row difference weighted heavier because text characters are taller than wide;
 // column difference takes the short way around the wrap). Prefer graph distance (BFS hops) for anything
 // directional like exploration ordering.
-export function getApproxDistance(coord1, coord2) {
+export function getApproxDistance(coord1: Coord, coord2: Coord): number {
     const rowOffset = Math.abs(coord2[0] - coord1[0]);
     const directColOffset = Math.abs(coord2[1] - coord1[1]);
     const colOffset = Math.min(directColOffset, PLANET_COLS - directColOffset);
@@ -137,7 +137,7 @@ export function getApproxDistance(coord1, coord2) {
 // BFS hop-distance from `fromCoord` to every tile. This is pure topology -- it ignores terrain and
 // passability -- so the graph is fully connected and every tile gets a finite distance.
 // Returns a 2D array: distances[row][col].
-export function getGraphDistancesFrom(fromCoord) {
+export function getGraphDistancesFrom(fromCoord: Coord): number[][] {
     const distances = createArray(NUM_PLANET_ROWS, () => createArray(PLANET_COLS, () => Infinity));
     distances[fromCoord[0]][fromCoord[1]] = 0;
 

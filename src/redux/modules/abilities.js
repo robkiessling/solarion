@@ -141,6 +141,7 @@ export function startCastUnsafe(ability) {
 // The commandCenter_charge ability is a bit special. It has RNG components (e.g. 5% chance to generate a crystal)
 // which is hard to build into the normal `produces` handler (and we don't want randomness in reducers). It also needs
 // to trigger animations, some of which only happen some of the time (e.g. special animation when crystal is found).
+/** @param {Dispatch} dispatch @param {GetState} getState */
 export function chargeRNG(dispatch, getState) {
     const charge = getAbility(getState().abilities, 'commandCenter_charge');
 
@@ -199,22 +200,28 @@ function endCooldown(dispatch, getState, ability) {
 
 
 // Standard Functions
+/** @param {AbilitiesState} state @param {string} id @returns {Ability} */
 export function getAbility(state, id) {
     return state.byId[id];
 }
+/** @param {Ability} ability @returns {ResourceAmounts} */
 export function getAbilityCost(ability) {
     return ability.cost; // todo floor
 }
+/** @param {Ability} ability @returns {ResourceAmounts} */
 export function getAbilityProduction(ability) {
     return ability.produces;
 }
+/** @param {Ability} ability @returns {boolean} */
 export function isReady(ability) {
     return ability.state === STATES.ready;
 }
+/** @param {Ability} ability @returns {boolean} */
 export function isCasting(ability) {
     return ability.state === STATES.casting;
 }
 
+/** @param {AbilitiesState} state @returns {string[]} */
 export function visibleIds(state) {
     return Object.keys(state.byId); // every ability that is learned is visible
 }

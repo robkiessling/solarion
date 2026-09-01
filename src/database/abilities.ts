@@ -11,13 +11,13 @@ import {countAllStructuresBuilt} from "../redux/modules/structures";
 
 const DEBUG_FF = false;
 
-export const STATES = {
-    ready: 0,
-    casting: 1,
-    cooldown: 2
+export const STATES: { [K in AbilityState]: K } = {
+    ready: 'ready',
+    casting: 'casting',
+    cooldown: 'cooldown'
 }
 
-const base = {
+const base: AbilityRecord = {
     name: 'Unknown',
     description: "Description N/A",
     cost: {},
@@ -34,7 +34,7 @@ const base = {
     cooldown: 0 // Note: cooldown starts after cast FINISHES (not at start of cast)
 }
 
-const database = {
+const database: Record<string, AbilityRecord> = {
     commandCenter_charge: _.merge({}, base, {
         name: "Manually Charge",
         structure: "commandCenter",
@@ -47,11 +47,11 @@ const database = {
             numClicks: 0,
             numMineralBonusProcs: 0
         }
-    }),
+    } satisfies DeepPartial<AbilityRecord>),
     harvester_overclock: _.merge({}, base, {
         name: 'Overclock',
         structure: 'harvester',
-    }),
+    } satisfies DeepPartial<AbilityRecord>),
 
     droidFactory_buildStandardDroid: _.merge({}, base, {
         name: 'Build Droid',
@@ -60,14 +60,14 @@ const database = {
         produces: {
             standardDroids: 1
         },
-    }),
+    } satisfies DeepPartial<AbilityRecord>),
 
     // Squad equipment is NOT crafted here: each piece is a one-time droid-factory upgrade
     // (database/equipment.js); charges reload on the powered grid.
 
     replicate: _.merge({}, base, {
         name: 'Replicate',
-    })
+    } satisfies DeepPartial<AbilityRecord>)
 };
 
 export default database;
@@ -79,7 +79,7 @@ export default database;
  * Note: `variables` is a special object that is calculated first; its result is provided to the rest of the functions as a
  * third parameter (that way many functions can be built off the same variables)
  */
-export const calculators = {
+export const calculators: Record<string, CalculatorSet<Ability>> = {
     commandCenter_charge: {
         variables: (state, ability) => {
             const variables = {
@@ -161,11 +161,11 @@ export const calculators = {
             return {
                 nextDevelopmentSize: nextDevelopmentSize,
                 numStructures: countAllStructuresBuilt(state.structures),
-                productionIncrease: `${Math.floor((nextDevelopmentSize / developedLand) * 100)}%`
+                productionIncreasePct: Math.floor((nextDevelopmentSize / developedLand) * 100)
             }
         },
         description: (state, ability, variables) => {
-            return `Replicates your entire base onto new land, permanently increasing all production and consumption rates by ${variables.productionIncrease}.`
+            return `Replicates your entire base onto new land, permanently increasing all production and consumption rates by ${variables.productionIncreasePct}%.`
         },
         cost: (state, ability, variables) => {
             return {
@@ -190,7 +190,7 @@ export const calculators = {
 
 // Functions can't be stored in the state so storing them in this const
 // TODO Should all callbacks be in reducers??
-export const callbacks = {
+export const callbacks: Record<string, { onStart?: (dispatch: Dispatch, getState: GetState, ability: Ability) => void, onFinish?: (dispatch: Dispatch, getState: GetState) => void }> = {
     commandCenter_charge: {
         onFinish: (dispatch, getState) => {
             fromAbilities.chargeRNG(dispatch, getState);
@@ -209,7 +209,7 @@ export const callbacks = {
 
 // A lookup of abilities that AFFECT a structure
 // Format: { structureId => [ability1, ability2, ...], ... }
-export const abilitiesAffectingStructure = {}
+export const abilitiesAffectingStructure: Record<string, string[]> = {}
 
 for (const [abilityId, abilityDbRecord] of Object.entries(database)) {
     switch(abilityDbRecord.affects.type) {
@@ -231,7 +231,7 @@ for (const [abilityId, abilityDbRecord] of Object.entries(database)) {
 
 // Applies all applicable upgrades for an ability
 // Note: order of application matters (we always add before multiplying).
-function applyAllEffects(state, variables, ability) {
+function applyAllEffects(state: RootState, variables: Variables, ability: Ability) {
     const operations = initOperations();
 
     const upgradeIds = upgradesAffectingAbility[ability.id];

@@ -1,3 +1,4 @@
+// @ts-check
 import _ from 'lodash';
 import {mod} from "../lib/helpers";
 

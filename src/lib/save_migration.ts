@@ -7,6 +7,7 @@ import abilitiesDatabase from '../database/abilities';
 import triggersDatabase from '../database/triggers';
 import logsDatabase from '../database/logs';
 import {DROID_BASE_STATS, fullDroidHp} from './battle';
+import {SAVE_FORMAT_VERSION} from './save_version';
 
 // lodash merges arrays index-by-index, which would mangle saved maps, droid lists, etc.
 // This customizer makes saved arrays replace default arrays wholesale instead.
@@ -29,8 +30,13 @@ const replaceArrays = (defaultValue, savedValue) => {
  * @param savedState The parsed save (may be undefined if there is no save)
  * @param defaultState The current initial state (from running the root reducer with an init action)
  */
-export function migrateSavedState(savedState, defaultState) {
+export function migrateSavedState(savedState: any, defaultState: RootState): RootState | undefined {
     if (!savedState) {
+        return undefined;
+    }
+
+    if (!savedState.game || savedState.game.saveFormatVersion !== SAVE_FORMAT_VERSION) {
+        console.warn('Saved game uses an older save format; starting a new game.');
         return undefined;
     }
 
@@ -43,13 +49,14 @@ export function migrateSavedState(savedState, defaultState) {
         return undefined;
     }
 
-    const state = _.mergeWith({}, defaultState, savedState, replaceArrays);
+    const state: RootState = _.mergeWith({}, defaultState, savedState, replaceArrays);
 
     // Squad shape repairs: the prompt moved off the squad onto the planet slice, equipment was added, and
     // the precomputed-outcome fight state was replaced by the live battle sim (an old mid-fight save can't
     // be resumed as a battle, so the fight is simply dropped; the nest is still there to re-engage).
     if (state.planet && state.planet.squad) {
-        const squad = state.planet.squad;
+        // Older saves carried fields the squad no longer has; widen the type so the cleanup below can name them
+        const squad = state.planet.squad as Squad & { pouch?: unknown; prompt?: EncounterPrompt };
         delete squad.pouch; // pre-equipment saves carried purchasable consumables; that system is gone
         if (squad.equipment === undefined) squad.equipment = {}; // gear re-arms on the next deploy
         if (!squad.droidStats) squad.droidStats = { ...DROID_BASE_STATS }; // pre-upgrades saves: stock droids
@@ -76,7 +83,7 @@ export function migrateSavedState(savedState, defaultState) {
     // add any learned-but-newly-visible resources to visibleIds (records snapshot the flag at LEARN time, so
     // e.g. droids joining the resource bar would otherwise stay hidden in old saves).
     if (state.resources && state.resources.byId) {
-        Object.entries(state.resources.byId).forEach(([id, record]) => {
+        (Object.entries(state.resources.byId) as [ResourceId, Resource][]).forEach(([id, record]) => {
             record.visible = resourcesDatabase[id].visible;
             if (record.visible && !state.resources.visibleIds.includes(id)) {
                 state.resources.visibleIds.push(id);

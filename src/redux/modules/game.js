@@ -1,4 +1,5 @@
 import update from 'immutability-helper';
+import {SAVE_FORMAT_VERSION} from "../../lib/save_version";
 
 // Actions
 export const UPDATE_SETTING = 'game/UPDATE_SETTING';
@@ -12,6 +13,7 @@ export const NAV_TAB_TITLES = {
 }
 
 const initialState = {
+    saveFormatVersion: SAVE_FORMAT_VERSION,
     gameSpeed: 1,
     lastSavedAt: null,
     settingsModalOpen: false,

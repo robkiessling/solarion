@@ -1,3 +1,4 @@
+// @ts-check
 import {NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
 import {getTerrain, STATUSES, TERRAINS} from "./planet_map";
 import {mod} from "./helpers";
@@ -60,7 +61,7 @@ function tileAt(map, coord, facing, ahead, side) {
 
 function groundKey(sector) {
     if (!sector) return 'void';
-    if (sector.status === STATUSES.unknown.enum) return 'unknown';
+    if (sector.status === STATUSES.unknown.key) return 'unknown';
     if (sector.infestedBy) return 'infested';
     return getTerrain(sector.terrain).key;
 }
@@ -84,12 +85,12 @@ export function buildVista(map, pois, squad) {
         let marker = null;
         for (let ahead = 1; ahead <= VISTA_DEPTH; ahead++) {
             const sector = tileAt(map, squad.coord, facing, ahead, side);
-            if (!sector || sector.status === STATUSES.unknown.enum) continue;
+            if (!sector || sector.status === STATUSES.unknown.key) continue;
             if (ahead <= 2 && !marker) {
                 const poi = markers[`${sector.coord[0]},${sector.coord[1]}`];
                 if (poi) marker = { poi, ahead };
             }
-            if (sector.terrain === TERRAINS.mountain.enum) { peakDistance = ahead; break; }
+            if (sector.terrain === TERRAINS.mountain.key) { peakDistance = ahead; break; }
         }
 
         const nearest = tileAt(map, squad.coord, facing, 1, side);

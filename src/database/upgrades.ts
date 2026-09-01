@@ -11,15 +11,15 @@ import * as fromPlanet from "../redux/modules/planet";
 import {generateMap} from "../redux/modules/planet";
 import * as fromStar from "../redux/modules/star";
 
-export const STATES = {
-    hidden: 0,
-    discovered: 1,
-    researching: 2,
-    paused: 3,
-    researched: 4
+export const STATES: { [K in UpgradeState]: K } = {
+    hidden: 'hidden',
+    discovered: 'discovered',
+    researching: 'researching',
+    paused: 'paused',
+    researched: 'researched'
 }
 
-const base = {
+const base: UpgradeRecord = {
     name: 'Unknown',
     description: "",
     researchTime: 0, // if 0, research will occur instantly
@@ -41,7 +41,7 @@ const base = {
 
 // TODO don't hardcode values into description, e.g. "Increase energy production by {{ multiplier * 100 }}% ..."
 // Note: 'effect' keys correspond to structure calculated variables
-const database = {
+const database: Record<string, UpgradeRecord> = {
     commandCenter_showTerminal: _.merge({}, base, {
         name: "Boot-Up",
         structure: 'commandCenter',
@@ -54,7 +54,7 @@ const database = {
         cost: {
             energy: 20
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_showResourceBar: _.merge({}, base, {
         name: "Turn On 2nd Monitor",
         structure: 'commandCenter',
@@ -68,7 +68,7 @@ const database = {
         cost: {
             energy: 30
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_showPlanetStatus: _.merge({}, base, {
         name: "Activate Weather Sensors",
         structure: 'commandCenter',
@@ -82,7 +82,7 @@ const database = {
         cost: {
             energy: 30
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_openShutters: _.merge({}, base, {
         name: "Lower Blast Shield",
         structure: 'commandCenter',
@@ -96,7 +96,7 @@ const database = {
         cost: {
             energy: 50
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_showResourceRates: _.merge({}, base, {
         name: "Turn on Advanced Stats",
         structure: 'commandCenter',
@@ -110,7 +110,7 @@ const database = {
         cost: {
             energy: 25
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
     commandCenter_improvedCharge: _.merge({}, base, {
         name: "Replace Coils",
@@ -131,7 +131,7 @@ const database = {
         effect: {
             energy: { add: 1 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_improvedCharge2: _.merge({}, base, {
         name: "Superconductive Coils",
         structure: 'commandCenter',
@@ -153,7 +153,7 @@ const database = {
         effect: {
             energy: { add: 3 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_improvedCharge3: _.merge({}, base, {
         name: "Gold Wiring",
         structure: 'commandCenter',
@@ -175,7 +175,7 @@ const database = {
         effect: {
             energy: { add: 25 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_improvedCharge4: _.merge({}, base, {
         name: "Platinum Wiring",
         structure: 'commandCenter',
@@ -197,7 +197,7 @@ const database = {
         effect: {
             energy: { add: 70 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_improvedCharge5: _.merge({}, base, {
         name: "Quantum Induction",
         structure: 'commandCenter',
@@ -218,7 +218,7 @@ const database = {
         effect: {
             energy: { add: 900 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
     commandCenter_chargeMineral1: _.merge({}, base, {
         name: "Crystallization",
@@ -244,7 +244,7 @@ const database = {
             mineralChance: { add: 0.05 },
             mineralBonus: { add: 1 },
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
 
     commandCenter_researchSolar: _.merge({}, base, {
@@ -262,7 +262,7 @@ const database = {
             energy: 30,
             ore: 30
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_researchWind: _.merge({}, base, {
         name: "Research: Wind Power",
         structure: 'commandCenter',
@@ -279,7 +279,7 @@ const database = {
             energy: 50,
             ore: 75
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_researchEnergyBay: _.merge({}, base, {
         name: "Research: Energy Capacity",
         structure: 'commandCenter',
@@ -289,7 +289,7 @@ const database = {
             energy: 50,
             ore: 50
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_researchRefinery: _.merge({}, base, {
         name: "Research: Rare Minerals",
         structure: 'commandCenter',
@@ -304,7 +304,7 @@ const database = {
             energy: 500,
             ore: 500
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_researchDroidFactory: _.merge({}, base, {
         name: "Research: Robotics",
         structure: 'commandCenter',
@@ -319,7 +319,7 @@ const database = {
             energy: 2500,
             refinedMinerals: 100
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     commandCenter_researchProbeFactory: _.merge({}, base, {
         name: "Research: Astronautics",
         structure: 'commandCenter',
@@ -334,7 +334,7 @@ const database = {
             energy: 1.5e6,
             refinedMinerals: 5e6
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
 
     harvester_ore1: _.merge({}, base, {
@@ -352,7 +352,7 @@ const database = {
         effect: {
             ore: { multiply: 1.2 },
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     harvester_ore2: _.merge({}, base, {
         name: "Steel Drillbit",
         structure: 'harvester',
@@ -370,7 +370,7 @@ const database = {
         effect: {
             ore: { multiply: 1.3 },
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     harvester_ore3: _.merge({}, base, {
         name: "Superheated Engines",
         structure: 'harvester',
@@ -390,7 +390,7 @@ const database = {
             ore: { multiply: 1.5 },
             energy: { multiply: 1.3 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     harvester_ore4: _.merge({}, base, {
         name: "Kinetic Engines",
         structure: 'harvester',
@@ -408,7 +408,7 @@ const database = {
             ore: { multiply: 3 },
             energy: { multiply: 3 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     harvester_eff1: _.merge({}, base, {
         name: "Heat Guards",
         structure: 'harvester',
@@ -425,7 +425,7 @@ const database = {
         effect: {
             topEndEfficiency: { add: 0.25 },
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     harvester_eff2: _.merge({}, base, {
         name: "Nanocarbon Threading",
         structure: 'harvester',
@@ -444,7 +444,7 @@ const database = {
         effect: {
             topEndEfficiency: { add: 0.5 },
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
 
 
@@ -464,7 +464,7 @@ const database = {
             ore: 1000,
             refinedMinerals: 50
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     harvester_overclockUpgrade1: _.merge({}, base, {
         name: "Feedback Loop",
         structure: 'harvester',
@@ -485,7 +485,7 @@ const database = {
         effect: {
             castTime: { add: 20 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     harvester_overclockUpgrade2: _.merge({}, base, {
         name: "Hyper Acceleration",
         structure: 'harvester',
@@ -507,7 +507,7 @@ const database = {
             oreMultiplication: { add: 9 },
             energyMultiplication: { add: 4.5 },
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
     solarPanel_production1: _.merge({}, base, {
         name: "Larger Panels",
@@ -528,7 +528,7 @@ const database = {
         effect: {
             peakEnergy: { multiply: 1.5 }
         },
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     solarPanel_ambientLight: _.merge({}, base, {
         name: "Ambient Light Receptors",
         structure: 'solarPanel',
@@ -547,7 +547,7 @@ const database = {
         effect: {
             minDaylight: { add: 0.25 }
         },
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     solarPanel_production2: _.merge({}, base, {
         name: "Even Larger Panels",
         structure: 'solarPanel',
@@ -566,7 +566,7 @@ const database = {
         effect: {
             peakEnergy: { multiply: 2.5 }
         },
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     solarPanel_production3: _.merge({}, base, {
         name: "Perovskite Solar Cells",
         structure: 'solarPanel',
@@ -584,7 +584,7 @@ const database = {
         effect: {
             peakEnergy: { multiply: 3 }
         },
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     solarPanel_global: _.merge({}, base, {
         name: "Global Infrastructure",
         structure: 'solarPanel',
@@ -592,7 +592,7 @@ const database = {
         effect: {
             globalAverageRate: { add: 1 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     solarPanel_sunShield: _.merge({}, base, {
         name: "Radiation Shielding",
         structure: 'solarPanel',
@@ -607,7 +607,7 @@ const database = {
             ore: 1.3e8,
             refinedMinerals: 5.1e7
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
 
     energyBay_largerCapacity: _.merge({}, base, {
@@ -625,7 +625,7 @@ const database = {
         effect: {
             capacity: { multiply: 3 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     energyBay_production1: _.merge({}, base, {
         name: "Power Linking (I)",
         structure: 'energyBay',
@@ -643,7 +643,7 @@ const database = {
         effect: {
             energyBoost: { add: 0.03 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     energyBay_production2: _.merge({}, base, {
         name: "Power Linking (II)",
         structure: 'energyBay',
@@ -659,7 +659,7 @@ const database = {
         effect: {
             energyBoost: { add: 0.02 } // going from 3% to 5%
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     energyBay_production3: _.merge({}, base, {
         name: "Power Linking (III)",
         structure: 'energyBay',
@@ -677,7 +677,7 @@ const database = {
         effect: {
             energyBoost: { add: 0.05 } // going from 5% to 10%
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     energyBay_production4: _.merge({}, base, { // todo if you copy this to make another level, update the constant in energyBayBoost function
         name: "Power Linking (IV)",
         structure: 'energyBay',
@@ -695,7 +695,7 @@ const database = {
         effect: {
             energyBoost: { add: 0.1 } // going from 10% to 20%
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
 
     energyBay_largerCapacity2: _.merge({}, base, {
@@ -715,7 +715,7 @@ const database = {
         effect: {
             capacity: { multiply: 4 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     energyBay_largerCapacity3: _.merge({}, base, {
         name: "Ultra-Dense Matrices",
         structure: 'energyBay',
@@ -733,7 +733,7 @@ const database = {
         effect: {
             capacity: { multiply: 4 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     energyBay_largerCapacity4: _.merge({}, base, {
         name: "Quantum Charging",
         structure: 'energyBay',
@@ -750,7 +750,7 @@ const database = {
         effect: {
             capacity: { multiply: 4 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
     windTurbine_largerBlades: _.merge({}, base, {
         name: "Larger Blades",
@@ -767,7 +767,7 @@ const database = {
         effect: {
             ratedPower: { multiply: 1.25 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     windTurbine_reduceCutIn: _.merge({}, base, {
         name: "Advanced Blades",
         structure: 'windTurbine',
@@ -785,7 +785,7 @@ const database = {
         effect: {
             cutInSpeed: { add: -5 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     windTurbine_increaseCutOut: _.merge({}, base, {
         name: "Hyper Motor",
         structure: 'windTurbine',
@@ -803,7 +803,7 @@ const database = {
         effect: {
             cutOutSpeed: { add: 20 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     windTurbine_yawDrive: _.merge({}, base, {
         name: "Yaw Drive",
         structure: 'windTurbine',
@@ -822,7 +822,7 @@ const database = {
         effect: {
             ratedPower: { multiply: 1.3 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     windTurbine_zephyr: _.merge({}, base, {
         name: "Zephyr PowerCore",
         structure: 'windTurbine',
@@ -841,7 +841,7 @@ const database = {
         effect: {
             ratedPower: { multiply: 2 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     windTurbine_global: _.merge({}, base, {
         name: "Global Infrastructure",
         structure: 'windTurbine',
@@ -849,7 +849,7 @@ const database = {
         effect: {
             globalAverageRate: { add: 1 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
     refinery_improveProduction: _.merge({}, base, {
         name: "Higher Yields",
@@ -867,7 +867,7 @@ const database = {
         effect: {
             refinedMinerals: { multiply: 1.25 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     refinery_cooling: _.merge({}, base, {
         name: "Surface Cooling",
         structure: 'refinery',
@@ -884,7 +884,7 @@ const database = {
         effect: {
             nightReduction: { add: 0.5 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     refinery_improveProduction2: _.merge({}, base, {
         name: "Hyper-Alloy Synthesizer",
         structure: 'refinery',
@@ -902,7 +902,7 @@ const database = {
         effect: {
             refinedMinerals: { multiply: 1.75 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     refinery_improveProduction3: _.merge({}, base, {
         name: "Plasma Furnace",
         structure: 'refinery',
@@ -921,7 +921,7 @@ const database = {
             refinedMinerals: { multiply: 2 },
             energy: { multiply: 1.8 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     refinery_improveProduction4: _.merge({}, base, {
         name: "Quantum Synthesis",
         structure: 'refinery',
@@ -939,7 +939,7 @@ const database = {
             refinedMinerals: { multiply: 6 },
             energy: { multiply: 4 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
     droidFactory_improvedMaintenance: _.merge({}, base, {
         name: "Advanced Hyperchips",
@@ -959,7 +959,7 @@ const database = {
         effect: {
             boost: { multiply: 1.5 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_longerComm: _.merge({}, base, {
         name: "Long-range Communication",
         structure: 'droidFactory',
@@ -976,7 +976,7 @@ const database = {
         affects: {
             type: EFFECT_TARGETS.misc
         },
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_drill: _.merge({}, base, {
         name: "Plasma Drill",
         structure: 'droidFactory',
@@ -994,7 +994,7 @@ const database = {
         affects: {
             type: EFFECT_TARGETS.misc
         },
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_surveyAutomation: _.merge({}, base, {
         name: "Survey Automation",
         structure: 'droidFactory',
@@ -1012,7 +1012,7 @@ const database = {
         affects: {
             type: EFFECT_TARGETS.misc
         },
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_fasterBuild: _.merge({}, base, {
         name: "Faster Builds",
         structure: 'droidFactory',
@@ -1033,7 +1033,7 @@ const database = {
         effect: {
             castTime: { add: -15 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     // Squad equipment: one-time acquisitions (see database/equipment.js). Researching one permanently
     // outfits every future squad with the piece; its charges spend in battle and reload on the grid.
     // Story salvage can grant these later by researchForFree-ing the same ids.
@@ -1057,7 +1057,7 @@ const database = {
         affects: {
             type: EFFECT_TARGETS.misc
         },
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_repairRig: _.merge({}, base, {
         squad: true,
         name: "Repair Rig",
@@ -1075,7 +1075,7 @@ const database = {
         affects: {
             type: EFFECT_TARGETS.misc
         },
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_overchargeCell: _.merge({}, base, {
         squad: true,
         name: "Overcharge Cell",
@@ -1093,7 +1093,7 @@ const database = {
         affects: {
             type: EFFECT_TARGETS.misc
         },
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
     // Droid combat upgrades: EFFECT_TARGETS.misc effects on the expedition droids' unit stats
     // (hp/damage/attackMs/speed), applied by getDroidStats in redux/reducer.js and snapshotted onto the
@@ -1117,7 +1117,7 @@ const database = {
         effect: {
             hp: { add: 3 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_weaponCalibration: _.merge({}, base, {
         squad: true,
         name: "Weapon Calibration",
@@ -1138,7 +1138,7 @@ const database = {
         effect: {
             damage: { multiply: 1.5 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     // Squad battery upgrade: applied by getBatteryCapacity in redux/reducer.js (squad-level, not per-droid)
     // and snapshotted at deploy like the combat stats above.
     droidFactory_extendedCells: _.merge({}, base, {
@@ -1161,7 +1161,7 @@ const database = {
         effect: {
             batteryCapacity: { add: 50 }
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
     droidFactory_fasterExplore: _.merge({}, base, {
         name: "Research: Jet Propulsion",
@@ -1178,7 +1178,7 @@ const database = {
             ore: 1e6,
             refinedMinerals: 1e6
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
 
     probeFactory_exponentialGrowth: _.merge({}, base, {
         name: "Exponential Growth",
@@ -1193,7 +1193,7 @@ const database = {
         cost: {
             energy: 3.5e13
         }
-    }),
+    } satisfies DeepPartial<UpgradeRecord>),
     probeFactory_finalSequence: _.merge({}, base, {
         name: "Transcend",
         structure: 'probeFactory',
@@ -1201,14 +1201,14 @@ const database = {
         cost: {
             energy: 10
         }
-    })
+    } satisfies DeepPartial<UpgradeRecord>)
 };
 
 export default database;
 
 
 // Functions can't be stored in the state so storing them in this const
-export const callbacks = {
+export const callbacks: Record<string, { onFinish?: (dispatch: Dispatch) => void }> = {
     commandCenter_showTerminal: {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showTerminal', true));
@@ -1327,11 +1327,11 @@ export const callbacks = {
 
 // A lookup of upgrades that AFFECT a structure
 // Format: { structureId => [upgrade1, upgrade2, ...], ... }
-export const upgradesAffectingStructure = {}
+export const upgradesAffectingStructure: Record<string, string[]> = {}
 
 // A lookup of upgrades that AFFECT an ability
 // Format: { abilityId => [upgrade1, upgrade2, ...], ... }
-export const upgradesAffectingAbility = {}
+export const upgradesAffectingAbility: Record<string, string[]> = {}
 
 for (const [upgradeId, upgradeDbRecord] of Object.entries(database)) {
     switch(upgradeDbRecord.affects.type) {

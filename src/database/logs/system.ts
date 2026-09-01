@@ -360,4 +360,4 @@ export default {
             dispatch(fromUpgrades.discover('probeFactory_finalSequence'));
         }
     }
-}
+} satisfies Record<string, LogRecord>;

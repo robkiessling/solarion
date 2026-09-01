@@ -217,19 +217,24 @@ function finishResearch(dispatch, getState, upgradeId) {
 
 
 // Standard Functions
+/** @param {UpgradesState} state @param {string} id @returns {Upgrade} */
 export function getUpgrade(state, id) {
     return state.byId[id];
 }
+/** @param {Upgrade} upgrade @returns {ResourceAmounts} */
 export function getResearchCost(upgrade) {
     return upgrade.cost;
 }
+/** @param {Upgrade} upgrade @returns {boolean} */
 export function isResearchable(upgrade) {
     return upgrade && upgrade.state === STATES.discovered;
 }
+/** @param {Upgrade} upgrade @returns {boolean} */
 export function isResearched(upgrade) {
     return upgrade && upgrade.state === STATES.researched;
 }
 
+/** @param {UpgradesState} state @returns {string[]} */
 export function visibleIds(state) {
     return Object.keys(state.byId).filter(id => {
         const upgrade = getUpgrade(state, id);
@@ -240,7 +245,7 @@ export function visibleIds(state) {
 export function getStandaloneIds(state) {
     return Object.keys(state.byId).filter(id => {
         const upgrade = getUpgrade(state, id);
-        return upgrade.standalone && upgrade.state < STATES.researched;
+        return upgrade.standalone && upgrade.state !== STATES.researched;
     });
 }
 
