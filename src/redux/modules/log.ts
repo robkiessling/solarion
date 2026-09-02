@@ -1,6 +1,23 @@
 import update from 'immutability-helper';
 import { v4 } from 'uuid';
 
+export interface LogEntry {
+    /** database id, or null for inline entries */
+    id: string | null;
+    sequence: string;
+    status: 'in_progress' | 'completed';
+    vars?: { [placeholder: string]: string | number } | null;
+    entryType?: 'inline';
+    text?: string;
+    className?: string;
+    style?: { [property: string]: string | number } | null;
+}
+
+export interface LogState {
+    bySequenceId: { [sequenceId: string]: LogEntry };
+    visibleSequenceIds: string[];
+}
+
 // Actions
 export const LOG = 'log/LOG' as const;
 export const START_LOG_SEQUENCE = 'log/START_LOG_SEQUENCE' as const;

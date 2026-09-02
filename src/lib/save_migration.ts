@@ -8,6 +8,9 @@ import triggersDatabase from '../database/triggers';
 import logsDatabase from '../database/logs';
 import {DROID_BASE_STATS, fullDroidHp} from './battle';
 import {SAVE_FORMAT_VERSION} from './save_version';
+import type {EncounterPrompt} from '../redux/modules/planet';
+import type {Squad} from './squad';
+import type {Resource} from '../database/resources';
 
 // lodash merges arrays index-by-index, which would mangle saved maps, droid lists, etc.
 // This customizer makes saved arrays replace default arrays wholesale instead.

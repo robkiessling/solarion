@@ -12,6 +12,72 @@ import {
     NUM_PLANET_ROWS,
     PLANET_COLS,
 } from "./planet_geometry";
+
+/** TERRAINS[x].key (the debug meridians add `meridian_<n>` keys at runtime; they never reach a save) */
+export type TerrainKey = 'home' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'acid' | 'water';
+
+/** How much of a tile the player has seen (the keys of STATUSES below) */
+export type SectorStatus = 'unknown' | 'exploring' | 'explored';
+
+/** The barrier a gate tile is: a cave rockfall (opened with the drill) or a sealed door (the override module) */
+export type GateKind = 'cave' | 'door';
+
+/** The three story regions of the map: the home bowl, the mid-world belt, and the far-side antipode */
+export type Region = 'bowl' | 'belt' | 'antipode';
+
+export interface TerrainDef {
+    key: TerrainKey;
+    display: string;
+    variants?: string[];
+    variantShare?: number;
+    label?: string;
+    /** seconds for a droid to cross one tile of this terrain */
+    crossTime: number;
+    /** capability required before the terrain can be crossed at all */
+    crossUpgrade?: string;
+    blocksVision?: boolean;
+    exploreLength?: number;
+}
+
+export interface SectorStatusDef {
+    key: SectorStatus;
+    display?: string;
+    label: string;
+}
+
+/** One tile on the planet map */
+export interface Sector {
+    terrain: TerrainKey;
+    status: SectorStatus;
+    exploreLength?: number;
+    /** [row, col]; cached on the sector by map generation so callers iterating a map can address it */
+    coord: Coord;
+    /** heuristic distance to home (development ordering); Infinity until cacheDistancesToHome runs at generation */
+    distanceHome: number;
+    /** BFS hop distance to home (exploration ordering); Infinity until cacheDistancesToHome runs at generation */
+    graphDistanceHome: number;
+    region?: Region;
+    gated?: boolean;
+    gateKind?: GateKind;
+    /** authored placement zone letter */
+    zone?: string;
+    /** authored tunnel system digit */
+    tunnel?: string;
+    /** poiId of the nest whose infestation covers this tile */
+    infestedBy?: string | null;
+    sectorDividerLeft?: boolean;
+    sectorDividerRight?: boolean;
+    sectorDividerBottom?: boolean;
+}
+
+export type PlanetMap = Sector[][];
+
+/** The set of unlocked crossing capabilities, e.g. { drill: true } */
+export type Unlocks = { [capability: string]: boolean };
+
+/** What a nest's battle grid cell / arena obstacle art is stamped from */
+export interface DisplayCell { char: string; [attribute: string]: any }
+
 // Re-exported so existing consumers (e.g. redux) can keep importing planet-size constants from here.
 // The source of truth lives in planet_geometry.
 export { NUM_SECTORS } from "./planet_geometry";

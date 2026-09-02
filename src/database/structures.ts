@@ -15,6 +15,52 @@ import {abilitiesAffectingStructure} from "./abilities";
 import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 import {energyBeamStrengthEnergy, energyBeamStrengthPct} from "../redux/reducer";
 import {isTargetingPlanet} from "../redux/modules/star";
+import type {CalculatorSet} from '../redux/reducer';
+import type {DeepPartial} from '../lib/helpers';
+import type {Variables} from '../lib/effect';
+
+/** Whether a structure could afford its last tick's consumption */
+export type StructureStatus = 'normal' | 'insufficient';
+
+/** Which structure tab a structure is listed under */
+export type StructureType = 'generator' | 'consumer';
+
+export interface DroidData {
+    usesDroids: boolean;
+    numDroidsAssigned: number;
+    droidAssignmentType: 'structure' | 'planet';
+    assignTooltipPrefix?: string;
+}
+
+/** The part of DroidData the droid assign/remove actions read; the planet slice carries only this much */
+export type DroidAssignment = Pick<DroidData, 'numDroidsAssigned' | 'droidAssignmentType'>;
+
+/** A structure as authored in the database (before LEARN copies it into state) */
+export interface StructureRecord {
+    name: string;
+    description: string;
+    runnable: boolean;
+    runningRate: number;
+    runningCooldown: number;
+    disabled: boolean;
+    count: { total: number; max: number };
+    status: StructureStatus;
+    statusMessage: string;
+    cost: ResourceAmounts;
+    consumes: ResourceAmounts;
+    produces: ResourceAmounts;
+    type: StructureType;
+    droidData: DroidData;
+}
+
+/** A learned structure in state. Calculated fields are written by the calculators on every recalculation. */
+export interface Structure extends StructureRecord {
+    id: StructureId;
+    variables?: Variables;
+    capacity?: ResourceAmounts;
+    boost?: ResourceAmounts;
+    animationTag?: string;
+}
 
 const IDLE_LABEL = 'Idle';
 const RUNNING_LABEL = 'Running';
@@ -52,7 +98,7 @@ const base: StructureRecord = {
     },
 }
 
-export default {
+const database = {
     commandCenter: _.merge({}, base, {
         name: COMMAND_CENTER_NAME_GARBLED,
         // description: "A twisted mass of cables, switches and monitors surround a large device.",
@@ -119,7 +165,12 @@ export default {
         }
     } satisfies DeepPartial<StructureRecord>),
 
-} satisfies Record<StructureId, StructureRecord>;
+} satisfies Record<string, StructureRecord>;
+
+/** The structure ids: the keys of the table above */
+export type StructureId = keyof typeof database;
+
+export default database;
 
 const baseCalculator: CalculatorSet<Structure> = {
     animationTag: (state, structure) => { // todo rename animationKey?

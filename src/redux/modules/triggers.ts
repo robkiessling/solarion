@@ -2,6 +2,10 @@ import store from '../store';
 import update from "immutability-helper";
 import database from '../../database/triggers';
 
+export interface TriggersState {
+    byId: { [triggerId: string]: { id: string; triggered: boolean } };
+}
+
 export const ADD_TRIGGER = 'triggers/ADD_TRIGGER' as const;
 export const REMOVE_TRIGGER = 'triggers/REMOVE_TRIGGER' as const;
 

@@ -10,6 +10,25 @@
  * rocks/ruins/canyon) are registries of placement algorithms in lib/battle.ts (FORMATIONS,
  * TERRAIN_LAYOUTS): new ids mean new code there, new combinations of ids are records here.
  */
+import type {NestFormation, TerrainLayoutId} from '../lib/battle';
+
+/** The expedition droid stat block: DROID_BASE_STATS plus researched combat upgrades and the authorized chassis spec.
+ * A type alias (not an interface) so it is assignable to Variables, which the upgrade effects are applied through. */
+export type DroidStats = { hp: number; damage: number; attackMs: number; speed: number };
+
+/** Bug unit types: the keys of BUG_TYPES below. Listed by hand (deriving it from the table would be circular, since
+ * UnitStats.spawns names a BugType), so keep it in step with the table. */
+export type BugType = 'bug' | 'hive';
+
+export type UnitType = 'droid' | BugType;
+
+export interface UnitStats extends DroidStats {
+    /** spawner-type bugs only */
+    spawns?: BugType;
+    spawnEveryMs?: number;
+    spawnBatch?: number;
+    spawnCap?: number;
+}
 
 // Kill-time asymmetry is the balance dial: a stock droid is worth roughly two standard bugs, so matched
 // counts win with light losses and ~1.5x bug numbers is the break-even. Bugs are faster (they swarm),

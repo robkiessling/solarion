@@ -1,6 +1,18 @@
 import update from 'immutability-helper';
 import {withRecalculation} from "../reducer";
 import {generateRandomProbeDist} from "../../lib/star";
+import type {ProbeDistribution} from '../../lib/star';
+
+/** Where the probe swarm's mirrors aim their beam */
+export type MirrorTarget = 'none' | 'planet';
+
+export interface StarState {
+    /** the probe swarm's [angle, radius] pairs (see generateRandomProbeDist in lib/star.ts) */
+    distribution: ProbeDistribution;
+    mirrorsOnline: boolean;
+    mirrorTarget: MirrorTarget;
+    hyperBeamStartedAt: number | null;
+}
 
 export const TARGET_LABELS: Record<MirrorTarget, string> = {
     none: 'None',

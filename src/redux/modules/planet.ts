@@ -37,6 +37,80 @@ import {advanceSquad, createSquad, droidsRecovered, isOnGrid} from "../../lib/sq
 import {logInline} from "./log";
 import {zoneColor} from "../../lib/planet_render";
 import {TERRAIN_BLURBS} from "../../database/terrain_blurbs";
+import type {Battle} from '../../lib/battle';
+import type {Capability, PoiReward} from '../../database/pois';
+import type {DroidAssignment} from '../../database/structures';
+import type {DroidStats} from '../../database/battle';
+import type {EquipmentCharges, EquipmentId} from '../../database/equipment';
+import type {PlanetMap, Unlocks} from '../../lib/planet_map';
+import type {Poi} from '../../lib/expeditions';
+import type {Squad, SquadEvent, SquadZone} from '../../lib/squad';
+
+/** A scout droid (planet.droids) */
+export interface ScoutDroid {
+    coord: Coord | null;
+    path: Coord[];
+    target: Coord | null;
+    moveProgress: number;
+    /** [dRow, dCol] the scout last walked toward; equidistant lookouts are picked along it */
+    heading: [number, number] | null;
+    docked?: boolean;
+    docking?: boolean;
+    returning?: boolean;
+}
+
+/**
+ * What the encounter popup narrates in its result phase. Fight outcomes carry the roster numbers and the final
+ * battle frame; site outcomes (caches, story sites, gates) carry what was found. Display strings are composed at
+ * render time so the stored shape stays serializable.
+ */
+export interface EncounterResult {
+    wiped?: boolean;
+    losses?: number;
+    squadSize?: number;
+    multiplier?: number;
+    landCredit?: number;
+    cargoLost?: ResourceAmounts | null;
+    finalBattle?: Battle;
+    storyId?: string | null;
+    capability?: Capability | null;
+    loaded?: ResourceAmounts | null;
+}
+
+export interface EncounterPrompt {
+    poiId: string;
+    phase: 'offer' | 'result';
+    result?: EncounterResult | null;
+}
+
+/** planet.overallStatus: the state of scout exploration of the map */
+export type MapStatus = 'unstarted' | 'inProgress' | 'finished';
+
+/** Who drives the planet rotation */
+export type RotationMode =
+    | 'manual'  // the longitude slider
+    | 'sun'     // the camera locks to the day side
+    | 'squad';  // the camera follows the expedition team (or centers home base when no team is deployed)
+
+export interface PlanetState {
+    map: PlanetMap;
+    homeCoord: Coord | null;
+    overallStatus: MapStatus;
+    rotation: number;
+    rotationMode: RotationMode;
+    droidData: DroidAssignment;
+    droids: ScoutDroid[];
+    unlockedTerrains: Unlocks;
+    haloRadius: number;
+    beaconCoord: Coord | null;
+    exploreSpeed: number;
+    cookedPct: number;
+    numExplored: number;
+    maxDevelopedLand: number;
+    pois: { [poiId: string]: Poi };
+    squad: Squad | null;
+    prompt: EncounterPrompt | null;
+}
 
 // Terrain notes: elapsed game time each zone was last noted (session-only; not worth persisting), and the
 // window inside which re-entering that zone stays quiet

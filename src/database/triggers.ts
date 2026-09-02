@@ -3,6 +3,13 @@ import * as fromUpgrades from "../redux/modules/upgrades";
 import store from "../redux/store";
 import {probeCapacity} from "../lib/star";
 
+export interface TriggerRecord<S = any> {
+    /** the part of the state to listen to (as specific as possible) */
+    selector: (state: RootState) => S;
+    condition: (slice: S) => boolean;
+    action: () => void;
+}
+
 /**
  *
  * Triggers provide a way to perform actions when a specific state change occurs (and attempts to do so in the most

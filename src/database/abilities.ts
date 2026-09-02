@@ -8,6 +8,40 @@ import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations} f
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {STANDARD_COST_EXP} from "./structures";
 import {countAllStructuresBuilt} from "../redux/modules/structures";
+import type {CalculatorSet} from '../redux/reducer';
+import type {DeepPartial} from '../lib/helpers';
+import type {Effect, EffectAffects, Variables} from '../lib/effect';
+
+/** An ability's cast lifecycle (cooldown starts after the cast finishes) */
+export type AbilityState = 'ready' | 'casting' | 'cooldown';
+
+export interface AbilityRecord {
+    name: string;
+    description: string;
+    cost: ResourceAmounts;
+    produces: ResourceAmounts;
+    /** seconds */
+    castTime: number;
+    state: AbilityState;
+    /** applied for the duration of the cast */
+    effect?: Effect;
+    affects: EffectAffects;
+    /** if truthy, no ability button is shown even after learning */
+    hidden: boolean | string;
+    /** seconds; starts after the cast finishes */
+    cooldown: number;
+    structure?: StructureId;
+    /** animation counters (commandCenter_charge) */
+    animations?: { [key: string]: number };
+}
+
+export interface Ability extends AbilityRecord {
+    id: string;
+    castProgress?: number;
+    cooldownProgress?: number;
+    variables?: Variables;
+    displayInfo?: string;
+}
 
 const DEBUG_FF = false;
 

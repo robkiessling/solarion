@@ -2,6 +2,18 @@ import { getRandomFromArray } from "./helpers";
 import { MinHeap } from "./min_heap";
 import { getAdjacentCoords } from "./planet_geometry";
 import { getCrossTime, GRID_TERRAINS, isScoutPassable, STATUSES } from "./planet_map";
+import type {PlanetMap, Unlocks} from './planet_map';
+
+/** Options for the scout lookout searches */
+export interface LookoutOptions {
+    /** "row,col" keys of lookouts other scouts already own */
+    claimed?: Set<string>;
+    unlocks?: Unlocks;
+    /** the scout's current [dRow, dCol] heading, to break ties along it */
+    heading?: [number, number] | null;
+    /** "row,col" keys of the grid halo; null = unrestricted */
+    halo?: Set<string> | null;
+}
 
 /**
  * planet_pathing.ts: where droids decide where to explore and how to get there.

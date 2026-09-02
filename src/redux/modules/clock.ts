@@ -3,6 +3,13 @@ import {batch} from "react-redux";
 import {recalculateState} from "../reducer";
 import {roundToDecimal} from "../../lib/helpers";
 
+export interface ClockState {
+    /** ms */
+    elapsedTime: number;
+    /** seconds */
+    dayLength: number;
+}
+
 // todo rename this class planet_clock? or consolidate with planet.ts?
 
 // Actions

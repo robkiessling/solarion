@@ -2,6 +2,7 @@ import {shuffleArray} from "./helpers";
 import Ellipse from "./ellipse";
 import AsciiCanvas, {QUEUE_TYPES} from "./ascii_canvas";
 import {drawStarField} from "./star_field";
+import type {MirrorTarget} from '../redux/modules/star';
 
 
 const USE_CACHED_CANVAS = true;

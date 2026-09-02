@@ -45,6 +45,32 @@
  * retooling re-pays that option's cost and runs its downtime again. No per-droid chassis: the
  * fleet always runs the currently authorized spec.
  */
+import type {Effect} from '../lib/effect';
+
+export interface ChassisOption {
+    id: string;
+    name: string;
+    note?: { author: string; text: string };
+    effect: Effect | null;
+    cost: ResourceAmounts | null;
+    /** factory retool time in seconds (0 = instant) */
+    downtime: number;
+}
+
+export interface ChassisRow {
+    id: string;
+    name: string;
+    author?: string;
+    blurb?: string;
+    kind: 'single' | 'fork';
+    unlock?: 'start' | 'grant';
+    /** already signed pre-war; the value is its authorization number */
+    preAuthorized?: number;
+    corrupted?: string;
+    sourceHint?: string;
+    postIndex?: boolean;
+    options: ChassisOption[];
+}
 
 // Display labels + formatting for effect stat lines on option cards. `invert: true` marks stats
 // where a LOWER number is better (shown so a reduction reads as an improvement, e.g. swing time).

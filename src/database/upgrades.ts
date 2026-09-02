@@ -9,6 +9,43 @@ import * as fromGame from "../redux/modules/game";
 import * as fromPlanet from "../redux/modules/planet";
 import {generateMap} from "../redux/modules/planet";
 import * as fromStar from "../redux/modules/star";
+import type {DeepPartial} from '../lib/helpers';
+import type {Effect, EffectAffects} from '../lib/effect';
+
+/** An upgrade's research lifecycle, in order */
+export type UpgradeState = 'hidden' | 'discovered' | 'researching' | 'paused' | 'researched';
+
+export interface DiscoverWhen {
+    /** lifetime resource totals that must be reached */
+    resources?: ResourceAmounts;
+    /** upgrade ids that must already be researched */
+    upgrades?: string[];
+    /** structure build counts that must be reached */
+    structures?: Partial<Record<StructureId, number>>;
+}
+
+export interface UpgradeRecord {
+    name: string;
+    description: string;
+    /** seconds; 0 researches instantly */
+    researchTime: number;
+    state: UpgradeState;
+    cost: ResourceAmounts;
+    discoverWhen?: DiscoverWhen;
+    effect?: Effect;
+    affects: EffectAffects;
+    /** the structure whose card offers this upgrade (absent for squad upgrades) */
+    structure?: StructureId;
+    /** expedition-only upgrade, offered in the Expedition panel's Outfitting section */
+    squad?: boolean;
+    standalone?: boolean;
+}
+
+export interface Upgrade extends UpgradeRecord {
+    id: string;
+    /** ms of research done so far */
+    researchProgress?: number;
+}
 
 const base: UpgradeRecord = {
     name: 'Unknown',

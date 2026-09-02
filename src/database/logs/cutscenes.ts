@@ -5,6 +5,7 @@ import * as fromPlanet from '../../redux/modules/planet';
 import * as fromLog from "../../redux/modules/log";
 import {kickoffDoomsday} from "../../redux/reducer";
 import {COOK_TIME} from "../../lib/planet_map";
+import type {LogRecord} from './index';
 
 export default {
     finalSequence_start: {

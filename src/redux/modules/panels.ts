@@ -4,6 +4,19 @@ import {CHASSIS_ROWS_BY_ID, getChassisOption} from "../../database/chassis";
 import {canConsume, consumeUnsafe} from "./resources";
 import {logInline} from "./log";
 import {initOperations, mergeEffectIntoOperations, applyOperationsToVariables} from "../../lib/effect";
+import type {ChassisRow} from '../../database/chassis';
+import type {Variables} from '../../lib/effect';
+
+export interface PanelsState {
+    openPanelId: string | null;
+    authorizationCount: number;
+    chassis: {
+        unlocked: string[];
+        authorized: { [rowId: string]: { optionId: string; authNumber: number } };
+        retooling: { rowId: string; optionId: string; remainingMs: number; totalMs: number } | null;
+        seenRowIds: string[];
+    };
+}
 
 /**
  * Special upgrade panels: full-screen popups owned by a structure, each with its own bespoke UI

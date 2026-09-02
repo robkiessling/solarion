@@ -7,6 +7,8 @@ import {
 import backgrounds from "../database/backgrounds";
 import { structures, doodads, Frame, Animation } from '../database/animations'
 import type {ImageCell} from "./ascii_canvas";
+import type {DoodadId, StructureAnimationId} from '../database/animations';
+import type {StructureAnimationData} from '../redux/modules/structures';
 
 type OutsideImage = ImageCell[][];
 type StructurePosition = { row: number, col: number, animationId?: StructureAnimationId };

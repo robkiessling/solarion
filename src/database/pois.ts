@@ -1,4 +1,52 @@
 import {getRandomIntInclusive} from "../lib/helpers";
+import type {BugType} from './battle';
+import type {GateKind} from '../lib/planet_map';
+import type {NestFormation, TerrainLayoutId} from '../lib/battle';
+
+export type PoiType =
+    | 'cache'      // a supply drop: take it
+    | 'nest'       // a hive: stepping on it starts a fight
+    | 'storySite'  // a ruin with a log to read
+    | 'gate';      // a physical barrier (cave rockfall, sealed door): impassable until opened with its capability
+
+export type PoiStatus =
+    | 'hidden'     // its tile has not been revealed by scouting yet
+    | 'available'  // discovered, not yet resolved
+    | 'cleared';   // resolved
+
+export type Band = 'r1' | 'r2near' | 'r2far' | 'r3';
+
+export type Capability = 'drill' | 'sealedChassis' | 'overrideModule';
+
+export interface PoiReward {
+    resources?: ResourceAmounts;
+    capability?: Capability;
+}
+
+/** A POI_DEFS entry: resource rewards are [lo, hi] ranges until rolled at map generation */
+export interface PoiDef {
+    type: PoiType;
+    band: Band;
+    name?: string;
+    difficulty?: number;
+    infestRadius?: number;
+    formation?: NestFormation;
+    terrain?: TerrainLayoutId;
+    blurb?: string;
+    bugs?: Partial<Record<BugType, number>>;
+    requires?: Capability;
+    storyId?: string;
+    promptText?: string;
+    actionLabel?: string;
+    reward?: { resources?: Partial<Record<ResourceId, [number, number]>>; capability?: Capability };
+}
+
+export interface GateDef {
+    name: string;
+    requires: Capability;
+    promptText: string;
+    actionLabel: string;
+}
 
 /**
  * POI content definitions: WHAT exists on the planet. One POI_DEFS entry per placed POI; gates are defined

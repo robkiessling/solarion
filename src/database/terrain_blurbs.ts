@@ -12,3 +12,4 @@ export const TERRAIN_BLURBS: Partial<Record<SquadZone, string>> = {
     ice: 'Ice sheet. Wind, glare, and nothing else.',
     infested: 'Hive territory. The ground is warm, and something in it is breathing.'
 };
+import type {SquadZone} from '../lib/squad';

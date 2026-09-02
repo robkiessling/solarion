@@ -1,6 +1,77 @@
 import {EQUIPMENT_DEFS} from "../database/equipment";
 import {TERRAIN_PIECES} from "../database/battle_terrain";
 import {BUG_TYPES, DROID_BASE_STATS, GROUND_BLURBS, SWARM_BLURBS} from "../database/battle";
+import type {BugType, DroidStats, UnitStats, UnitType} from '../database/battle';
+import type {EquipmentId} from '../database/equipment';
+import type {TerrainPieceId} from '../database/battle_terrain';
+
+/** Spawn layouts: the keys of FORMATIONS */
+export type FormationId = keyof typeof FORMATIONS;
+
+/** The formations a nest may declare; squadron and center are droid-side layouts the engine picks itself */
+export type NestFormation = Exclude<FormationId, 'squadron' | 'center'>;
+
+/** Arena obstacle layouts: the keys of TERRAIN_LAYOUTS */
+export type TerrainLayoutId = keyof typeof TERRAIN_LAYOUTS;
+
+export type BattleSide = 'droid' | 'bug';
+
+export interface BattleUnit {
+    id: string;
+    side: BattleSide;
+    type: UnitType;
+    x: number;
+    y: number;
+    hp: number;
+    maxHp: number;
+    cooldownMs: number;
+    seed: number;
+    wobbleMs: number;
+    spawnMs?: number;
+    withdrawing?: boolean;
+    /** cosmetic strike cue for the renderer: lunge direction and when it started */
+    strike?: { dx: number, dy: number, t: number };
+}
+
+export interface BattleFx { type: 'hit' | 'death' | 'heal' | 'bomb' | 'spawn'; x: number; y: number; t: number }
+
+/** A placed obstacle: `art` names a TERRAIN_PIECES entry (database/battle_terrain.ts) */
+export interface BattleTerrainPiece { art: TerrainPieceId; col: number; row: number }
+
+export type BattlePhase = 'active' | 'withdrawing';
+
+export interface Battle {
+    phase: BattlePhase;
+    elapsedMs: number;
+    /** per-type stat blocks this battle runs on */
+    stats: { [unitType: string]: UnitStats };
+    arenaW: number;
+    arenaH: number;
+    startingDroids: number;
+    startingBugs: number;
+    startingSpawners: number;
+    bugsPeak: number;
+    spawnCounter: number;
+    escaped: number;
+    escapedHp: number[];
+    buffs: { overchargeMs: number };
+    terrain: { id: TerrainLayoutId; pieces: BattleTerrainPiece[] } | null;
+    fx: BattleFx[];
+    units: BattleUnit[];
+}
+
+/** How a battle ended, reported by advanceBattle */
+export interface BattleOverEvent {
+    type: 'battleOver';
+    result: 'won' | 'wiped' | 'retreated';
+    /** droids still standing (plus escapees on a retreat) */
+    survivors: number;
+    bugsRemaining: number;
+    /** the survivors' hulls */
+    droidHp: number[];
+}
+
+export type BattleEvent = BattleOverEvent;
 
 // Content records (stats, scene text) live in database/battle.ts; this module is the engine.
 export {BUG_TYPES, DROID_BASE_STATS} from "../database/battle";

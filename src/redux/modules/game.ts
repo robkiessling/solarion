@@ -1,6 +1,36 @@
 import update from 'immutability-helper';
 import {SAVE_FORMAT_VERSION} from "../../lib/save_version";
 
+export interface GameState {
+    /** bumped when the save shape changes incompatibly (see lib/save_version.ts); mismatched saves are discarded */
+    saveFormatVersion: number;
+    gameSpeed: number;
+    lastSavedAt: number | null;
+    settingsModalOpen: boolean;
+    autoSaveEnabled: boolean;
+    visibleNavTabs: string[];
+    currentNavTab: string;
+    showStructureTabs: boolean;
+    currentStructureTab: string;
+    hoveredPoiId: string | null;
+    showTerminal: boolean;
+    shuttersOpen: boolean;
+    showPlanetStatus: boolean;
+    showResourceBar: boolean;
+    showResourceRates: boolean;
+    showResourceCapacities: boolean;
+    showStructuresList: boolean;
+    endGameSequenceStarted: boolean;
+    rapidlyRecalcEnergy: boolean;
+    blockPointerEvents: boolean;
+    burnOutside: boolean;
+    hideUI: boolean;
+    hideCanvas: boolean;
+    gameOver: boolean;
+    /** set by the ending cutscene (not in the initial state) */
+    fadeToBlack?: boolean;
+}
+
 // Actions
 export const UPDATE_SETTING = 'game/UPDATE_SETTING' as const;
 export const ADD_NAV_TAB = 'game/ADD_NAV_TAB' as const;

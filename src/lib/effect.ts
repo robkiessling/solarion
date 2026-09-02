@@ -12,6 +12,27 @@
  * Currently there is no `effects` database; effects are part of a upgrade, ability, etc.
  */
 
+/** Calculated per-record numbers (see `calculators` in the database files). Keys are the variable names. */
+export type Variables = { [variable: string]: number };
+
+/**
+ * Effects modify a record's `variables` (see lib/effect.js):
+ *     { ratedPower: { multiply: 1.25 }, energy: { add: 1 } }
+ */
+export type Effect = { [variable: string]: { add?: number; multiply?: number } };
+
+export interface EffectOperation { variable: string; value: number }
+
+export interface EffectOperations { add: EffectOperation[]; multiply: EffectOperation[] }
+
+/** What an upgrade's or ability's effect applies to */
+export type EffectTarget =
+    | 'structure'  // the entire structure (all of its variables)
+    | 'ability'    // one specific ability (all of its variables)
+    | 'misc';      // a one-off, applied by hand wherever it is needed
+
+export interface EffectAffects { type: EffectTarget; id?: string }
+
 
 export function initOperations(): EffectOperations {
     return {

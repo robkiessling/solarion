@@ -5,6 +5,7 @@ import {batchedSubscribe} from 'redux-batched-subscribe';
 import {debounce, throttle} from 'lodash';
 import {loadState, saveState} from "../lib/local_storage";
 import {migrateSavedState} from "../lib/save_migration";
+import type {GameState} from './modules/game';
 
 export const AUTO_SAVE_INTERVAL = 30 * 1000; // 30 seconds
 

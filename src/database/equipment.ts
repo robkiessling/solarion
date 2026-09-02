@@ -7,6 +7,22 @@
  * home). WHAT each piece does mechanically lives in the `effect` block (interpreted by lib/battle.ts).
  */
 
+export type EquipmentEffect =
+    { kind: 'aoe'; damage: number; radius: number } |
+    { kind: 'heal'; amount: number } |
+    { kind: 'overcharge'; durationMs: number; rateMultiplier: number };
+
+export interface EquipmentDef {
+    name: string;
+    description: string;
+    upgradeId: string;
+    charges: number;
+    effect: EquipmentEffect;
+}
+
+/** { itemId: chargesLeft } */
+export type EquipmentCharges = Partial<Record<EquipmentId, number>>;
+
 export const EQUIPMENT_DEFS = {
     demoCharge: {
         name: 'Demo Launcher',
@@ -29,7 +45,10 @@ export const EQUIPMENT_DEFS = {
         charges: 1,
         effect: { kind: 'overcharge', durationMs: 6000, rateMultiplier: 2 }
     }
-} satisfies Record<EquipmentId, EquipmentDef>;
+} satisfies Record<string, EquipmentDef>;
+
+/** The equipment ids: the keys of the manifest above */
+export type EquipmentId = keyof typeof EQUIPMENT_DEFS;
 
 // Display/hotkey order (mid-fight buttons are 1..N in this order)
 export const EQUIPMENT_ORDER: EquipmentId[] = ['demoCharge', 'repairKit', 'overchargeCell'];

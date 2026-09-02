@@ -4,6 +4,53 @@ import {mod} from "./helpers";
 
 import {advanceBattle, DROID_BASE_STATS, fullDroidHp} from "./battle";
 import {EQUIPMENT_DEFS} from "../database/equipment";
+import type {Battle, BattleOverEvent} from './battle';
+import type {DroidStats} from '../database/battle';
+import type {EquipmentCharges, EquipmentId} from '../database/equipment';
+import type {PlanetMap, TerrainKey, Unlocks} from './planet_map';
+import type {Poi} from './expeditions';
+
+/** The ground a squad stands on as the driver feels it (see squadZone): hive territory, the powered
+ * grid, or the bare terrain. Keys the terrain notes and the map frame's tint. */
+export type SquadZone = TerrainKey | 'infested' | 'grid';
+
+/** What advanceSquad reports back to the caller; resolved by resolveSquadEvent in redux/modules/planet.ts */
+export type SquadEvent =
+    | (BattleOverEvent & { poiId: string; battle: Battle; fromCoord?: Coord })
+    | { type: 'enteredPoi'; poiId: string; fromCoord: Coord }
+    | { type: 'enteredZone'; zone: SquadZone }
+    | { type: 'onGrid' }
+    | { type: 'fieldWiped'; unitsLost: number; multiplier: number; cargoLost: ResourceAmounts };
+
+export interface SquadFighting {
+    poiId: string;
+    battle: Battle;
+    fromCoord?: Coord;
+    contactMs?: number;
+}
+
+/** The player-driven squad (see createSquad in lib/squad.js) */
+export interface Squad {
+    coord: Coord;
+    path: Coord[];
+    moveProgress: number;
+    /** screen-space [dx, dy] the driver last pushed toward */
+    facing: [number, number];
+    battery: number;
+    batteryCapacity: number;
+    /** droids consumed from the pool at deploy */
+    assignedDroids: number;
+    /** replication multiplier snapshotted at deploy */
+    multiplier: number;
+    /** current roster in effective units */
+    squadSize: number;
+    cargo: ResourceAmounts;
+    equipment: EquipmentCharges;
+    droidStats: DroidStats;
+    /** per-unit hull */
+    droidHp: number[];
+    fighting: SquadFighting | null;
+}
 
 /**
  * The player-driven squad that IS act-2 exploration. Owns the

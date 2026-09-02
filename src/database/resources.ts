@@ -5,6 +5,24 @@ import {getStructureStatistic} from "../redux/reducer";
 import {probeCapacity} from "../lib/star";
 import {isTargetingPlanet} from "../redux/modules/star";
 import {INFINITY} from "../lib/helpers";
+import type {CalculatorSet} from '../redux/reducer';
+import type {DeepPartial} from '../lib/helpers';
+
+export interface ResourceRecord {
+    name: string;
+    amount: number;
+    lifetimeTotal: number;
+    capacity: number;
+    /** whether the resource shows up in the resource bar */
+    visible: boolean;
+    /** whether the resource bar shows a rate (only relevant if visible) */
+    showRate: boolean;
+    icon?: string;
+}
+
+export interface Resource extends ResourceRecord {
+    id: ResourceId;
+}
 
 const base: ResourceRecord = {
     name: 'Unknown',
@@ -15,7 +33,7 @@ const base: ResourceRecord = {
     showRate: true // Whether the resource shows a rate in the display (only relevant if visible:true)
 }
 
-export default {
+const database = {
     ore: _.merge({}, base, {
         name: "Ore",
         amount: 0,
@@ -59,7 +77,12 @@ export default {
         amount: 0,
         icon: 'icon-satellite',
     } satisfies DeepPartial<ResourceRecord>),
-} satisfies Record<ResourceId, ResourceRecord>;
+} satisfies Record<string, ResourceRecord>;
+
+/** The resource ids: the keys of the table above */
+export type ResourceId = keyof typeof database;
+
+export default database;
 
 /**
  * These resource values vary depending on the rest of the state. We define them as functions here, and the RESULT

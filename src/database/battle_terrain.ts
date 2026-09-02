@@ -63,3 +63,6 @@ export const TERRAIN_PIECES = {
         '##     ##'
     ]
 } satisfies Record<string, string[]>;
+
+/** Obstacle art pieces: the keys of TERRAIN_PIECES above */
+export type TerrainPieceId = keyof typeof TERRAIN_PIECES;

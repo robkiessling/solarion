@@ -2,6 +2,33 @@ import {getRandomFromArray} from "./helpers";
 import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, STATUSES, TERRAINS} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
 import {BANDS, GATE_DEFS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward} from "../database/pois";
+import type {Band, Capability, PoiDef, PoiReward, PoiStatus, PoiType} from '../database/pois';
+import type {BugType} from '../database/battle';
+import type {NestFormation, TerrainLayoutId} from './battle';
+import type {PlanetMap, Sector} from './planet_map';
+
+/** A placed POI in planet.pois */
+export interface Poi {
+    id: string;
+    coord: Coord;
+    type: PoiType;
+    name: string;
+    status: PoiStatus;
+    distance: number;
+    requires: Capability | null;
+    difficulty: number | null;
+    difficultyKnown: boolean;
+    reward: PoiReward;
+    infestRadius?: number;
+    formation?: NestFormation;
+    terrain?: TerrainLayoutId;
+    blurb?: string;
+    bugs?: Partial<Record<BugType, number>>;
+    storyId?: string;
+    promptText?: string;
+    actionLabel?: string;
+    resultBehavior?: 'auto' | 'narrate';
+}
 
 /**
  * This module owns the point-of-interest (POI) domain logic: POI placement mechanics, encounter resolution

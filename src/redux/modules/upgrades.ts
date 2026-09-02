@@ -5,6 +5,11 @@ import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {hasLifetimeQuantities} from "./resources";
 import {getNumBuilt, getStructure} from "./structures";
+import type {DiscoverWhen, Upgrade, UpgradeState} from '../../database/upgrades';
+
+export interface UpgradesState {
+    byId: { [upgradeId: string]: Upgrade };
+}
 
 // Actions
 // export const SILHOUETTE = 'upgrades/SILHOUETTE';

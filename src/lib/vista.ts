@@ -2,6 +2,9 @@ import {NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
 import {getTerrain, STATUSES, TERRAINS} from "./planet_map";
 import {mod} from "./helpers";
 import {POI_COLOR_KEYS, POI_GLYPHS} from "./expeditions";
+import type {PlanetMap, Sector, TerrainKey} from './planet_map';
+import type {Poi} from './expeditions';
+import type {Squad} from './squad';
 
 /**
  * The vista: a driver's-eye skyline of the ground ahead of the squad, drawn from the map tiles in the

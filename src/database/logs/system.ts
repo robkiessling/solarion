@@ -10,6 +10,7 @@ import {addTrigger} from "../../redux/modules/triggers";
 import * as fromLog from "../../redux/modules/log";
 import * as fromStar from "../../redux/modules/star";
 import {batch} from "react-redux";
+import type {LogRecord} from './index';
 
 export default {
     normalBootup: {

@@ -1,6 +1,11 @@
 import _ from 'lodash';
 import {mod} from "../lib/helpers";
 
+/** Base-view sprite ids: the keys of the animation tables below */
+export type DoodadId = keyof typeof doodads;
+
+export type StructureAnimationId = keyof typeof structures;
+
 // export const UNKNOWN_IMAGE = {
 //     ascii: [
 //         '   _   ',

@@ -8,6 +8,13 @@ import * as fromAbilities from "./abilities";
 import * as fromPlanet from "./planet";
 import {withRecalculation} from "../reducer";
 import {STATUSES, TERRAINS} from "../../lib/planet_map";
+import type {PlanetMap} from '../../lib/planet_map';
+import type {Resource} from '../../database/resources';
+
+export interface ResourcesState {
+    byId: Partial<Record<ResourceId, Resource>>;
+    visibleIds: ResourceId[];
+}
 
 export { calculators };
 

@@ -1,5 +1,8 @@
 import _ from 'lodash';
 
+/** Recursively optional: the shape of a database override merged over a `base` record */
+export type DeepPartial<T> = { [K in keyof T]?: T[K] extends (...args: any[]) => any ? T[K] : T[K] extends object ? DeepPartial<T[K]> : T[K] };
+
 // TODO just use lodash debounce instead https://lodash.com/docs/4.17.15#debounce
 export function debounce<E>(func: (event?: E) => void, delayMs = 100) {
     let timer: ReturnType<typeof setTimeout> | undefined;

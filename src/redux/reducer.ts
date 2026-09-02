@@ -23,6 +23,44 @@ import {DROID_BASE_STATS} from "../lib/battle";
 import {SQUAD_BATTERY_CAPACITY} from "../lib/squad";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations} from "../lib/effect";
+import type {AbilitiesState} from './modules/abilities';
+import type {Ability} from '../database/abilities';
+import type {DroidAssignment, Structure} from '../database/structures';
+import type {DroidStats} from '../database/battle';
+import type {EquipmentCharges} from '../database/equipment';
+import type {LogState} from './modules/log';
+import type {PanelsState} from './modules/panels';
+import type {PlanetState} from './modules/planet';
+import type {ResourcesState} from './modules/resources';
+import type {StarState} from './modules/star';
+import type {StructuresState} from './modules/structures';
+import type {TriggersState} from './modules/triggers';
+import type {Upgrade} from '../database/upgrades';
+import type {UpgradesState} from './modules/upgrades';
+import type {Variables} from '../lib/effect';
+import type {ClockState} from './modules/clock';
+import type {GameState} from './modules/game';
+
+export type Calculator<R> = (state: RootState, record: R, variables: Variables) => any;
+
+export type CalculatorSet<R> = {
+    /** always calculated first; its result is the third argument to the other calculators */
+    variables?: (state: RootState, record: R) => Variables;
+} & { [attribute: string]: Calculator<R> };
+
+export interface RootState {
+    game: GameState;
+    triggers: TriggersState;
+    clock: ClockState;
+    log: LogState;
+    resources: ResourcesState;
+    structures: StructuresState;
+    upgrades: UpgradesState;
+    abilities: AbilitiesState;
+    planet: PlanetState;
+    star: StarState;
+    panels: PanelsState;
+}
 
 // Actions
 export const RECALCULATE = 'reducer/RECALCULATE' as const;

@@ -2,6 +2,28 @@ import system from './system';
 import story from './story';
 import cutscenes from './cutscenes';
 
+/** [text, delayAfterMs, flash?] */
+export type LogLineTuple = [string, number, boolean?];
+
+export interface LogLineOptions {
+    text: string;
+    delay?: number;
+    flash?: boolean;
+    className?: string;
+    style?: { [property: string]: string | number };
+    /** 'chars' types the line out character by character */
+    mode?: 'chars';
+    charDelay?: number;
+}
+
+export type LogLine = LogLineTuple | LogLineOptions;
+
+export interface LogRecord {
+    text: LogLine[];
+    /** runs once, when the last line lands */
+    onFinish?: (dispatch: Dispatch) => void;
+}
+
 // Merged log database. Entries are keyed by id; ids are stored in saves, so renaming or removing one
 // is a save migration concern (see lib/save_migration.ts, which drops orphaned ids).
 //
