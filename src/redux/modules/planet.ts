@@ -20,7 +20,8 @@ import {
     type PlanetMap,
     type Unlocks,
 } from "../../lib/planet_map";
-import {getCoordsWithinHops} from "../../lib/planet_geometry";
+import {getCoordsWithinHops, parseCoordKey} from "../../lib/planet_geometry";
+import {typedEntries} from "../../lib/helpers";
 import {
     findNearestLookout,
     findNearestLookoutFromGrid,
@@ -504,11 +505,11 @@ export default function reducer(state: PlanetState = initialState, action: GameA
 // Folds a POI reward's resources into the squad's cargo (pure).
 function mergeCargo(cargo: ResourceAmounts, reward: PoiReward) {
     if (!(reward && reward.resources)) return cargo || {};
-    const next: Record<string, number> = { ...(cargo || {}) };
-    Object.entries(reward.resources).forEach(([id, amount]) => {
-        next[id] = (next[id] || 0) + (amount ?? 0);
+    const next: ResourceAmounts = { ...(cargo || {}) };
+    typedEntries(reward.resources).forEach(([id, amount]) => {
+        next[id] = (next[id] || 0) + amount;
     });
-    return next as ResourceAmounts;
+    return next;
 }
 
 // Shared by PROGRESS (scout reveals) and ADVANCE_SQUAD (squad reveals): mutates `updates` to mark the given
@@ -1260,7 +1261,7 @@ function advanceDroids(map: PlanetMap, droids: ScoutDroid[], moveAmount: number,
 
     return {
         droids: nextDroids,
-        reveals: Array.from(reveals).map(key => key.split(',').map(Number) as Coord),
+        reveals: Array.from(reveals).map(parseCoordKey),
         numArrivedHome
     };
 }

@@ -1,4 +1,5 @@
 import {EQUIPMENT_DEFS, type EquipmentId} from "../database/equipment";
+import {typedEntries} from "./helpers";
 import {TERRAIN_PIECES, type TerrainPieceId} from "../database/battle_terrain";
 import {BUG_TYPES, DROID_BASE_STATS, GROUND_BLURBS, SWARM_BLURBS, type BugType, type DroidStats, type UnitStats, type UnitType} from "../database/battle";
 
@@ -568,7 +569,7 @@ function scatterPieces(placer: Placer, arts: TerrainPieceId[], count: number, co
 function rocksTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
     const placer = makePlacer(arenaW, arenaH);
     const bandHalf = FRONT_GAP / 2 - 3;
-    scatterPieces(placer, ['boulder', 'spire', 'boulderBig', 'boulder', 'spire'] as TerrainPieceId[],
+    scatterPieces(placer, ['boulder', 'spire', 'boulderBig', 'boulder', 'spire'],
         Math.max(3, Math.round((arenaW * arenaH) / 1100)),
         Math.floor((arenaW / 2 - bandHalf) / TERRAIN_CELL_W),
         Math.ceil((arenaW / 2 + bandHalf) / TERRAIN_CELL_W), salt);
@@ -580,7 +581,7 @@ function rocksTerrain(arenaW: number, arenaH: number, salt: number): BattleTerra
 function ruinsTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
     const placer = makePlacer(arenaW, arenaH);
     const edge = Math.ceil(8 / TERRAIN_CELL_W);
-    scatterPieces(placer, ['ruinWall', 'wallV', 'bunker', 'arch', 'wallH', 'boulder'] as TerrainPieceId[],
+    scatterPieces(placer, ['ruinWall', 'wallV', 'bunker', 'arch', 'wallH', 'boulder'],
         Math.max(4, Math.round((arenaW * arenaH) / 850)), edge, placer.cols - edge, salt);
     return placer.pieces;
 }
@@ -693,7 +694,7 @@ export function createBattle(droids: number | number[], bugs: number | Partial<R
 
     const stats: Record<string, UnitStats> = { droid: droidStats };
     const bugRoster: { type: BugType, hp?: number }[] = [];
-    (Object.entries(composition) as [BugType, number][]).forEach(([type, n]) => {
+    typedEntries(composition).forEach(([type, n]) => {
         stats[type] = BUG_TYPES[type];
         // A spawner's output type fights too, even when the opening garrison fields none of it
         const spawns = BUG_TYPES[type].spawns;

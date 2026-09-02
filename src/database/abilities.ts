@@ -8,7 +8,7 @@ import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations, t
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {STANDARD_COST_EXP} from "./structures";
 import {countAllStructuresBuilt} from "../redux/modules/structures";
-import type {DeepPartial} from "../lib/helpers";
+import {typedKeys, type DeepPartial} from "../lib/helpers";
 
 /** An ability's cast lifecycle (cooldown starts after the cast finishes) */
 export type AbilityState = 'ready' | 'casting' | 'cooldown';
@@ -60,8 +60,13 @@ const base: AbilityRecord = {
     cooldown: 0 // Note: cooldown starts after cast FINISHES (not at start of cast)
 }
 
+/** A table entry: the overrides merged over `base` (deep, so a nested field can be overridden on its own) */
+function ability(overrides: DeepPartial<AbilityRecord>): AbilityRecord {
+    return _.merge({}, base, overrides);
+}
+
 const database = {
-    commandCenter_charge: _.merge({}, base, {
+    commandCenter_charge: ability({
         name: "Manually Charge",
         structure: "commandCenter",
         description: "The device has a hand crank to generate emergency power.",
@@ -73,27 +78,27 @@ const database = {
             numClicks: 0,
             numMineralBonusProcs: 0
         }
-    } satisfies DeepPartial<AbilityRecord>),
-    harvester_overclock: _.merge({}, base, {
+    }),
+    harvester_overclock: ability({
         name: 'Overclock',
         structure: 'harvester',
-    } satisfies DeepPartial<AbilityRecord>),
+    }),
 
-    droidFactory_buildStandardDroid: _.merge({}, base, {
+    droidFactory_buildStandardDroid: ability({
         name: 'Build Droid',
         structure: 'droidFactory',
         description: "Droids can be assigned to structures, improving their performance.",
         produces: {
             standardDroids: 1
         },
-    } satisfies DeepPartial<AbilityRecord>),
+    }),
 
     // Squad equipment is NOT crafted here: each piece is a one-time droid-factory upgrade
     // (database/equipment.ts); charges reload on the powered grid.
 
-    replicate: _.merge({}, base, {
+    replicate: ability({
         name: 'Replicate',
-    } satisfies DeepPartial<AbilityRecord>)
+    })
 } satisfies Record<string, AbilityRecord>;
 
 /** The ability ids: the keys of the table above */
@@ -240,7 +245,8 @@ export const callbacks: Partial<Record<AbilityId, { onStart?: (dispatch: Dispatc
 // Format: { structureId => [ability1, ability2, ...], ... }
 export const abilitiesAffectingStructure: Partial<Record<StructureId, AbilityId[]>> = {}
 
-for (const [abilityId, abilityDbRecord] of Object.entries(database) as [AbilityId, AbilityRecord][]) {
+for (const abilityId of typedKeys(database)) {
+    const abilityDbRecord: AbilityRecord = database[abilityId];
     switch(abilityDbRecord.affects.type) {
         case 'structure':
             // If `affects` obj has no id we default to affecting the ability's structure

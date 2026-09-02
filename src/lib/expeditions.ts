@@ -81,8 +81,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         return sector;
     };
 
-    const add = (type: PoiType, sector: Sector | null, extras: Partial<Poi> = {}): Poi | null => {
-        if (!sector) return null;
+    const add = (type: PoiType, sector: Sector, extras: Partial<Poi> = {}): Poi => {
         const id = `poi_${sector.coord[0]}_${sector.coord[1]}`;
         pois[id] = {
             id,
@@ -118,7 +117,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
                 formation: def.formation, bugs: def.bugs, terrain: def.terrain, blurb: def.blurb });
             [sector.coord, ...getCoordsWithinHops(sector.coord, infestRadius)].forEach(([r, c]) => {
                 if (map[r][c].terrain === TERRAINS.flatland.key && !map[r][c].gated) {
-                    map[r][c].infestedBy = poi!.id; // add() only returns null for a null sector, checked above
+                    map[r][c].infestedBy = poi.id;
                 }
             });
             return;
@@ -147,7 +146,8 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         if (def.promptText) extras.promptText = def.promptText;
         if (def.actionLabel) extras.actionLabel = def.actionLabel;
         if (def.reward) extras.reward = rollPoiReward(def.reward);
-        add(def.type, pick(def.band), extras);
+        const sector = pick(def.band);
+        if (sector) add(def.type, sector, extras);
     });
 
     return pois;

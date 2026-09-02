@@ -1,4 +1,4 @@
-import {getRandomIntInclusive} from "../lib/helpers";
+import {getRandomIntInclusive, mapObject} from "../lib/helpers";
 import type {NestFormation, TerrainLayoutId} from "../lib/battle";
 import type {GateKind} from "../lib/planet_map";
 import type {BugType} from "./battle";
@@ -179,10 +179,7 @@ export function rollPoiReward(rewardDef: NonNullable<PoiDef['reward']>): PoiRewa
     const { resources, ...rest } = rewardDef;
     const reward: PoiReward = { ...rest };
     if (resources) {
-        reward.resources = {};
-        (Object.entries(resources) as [ResourceId, [number, number]][]).forEach(([resource, [lo, hi]]) => {
-            reward.resources![resource] = getRandomIntInclusive(lo / 100, hi / 100) * 100;
-        });
+        reward.resources = mapObject(resources, (resource, [lo, hi]) => getRandomIntInclusive(lo / 100, hi / 100) * 100);
     }
     return reward;
 }

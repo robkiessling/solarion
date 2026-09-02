@@ -1,6 +1,5 @@
-import { Action, combineReducers, Reducer } from 'redux'
+import {combineReducers, type Reducer} from 'redux'
 import {batch} from "react-redux";
-import reduceReducers from "reduce-reducers";
 import update from 'immutability-helper';
 
 import game, {type GameState} from "./modules/game";
@@ -14,7 +13,7 @@ import abilities, * as fromAbilities from "./modules/abilities";
 import planet, * as fromPlanet from "./modules/planet";
 import star, {type StarState} from "./modules/star";
 import panels, * as fromPanels from "./modules/panels";
-import {mapObject, roundToDecimal} from "../lib/helpers";
+import {mapObject, roundToDecimal, typedEntries} from "../lib/helpers";
 import {getQuantity, getResource, type ResourcesState} from "./modules/resources";
 import {aimMirrors, startEnergyBeam} from "./modules/star";
 import {HYPER_BEAM_CHARGE_TIME} from "../lib/star";
@@ -67,8 +66,7 @@ export type RecalculateAction =
 type StructureStatistic = 'cost' | 'consumes' | 'produces' | 'capacity' | 'boost';
 
 // Reducers
-const rootReducer = reduceReducers<RootState>(
-    combineReducers<RootState>({
+const sliceReducer = combineReducers<RootState>({
         game,
         triggers,
         clock,
@@ -80,20 +78,18 @@ const rootReducer = reduceReducers<RootState>(
         planet,
         star,
         panels
-    }),
+});
 
-    // cross-cutting entire state
-    (state: RootState, action: Action) => {
-        switch (action.type) {
-            case RECALCULATE: {
-                const { payload } = action as RecalculateAction;
-                return recalculateReducer(state, payload.onlySlice, payload.onlyId);
-            }
-            default:
-                return state;
-        }
+// The slices run first; then the actions that cut across the whole state (a recalculation reads several slices at once)
+const rootReducer: Reducer<RootState, GameAction> = (state, action) => {
+    const next = sliceReducer(state, action);
+    switch (action.type) {
+        case RECALCULATE:
+            return recalculateReducer(next, action.payload.onlySlice, action.payload.onlyId);
+        default:
+            return next;
     }
-) as unknown as Reducer<RootState, GameAction>; // reduce-reducers' own Reducer type doesn't accept the undefined initial state
+};
 export default rootReducer;
 
 
@@ -128,7 +124,7 @@ function recalculateReducer(state: RootState, onlySlice?: RecalculableSlice, onl
     if (onlySlice === undefined || onlySlice === 'structures') {
         state = update(state, {
             structures: {
-                byId: recalculateSlice(state, 'structures', fromStructures.calculators, onlyId)
+                byId: recalculateSlice(state, state.structures.byId, fromStructures.calculators, onlyId)
             }
         });
     }
@@ -136,7 +132,7 @@ function recalculateReducer(state: RootState, onlySlice?: RecalculableSlice, onl
     if (onlySlice === undefined || onlySlice === 'abilities') {
         state = update(state, {
             abilities: {
-                byId: recalculateSlice(state, 'abilities', fromAbilities.calculators, onlyId)
+                byId: recalculateSlice(state, state.abilities.byId, fromAbilities.calculators, onlyId)
             }
         });
     }
@@ -144,7 +140,7 @@ function recalculateReducer(state: RootState, onlySlice?: RecalculableSlice, onl
     if (onlySlice === undefined || onlySlice === 'resources') {
         state = update(state, {
             resources: {
-                byId: recalculateSlice(state, 'resources', fromResources.calculators, onlyId)
+                byId: recalculateSlice(state, state.resources.byId, fromResources.calculators, onlyId)
             }
         });
     }
@@ -152,16 +148,18 @@ function recalculateReducer(state: RootState, onlySlice?: RecalculableSlice, onl
     return state;
 }
 
+/** The overrides a recalculation writes: { attribute: { $set: value } } per record, applied with immutability-helper */
+type RecordOverrides = Record<string, { $set: unknown }>;
+
 /**
  * @param state Refers to the full state
- * @param sliceKey The key for the slice to recalculate (e.g. 'structures')
- * @param calculators Reference to the calculators object to use. The calculators object can have a special key 'variables'
- *                    which will always be calculated first and provided to the rest of the calculators as a third parameter
+ * @param byId The slice's records (e.g. state.structures.byId)
+ * @param calculators The slice's calculators (database/<slice>.ts). A record's calculator set can have a special key
+ *                    'variables' which is always calculated first and provided to the rest as a third parameter
  * @param onlyId (optional) If onlyId is specified, ONLY that id will be recalculated
- * @returns Overrides to update various structure values
+ * @returns Overrides to update various record values
  */
-function recalculateSlice(state: RootState, sliceKey: RecalculableSlice, calculators: Record<string, CalculatorSet<any>>, onlyId?: string): Record<string, any> {
-    const byId = state[sliceKey].byId as Record<string, any>;
+function recalculateSlice<R>(state: RootState, byId: Partial<Record<string, R>>, calculators: Partial<Record<string, CalculatorSet<R>>>, onlyId?: string): Record<string, RecordOverrides> {
     if (onlyId === undefined) {
         return mapObject(byId, (id, record) => {
             return recalculateRecord(state, calculators, id, record)
@@ -174,18 +172,20 @@ function recalculateSlice(state: RootState, sliceKey: RecalculableSlice, calcula
 
 }
 
-function recalculateRecord(state: RootState, calculators: Record<string, CalculatorSet<any>>, id: string, record: any) {
-    if (!calculators[id]) { return {}; }
+function recalculateRecord<R>(state: RootState, calculators: Partial<Record<string, CalculatorSet<R>>>, id: string, record: R): RecordOverrides {
+    const calculatorSet = calculators[id];
+    if (!calculatorSet) { return {}; }
 
-    const result: Record<string, { $set: any }> = {};
+    const result: RecordOverrides = {};
 
     // Always calculate `variables` first; other calculated attributes may depend on these
-    if (calculators[id].variables) {
-        result.variables = { $set: calculators[id].variables(state, record) };
+    const variables = calculatorSet.variables ? calculatorSet.variables(state, record) : undefined;
+    if (variables) {
+        result.variables = { $set: variables };
     }
-    for (const [attr, calculator] of Object.entries(calculators[id]) as [string, Calculator<any>][]) {
+    for (const [attr, calculator] of typedEntries(calculatorSet)) {
         if (attr === 'variables') { continue; }
-        result[attr] = { $set: calculator(state, record, result.variables ? result.variables.$set : undefined) };
+        result[attr] = { $set: calculator(state, record, variables ?? {}) }; // a set without variables never reads them
     }
 
     return result;
@@ -337,7 +337,8 @@ export function getReplicationMultiplier(state: RootState): number {
 
 // Gets structure statistic based on how many of the structures are built. Statistics can be any keys on the structure record.
 export function getStructureStatistic(state: RootState, structure: Structure | undefined, statistic: StructureStatistic, includeReplications: boolean = true): ResourceAmounts {
-    if (structure === undefined || structure[statistic] === undefined) {
+    const amounts = structure?.[statistic];
+    if (structure === undefined || amounts === undefined) {
         return {};
     }
 
@@ -345,7 +346,7 @@ export function getStructureStatistic(state: RootState, structure: Structure | u
         getReplicatedStructureCount(structure, state) :
         fromStructures.getNumBuilt(structure);
 
-    return mapObject(structure[statistic] as Record<string, number>, (key, value) => value * structureCount) as ResourceAmounts;
+    return mapObject(amounts, (key, value) => value * structureCount);
 }
 
 

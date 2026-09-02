@@ -122,8 +122,7 @@ class LoopingAnimation extends Animation {
         for (let i = 0; i < exampleFrame.height(); i++) {
             frames.push(new Frame(charArray, exampleFrame.color));
 
-            charArray = charArray.slice(0); // duplicate the charArray for the next frame
-            charArray.unshift(charArray.pop()!); // rotate it downward (never empty: a frame has rows)
+            charArray = [charArray[charArray.length - 1], ...charArray.slice(0, -1)]; // rotate it downward, into a fresh array for the next frame
         }
 
         super(options, frames);

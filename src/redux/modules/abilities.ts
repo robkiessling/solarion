@@ -3,6 +3,7 @@ import database, {callbacks, calculators, type Ability, type AbilityId} from "..
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import _ from "lodash";
+import {typedKeys} from "../../lib/helpers";
 
 export interface AbilitiesState {
     byId: Partial<Record<AbilityId, Ability>>;
@@ -229,7 +230,7 @@ export function isCasting(ability: Ability): boolean {
 }
 
 export function visibleIds(state: AbilitiesState): AbilityId[] {
-    return Object.keys(state.byId) as AbilityId[]; // every ability that is learned is visible
+    return typedKeys(state.byId); // every ability that is learned is visible
 }
 
 

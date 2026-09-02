@@ -159,3 +159,10 @@ export function getGraphDistancesFrom(fromCoord: Coord): number[][] {
 
     return distances;
 }
+
+/** The "row,col" string form of a coord, for use as a Set / object key; parseCoordKey reverses it */
+export const coordKey = ([row, col]: Coord): string => `${row},${col}`;
+export function parseCoordKey(key: string): Coord {
+    const [row, col] = key.split(',').map(Number);
+    return [row, col];
+}

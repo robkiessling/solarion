@@ -95,8 +95,13 @@ const base: StructureRecord = {
     },
 }
 
+/** A table entry: the overrides merged over `base` (deep, so a nested field can be overridden on its own) */
+function structure(overrides: DeepPartial<StructureRecord>): StructureRecord {
+    return _.merge({}, base, overrides);
+}
+
 const database = {
-    commandCenter: _.merge({}, base, {
+    commandCenter: structure({
         name: COMMAND_CENTER_NAME_GARBLED,
         // description: "A twisted mass of cables, switches and monitors surround a large device.",
         type: 'generator',
@@ -106,39 +111,39 @@ const database = {
         droidData: {
             usesDroids: false
         }
-    } satisfies DeepPartial<StructureRecord>),
-    harvester: _.merge({}, base, {
+    }),
+    harvester: structure({
         name: "Harvester",
         description: "Drills into the planet's surface to gather ore." +
             " Less energy efficient as harvesting rate is increased.",
         runnable: true,
         type: 'consumer',
-    } satisfies DeepPartial<StructureRecord>),
-    solarPanel: _.merge({}, base, {
+    }),
+    solarPanel: structure({
         name: "Solar Farm",
-    } satisfies DeepPartial<StructureRecord>),
-    windTurbine: _.merge({}, base, {
+    }),
+    windTurbine: structure({
         name: "Wind Turbine",
-    } satisfies DeepPartial<StructureRecord>),
-    thermalVent: _.merge({}, base, {
+    }),
+    thermalVent: structure({
         name: "Geothermal Vent",
         // count: {
         //     total: 10
         // },
-    } satisfies DeepPartial<StructureRecord>),
-    energyBay: _.merge({}, base, {
+    }),
+    energyBay: structure({
         name: "Energy Bay",
         droidData: {
             assignTooltipPrefix: 'Each droid boosts capacity by '
         }
-    } satisfies DeepPartial<StructureRecord>),
-    refinery: _.merge({}, base, {
+    }),
+    refinery: structure({
         name: "Refinery",
         runnable: true,
         type: 'consumer',
         description: "Filters rare minerals out of ore.",
-    } satisfies DeepPartial<StructureRecord>),
-    droidFactory: _.merge({}, base, {
+    }),
+    droidFactory: structure({
         name: "Droid Factory",
         description: "Constructs droids that can assist with production.",
         type: 'consumer',
@@ -148,8 +153,8 @@ const database = {
         count: {
             max: 1
         }
-    } satisfies DeepPartial<StructureRecord>),
-    probeFactory: _.merge({}, base, {
+    }),
+    probeFactory: structure({
         name: "Probe Launcher",
         description: "Manufactures and launches probes towards Solarion.",
         runnable: true,
@@ -160,7 +165,7 @@ const database = {
         count: {
             max: 1
         }
-    } satisfies DeepPartial<StructureRecord>),
+    }),
 
 } satisfies Record<string, StructureRecord>;
 

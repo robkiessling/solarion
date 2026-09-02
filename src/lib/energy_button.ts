@@ -3,14 +3,13 @@ import {debounce, getRandomIntInclusive, nTimes} from "./helpers";
 let animationIdSeq = 1;
 
 type XY = { x: number, y: number };
+/** The fields every button animation has; an animation's own data (a number's position, a spark's target) is added by its ready() */
 interface ButtonAnimation {
   id: number;
   startTime: number;
   buttonCenter: XY;
   duration: number;
   process: (currentTime: number) => void;
-  position?: XY; // floating numbers
-  target?: XY;   // sparks
 }
 interface EnergyButtonState {
   elapsedTime: number;
@@ -161,26 +160,26 @@ export default class EnergyButton {
     this.context.fillText("░┤§", buttonX + fontOffsetX, buttonY + fontSize + fontOffsetY);
   }
 
-  _createAnimation(duration: number, ready: ((animation: ButtonAnimation) => void) | undefined,
-                   process?: (animation: ButtonAnimation, currentTime: number, progress: number) => void) {
-    const animation: ButtonAnimation = {
+  /**
+   * Registers an animation that runs for `duration` ms. ready() computes the animation's own data from the base
+   * fields (e.g. a random position); process() then draws each frame with that data in hand.
+   */
+  _createAnimation<D extends object>(duration: number, ready: (animation: ButtonAnimation) => D,
+                   process?: (animation: ButtonAnimation & D, currentTime: number, progress: number) => void) {
+    const base: ButtonAnimation = {
       id: animationIdSeq++,
       startTime: this._state.elapsedTime,
       buttonCenter: this._buttonCenter(),
       duration: duration,
-      process: function(this: ButtonAnimation, currentTime: number) {
-        // Note: `this` refers to the outside `animation` object
-        const progress = (currentTime - this.startTime) / this.duration;
+      process: (currentTime: number) => {
+        const progress = (currentTime - animation.startTime) / animation.duration;
 
         if (process) {
-          process(this, currentTime, progress)
+          process(animation, currentTime, progress)
         }
       }
     }
-
-    if (ready) {
-      ready(animation);
-    }
+    const animation: ButtonAnimation & D = Object.assign(base, ready(base));
 
     this._state.animations.push(animation);
 
@@ -199,7 +198,7 @@ export default class EnergyButton {
   }
 
   _createWave() {
-    this._createAnimation(2000, undefined, (animation, currentTime, progress) => {
+    this._createAnimation(2000, () => ({}), (animation, currentTime, progress) => {
       const growth = 1 + progress * 2;
       const width = BUTTON_WIDTH * growth;
       const height = BUTTON_HEIGHT * growth;
@@ -217,18 +216,18 @@ export default class EnergyButton {
   }
 
   _createFloatingNumber(value: number) {
-    this._createAnimation(1000, animation => {
+    this._createAnimation(1000, () => {
       const PADDING = 16;
-      animation.position = {
+      return { position: {
         x: getRandomIntInclusive(PADDING, this.width - PADDING),
         y: getRandomIntInclusive(PADDING, this.height - PADDING),
-      }
+      } };
     }, (animation, currentTime, progress) => {
       const opacity = 1 - progress;
       this.context.fillStyle = `rgba(255,255,255,${opacity})`;
 
       this.context.font = "14px monospace";
-      this.context.fillText(`+${value}`, animation.position!.x, animation.position!.y);
+      this.context.fillText(`+${value}`, animation.position.x, animation.position.y);
 
       // this.context.font = "14px icomoon";
       // this.context.fillText(String.fromCharCode("0xe904"), animation.position.x + 16, animation.position.y);
@@ -242,10 +241,10 @@ export default class EnergyButton {
       const targetRadians = targetDegrees * Math.PI / 180;
       const targetX = animation.buttonCenter.x + LINE_LENGTH * Math.cos(targetRadians);
       const targetY = animation.buttonCenter.y + LINE_LENGTH * Math.sin(targetRadians);
-      animation.target = { x: targetX, y: targetY };
+      return { target: { x: targetX, y: targetY } };
     }, (animation, currentTime, progress) => {
       const opacity = 1 - progress;
-      const target = animation.target!;
+      const target = animation.target;
       const gradient = this.context.createLinearGradient(
         animation.buttonCenter.x, animation.buttonCenter.y,
         target.x, target.y
@@ -334,16 +333,7 @@ export default class EnergyButton {
 
   _convertCanvasToHiDPI(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, ratio?: number) {
     if (!ratio) {
-      // TODO Internet Explorer
-      // https://stackoverflow.com/questions/22483296/html5-msbackingstorepixelratio-and-window-devicepixelratio-dont-exist-are-the
-      const dpr = window.devicePixelRatio || 1;
-      const vendor = context as any; // legacy vendor-prefixed backing store ratios
-      const bsr = vendor.webkitBackingStorePixelRatio ||
-        vendor.mozBackingStorePixelRatio ||
-        vendor.msBackingStorePixelRatio ||
-        vendor.oBackingStorePixelRatio ||
-        vendor.backingStorePixelRatio || 1;
-      ratio = dpr / bsr;
+      ratio = window.devicePixelRatio || 1; // scale the backing store so text stays crisp on HiDPI screens
     }
 
     canvas.width = this.width * ratio;

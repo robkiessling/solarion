@@ -1,7 +1,8 @@
 import _ from 'lodash';
 import {NUM_PLANET_ROWS, PLANET_COLS} from './planet_geometry';
+import {typedEntries} from './helpers';
 import structuresDatabase from '../database/structures';
-import resourcesDatabase, {type Resource} from '../database/resources';
+import resourcesDatabase from '../database/resources';
 import upgradesDatabase from '../database/upgrades';
 import abilitiesDatabase from '../database/abilities';
 import triggersDatabase from '../database/triggers';
@@ -85,7 +86,7 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
     // add any learned-but-newly-visible resources to visibleIds (records snapshot the flag at LEARN time, so
     // e.g. droids joining the resource bar would otherwise stay hidden in old saves).
     if (state.resources && state.resources.byId) {
-        (Object.entries(state.resources.byId) as [ResourceId, Resource][]).forEach(([id, record]) => {
+        typedEntries(state.resources.byId).forEach(([id, record]) => {
             record.visible = resourcesDatabase[id].visible;
             if (record.visible && !state.resources.visibleIds.includes(id)) {
                 state.resources.visibleIds.push(id);
@@ -94,13 +95,13 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
     }
 
     if (state.triggers && state.triggers.byId) {
-        state.triggers.byId = _.pickBy(state.triggers.byId, (trigger, id) => triggersDatabase[id]);
+        state.triggers.byId = _.pickBy(state.triggers.byId, (trigger, id) => id in triggersDatabase);
     }
 
     if (state.log && state.log.bySequenceId) {
         // Inline entries carry their own text and have no database id; only database-backed entries are pruned
         state.log.bySequenceId = _.pickBy(state.log.bySequenceId,
-            (entry) => entry && (entry.entryType === 'inline' || (entry.id !== null && logsDatabase[entry.id])));
+            (entry) => entry && (entry.entryType === 'inline' || (entry.id !== null && entry.id in logsDatabase)));
         state.log.visibleSequenceIds = (state.log.visibleSequenceIds || [])
             .filter(sequenceId => state.log.bySequenceId[sequenceId]);
     }

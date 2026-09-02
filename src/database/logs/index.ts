@@ -37,8 +37,11 @@ export interface LogRecord {
 // onFinish side effects run once, when the last line lands. Keep side effects at sequence end only:
 // a sequence interrupted by a reload replays from scratch, and end-only effects are what makes that
 // replay safe (nothing half-applied).
-export default {
+const database = {
     ...system,
     ...story,
     ...cutscenes
-} as Record<string, LogRecord>;
+} satisfies Record<string, LogRecord>;
+
+export type LogId = keyof typeof database;
+export default database;

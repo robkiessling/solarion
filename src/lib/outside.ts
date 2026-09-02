@@ -2,7 +2,8 @@ import _ from 'lodash';
 import {
     createArray,
     getDynamicValue,
-    mod
+    mod,
+    typedEntries
 } from "./helpers";
 import backgrounds from "../database/backgrounds";
 import {structures, doodads, Frame, Animation, type DoodadId, type StructureAnimationId} from '../database/animations'
@@ -223,7 +224,7 @@ export function generateImage(structureAnimationData: StructureAnimationData,
     // the lower images can overlap/overwrite the higher images (which makes sense because they are "closer" to the viewer).
     const renderingQueue: RenderingQueue = [];
 
-    for (const [structureId, animationData] of Object.entries(structureAnimationData) as [StructureId, { numBuilt: number, animationTag?: string }][]) {
+    for (const [structureId, animationData] of typedEntries(structureAnimationData)) {
         queueStructure(renderingQueue, structureId, animationData, clockParams);
     }
 
@@ -258,7 +259,7 @@ export function generateImage(structureAnimationData: StructureAnimationData,
 }
 
 function queueDoodads(doodadPositions: DoodadPositions, renderingQueue: RenderingQueue, clockParams: ClockParams) {
-    for (const [doodadId, positions] of Object.entries(doodadPositions) as [DoodadGroup, DoodadPosition[]][]) {
+    for (const [doodadId, positions] of typedEntries(doodadPositions)) {
         queueDoodad(renderingQueue, doodadId, positions, clockParams)
     }
 }

@@ -132,8 +132,8 @@ export function findNearestLookout(map: PlanetMap, fromCoord: Coord, { claimed =
     let claimedFallback: Coord | null = null;
     let claimedFallbackCost = Infinity;
 
-    while (heap.size > 0) {
-        const { priority: distance, value: coord } = heap.pop()!;
+    for (let top = heap.pop(); top !== undefined; top = heap.pop()) {
+        const { priority: distance, value: coord } = top;
         if (distance > minCost) break; // nothing reachable from here can tie/beat the nearest unclaimed lookout found
         const k = coordKey(coord);
         if (settled.has(k)) continue;
@@ -204,8 +204,8 @@ export function findNearestLookoutFromGrid(map: PlanetMap, { claimed = new Set<s
     const candidates: { target: Coord, cost: number }[] = [];
     let minCost = Infinity;
 
-    while (heap.size > 0) {
-        const { priority: distance, value: coord } = heap.pop()!;
+    for (let top = heap.pop(); top !== undefined; top = heap.pop()) {
+        const { priority: distance, value: coord } = top;
         if (distance > minCost) break;
         const k = coordKey(coord);
         if (settled.has(k)) continue;
@@ -257,8 +257,8 @@ export function findPathToGrid(map: PlanetMap, fromCoord: Coord, { unlocks = {} 
     const heap = new MinHeap<Coord>();
     heap.push(0, fromCoord);
 
-    while (heap.size > 0) {
-        const { priority: distance, value: coord } = heap.pop()!;
+    for (let top = heap.pop(); top !== undefined; top = heap.pop()) {
+        const { priority: distance, value: coord } = top;
         const k = coordKey(coord);
         if (settled.has(k)) continue;
         settled.add(k);
@@ -302,8 +302,8 @@ function dijkstra(map: PlanetMap, fromCoord: Coord, unlocks: Unlocks) {
     const heap = new MinHeap<Coord>();
     heap.push(0, fromCoord);
 
-    while (heap.size > 0) {
-        const { priority: distance, value: coord } = heap.pop()!;
+    for (let top = heap.pop(); top !== undefined; top = heap.pop()) {
+        const { priority: distance, value: coord } = top;
         const k = coordKey(coord);
         if (settled.has(k)) continue;
         settled.add(k);

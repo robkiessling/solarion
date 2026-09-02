@@ -1,17 +1,18 @@
 import store from '../store';
 import update from "immutability-helper";
-import database from '../../database/triggers';
+import database, {type TriggerId, type TriggerRecord} from '../../database/triggers';
+import {typedKeys} from '../../lib/helpers';
 
 export interface TriggersState {
-    byId: { [triggerId: string]: { id: string; triggered: boolean } };
+    byId: Partial<Record<TriggerId, { id: TriggerId; triggered: boolean }>>;
 }
 
 export const ADD_TRIGGER = 'triggers/ADD_TRIGGER' as const;
 export const REMOVE_TRIGGER = 'triggers/REMOVE_TRIGGER' as const;
 
 export type TriggersAction =
-    | { type: typeof ADD_TRIGGER; payload: { id: string } }
-    | { type: typeof REMOVE_TRIGGER; payload: { id: string } };
+    | { type: typeof ADD_TRIGGER; payload: { id: TriggerId } }
+    | { type: typeof REMOVE_TRIGGER; payload: { id: TriggerId } };
 
 const initialState: TriggersState = {
     byId: {},
@@ -46,7 +47,7 @@ export default function reducer(state: TriggersState = initialState, action: Gam
     }
 }
 
-export function addTrigger(id: string) {
+export function addTrigger(id: TriggerId) {
     return (dispatch: Dispatch, getState: GetState) => {
         if (!isTriggered(getState().triggers, id)) {
             dispatch({ type: ADD_TRIGGER, payload: { id } })
@@ -55,19 +56,19 @@ export function addTrigger(id: string) {
     }
 }
 
-function isPending(state: TriggersState, id: string) {
+function isPending(state: TriggersState, id: TriggerId) {
     return state.byId[id] && !state.byId[id].triggered;
 }
-function isTriggered(state: TriggersState, id: string) {
+function isTriggered(state: TriggersState, id: TriggerId) {
     return state.byId[id] && state.byId[id].triggered;
 }
 
 // todo explain this process better (syncTriggers is similar to a react component)
 
 export function syncTriggers(state: TriggersState) {
-    for (const id of Object.keys(state.byId)) {
+    for (const id of typedKeys(state.byId)) {
         if (isPending(state, id) && !activeTriggers[id]) {
-            const dbRecord = database[id];
+            const dbRecord: TriggerRecord = database[id]; // any-sliced: the entries' slice types differ (see trigger() in the table)
 
             activeTriggers[id] = observeStore(store, dbRecord.selector, (state, unsubscribe) => {
                 if (dbRecord.condition(state)) {

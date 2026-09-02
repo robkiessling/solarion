@@ -8,11 +8,15 @@ export const QUEUE_TYPES = {
     fillText: 0,
     stroke: 1,
     drawCachedChar: 2
-}
+} as const;
 
+/** A deferred draw call (see addQueueFilter): which drawing method, and the arguments it was called with */
+export type QueueItem =
+    | { type: typeof QUEUE_TYPES.fillText, args: { text: string, x: number, y: number } }
+    | { type: typeof QUEUE_TYPES.stroke, args: { startX: number, startY: number, endX: number, endY: number } }
+    | { type: typeof QUEUE_TYPES.drawCachedChar, args: { cacheIndex: number, x: number, y: number } };
 /** Decides whether a draw call is queued (true) or drawn now; see addQueueFilter */
-export type QueueFilter = (type: number, args: any) => boolean | undefined;
-type QueueItem = { type: number, args: any };
+export type QueueFilter = (item: QueueItem) => boolean | undefined;
 export type XY = { x: number, y: number };
 /** A cell of an outside/base image: [char, color], or empty for a blank cell */
 export type ImageCell = [string, string] | [];
@@ -230,9 +234,9 @@ export default class AsciiCanvas {
 
     drawLine(start: XY, end: XY) {
         if (this.queueFilter) {
-            const filterArgs = { startX: start.x, startY: start.y, endX: end.x, endY: end.y }
-            if (this.queueFilter(QUEUE_TYPES.stroke, filterArgs)) {
-                this.queue.push({ type: QUEUE_TYPES.stroke, args: filterArgs })
+            const item: QueueItem = { type: QUEUE_TYPES.stroke, args: { startX: start.x, startY: start.y, endX: end.x, endY: end.y } };
+            if (this.queueFilter(item)) {
+                this.queue.push(item);
                 return;
             }
         }
@@ -272,19 +276,18 @@ export default class AsciiCanvas {
     
     processQueue() {
         this.queue.forEach(item => {
-            const args = item.args;
             switch(item.type) {
                 case QUEUE_TYPES.fillText:
-                    this.context.fillText(args.text, args.x, args.y);
+                    this.context.fillText(item.args.text, item.args.x, item.args.y);
                     break;
                 case QUEUE_TYPES.stroke:
                     this.context.beginPath();
-                    this.context.moveTo(args.startX, args.startY);
-                    this.context.lineTo(args.endX, args.endY);
+                    this.context.moveTo(item.args.startX, item.args.startY);
+                    this.context.lineTo(item.args.endX, item.args.endY);
                     this.context.stroke();
                     break;
                 case QUEUE_TYPES.drawCachedChar:
-                    this._copyCachedChar(args.cacheIndex, args.x, args.y);
+                    this._copyCachedChar(item.args.cacheIndex, item.args.x, item.args.y);
                     break;
             }
         });
@@ -293,9 +296,9 @@ export default class AsciiCanvas {
 
     fillText(text: string, x: number, y: number) {
         if (this.queueFilter) {
-            const filterArgs = { x, y, text };
-            if (this.queueFilter(QUEUE_TYPES.fillText, filterArgs)) {
-                this.queue.push({ type: QUEUE_TYPES.fillText, args: filterArgs })
+            const item: QueueItem = { type: QUEUE_TYPES.fillText, args: { x, y, text } };
+            if (this.queueFilter(item)) {
+                this.queue.push(item);
                 return;
             }
         }
@@ -326,9 +329,9 @@ export default class AsciiCanvas {
     // Draws a cached char to the real canvas (alternative to fillText)
     drawCachedChar(cacheIndex: number, x: number, y: number) {
         if (this.queueFilter) {
-            const filterArgs = { x, y, cacheIndex };
-            if (this.queueFilter(QUEUE_TYPES.drawCachedChar, filterArgs)) {
-                this.queue.push({ type: QUEUE_TYPES.drawCachedChar, args: filterArgs })
+            const item: QueueItem = { type: QUEUE_TYPES.drawCachedChar, args: { x, y, cacheIndex } };
+            if (this.queueFilter(item)) {
+                this.queue.push(item);
                 return;
             }
         }
@@ -396,16 +399,7 @@ export default class AsciiCanvas {
 
     _convertCanvasToHiDPI(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, ratio?: number) {
         if (!ratio) {
-            // TODO Internet Explorer
-            // https://stackoverflow.com/questions/22483296/html5-msbackingstorepixelratio-and-window-devicepixelratio-dont-exist-are-the
-            const dpr = window.devicePixelRatio || 1;
-            const vendor = context as any; // legacy vendor-prefixed backing store ratios
-            const bsr = vendor.webkitBackingStorePixelRatio ||
-                vendor.mozBackingStorePixelRatio ||
-                vendor.msBackingStorePixelRatio ||
-                vendor.oBackingStorePixelRatio ||
-                vendor.backingStorePixelRatio || 1;
-            ratio = dpr / bsr;
+            ratio = window.devicePixelRatio || 1; // scale the backing store so text stays crisp on HiDPI screens
         }
 
         canvas.width = this.width * ratio;

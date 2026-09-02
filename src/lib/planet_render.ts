@@ -7,7 +7,7 @@
 import {PLANET_COLS} from "./planet_geometry";
 import {drawStarField} from "./star_field";
 import type AsciiCanvas from "./ascii_canvas";
-import type {DisplayCell} from "./planet_map";
+import type {DisplayCell, HaloEdges, Ping, PingVariantId} from "./planet_map";
 import type {SquadZone} from "./squad";
 
 export const PLANET_COLORS: Record<string, string> = {
@@ -152,6 +152,11 @@ const NIGHT_ALPHA = 0.08;
 const SELF_LIT_ALPHA = 0.8;
 
 // Effective brightness of a cell or float from its daylight, self-lit floor, and lantern lift
+/** A cell's colour: an explicit color wins over its palette key; a missing or unknown key falls back to white */
+function colorFor(color: string | undefined, colorKey: string | undefined): string {
+    return color || (colorKey !== undefined ? PLANET_COLORS[colorKey] : undefined) || '#ffffff';
+}
+
 function shadeAlpha(daylight: number | undefined, selfLit: boolean | number | undefined, lit: number | undefined) {
     let alpha = daylight === undefined ? 1 : NIGHT_ALPHA + (1 - NIGHT_ALPHA) * daylight;
     if (selfLit) { alpha = Math.max(alpha, selfLit === true ? SELF_LIT_ALPHA : selfLit); }
@@ -164,7 +169,6 @@ const SECTOR_DIVIDER_COLOR = 'rgba(62,192,218,0.5)';
 // Radar pings: expanding, fading rings around a cell. 'hover' is the loud attention ping on a hovered POI
 // marker; 'squad' is the quiet always-on locator pulse that lets you follow a deployed expedition team.
 type PingVariant = { color: string, maxRadiusCells: number, lineWidth: number, rings: number, maxAlpha: number };
-type PingVariantId = 'hover' | 'squad' | 'beacon';
 const PING_VARIANTS: Record<PingVariantId, PingVariant> = {
     hover: { color: '#7fe3f5', maxRadiusCells: 2.2, lineWidth: 1.5, rings: 2, maxAlpha: 1 },
     squad: { color: '#20d9ff', maxRadiusCells: 1.5, lineWidth: 1, rings: 1, maxAlpha: 0.45 },
@@ -200,8 +204,8 @@ export function drawPlanetImage(canvasManager: AsciiCanvas, image: DisplayCell[]
     let currentColor: string | null = null;
     let currentAlpha: number | null = null;
 
-    const pings: { x: number, y: number, ping: { variant?: PingVariantId, fraction: number } }[] = []; // collected during the cell pass, drawn last so rings sit on top of everything
-    const haloEdges: { x: number, y: number, edges: any }[] = []; // survey-boundary segments, batched into one stroke after the cell pass
+    const pings: { x: number, y: number, ping: Ping }[] = []; // collected during the cell pass, drawn last so rings sit on top of everything
+    const haloEdges: { x: number, y: number, edges: HaloEdges }[] = []; // survey-boundary segments, batched into one stroke after the cell pass
     // sliding markers (the squad), drawn after the cell pass so they clear their neighbors
     const floats: { x: number, top: number, char: string, color: string, alpha: number, maskAlpha: number, scale: number }[] = [];
 
@@ -220,11 +224,11 @@ export function drawPlanetImage(canvasManager: AsciiCanvas, image: DisplayCell[]
             const offsetX = (cell.offsetX || 0) * fontWidth;
             const offsetY = (cell.offsetY || 0) * fontHeight;
             const x = originX + colIndex * fontWidth + offsetX;
-            let color = cell.color || PLANET_COLORS[cell.colorKey] || '#ffffff';
+            let color = colorFor(cell.color, cell.colorKey);
             // Night colouring (city lights) follows the darkness the tile actually sits in: the lantern is white
             // light, so inside its pool the amber washes out and true colours return (mountains and grid stay
             // tellable apart when driving at night). An explicit color (the cook sequence) wins.
-            if (cell.nightColorKey && !cell.color && cell.daylight < 1) {
+            if (cell.nightColorKey && !cell.color && cell.daylight !== undefined && cell.daylight < 1) {
                 color = mixHex(color, PLANET_COLORS[cell.nightColorKey], (1 - cell.daylight) * (1 - (cell.lit || 0)));
             }
             // Day/night shading (lifted by the lantern / self-lit floor), multiplied by any per-cell alpha
@@ -256,7 +260,7 @@ export function drawPlanetImage(canvasManager: AsciiCanvas, image: DisplayCell[]
                     x: floatX,
                     top: floatTop,
                     char: cell.float.char,
-                    color: cell.float.color || PLANET_COLORS[cell.float.colorKey] || '#ffffff',
+                    color: colorFor(cell.float.color, cell.float.colorKey),
                     // Day/night shades the marker like anything else on the ground, unless it is self-lit
                     alpha: shadeAlpha(cell.daylight, cell.float.selfLit, cell.lit) *
                         (cell.float.alpha === undefined ? 1 : cell.float.alpha),

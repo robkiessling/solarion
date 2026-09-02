@@ -180,15 +180,15 @@ export function drawStarAndProbes(canvas: AsciiCanvas, elapsedTime: number, prob
     const [centerX, centerY] = canvas.center();
     const m = centerY / centerX;
     const b = -1 * centerY - m * centerX;
-    canvas.addQueueFilter((type: number, args: any) => {
+    canvas.addQueueFilter(item => {
         // Queue update if point is below our imaginary line from bottom-left to top-right corner.
         // We multiply y by -1 because for a canvas a positive y means go DOWN.
-        switch(type) {
+        switch(item.type) {
             case QUEUE_TYPES.fillText:
             case QUEUE_TYPES.drawCachedChar:
-                return -1 * args.y < m * args.x + b;
+                return -1 * item.args.y < m * item.args.x + b;
             case QUEUE_TYPES.stroke:
-                return -1 * args.startY < m * args.startX + b;
+                return -1 * item.args.startY < m * item.args.startX + b;
         }
     })
 

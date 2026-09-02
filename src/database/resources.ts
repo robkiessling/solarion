@@ -31,50 +31,55 @@ const base: ResourceRecord = {
     showRate: true // Whether the resource shows a rate in the display (only relevant if visible:true)
 }
 
+/** A table entry: the overrides merged over `base` (deep, so a nested field can be overridden on its own) */
+function resource(overrides: DeepPartial<ResourceRecord>): ResourceRecord {
+    return _.merge({}, base, overrides);
+}
+
 const database = {
-    ore: _.merge({}, base, {
+    ore: resource({
         name: "Ore",
         amount: 0,
         icon: 'icon-stone-pile'
-    } satisfies DeepPartial<ResourceRecord>),
-    energy: _.merge({}, base, {
+    }),
+    energy: resource({
         name: "Energy",
         amount: 0,
         icon: 'icon-electric'
-    } satisfies DeepPartial<ResourceRecord>),
-    vents: _.merge({}, base, {
+    }),
+    vents: resource({
         name: "Thermal Vent",
         amount: 1,
         icon: 'icon-caldera',
         visible: false
-    } satisfies DeepPartial<ResourceRecord>),
-    refinedMinerals: _.merge({}, base, {
+    }),
+    refinedMinerals: resource({
         name: "Minerals",
         amount: 0,
         icon: 'icon-crystal-growth'
-    } satisfies DeepPartial<ResourceRecord>),
-    standardDroids: _.merge({}, base, {
+    }),
+    standardDroids: resource({
         name: "Droids",
         amount: 0,
         icon: 'icon-vintage-robot',
         showRate: false // the resource bar shows the idle count in the rate slot instead
-    } satisfies DeepPartial<ResourceRecord>),
-    buildableLand: _.merge({}, base, {
+    }),
+    buildableLand: resource({
         name: "Land",
         amount: 0,
         icon: 'icon-globe',
         visible: false
-    } satisfies DeepPartial<ResourceRecord>),
-    developedLand: _.merge({}, base, {
+    }),
+    developedLand: resource({
         name: "Dev Land",
         amount: 1, // starts at 1 for home base
         visible: false
-    } satisfies DeepPartial<ResourceRecord>),
-    probes: _.merge({}, base, {
+    }),
+    probes: resource({
         name: "Probes",
         amount: 0,
         icon: 'icon-satellite',
-    } satisfies DeepPartial<ResourceRecord>),
+    }),
 } satisfies Record<string, ResourceRecord>;
 
 /** The resource ids: the keys of the table above */

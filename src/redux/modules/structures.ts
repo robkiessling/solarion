@@ -2,6 +2,7 @@ import _ from 'lodash';
 import update from 'immutability-helper';
 import database, {calculators, type Structure, type StructureStatus, type StructureType} from '../../database/structures';
 import {recalculateState, withRecalculation} from "../reducer";
+import {typedEntries} from "../../lib/helpers";
 
 /** Per-structure animation state the base view renders from (see animationData) */
 export type StructureAnimationData = Partial<Record<StructureId, { numBuilt: number, animationTag?: string }>>;
@@ -47,7 +48,7 @@ export default function reducer(state: StructuresState = initialState, action: G
     switch (action.type) {
         case LEARN:
             // If already learned, do nothing (prevents potential error state w/ duplicate visibleIds)
-            if (state.byId[action.payload.id as StructureId]) return state;
+            if (state.byId[action.payload.id]) return state;
 
             return update(state, {
                 byId: {
@@ -89,17 +90,17 @@ export default function reducer(state: StructuresState = initialState, action: G
             });
         case PROGRESS:
             const newState: Partial<Record<StructureId, Structure>> = {};
-            for (const [key, value] of Object.entries(state.byId)) {
+            for (const [key, value] of typedEntries(state.byId)) {
                 if (value.runningCooldown !== 0) {
                     let newCooldown = value.runningCooldown - action.payload.timeDelta;
                     if (newCooldown <= 0) { newCooldown = 0; }
 
-                    newState[key as StructureId] = Object.assign({}, value, {
+                    newState[key] = Object.assign({}, value, {
                         runningCooldown: newCooldown
                     });
                 }
                 else {
-                    newState[key as StructureId] = value;
+                    newState[key] = value;
                 }
             }
             return Object.assign({}, state, { byId: newState });
@@ -236,9 +237,8 @@ export function getVisibleIds(state: StructuresState, type?: StructureType) {
 
 export function animationData(state: StructuresState) {
     const result: StructureAnimationData = {};
-    state.visibleIds.forEach(id => {
-        const structure = getStructure(state, id)! // visibleIds is always a subset of byId
-        result[id] = {
+    visibleStructures(state).forEach(structure => {
+        result[structure.id] = {
             numBuilt: getNumBuilt(structure),
             animationTag: structure.animationTag
         };
@@ -247,8 +247,10 @@ export function animationData(state: StructuresState) {
 }
 
 // Helpers
+/** The visible structures' records, in visibleIds order (visibleIds is always a subset of byId, so nothing is skipped) */
+export function visibleStructures(state: StructuresState): Structure[] {
+    return state.visibleIds.flatMap(id => getStructure(state, id) ?? []);
+}
 export function iterateVisible(state: StructuresState, callback: (structure: Structure) => void) {
-    state.visibleIds.forEach(id => {
-        callback(getStructure(state, id)!); // visibleIds is always a subset of byId
-    });
+    visibleStructures(state).forEach(callback);
 }

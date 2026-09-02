@@ -1,5 +1,6 @@
 import update from 'immutability-helper';
 import { v4 } from 'uuid';
+import type {LogId} from '../../database/logs';
 
 export interface LogEntry {
     /** database id, or null for inline entries */
@@ -26,7 +27,7 @@ export const END_LOG_SEQUENCE = 'log/END_LOG_SEQUENCE' as const;
 export type LogAction =
     | { type: typeof LOG; payload: { sequence: string; id: string | null; vars?: LogEntry['vars']; entryType?: 'inline';
         text?: string; className?: string; style?: LogEntry['style'] } }
-    | { type: typeof START_LOG_SEQUENCE; payload: { sequence: string; id: string; vars: LogEntry['vars'] } }
+    | { type: typeof START_LOG_SEQUENCE; payload: { sequence: string; id: LogId; vars: LogEntry['vars'] } }
     | { type: typeof END_LOG_SEQUENCE; payload: { sequence: string } };
 
 // Initial State
@@ -99,7 +100,7 @@ export function logInline(text: string, className = '', style: { [property: stri
 }
 
 // Starts a log sequence (outputs the text over time). vars: see logMessage.
-export function startLogSequence(id: string, vars: LogEntry['vars'] = null): LogAction {
+export function startLogSequence(id: LogId, vars: LogEntry['vars'] = null): LogAction {
     return { type: START_LOG_SEQUENCE, payload: { id: id, vars: vars, sequence: v4() } };
 }
 export function endLogSequence(sequence: string): LogAction {

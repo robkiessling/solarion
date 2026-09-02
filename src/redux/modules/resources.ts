@@ -1,13 +1,13 @@
 import _ from 'lodash';
 import update from 'immutability-helper';
-import {INFINITY, mapObject, roundToDecimal} from "../../lib/helpers";
+import {INFINITY, mapObject, roundToDecimal, typedEntries} from "../../lib/helpers";
 import database, {calculators, type Resource} from "../../database/resources";
 import * as fromStructures from "./structures";
 import * as fromUpgrades from "./upgrades";
 import * as fromAbilities from "./abilities";
 import * as fromPlanet from "./planet";
 import {withRecalculation} from "../reducer";
-import {STATUSES, TERRAINS, type PlanetMap} from "../../lib/planet_map";
+import {STATUSES, TERRAINS} from "../../lib/planet_map";
 
 export interface ResourcesState {
     byId: Partial<Record<ResourceId, Resource>>;
@@ -37,7 +37,7 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
     switch (action.type) {
         case LEARN:
             // If already learned, do nothing (prevents potential error state w/ duplicate visibleIds)
-            if (state.byId[action.payload.id as ResourceId]) return state;
+            if (state.byId[action.payload.id]) return state;
 
             return update(state, {
                 byId: {
@@ -47,7 +47,7 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
                 },
 
                 // Only resources with the visible:true attribute get added to visibleIds
-                visibleIds: { $push: database[action.payload.id as ResourceId].visible ? [action.payload.id] : [] }
+                visibleIds: { $push: database[action.payload.id].visible ? [action.payload.id] : [] }
             });
         case CONSUME:
             return consumeReducer(state, action.payload.amounts);
@@ -98,7 +98,7 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             // Starting land: the already-explored flatland around home. Infested flatland never counts until
             // its nest is cleared (see SQUAD_FIGHT_WON below).
             let startingLand = 0;
-            (action.payload.map as PlanetMap).forEach(row => row.forEach(sector => {
+            action.payload.map.forEach(row => row.forEach(sector => {
                 if (sector.status === STATUSES.explored.key &&
                     sector.terrain === TERRAINS.flatland.key && !sector.infestedBy) {
                     startingLand++;
@@ -142,7 +142,7 @@ function consumeReducer(state: ResourcesState, amounts: ResourceAmounts) {
 function produceReducer(state: ResourcesState, amounts: ResourceAmounts, incrementLifetimeTotal = true) {
     return update(state, {
         byId: mapObject(amounts, (resourceId, amount = 0) => {
-            const resource = getResource(state, resourceId as ResourceId);
+            const resource = getResource(state, resourceId);
             if (!resource) { return {}; }
             const capacity = getCapacity(resource);
             const oldAmount = getQuantity(resource);
@@ -182,10 +182,10 @@ export function getResource(state: ResourcesState, id: ResourceId): Resource | u
     return state.byId[id];
 }
 export function canConsume(state: ResourcesState, amounts: ResourceAmounts): boolean {
-    return (Object.entries(amounts) as [ResourceId, number][]).every(([k,v]) => getQuantity(getResource(state, k)) >= v);
+    return typedEntries(amounts).every(([k,v]) => getQuantity(getResource(state, k)) >= v);
 }
 export function hasLifetimeQuantities(state: ResourcesState, amounts: ResourceAmounts): boolean {
-    return (Object.entries(amounts) as [ResourceId, number][]).every(([k,v]) => getLifetimeQuantity(getResource(state, k)) >= v);
+    return typedEntries(amounts).every(([k,v]) => getLifetimeQuantity(getResource(state, k)) >= v);
 }
 export function getQuantity(resource: Resource | undefined): number {
     if (!resource) {
@@ -209,10 +209,10 @@ export function getIconSpan(id: ResourceId, skinny: boolean = false, colorless: 
     return `<span class="${getIcon(id) ?? ''} ${skinny ? 'skinny-icon' : ''} ${colorless ? 'colorless-icon' : ''}"></span>`;
 }
 export function highlightCosts(state: ResourcesState, amounts: ResourceAmounts) {
-    return mapObject(amounts as Record<string, number>, (resourceId, resourceCost) => {
+    return mapObject(amounts, (resourceId, resourceCost) => {
         return {
             amount: resourceCost,
-            hasEnough: getQuantity(getResource(state, resourceId as ResourceId)) >= resourceCost
+            hasEnough: getQuantity(getResource(state, resourceId)) >= resourceCost
         }
     });
 }

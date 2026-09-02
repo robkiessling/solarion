@@ -1,9 +1,9 @@
-import {NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
+import {NUM_PLANET_ROWS, PLANET_COLS, parseCoordKey} from "./planet_geometry";
 import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, STATUSES, type PlanetMap, type TerrainKey, type Unlocks} from "./planet_map";
-import {mod} from "./helpers";
+import {mapObject, mod, typedEntries} from "./helpers";
 
 import {advanceBattle, DROID_BASE_STATS, fullDroidHp, type Battle, type BattleOverEvent} from "./battle";
-import {EQUIPMENT_DEFS, type EquipmentCharges, type EquipmentId} from "../database/equipment";
+import {EQUIPMENT_DEFS, type EquipmentCharges} from "../database/equipment";
 import type {DroidStats} from "../database/battle";
 import type {Poi} from "./expeditions";
 
@@ -240,9 +240,8 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
             if (droidHp && droidHp.some(hp => hp < maxHp)) {
                 droidHp = fullDroidHp(droidHp.length, maxHp);
             }
-            if (equipment && Object.entries(equipment).some(([id, n]) => n < EQUIPMENT_DEFS[id as EquipmentId].charges)) {
-                equipment = Object.fromEntries(
-                    Object.keys(equipment).map(id => [id, EQUIPMENT_DEFS[id as EquipmentId].charges]));
+            if (equipment && typedEntries(equipment).some(([id, n]) => n < EQUIPMENT_DEFS[id].charges)) {
+                equipment = mapObject(equipment, id => EQUIPMENT_DEFS[id].charges);
             }
             events.push({ type: 'onGrid' });
         }
@@ -255,7 +254,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
             if (droidHp.length === 0) {
                 events.push({ type: 'fieldWiped', unitsLost: squadSize,
                     multiplier: squad.multiplier || 1, cargoLost: squad.cargo });
-                return { squad: null, reveals: [...reveals].map(key => key.split(',').map(Number) as Coord), events };
+                return { squad: null, reveals: [...reveals].map(parseCoordKey), events };
             }
             squadSize = droidHp.length;
         }
@@ -277,7 +276,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
 
     return {
         squad: {...squad, coord, path, moveProgress, battery, droidHp, equipment, squadSize},
-        reveals: [...reveals].map(key => key.split(',').map(Number) as Coord),
+        reveals: [...reveals].map(parseCoordKey),
         events
     };
 }

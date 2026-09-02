@@ -28,14 +28,24 @@ export function emptyElement(element: Element) {
     }
 }
 
-// Maps an object to a new object https://stackoverflow.com/a/14810722
-// TODO just use lodash map values?
-export const mapObject = <V, R>(obj: Record<string, V>, fn: (key: string, value: V, index: number) => R): Record<string, R> => {
+/**
+ * Object.keys / Object.entries with the input's key type kept: keys of a Partial<Record<ResourceId, number>> come
+ * back as ResourceId[], not string[]. (TypeScript widens the built-ins to string because an object can carry keys its
+ * type doesn't mention; the tables and state maps here don't, so the cast lives in one place instead of at each call.)
+ */
+export const typedKeys = <T extends object>(obj: T) => Object.keys(obj) as (keyof T & string)[];
+export const typedEntries = <T extends object>(obj: T) => Object.entries(obj) as [keyof T & string, Exclude<T[keyof T], undefined>][];
+
+/**
+ * Maps each value of an object, keeping the key type and optionality of the input: mapping a
+ * Partial<Record<ResourceId, number>> yields a Partial<Record<ResourceId, R>>.
+ */
+export const mapObject = <T extends object, R>(obj: T, fn: (key: keyof T & string, value: Exclude<T[keyof T], undefined>, index: number) => R): { [K in keyof T]: R } => {
     return Object.fromEntries(
-        Object.entries(obj).map(
+        typedEntries(obj).map(
             ([k, v], i) => [k, fn(k, v, i)]
         )
-    )
+    ) as { [K in keyof T]: R };
 }
 
 const EPSILON = 0.000001; // Adding an epsilon to handle floating point rounding errors
@@ -187,8 +197,9 @@ export function shuffleArray<T>(array: T[]) {
     }
 }
 
-export function getDynamicValue<T>(value: T | ((...args: any[]) => T), functionParams: any[]): T {
-    return typeof value === 'function' ? (value as (...args: any[]) => T)(...functionParams) : value;
+/** Resolves a value that is either a constant or a function of `functionParams` */
+export function getDynamicValue<A extends unknown[], T>(value: T | ((...args: A) => T), functionParams: A): T {
+    return typeof value === 'function' ? (value as (...args: A) => T)(...functionParams) : value;
 }
 
 

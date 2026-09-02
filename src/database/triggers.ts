@@ -11,6 +11,16 @@ export interface TriggerRecord<S = any> {
 }
 
 /**
+ * Builds a table entry, inferring the slice type from the selector so the condition is checked against it (a
+ * selected record may not be learned or built yet, so most conditions start with a presence check). The S = any
+ * default above is only for code that handles an arbitrary trigger, e.g. syncTriggers; TypeScript has no way to
+ * say "a TriggerRecord of some S" for the union of table entries.
+ */
+function trigger<S>(record: TriggerRecord<S>): TriggerRecord<S> {
+    return record;
+}
+
+/**
  *
  * Triggers provide a way to perform actions when a specific state change occurs (and attempts to do so in the most
  * efficient way possible).
@@ -23,58 +33,61 @@ export interface TriggerRecord<S = any> {
  *                  Note: `slice` is the piece of the state specified by `selector`.
  * @param action    Function to call when triggered.
  */
-export default {
-    energyAlmostFull: {
+const database = {
+    energyAlmostFull: trigger({
         selector: (state) => state.resources.byId.energy,
-        condition: (slice) => slice.amount >= slice.capacity * 0.9,
+        condition: (slice) => !!slice && slice.amount >= slice.capacity * 0.9,
         action: () => store.dispatch(fromLog.startLogSequence('energyAlmostFull'))
-    },
+    }),
     // "Exploration begins": fires on the first squad deployment (scouts arrive much later, with Survey Automation)
-    startExploringMap: {
+    startExploringMap: trigger({
         selector: (state) => state.planet.squad,
         condition: (slice) => !!slice,
         action: () => store.dispatch(fromLog.startLogSequence('startExploringMap'))
-    },
-    windTurbine_global: {
+    }),
+    windTurbine_global: trigger({
         selector: (state) => state.resources.byId.developedLand,
-        condition: (slice) => slice.amount >= 100,
+        condition: (slice) => !!slice && slice.amount >= 100,
         action: () => store.dispatch(fromUpgrades.discover('windTurbine_global'))
-    },
-    solarPanel_global: {
+    }),
+    solarPanel_global: trigger({
         selector: (state) => state.resources.byId.developedLand,
-        condition: (slice) => slice.amount >= 500,
+        condition: (slice) => !!slice && slice.amount >= 500,
         action: () => store.dispatch(fromUpgrades.discover('solarPanel_global'))
-    },
-    probeFactoryBuilt: {
+    }),
+    probeFactoryBuilt: trigger({
         selector: (state) => state.structures.byId.probeFactory,
-        condition: (slice) => slice.count.total >= 1,
+        condition: (slice) => !!slice && slice.count.total >= 1,
         action: () => store.dispatch(fromLog.startLogSequence('probeFactoryBuilt'))
-    },
-    probeLaunched: {
+    }),
+    probeLaunched: trigger({
         selector: (state) => state.resources.byId.probes,
-        condition: (slice) => slice.amount >= 1,
+        condition: (slice) => !!slice && slice.amount >= 1,
         action: () => store.dispatch(fromLog.startLogSequence('probeLaunched'))
-    },
-    solarPanelReceivingProbes: {
+    }),
+    solarPanelReceivingProbes: trigger({
         selector: (state) => state.star.mirrorTarget,
         condition: (slice) => slice === 'planet',
         action: () => store.dispatch(fromLog.startLogSequence('solarPanelReceivingProbes'))
-    },
-    swarm50Pct: {
+    }),
+    swarm50Pct: trigger({
         selector: (state) => state.resources.byId.probes,
-        condition: (slice) => slice.amount >= (probeCapacity() * 0.5),
+        condition: (slice) => !!slice && slice.amount >= (probeCapacity() * 0.5),
         action: () => store.dispatch(fromLog.startLogSequence('swarm50Pct'))
-    },
-    swarm75Pct: {
+    }),
+    swarm75Pct: trigger({
         selector: (state) => state.resources.byId.probes,
-        condition: (slice) => slice.amount >= (probeCapacity() * 0.75),
+        condition: (slice) => !!slice && slice.amount >= (probeCapacity() * 0.75),
         action: () => store.dispatch(fromLog.startLogSequence('swarm75Pct'))
-    },
-    swarmComplete: {
+    }),
+    swarmComplete: trigger({
         selector: (state) => state.resources.byId.probes,
-        condition: (slice) => slice.amount >= probeCapacity(),
+        condition: (slice) => !!slice && slice.amount >= probeCapacity(),
         action: () => store.dispatch(fromLog.startLogSequence('swarmComplete'))
-    },
+    }),
 
 
-} as Record<string, TriggerRecord>;
+} satisfies Record<string, TriggerRecord>;
+
+export type TriggerId = keyof typeof database;
+export default database;

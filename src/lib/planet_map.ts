@@ -75,8 +75,56 @@ export type PlanetMap = Sector[][];
 /** The set of unlocked crossing capabilities, e.g. { drill: true } */
 export type Unlocks = { [capability: string]: boolean };
 
-/** What a nest's battle grid cell / arena obstacle art is stamped from */
-export interface DisplayCell { char: string; [attribute: string]: any }
+/** A radar ping around a cell or marker: where in its cycle it is, and which look (see PING_VARIANTS in planet_render) */
+export interface Ping { variant?: PingVariantId; fraction: number }
+export type PingVariantId = 'hover' | 'squad' | 'beacon';
+/** Which of a cell's edges carry a survey-boundary segment */
+export interface HaloEdges { top?: boolean; bottom?: boolean; left?: boolean; right?: boolean }
+/** A marker that slides between tiles on its own offsets (the squad), drawn over the tile's own glyph */
+export interface FloatMarker {
+    char: string;
+    colorKey?: string;
+    color?: string;
+    selfLit?: boolean | number;
+    alpha?: number;
+    offsetX?: number;
+    offsetY?: number;
+    /** paint the marker's ink box in the backdrop colour first, so it stands on the ground instead of blending in */
+    mask?: boolean;
+    maskAlpha?: number;
+    scale?: number;
+    ping?: Ping;
+}
+/** A marker drawn over a tile (scout droid, POI, path highlight, ...); see the overlays parameter of generateImage */
+export interface CellOverlay {
+    char?: string;
+    colorKey?: string;
+    color?: string;
+    selfLit?: boolean | number;
+    ping?: Ping;
+    alpha?: number;
+    offsetX?: number;
+    offsetY?: number;
+    haloEdges?: HaloEdges;
+    float?: FloatMarker;
+}
+/** One cell of the rendered planet image (see the field notes in generateImage); drawPlanetImage in planet_render draws these */
+export interface DisplayCell {
+    char?: string;
+    colorKey?: string;
+    color?: string;
+    nightColorKey?: string;
+    daylight?: number;
+    lit?: number;
+    selfLit?: boolean | number;
+    alpha?: number;
+    dividers?: { left?: boolean; right?: boolean; bottom?: boolean };
+    ping?: Ping;
+    offsetX?: number;
+    offsetY?: number;
+    haloEdges?: HaloEdges;
+    float?: FloatMarker;
+}
 
 // Re-exported so existing consumers (e.g. redux) can keep importing planet-size constants from here.
 // The source of truth lives in planet_geometry.
@@ -685,8 +733,8 @@ function carveCorridor(map: PlanetMap, fromCoord: Coord, toCoord: Coord, isRingT
     const heap = new MinHeap<Coord>();
     heap.push(0, fromCoord);
 
-    while (heap.size > 0) {
-        const { priority: distance, value: coord } = heap.pop()!;
+    for (let top = heap.pop(); top !== undefined; top = heap.pop()) {
+        const { priority: distance, value: coord } = top;
         const k = key(coord);
         if (k === toK) break;
         if (settled.has(k)) continue;
@@ -1175,74 +1223,79 @@ function getGridNight(map: PlanetMap) {
 // entry. Only ever applied to bare ground (no
 // marker on the tile), never to unknown tiles. Set the table to {} to switch it all off. New glyphs must
 // exist in the common monospace fonts (Menlo, Consolas, DejaVu).
-/** One kind of living ground: its tuning fields plus animate(), which reads them through `this` */
+/**
+ * One kind of living ground. Each entry also carries its own tuning fields, which its animate() reads through
+ * `this` (see living() below).
+ */
 interface GroundLife {
     enabled?: boolean;
-    animate(this: GroundLife, timeMs: number, row: number, col: number, hash: number, daylight: number): { char?: string, alpha?: number } | null;
-    [setting: string]: any;
+    animate(timeMs: number, row: number, col: number, hash: number, daylight: number): { char?: string, alpha?: number } | null;
 }
-const GROUND_LIFE: Partial<Record<TerrainKey | 'infested', GroundLife>> = {
+/** Builds one kind of living ground from its tuning fields and its animate(), which reads them through `this` */
+function living<S extends object>(settings: S,
+    animate: (this: S, timeMs: number, row: number, col: number, hash: number, daylight: number) => { char?: string, alpha?: number } | null): GroundLife & S {
+    return { ...settings, animate };
+}
+const GROUND_LIFE = {
     // Hive tissue breathes: a slow brightness swell, tiles nearly in phase (one organism) with a little
     // per-tile drift; and once in a while a tile twitches, a tendril whipping up and pulling back.
-    infested: {
+    infested: living({
         breathPeriodMs: 2600,
         breathDepth: 0.4,     // how far a full exhale dims a tile
         breathDrift: 0.3,     // max per-tile phase offset (fraction of a breath)
         twitchEveryMs: 5000,  // per-tile cycle length; where in it the twitch falls comes from the hash
         twitchMs: 320,        // whole twitch, split evenly across the frames
         twitchFrames: ['ξ', 'ζ'],
-        animate(timeMs, row, col, hash) {
-            const phase = (timeMs / this.breathPeriodMs + hash * this.breathDrift) % 1;
-            const swell = 0.5 - 0.5 * Math.cos(2 * Math.PI * phase); // 0 (inhaled) .. 1 (exhaled)
-            const twitchAt = (timeMs + hash * this.twitchEveryMs) % this.twitchEveryMs;
-            const twitching = twitchAt < this.twitchMs;
-            return {
-                alpha: 1 - this.breathDepth * swell,
-                char: twitching ? this.twitchFrames[Math.floor(twitchAt / this.twitchMs * this.twitchFrames.length)] : undefined
-            };
-        }
-    },
+    }, function(timeMs, row, col, hash) {
+        const phase = (timeMs / this.breathPeriodMs + hash * this.breathDrift) % 1;
+        const swell = 0.5 - 0.5 * Math.cos(2 * Math.PI * phase); // 0 (inhaled) .. 1 (exhaled)
+        const twitchAt = (timeMs + hash * this.twitchEveryMs) % this.twitchEveryMs;
+        const twitching = twitchAt < this.twitchMs;
+        return {
+            alpha: 1 - this.breathDepth * swell,
+            char: twitching ? this.twitchFrames[Math.floor(twitchAt / this.twitchMs * this.twitchFrames.length)] : undefined
+        };
+    }),
     // Replication in progress: the batch pulses out of phase (so it crawls) and tiles flicker briefly to
     // a dot, as if still assembling. PARKED (enabled: false): what read as alive here turned out to be the
     // brightness variation, which replicated land now has statically (DEVELOPED_TEXTURE); kept with its tuning
     // in case a whisper of motion is wanted back.
-    developing: {
+    developing: living({
         enabled: false,
         pulsePeriodMs: 5000,
         pulseDepth: 0.45,     // how far a tile dims at the bottom of its pulse
         flickerEveryMs: 15000,  // per-tile flicker cycle; a short slice of it shows the dot
         flickerMs: 110,
         flickerGlyph: '·',
-        animate(timeMs, row, col, hash) {
-            const pulse = 0.5 + 0.5 * Math.sin(2 * Math.PI * (timeMs / this.pulsePeriodMs + hash));
-            const flickerAt = (timeMs + tileHash(row, col, 97) * this.flickerEveryMs) % this.flickerEveryMs;
-            return {
-                alpha: 1 - this.pulseDepth * pulse,
-                char: flickerAt < this.flickerMs ? this.flickerGlyph : undefined
-            };
-        }
-    },
+    }, function(timeMs, row, col, hash) {
+        const pulse = 0.5 + 0.5 * Math.sin(2 * Math.PI * (timeMs / this.pulsePeriodMs + hash));
+        const flickerAt = (timeMs + tileHash(row, col, 97) * this.flickerEveryMs) % this.flickerEveryMs;
+        return {
+            alpha: 1 - this.pulseDepth * pulse,
+            char: flickerAt < this.flickerMs ? this.flickerGlyph : undefined
+        };
+    }),
     // Acid ripples: a crest glyph travelling diagonally across the flats.
-    acid: {
+    acid: living({
         stepMs: 420,          // the wave advances one tile per this
         wavelength: 4,        // tiles from crest to crest
         crestGlyph: '≈',
-        animate(timeMs, row, col) {
-            const crest = (Math.floor(timeMs / this.stepMs) + row + col) % this.wavelength === 0;
-            return crest ? { char: this.crestGlyph } : null;
-        }
-    }
-};
+    }, function(timeMs, row, col) {
+        const crest = (Math.floor(timeMs / this.stepMs) + row + col) % this.wavelength === 0;
+        return crest ? { char: this.crestGlyph } : null;
+    })
+} satisfies Partial<Record<TerrainKey | 'infested', GroundLife>>;
+const GROUND_LIFE_BY_KEY: Partial<Record<TerrainKey | 'infested', GroundLife>> = GROUND_LIFE;
 function groundLife(sector: Sector, timeMs: number | undefined, daylight: number) {
     if (timeMs === undefined || sector.status === STATUSES.unknown.key) return null;
-    const life = GROUND_LIFE[sector.infestedBy ? 'infested' : TERRAINS[sector.terrain].key];
+    const life = GROUND_LIFE_BY_KEY[sector.infestedBy ? 'infested' : TERRAINS[sector.terrain].key];
     if (!life || life.enabled === false) return null;
     const [row, col] = sector.coord;
     return life.animate(timeMs, row, col, tileHash(row, col, 777), daylight);
 }
 
-// overlays: { "row,col": { char, colorKey, color?, ping? } } -- markers drawn over tiles (scout droids, POIs,
-// expedition squad, fight effects, path highlights). Keyed by planet coords, so they ride the rotation mapping.
+// overlays: { "row,col": CellOverlay } -- markers drawn over tiles (scout droids, POIs, expedition squad, fight
+// effects, path highlights). Keyed by planet coords, so they ride the rotation mapping.
 // cameraShift: sub-column camera offset in cell units (the follow-cam mid-slide). The sampled window widens by
 // one column per side and every char draws shifted by -cameraShift (see drawPlanetImage), so the whole scene
 // scrolls smoothly under the screen-fixed silhouette.
@@ -1252,7 +1305,7 @@ function groundLife(sector: Sector, timeMs: number | undefined, daylight: number
 type Lantern = { row: number, col: number };
 
 export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: number, cookedPct: number,
-                              overlays: Record<string, any> = {}, cameraShift = 0, lantern: Lantern | null = null, timeMs: number | undefined = undefined) {
+                              overlays: Record<string, CellOverlay> = {}, cameraShift = 0, lantern: Lantern | null = null, timeMs: number | undefined = undefined) {
     const displayStart = floor(rotation * PLANET_COLS);
     const pad = cameraShift === 0 ? 0 : 1;
 
