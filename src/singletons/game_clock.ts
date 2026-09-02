@@ -1,4 +1,3 @@
-import * as Helpers from "../lib/helpers"
 import store from "../redux/store";
 import {clockTick} from "../redux/modules/clock";
 import {batch} from "react-redux";
@@ -58,8 +57,6 @@ class GameClock {
         // Ticks in this block must be done iteratively (one by one in order), but it is iterated less frequently
         // since it updates slowly
         this.setInterval('IterativeSlow', (iterations, period) => {
-            const seconds = period / 1000;
-
             // TODO if iterations is large, can batch updates into groups of 5, 10, etc.
             batch(() => {
                 while (iterations > 0) {
@@ -132,7 +129,7 @@ class GameClock {
     _iteratePeriodicFns() {
         const gameSpeed = store.getState().game.gameSpeed;
 
-        for (const [key, periodicFn] of Object.entries(this.periodicFns)) {
+        for (const periodicFn of Object.values(this.periodicFns)) {
             if (periodicFn === undefined) {
                 // When clearInterval is called, its periodicFn will still be called for the current iteration (the
                 // periodicFn will be undefined however). When this happens, ignore the fn. By next iteration

@@ -700,10 +700,6 @@ export function getHomeBasePosition(map: PlanetMap): { coord: Coord, rotation: n
     };
 }
 
-function isSameCoord(coord1: Coord, coord2: Coord) {
-    return coord1[0] === coord2[0] && coord1[1] === coord2[1];
-}
-
 // The powered grid: home base plus replicated land. The squad recharges here, cargo banks here, the survey
 // halo radiates from here, and development grows from here. Mid-replication ('developing') tiles are still
 // under construction -- not powered until the cast finishes. (They also never exist when development picks

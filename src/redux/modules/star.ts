@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import {recalculateState, withRecalculation} from "../reducer";
+import {withRecalculation} from "../reducer";
 import {generateRandomProbeDist} from "../../lib/star";
 
 export const TARGET_LABELS: Record<MirrorTarget, string> = {

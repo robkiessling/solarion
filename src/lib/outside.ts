@@ -2,9 +2,6 @@ import _ from 'lodash';
 import {
     createArray,
     getDynamicValue,
-    getIntermediateColor,
-    getRandomFromArray,
-    getRandomIntInclusive,
     mod
 } from "./helpers";
 import backgrounds from "../database/backgrounds";
@@ -176,12 +173,6 @@ const DOODAD_LASER_POSITIONS_5: DoodadPositions = {
         { row: -1, col: 15 },
     ]
 }
-const DOODAD_LASER_POSITIONS_6: DoodadPositions = {
-    laserBeam60: [
-        { row: 0, col: -61 },
-        { row: 0, col: 0 },
-    ]
-}
 
 
 // const ANIMATION_DELAYS = createArray(20, () => Math.random());
@@ -239,9 +230,8 @@ export function generateImage(structureAnimationData: StructureAnimationData,
 
     if (burnOutside) {
         queueDoodads(DOODAD_LASER_POSITIONS, renderingQueue, clockParams);
-        // if (burnOutside > 0.55) {
-        //     queueDoodads(DOODAD_LASER_POSITIONS_6, renderingQueue, clockParams);
-        // }
+        // An alternative late-burn look, once tried: past 0.55 draw only two laserBeam60 doodads (rows 0, cols -61
+        // and 0) instead of the staged sets below.
         // else {
             if (burnOutside > 0.3) {
                 queueDoodads(DOODAD_LASER_POSITIONS_2, renderingQueue, clockParams);
@@ -284,7 +274,7 @@ function renderBackground(result: OutsideImage, background: { background: string
 
 function queueStructure(renderingQueue: RenderingQueue, structureId: StructureId, animationData: { numBuilt: number, animationTag?: string }, clockParams: ClockParams) {
     const { numBuilt, animationTag } = animationData;
-    const [elapsedTime, fractionOfDay] = clockParams;
+    const [elapsedTime] = clockParams;
 
     (STRUCTURE_POSITIONS[structureId] || []).forEach((position, index) => {
         if (numBuilt > index) {
@@ -299,7 +289,7 @@ function queueStructure(renderingQueue: RenderingQueue, structureId: StructureId
 }
 
 function queueDoodad(renderingQueue: RenderingQueue, doodadId: DoodadGroup, positions: DoodadPosition[], clockParams: ClockParams) {
-    const [elapsedTime, fractionOfDay] = clockParams;
+    const [elapsedTime] = clockParams;
 
     (positions || []).forEach((position, index) => {
         const animationId = position.animationId || doodadId
@@ -336,8 +326,6 @@ const SUN_ORBIT_Y_RADIUS = 55;
 const SUN_ORBIT_X_ORIGIN = 50; // This is also a percentage, 50 means x origin is center (50%) of the canvas
 const SUN_ORBIT_Y_ORIGIN = 30;
 const SUN_RADIUS = '60vh'
-
-const BURN_OUTSIDE_GRADIENT = 'linear-gradient(rgb(75, 10, 1), rgb(255, 69, 0) 40%, rgb(255, 174, 66) 60%, rgb(255, 174, 66) 80%, rgb(255, 226, 155) 100%)'
 
 // The base view faces south (home sits in the northern hemisphere, so the sun's whole arc is in the southern
 // sky): the sun rises on the left (east), peaks top-centre at noon, and sets on the right (west), the same

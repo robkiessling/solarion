@@ -3,7 +3,6 @@ import _ from 'lodash';
 import * as fromResources from "../redux/modules/resources";
 import * as fromStructures from "../redux/modules/structures";
 import * as fromLog from "../redux/modules/log"
-import * as fromUpgrades from "../redux/modules/upgrades";
 import * as fromAbilities from "../redux/modules/abilities";
 
 import * as fromGame from "../redux/modules/game";

@@ -6,16 +6,15 @@ import {
 } from "../redux/modules/structures";
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {daylightPercent, windSpeed} from "../redux/modules/clock";
-import {canConsume, getCapacity, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
+import {getCapacity, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
 import _ from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
 import {formatInteger, INFINITY, redText} from "../lib/helpers";
 import {upgradesAffectingStructure} from "./upgrades";
 import {abilitiesAffectingStructure} from "./abilities";
 import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations} from "../lib/effect";
-import {energyBeamStrengthEnergy, energyBeamStrengthPct, getStructureStatistic} from "../redux/reducer";
+import {energyBeamStrengthEnergy, energyBeamStrengthPct} from "../redux/reducer";
 import {isTargetingPlanet} from "../redux/modules/star";
-import {probeCapacity} from "../lib/star";
 
 const IDLE_LABEL = 'Idle';
 const RUNNING_LABEL = 'Running';

@@ -59,7 +59,7 @@ function isTriggered(state: TriggersState, id: string) {
 // todo explain this process better (syncTriggers is similar to a react component)
 
 export function syncTriggers(state: TriggersState) {
-    for (const [id, trigger] of Object.entries(state.byId)) {
+    for (const id of Object.keys(state.byId)) {
         if (isPending(state, id) && !activeTriggers[id]) {
             const dbRecord = database[id];
 

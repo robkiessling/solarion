@@ -3,7 +3,7 @@ import {getQuantity, getResource} from "../redux/modules/resources";
 import {numStandardDroids} from "../redux/reducer";
 import * as fromAbilities from "../redux/modules/abilities";
 import * as fromPlanet from "../redux/modules/planet";
-import {upgradesAffectingAbility, upgradesAffectingStructure} from "./upgrades";
+import {upgradesAffectingAbility} from "./upgrades";
 import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {STANDARD_COST_EXP} from "./structures";

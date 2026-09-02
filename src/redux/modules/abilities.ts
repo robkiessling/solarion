@@ -2,8 +2,6 @@ import update from 'immutability-helper';
 import database, {callbacks, calculators} from '../../database/abilities';
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
-import {getUpgrade, isResearched} from "./upgrades";
-import {BUILD} from "./structures";
 import _ from "lodash";
 
 export { calculators }
@@ -172,7 +170,7 @@ export function abilitiesTick(timeDelta: number) {
         batch(() => {
             dispatch({ type: PROGRESS, payload: { timeDelta } });
 
-            for (const [key, value] of Object.entries(getState().abilities.byId)) {
+            for (const value of Object.values(getState().abilities.byId)) {
                 if (value.state === 'casting' && (value.castProgress ?? 0) >= value.castTime * 1000) {
                     endCast(dispatch, getState, value);
                 }

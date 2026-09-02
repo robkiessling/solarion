@@ -1,15 +1,6 @@
 import _ from 'lodash';
 import {mod} from "../lib/helpers";
 
-const base = {
-    style: {},
-    idle: {
-        ascii: [
-            'TBD'
-        ]
-    }
-}
-
 // export const UNKNOWN_IMAGE = {
 //     ascii: [
 //         '   _   ',

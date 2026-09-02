@@ -3,8 +3,7 @@ import update from 'immutability-helper';
 import database, {callbacks} from '../../database/upgrades';
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
-import {LEARN} from "./abilities";
-import {getLifetimeQuantity, getResource, hasLifetimeQuantities} from "./resources";
+import {hasLifetimeQuantities} from "./resources";
 import {getNumBuilt, getStructure} from "./structures";
 
 // Actions

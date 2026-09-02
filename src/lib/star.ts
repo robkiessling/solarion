@@ -325,7 +325,7 @@ function drawZaps(numProbes: number, elapsedTime: number, canvas: AsciiCanvas, p
     }
 
     // show zaps
-    for (const [probeIndex, startTime] of Object.entries(visibleZaps)) {
+    for (const probeIndex of Object.keys(visibleZaps)) {
         drawZapLine(canvas, probeDistribution[Number(probeIndex)], orbitTheta, opacity);
     }
 }

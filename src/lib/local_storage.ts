@@ -1,5 +1,5 @@
 // @ts-check
-import {resetLastSavedAt, updateLastSavedAt, updateSetting} from "../redux/modules/game";
+import {resetLastSavedAt, updateLastSavedAt} from "../redux/modules/game";
 import store from "../redux/store";
 
 const STATE_KEY = 'state'
