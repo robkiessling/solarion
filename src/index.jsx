@@ -21,7 +21,7 @@ if (hasStartedGame(store.getState().log)) {
     // initialize store subscriptions from previous saved state
     syncTriggers(store.getState().triggers)
 } else {
-    // fresh start! boots the campaign, or a dev skip mode (see dev/skips.js)
+    // fresh start! boots the campaign, or a dev skip mode (see dev/skips.ts)
     runGameMode(store.dispatch);
 }
 

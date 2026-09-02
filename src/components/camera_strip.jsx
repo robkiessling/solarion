@@ -1,15 +1,15 @@
 import React from 'react';
 import {connect} from "react-redux";
 import Slider from "rc-slider";
-import {ROTATION_MODES, setRotation, setRotationMode} from "../redux/modules/planet";
+import {setRotation, setRotationMode} from "../redux/modules/planet";
 import {SQUAD_GLYPH} from "../lib/squad";
 
 // The two camera follow modes: [mode, glyph, label]. Manual isn't a third button: it's the state you fall
 // into by dragging the slider (or the globe), or by switching the active mode off again. Team wears the
 // squad's own map glyph.
 const FOLLOW_MODES = [
-    [ROTATION_MODES.sun, '☀', 'Daytime'],
-    [ROTATION_MODES.squad, SQUAD_GLYPH, 'Team']
+    ['sun', '☀', 'Daytime'],
+    ['squad', SQUAD_GLYPH, 'Team']
 ];
 
 const SLIDER_MARKS = { 0: '0°', 0.25: '90°', 0.5: '180°', 0.75: '270°', 1: '360°' };
@@ -21,14 +21,14 @@ const SLIDER_MARKS = { 0: '0°', 0.25: '90°', 0.5: '180°', 0.75: '270°', 1: '
  */
 class CameraStrip extends React.Component {
     toggleMode(mode) {
-        this.props.setRotationMode(this.props.rotationMode === mode ? ROTATION_MODES.manual : mode);
+        this.props.setRotationMode(this.props.rotationMode === mode ? 'manual' : mode);
     }
 
     // Grabbing the slider takes the camera back, same as grabbing the globe. (Releasing it blurs the handle,
     // see onAfterChange: the arrow keys drive the squad and must not keep nudging the slider afterwards.)
     onSlide(value) {
-        if (this.props.rotationMode !== ROTATION_MODES.manual) {
-            this.props.setRotationMode(ROTATION_MODES.manual);
+        if (this.props.rotationMode !== 'manual') {
+            this.props.setRotationMode('manual');
         }
         this.props.setRotation(value);
     }

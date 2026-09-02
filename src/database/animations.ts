@@ -1,4 +1,3 @@
-// @ts-check
 import _ from 'lodash';
 import {mod} from "../lib/helpers";
 
@@ -24,14 +23,18 @@ const base = {
 // }
 
 
-class Frame {
-    constructor(charArray, color = '#fff', duration = 1) {
+export class Frame {
+    charArray: string[];
+    color: string;
+    duration: number;
+
+    constructor(charArray: string[], color = '#fff', duration = 1) {
         this.charArray = charArray;
         this.color = color;
         this.duration = duration;
     }
 
-    getFrame() {
+    getFrame(_elapsedTime?: number, _animationDelay?: number) { // a still frame: the animation clock is irrelevant
         return this;
     }
 
@@ -48,8 +51,8 @@ class Frame {
 // e.g. [['x','y']] repeated 3 times would be [['x','y'],['x','y'],['x','y']]
 // note: only extending in the vertical direction is currently supported
 class LargerFrame extends Frame {
-    constructor(charArray, magnitude, color = '#fff', duration = 1) {
-        const newCharArray = [];
+    constructor(charArray: string[], magnitude: number, color = '#fff', duration = 1) {
+        const newCharArray: string[] = [];
         for (let i = 0; i < magnitude; i++) {
             charArray.forEach(row => {
                 newCharArray.push(row);
@@ -59,8 +62,21 @@ class LargerFrame extends Frame {
     }
 }
 
-class Animation {
-    constructor(options, frames) {
+interface AnimationOptions {
+    fps?: number;
+    /** per-instance fps, picked by the instance's animation delay */
+    randomFps?: number[];
+    /** every instance plays in sync (ignores the animation delay) */
+    identical?: boolean;
+}
+
+export class Animation {
+    fps?: number;
+    randomFps?: number[];
+    identical?: boolean;
+    frames: Frame[];
+
+    constructor(options: AnimationOptions, frames: Frame[]) {
         this.fps = options.fps;
         this.randomFps = options.randomFps;
         this.identical = options.identical;
@@ -68,8 +84,8 @@ class Animation {
         this.frames = this._unfoldFrames(frames);
     }
 
-    _unfoldFrames(frames) {
-        const result = [];
+    _unfoldFrames(frames: Frame[]): Frame[] {
+        const result: Frame[] = [];
         frames.forEach(frame => {
             for (let i = 0; i < frame.duration; i++) {
                 result.push(frame);
@@ -78,10 +94,10 @@ class Animation {
         return result;
     }
 
-    getFrame(elapsedTime, animationDelay) {
+    getFrame(elapsedTime: number, animationDelay: number): Frame {
         if (this.identical) { animationDelay = 0; }
 
-        const fps = this.fps || this.randomFps[Math.floor(animationDelay * this.randomFps.length)]
+        const fps = this.fps || (this.randomFps ? this.randomFps[Math.floor(animationDelay * this.randomFps.length)] : undefined)
         if (!fps) { return this.frames[0]; }
 
         const frameDuration = 1 / fps;
@@ -93,7 +109,7 @@ class Animation {
 }
 
 class RandomAnimation extends Animation {
-    getFrame(elapsedTime, animationDelay) {
+    getFrame(elapsedTime: number, animationDelay: number): Frame {
         return this.frames[Math.floor(animationDelay * this.frames.length)];
     }
 }
@@ -102,8 +118,8 @@ class RandomAnimation extends Animation {
 // i.e. for each frame, it shifts all the rows down 1, and loops the lowest row back to the top
 // Note: Only the downward direction is currently supported, but it wouldn't be too hard to implement others
 class LoopingAnimation extends Animation {
-    constructor(options, exampleFrame) {
-        const frames = [];
+    constructor(options: AnimationOptions, exampleFrame: Frame) {
+        const frames: Frame[] = [];
 
         let charArray = exampleFrame.charArray.slice(0);
 
@@ -111,7 +127,7 @@ class LoopingAnimation extends Animation {
             frames.push(new Frame(charArray, exampleFrame.color));
 
             charArray = charArray.slice(0); // duplicate the charArray for the next frame
-            charArray.unshift(charArray.pop()); // rotate it downward
+            charArray.unshift(charArray.pop()!); // rotate it downward (never empty: a frame has rows)
         }
 
         super(options, frames);

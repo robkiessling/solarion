@@ -2,13 +2,9 @@ import update from 'immutability-helper';
 import {recalculateState, withRecalculation} from "../reducer";
 import {generateRandomProbeDist} from "../../lib/star";
 
-export const TARGETS: { NONE: 'none', PLANET: 'planet' } = {
-    NONE: 'none',
-    PLANET: 'planet'
-}
-export const TARGET_LABELS = {
-    [TARGETS.NONE]: 'None',
-    [TARGETS.PLANET]: 'Planet',
+export const TARGET_LABELS: Record<MirrorTarget, string> = {
+    none: 'None',
+    planet: 'Planet',
 }
 
 // Actions
@@ -19,7 +15,7 @@ export const UPDATE_SETTING = 'star/UPDATE_SETTING';
 const initialState: StarState = {
     distribution: [],
     mirrorsOnline: false,
-    mirrorTarget: TARGETS.NONE,
+    mirrorTarget: 'none',
     hyperBeamStartedAt: null,
 }
 
@@ -48,18 +44,18 @@ export function generateProbeDist() {
     return { type: GENERATE_PROBE_DIST, payload: { distribution } };
 }
 
-export function updateSetting(key, value) {
+export function updateSetting(key: keyof StarState, value: any) {
     return { type: UPDATE_SETTING, payload: { key, value } }
 }
 
-export function aimMirrors(target) {
+export function aimMirrors(target: MirrorTarget) {
     return withRecalculation(updateSetting('mirrorTarget', target));
 }
 
-export function startEnergyBeam(time) {
+export function startEnergyBeam(time: number) {
     return { type: UPDATE_SETTING, payload: { key: 'hyperBeamStartedAt', value: time } }
 }
 
 export function isTargetingPlanet(state: StarState): boolean {
-    return state && state.mirrorTarget && state.mirrorTarget === TARGETS.PLANET;
+    return state && state.mirrorTarget && state.mirrorTarget === 'planet';
 }

@@ -1,27 +1,54 @@
-// @ts-check
 import {debounce, getRandomIntInclusive, nTimes} from "./helpers";
 
 let animationIdSeq = 1;
+
+type XY = { x: number, y: number };
+interface ButtonAnimation {
+  id: number;
+  startTime: number;
+  buttonCenter: XY;
+  duration: number;
+  process: (currentTime: number) => void;
+  position?: XY; // floating numbers
+  target?: XY;   // sparks
+}
+interface EnergyButtonState {
+  elapsedTime: number;
+  prevAnimationCounts: Record<string, number>;
+  button: { x: number, y: number, isPressed?: boolean, isHovered?: boolean, path?: Path2D };
+  animations: ButtonAnimation[];
+  heatBar: {};
+}
 
 const BUTTON_WIDTH = 50;
 const BUTTON_HEIGHT = 50;
 const SHADOW_OFFSET = 4;
 
 export default class EnergyButton {
-  constructor(container, canvas, onClickCallback) {
+  container: HTMLElement;
+  canvas: HTMLCanvasElement;
+  onClickCallback: () => void;
+  context: CanvasRenderingContext2D;
+  width = 0;
+  height = 0;
+  ratio = 1;
+  _state: EnergyButtonState;
+
+  constructor(container: HTMLElement, canvas: HTMLCanvasElement, onClickCallback: () => void) {
     this.container = container;
     this.canvas = canvas;
     this.onClickCallback = onClickCallback;
 
     // Turn off alpha for performance boost:
     // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas#turn_off_transparency
-    this.context = this.canvas.getContext('2d', { alpha: true });
+    this.context = this.canvas.getContext('2d', { alpha: true })!;
 
     this._setupResize();
     this.resize();
 
     // Local state is not persisted to redux... it is just for fleeting animations so there is no need to persist them
     this._state = {
+      elapsedTime: 0,
       prevAnimationCounts: {},
       button: {
         x: this.width / 2 - BUTTON_WIDTH / 2,
@@ -46,7 +73,7 @@ export default class EnergyButton {
     this.context.clearRect(0, 0, this.width, this.height);
   }
 
-  drawState(state, elapsedTime, newAnimationValues) {
+  drawState(state: RootState, elapsedTime: number, newAnimationValues: Record<string, number>) {
     // Resize whenever the container changed size underneath us. The canvas can mount at 0x0 (it lives in a
     // display:none slot whenever the app is on the Planet tab, including at boot in skip modes), and tab
     // switches don't fire the window resize listener.
@@ -64,7 +91,7 @@ export default class EnergyButton {
     this._drawButton();
   }
 
-  _spawnNewAnimations(newAnimationValues) {
+  _spawnNewAnimations(newAnimationValues: Record<string, number>) {
     for (const [animationKey, newValue] of Object.entries(newAnimationValues)) {
       const prevValue = this._state.prevAnimationCounts[animationKey];
       if (newValue > 0 && (prevValue === undefined || newValue > prevValue)) {
@@ -134,13 +161,14 @@ export default class EnergyButton {
     this.context.fillText("░┤§", buttonX + fontOffsetX, buttonY + fontSize + fontOffsetY);
   }
 
-  _createAnimation(duration, ready, process) {
-    const animation = {
+  _createAnimation(duration: number, ready: ((animation: ButtonAnimation) => void) | undefined,
+                   process?: (animation: ButtonAnimation, currentTime: number, progress: number) => void) {
+    const animation: ButtonAnimation = {
       id: animationIdSeq++,
       startTime: this._state.elapsedTime,
       buttonCenter: this._buttonCenter(),
       duration: duration,
-      process: function(currentTime) {
+      process: function(this: ButtonAnimation, currentTime: number) {
         // Note: `this` refers to the outside `animation` object
         const progress = (currentTime - this.startTime) / this.duration;
 
@@ -163,7 +191,7 @@ export default class EnergyButton {
     return animation;
   }
 
-  _buttonCenter() {
+  _buttonCenter(): XY {
     return {
       x: this._state.button.x + BUTTON_WIDTH / 2,
       y: this._state.button.y + BUTTON_HEIGHT / 2,
@@ -188,7 +216,7 @@ export default class EnergyButton {
     });
   }
 
-  _createFloatingNumber(value) {
+  _createFloatingNumber(value: number) {
     this._createAnimation(1000, animation => {
       const PADDING = 16;
       animation.position = {
@@ -200,7 +228,7 @@ export default class EnergyButton {
       this.context.fillStyle = `rgba(255,255,255,${opacity})`;
 
       this.context.font = "14px monospace";
-      this.context.fillText(`+${value}`, animation.position.x, animation.position.y);
+      this.context.fillText(`+${value}`, animation.position!.x, animation.position!.y);
 
       // this.context.font = "14px icomoon";
       // this.context.fillText(String.fromCharCode("0xe904"), animation.position.x + 16, animation.position.y);
@@ -217,9 +245,10 @@ export default class EnergyButton {
       animation.target = { x: targetX, y: targetY };
     }, (animation, currentTime, progress) => {
       const opacity = 1 - progress;
+      const target = animation.target!;
       const gradient = this.context.createLinearGradient(
         animation.buttonCenter.x, animation.buttonCenter.y,
-        animation.target.x, animation.target.y
+        target.x, target.y
       )
       gradient.addColorStop(0, 'rgba(234,225,28, 0)'); // Start: fully opaque
       gradient.addColorStop(1, `rgba(234,225,28, ${opacity})`); // End: fully transparent
@@ -227,13 +256,13 @@ export default class EnergyButton {
 
       this.context.beginPath();
       this.context.moveTo(animation.buttonCenter.x, animation.buttonCenter.y);
-      this.context.lineTo(animation.target.x, animation.target.y);
+      this.context.lineTo(target.x, target.y);
       this.context.stroke();
     });
   }
 
   // Path2D rendering help: https://stackoverflow.com/a/66722289
-  _isMouseOverButton(event) {
+  _isMouseOverButton(event: MouseEvent) {
     if (!this._state.button.path) {
       return false;
     }
@@ -245,7 +274,7 @@ export default class EnergyButton {
     return this.context.isPointInPath(this._state.button.path, eventX, eventY);
   }
 
-  _onMousemove(event) {
+  _onMousemove(event: MouseEvent) {
     if (this._isMouseOverButton(event)) {
       this.canvas.style.cursor = 'pointer';
       this._state.button.isHovered = true;
@@ -257,7 +286,7 @@ export default class EnergyButton {
     }
   }
 
-  _onMousedown(event) {
+  _onMousedown(event: MouseEvent) {
     if (this._isMouseOverButton(event)) {
       this._state.button.isPressed = true;
 
@@ -270,11 +299,11 @@ export default class EnergyButton {
     }
   }
 
-  _onMouseup(event) {
+  _onMouseup(event: MouseEvent) {
     this._state.button.isPressed = false;
   }
 
-  center() {
+  center(): [number, number] {
     return [this.width / 2, this.height / 2]
   }
 
@@ -303,16 +332,17 @@ export default class EnergyButton {
     window.addEventListener("resize", debounce(() => this.resize()));
   }
 
-  _convertCanvasToHiDPI(canvas, context, ratio) {
+  _convertCanvasToHiDPI(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, ratio?: number) {
     if (!ratio) {
       // TODO Internet Explorer
       // https://stackoverflow.com/questions/22483296/html5-msbackingstorepixelratio-and-window-devicepixelratio-dont-exist-are-the
       const dpr = window.devicePixelRatio || 1;
-      const bsr = context.webkitBackingStorePixelRatio ||
-        context.mozBackingStorePixelRatio ||
-        context.msBackingStorePixelRatio ||
-        context.oBackingStorePixelRatio ||
-        context.backingStorePixelRatio || 1;
+      const vendor = context as any; // legacy vendor-prefixed backing store ratios
+      const bsr = vendor.webkitBackingStorePixelRatio ||
+        vendor.mozBackingStorePixelRatio ||
+        vendor.msBackingStorePixelRatio ||
+        vendor.oBackingStorePixelRatio ||
+        vendor.backingStorePixelRatio || 1;
       ratio = dpr / bsr;
     }
 

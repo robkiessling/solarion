@@ -2,7 +2,6 @@ import React from 'react';
 import {connect} from "react-redux";
 import {INFESTED_GLYPH, STATUSES, TERRAINS} from "../lib/planet_map";
 import {PLANET_COLORS} from "../lib/planet_render";
-import {POI_STATUS} from "../lib/expeditions";
 
 /**
  * Key to the ground glyphs on the globe. Terrain drives movement cost and battery drain, so it stays spelled
@@ -33,7 +32,7 @@ class TerrainLegend extends React.Component {
 const mapStateToProps = (state) => {
     return {
         // The infested entry only appears once relevant (any POI discovered), same rule as the map's marker key
-        anyPoiVisible: Object.values(state.planet.pois || {}).some(poi => poi.status !== POI_STATUS.hidden)
+        anyPoiVisible: Object.values(state.planet.pois || {}).some(poi => poi.status !== 'hidden')
     };
 };
 

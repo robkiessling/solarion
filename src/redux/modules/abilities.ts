@@ -1,5 +1,5 @@
 import update from 'immutability-helper';
-import database, {STATES, callbacks, calculators} from '../../database/abilities'
+import database, {callbacks, calculators} from '../../database/abilities';
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {getUpgrade, isResearched} from "./upgrades";
@@ -44,25 +44,25 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
             return update(state, {
                 byId: {
                     [payload.ability.id]: {
-                        state: { $set: STATES.casting },
+                        state: { $set: 'casting' },
                         castProgress: { $set: 0 }
                     }
                 }
             });
         case PROGRESS:
             // If none are casting/cooldown, short circuit
-            if (!Object.values(state.byId).some(ability => ability.state === STATES.casting || ability.state === STATES.cooldown)) {
+            if (!Object.values(state.byId).some(ability => ability.state === 'casting' || ability.state === 'cooldown')) {
                 return state;
             }
 
-            let newState = {};
+            const newState: Record<string, Ability> = {};
             for (const [key, value] of Object.entries(state.byId)) {
-                if (value.state === STATES.casting) {
+                if (value.state === 'casting') {
                     newState[key] = Object.assign({}, value, {
                         castProgress: value.castProgress + payload.timeDelta
                     });
                 }
-                else if (value.state === STATES.cooldown) {
+                else if (value.state === 'cooldown') {
                     newState[key] = Object.assign({}, value, {
                         cooldownProgress: value.cooldownProgress + payload.timeDelta
                     });
@@ -77,7 +77,7 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
                 return update(state, {
                     byId: {
                         [payload.ability.id]: {
-                            state: { $set: STATES.cooldown },
+                            state: { $set: 'cooldown' },
                             castProgress: { $set: undefined },
                             cooldownProgress: { $set: 0 },
                         }
@@ -88,7 +88,7 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
                 return update(state, {
                     byId: {
                         [payload.ability.id]: {
-                            state: { $set: STATES.ready },
+                            state: { $set: 'ready' },
                             castProgress: { $set: undefined },
                         }
                     }
@@ -98,7 +98,7 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
             return update(state, {
                 byId: {
                     [payload.ability.id]: {
-                        state: { $set: STATES.ready },
+                        state: { $set: 'ready' },
                         cooldownProgress: { $set: undefined },
                     }
                 }
@@ -117,15 +117,16 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
 }
 
 // Action Creators
-export function learn(id) {
+export function learn(id: string) {
     return withRecalculation({ type: LEARN, payload: { id } }); // recalculate so we immediately calculate costs
 }
-export function startCastUnsafe(ability) {
+export function startCastUnsafe(ability: Ability) {
     return function(dispatch: Dispatch, getState: GetState) {
         batch(() => {
             dispatch({ type: START_CAST, payload: { ability } });
-            if (callbacks[ability.id] && callbacks[ability.id].onStart) {
-                callbacks[ability.id].onStart(dispatch, getState, ability);
+            const callback = callbacks[ability.id];
+            if (callback && callback.onStart) {
+                callback.onStart(dispatch, getState, ability);
             }
 
             if (ability.castTime === 0) {
@@ -143,6 +144,7 @@ export function startCastUnsafe(ability) {
 // to trigger animations, some of which only happen some of the time (e.g. special animation when crystal is found).
 export function chargeRNG(dispatch: Dispatch, getState: GetState) {
     const charge = getAbility(getState().abilities, 'commandCenter_charge');
+    if (!charge || !charge.variables) { return; }
 
     const resources = {
         energy: 0,
@@ -152,29 +154,29 @@ export function chargeRNG(dispatch: Dispatch, getState: GetState) {
 
     // 100% chance to generate energy
     resources.energy += charge.variables.energy;
-    animations.numClicks = { $apply: (x) => x + 1 }
+    animations.numClicks = { $apply: (x: number) => x + 1 }
     animations.energyBonus = { $set: charge.variables.energy };
 
     // % chance to gain bonus minerals
     if (charge.variables.mineralChance > 0 && Math.random() <= charge.variables.mineralChance) {
         resources.refinedMinerals += charge.variables.mineralBonus
-        animations.numMineralBonusProcs = { $apply: (x) => x + 1 }
+        animations.numMineralBonusProcs = { $apply: (x: number) => x + 1 }
         animations.mineralBonus = { $set: charge.variables.mineralBonus }
     }
 
     dispatch({ type: CHARGE_RNG, payload: { resources, animations } })
 }
 
-export function abilitiesTick(timeDelta) {
+export function abilitiesTick(timeDelta: number) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             dispatch({ type: PROGRESS, payload: { timeDelta } });
 
             for (const [key, value] of Object.entries(getState().abilities.byId)) {
-                if (value.state === STATES.casting && value.castProgress >= value.castTime * 1000) {
+                if (value.state === 'casting' && (value.castProgress ?? 0) >= value.castTime * 1000) {
                     endCast(dispatch, getState, value);
                 }
-                if (value.state === STATES.cooldown && value.cooldownProgress >= value.cooldown * 1000) {
+                if (value.state === 'cooldown' && (value.cooldownProgress ?? 0) >= value.cooldown * 1000) {
                     endCooldown(dispatch, getState, value);
                 }
             }
@@ -182,24 +184,25 @@ export function abilitiesTick(timeDelta) {
     }
 }
 
-function endCast(dispatch, getState, ability) {
+function endCast(dispatch: Dispatch, getState: GetState, ability: Ability) {
     dispatch({ type: END_CAST, payload: { ability } });
 
-    if (callbacks[ability.id] && callbacks[ability.id].onFinish) {
-        callbacks[ability.id].onFinish(dispatch, getState);
+    const callback = callbacks[ability.id];
+    if (callback && callback.onFinish) {
+        callback.onFinish(dispatch, getState);
     }
 
     dispatch(recalculateState());
 }
 
-function endCooldown(dispatch, getState, ability) {
+function endCooldown(dispatch: Dispatch, getState: GetState, ability: Ability) {
     dispatch({ type: END_COOLDOWN, payload: { ability } });
     dispatch(recalculateState());
 }
 
 
 // Standard Functions
-export function getAbility(state: AbilitiesState, id: string): Ability {
+export function getAbility(state: AbilitiesState, id: string): Ability | undefined {
     return state.byId[id];
 }
 export function getAbilityCost(ability: Ability): ResourceAmounts {
@@ -209,10 +212,10 @@ export function getAbilityProduction(ability: Ability): ResourceAmounts {
     return ability.produces;
 }
 export function isReady(ability: Ability): boolean {
-    return ability.state === STATES.ready;
+    return ability.state === 'ready';
 }
 export function isCasting(ability: Ability): boolean {
-    return ability.state === STATES.casting;
+    return ability.state === 'casting';
 }
 
 export function visibleIds(state: AbilitiesState): string[] {
@@ -224,7 +227,7 @@ const ANIMATION_SPEED = 100; // should match transition-duration in ui.scss -> .
 
 // Returns an integer between 0 and 100 to represent % progress
 // Progress increases as ability is casting, and decreases as ability is on cooldown
-export function getProgress(ability, forAnimation) {
+export function getProgress(ability: Ability, forAnimation?: boolean) {
     let progressDecimal;
     if (ability.castProgress !== undefined) {
         progressDecimal = ability.castProgress / (ability.castTime * 1000);

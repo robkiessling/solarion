@@ -4,7 +4,7 @@ import { getAdjacentCoords } from "./planet_geometry";
 import { getCrossTime, GRID_TERRAINS, isScoutPassable, STATUSES } from "./planet_map";
 
 /**
- * planet_pathing.js: where droids decide where to explore and how to get there.
+ * planet_pathing.ts: where droids decide where to explore and how to get there.
  *
  * One-way dependency on planet_geometry and planet_map; they should never import from here.
  *
@@ -32,7 +32,7 @@ export function hasUnknownNeighbor(map: PlanetMap, coord: Coord, halo: Set<strin
  * these are the tiles worth visiting (one next to an unknown mountain counts too; visiting it reveals the wall).
  */
 export function getExplorationFrontier(map: PlanetMap, unlocks: Unlocks = {}, halo: Set<string> | null = null): Coord[] {
-    const frontier = [];
+    const frontier: Coord[] = [];
 
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
@@ -81,7 +81,7 @@ export function findPath(map: PlanetMap, fromCoord: Coord, toCoord: Coord, { unl
 
     // Otherwise reach it as a final step off the cheapest adjacent traversable tile (only if it's passable to enter).
     if (getCrossTime(map[toCoord[0]][toCoord[1]].terrain, unlocks) === Infinity) return null;
-    let bestVia = null;
+    let bestVia: Coord | null = null;
     let bestCost = Infinity;
     getAdjacentCoords(toCoord).forEach(neighbor => {
         const nk = coordKey(neighbor);
@@ -104,25 +104,25 @@ export function findPath(map: PlanetMap, fromCoord: Coord, toCoord: Coord, { unl
  * direction. This means a fresh batch fans out, and it avoids lookouts already claimed by others (falling back to a
  * claimed one only when that's all that's reachable).
  */
-export function findNearestLookout(map, fromCoord, { claimed = new Set(), unlocks = {}, heading = null, halo = null } = {}) {
+export function findNearestLookout(map: PlanetMap, fromCoord: Coord, { claimed = new Set<string>(), unlocks = {}, heading = null, halo = null }: LookoutOptions = {}) {
     // Dijkstra outward, but stop once we can't beat the nearest lookout found. Lookouts sit right at the frontier the
     // droid just revealed, so in the common case this only explores a tiny local radius (not the whole explored map).
     const startKey = coordKey(fromCoord);
     const dist = { [startKey]: 0 };
-    const prev = {};
-    const settled = new Set();
-    const heap = new MinHeap();
+    const prev: Record<string, Coord> = {};
+    const settled = new Set<string>();
+    const heap = new MinHeap<Coord>();
     heap.push(0, fromCoord);
 
-    const candidates = [];
+    const candidates: { target: Coord, cost: number }[] = [];
     let minCost = Infinity;
     // Nearest already-claimed lookout, used only if no unclaimed one is reachable (sparse end-game): head there anyway,
     // beating the faraway claimer, rather than sit idle.
-    let claimedFallback = null;
+    let claimedFallback: Coord | null = null;
     let claimedFallbackCost = Infinity;
 
     while (heap.size > 0) {
-        const { priority: distance, value: coord } = heap.pop();
+        const { priority: distance, value: coord } = heap.pop()!;
         if (distance > minCost) break; // nothing reachable from here can tie/beat the nearest unclaimed lookout found
         const k = coordKey(coord);
         if (settled.has(k)) continue;
@@ -152,7 +152,7 @@ export function findNearestLookout(map, fromCoord, { claimed = new Set(), unlock
         });
     }
 
-    let chosenTarget;
+    let chosenTarget: Coord;
     if (candidates.length > 0) {
         const nearest = candidates.filter(c => c.cost <= minCost + 1e-9);
         chosenTarget = pickByHeading(nearest, fromCoord, heading).target;
@@ -175,11 +175,11 @@ export function findNearestLookout(map, fromCoord, { claimed = new Set(), unlock
  * fallback: with nothing unclaimed left, scouts stay docked rather than pile onto another scout's target.
  * Returns { target, path, heading } or null.
  */
-export function findNearestLookoutFromGrid(map, { claimed = new Set(), unlocks = {}, halo = null } = {}) {
-    const dist = {};
-    const prev = {};
-    const settled = new Set();
-    const heap = new MinHeap();
+export function findNearestLookoutFromGrid(map: PlanetMap, { claimed = new Set<string>(), unlocks = {}, halo = null }: LookoutOptions = {}) {
+    const dist: Record<string, number> = {};
+    const prev: Record<string, Coord> = {};
+    const settled = new Set<string>();
+    const heap = new MinHeap<Coord>();
 
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
@@ -190,11 +190,11 @@ export function findNearestLookoutFromGrid(map, { claimed = new Set(), unlocks =
         });
     });
 
-    const candidates = [];
+    const candidates: { target: Coord, cost: number }[] = [];
     let minCost = Infinity;
 
     while (heap.size > 0) {
-        const { priority: distance, value: coord } = heap.pop();
+        const { priority: distance, value: coord } = heap.pop()!;
         if (distance > minCost) break;
         const k = coordKey(coord);
         if (settled.has(k)) continue;
@@ -223,7 +223,7 @@ export function findNearestLookoutFromGrid(map, { claimed = new Set(), unlocks =
     const target = getRandomFromArray(nearest).target;
 
     // Multi-source path reconstruction: walk prev back until a seed (no prev entry), INCLUDING the seed
-    const path = [];
+    const path: Coord[] = [];
     let current = target;
     while (current !== undefined) {
         path.unshift(current);
@@ -241,13 +241,13 @@ export function findPathToGrid(map: PlanetMap, fromCoord: Coord, { unlocks = {} 
     if (GRID_TERRAINS.has(map[fromCoord[0]][fromCoord[1]].terrain)) return [];
 
     const dist = { [coordKey(fromCoord)]: 0 };
-    const prev = {};
-    const settled = new Set();
-    const heap = new MinHeap();
+    const prev: Record<string, Coord> = {};
+    const settled = new Set<string>();
+    const heap = new MinHeap<Coord>();
     heap.push(0, fromCoord);
 
     while (heap.size > 0) {
-        const { priority: distance, value: coord } = heap.pop();
+        const { priority: distance, value: coord } = heap.pop()!;
         const k = coordKey(coord);
         if (settled.has(k)) continue;
         settled.add(k);
@@ -272,27 +272,27 @@ export function findPathToGrid(map: PlanetMap, fromCoord: Coord, { unlocks = {} 
 }
 
 
-const coordKey = ([row, col]) => `${row},${col}`;
+const coordKey = ([row, col]: Coord) => `${row},${col}`;
 
 // A droid may travel over a tile if it is revealed (explored) and currently scout-passable (terrain the
 // scout can cross, not infested, not an unopened gate).
-function isTraversable(map, coord, unlocks) {
+function isTraversable(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
     return map[coord[0]][coord[1]].status === EXPLORED && isScoutPassable(map, coord, unlocks);
 }
 
 /**
- * Dijkstra from `fromCoord` over all traversable tiles, using a binary min-heap (min_heap.js) so it runs in O(E log V).
+ * Dijkstra from `fromCoord` over all traversable tiles, using a binary min-heap (min_heap.ts) so it runs in O(E log V).
  * Returns { dist, prev } keyed by "row,col" (coordKey). The start tile is always seeded even if not otherwise traversable.
  */
-function dijkstra(map, fromCoord, unlocks) {
+function dijkstra(map: PlanetMap, fromCoord: Coord, unlocks: Unlocks) {
     const dist = { [coordKey(fromCoord)]: 0 };
-    const prev = {};
-    const settled = new Set();
-    const heap = new MinHeap();
+    const prev: Record<string, Coord> = {};
+    const settled = new Set<string>();
+    const heap = new MinHeap<Coord>();
     heap.push(0, fromCoord);
 
     while (heap.size > 0) {
-        const { priority: distance, value: coord } = heap.pop();
+        const { priority: distance, value: coord } = heap.pop()!;
         const k = coordKey(coord);
         if (settled.has(k)) continue;
         settled.add(k);
@@ -316,9 +316,9 @@ function dijkstra(map, fromCoord, unlocks) {
  * Walks the `prev` chain back from `toCoord` to `fromCoord`, returning the coords stepped through (excludes the start,
  * includes `toCoord`). Returns null if `toCoord` was never reached.
  */
-function reconstructPath(prev, fromCoord, toCoord) {
+function reconstructPath(prev: Record<string, Coord>, fromCoord: Coord, toCoord: Coord): Coord[] | null {
     const fromK = coordKey(fromCoord);
-    const path = [];
+    const path: Coord[] = [];
     let current = toCoord;
     while (coordKey(current) !== fromK) {
         path.unshift(current);
@@ -332,7 +332,7 @@ function reconstructPath(prev, fromCoord, toCoord) {
  * Of several equidistant candidates, pick the one whose direction best matches `heading` (dot of unit vectors). With no
  * heading (a just-deployed droid), pick randomly so a batch spreads out instead of all charging the same way.
  */
-function pickByHeading(candidates, fromCoord, heading) {
+function pickByHeading(candidates: { target: Coord, cost: number }[], fromCoord: Coord, heading: [number, number] | null): { target: Coord, cost: number } {
     if (candidates.length === 1) return candidates[0];
     if (!heading || (heading[0] === 0 && heading[1] === 0)) return getRandomFromArray(candidates);
 
@@ -348,7 +348,7 @@ function pickByHeading(candidates, fromCoord, heading) {
             best = candidate;
         }
     });
-    return best;
+    return best ?? candidates[0]; // candidates is never empty here; best is always set by the loop
 }
 
 // Direction from one coord to another. Column wrap is ignored (this is only ever used for nearby targets).

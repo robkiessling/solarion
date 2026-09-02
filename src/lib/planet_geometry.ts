@@ -3,7 +3,6 @@ import {
     mod,
     roundToDecimal,
 } from "./helpers";
-
 /**
  * This module owns the SHAPE of the planet and the spatial relationships between tiles (adjacency, distance).
  * It holds no game state, terrain, or rendering.
@@ -14,7 +13,7 @@ import {
  * shift relative to each other while panning, and step movement is symmetric (no one-way diagonal gaps).
  *
  * The display window shows DISPLAY_COLS (half the planet). The planet's round silhouette is NOT structural --
- * it comes from an elliptical render-time mask over the window (DISPLAY_MASK in planet_map.js). DISPLAY_COLS
+ * it comes from an elliptical render-time mask over the window (DISPLAY_MASK in planet_map.ts). DISPLAY_COLS
  * is chosen so the window renders square (cols * charRatio 0.5 == rows), making the masked ellipse a circle.
  */
 export const NUM_PLANET_ROWS = 30;
@@ -38,7 +37,7 @@ export function stepInCompassDirection(currentCoord: Coord, direction: string): 
     return [newRow, mod(currentCoord[1] + colOffset, PLANET_COLS)];
 }
 
-function directionToOffset(direction) {
+function directionToOffset(direction: string): [number, number] {
     switch(direction) {
         case DIRECTIONS.north: return [-1, 0];
         case DIRECTIONS.northEast: return [-1, 1];
@@ -48,6 +47,7 @@ function directionToOffset(direction) {
         case DIRECTIONS.southWest: return [1, -1];
         case DIRECTIONS.west: return [0, -1];
         case DIRECTIONS.northWest: return [-1, -1];
+        default: throw new Error(`Unknown compass direction: ${direction}`);
     }
 }
 
@@ -55,7 +55,7 @@ function directionToOffset(direction) {
 // where they exist (3 neighbors on the pole rows, 4 everywhere else). Precomputed once.
 const ADJACENT_COORDS = createArray(NUM_PLANET_ROWS, (rowIndex) => {
     return createArray(PLANET_COLS, (colIndex) => {
-        const neighbors = [
+        const neighbors: Coord[] = [
             [rowIndex, mod(colIndex - 1, PLANET_COLS)],
             [rowIndex, mod(colIndex + 1, PLANET_COLS)],
         ];
@@ -75,7 +75,7 @@ export function getAdjacentCoords(coord: Coord): Coord[] {
 // This is a VISION shape only; movement and the coverage graph stay 4-connected (see getAdjacentCoords).
 const SURROUNDING_COORDS = createArray(NUM_PLANET_ROWS, (rowIndex) => {
     return createArray(PLANET_COLS, (colIndex) => {
-        const neighbors = [];
+        const neighbors: Coord[] = [];
         for (let rowOffset = -1; rowOffset <= 1; rowOffset++) {
             const row = rowIndex + rowOffset;
             if (row < 0 || row >= NUM_PLANET_ROWS) continue;
@@ -98,10 +98,10 @@ export function getSurroundingCoords(coord: Coord): Coord[] {
 export function getCoordsWithinHops(coord: Coord, steps: number = 1): Coord[] {
     const visited = new Set([`${coord[0]},${coord[1]}`]);
     let frontier = [coord];
-    const result = [];
+    const result: Coord[] = [];
 
     for (let step = 0; step < steps; step++) {
-        const nextFrontier = [];
+        const nextFrontier: Coord[] = [];
         frontier.forEach(current => {
             getAdjacentCoords(current).forEach(neighbor => {
                 const key = `${neighbor[0]},${neighbor[1]}`;
@@ -145,7 +145,7 @@ export function getGraphDistancesFrom(fromCoord: Coord): number[][] {
     let distance = 0;
     while (frontier.length > 0) {
         distance++;
-        const nextFrontier = [];
+        const nextFrontier: Coord[] = [];
         frontier.forEach(coord => {
             getAdjacentCoords(coord).forEach(([row, col]) => {
                 if (distances[row][col] === Infinity) {

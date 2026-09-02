@@ -1,6 +1,6 @@
 /**
  * The droid factory's SCHEMATIC INDEX: the chassis design corpus, shown as a special panel
- * (components/panels/schematic_index.jsx, state in redux/modules/panels.js).
+ * (components/panels/schematic_index.jsx, state in redux/modules/panels.ts).
  *
  * The panel renders every row below, in order, as the AI's index printout. Locked rows show as
  * corrupted entries (the "shell": the player sees how deep the corpus goes before knowing what's

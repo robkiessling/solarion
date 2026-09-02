@@ -18,15 +18,22 @@ export const ENERGY_BUTTON_FPS = 60;
 const STRUCT_FPS = 10;
 const ABILITIES_FPS = 10; // todo this is only for button animation... find a way to reduce
 
+type PeriodicFn = (iterations: number, period: number) => void;
+
 class GameClock {
+    /*. Time based variables, all in milliseconds .*/
+    now: number;    // Current tick's time
+    then: number;   // Last tick's time
+    delta: number;  // Time since last tick
+    total: number;  // Total time elapsed
+    periodicFns: Record<string, { fn: PeriodicFn, period: number, current: number }>; // functions to call periodically
+
     constructor() {
-        // TODO Is this needed with babel?
-        /*. Time based variables, all in milliseconds .*/
-        this.now = Date.now() || (new Date).getTime(); // Current tick's time
-        this.then = Date.now() || (new Date).getTime(); // Last tick's time
-        this.delta = 0; // Time since last tick
-        this.total = 0; // Total time elapsed
-        this.periodicFns = {}; // functions to call periodically
+        this.now = Date.now() || (new Date).getTime();
+        this.then = Date.now() || (new Date).getTime();
+        this.delta = 0;
+        this.total = 0;
+        this.periodicFns = {};
 
         // This just affects time getting stored to store, and how often clock UI will be updated.
         // Can be relatively slow since we only show seconds on the clock anyway.
@@ -84,7 +91,7 @@ class GameClock {
      * @param period number of milliseconds between intervals
      * @param skipFirstInterval If true, the first call is skipped
      */
-    setInterval(key, fn, period, skipFirstInterval) {
+    setInterval(key: string, fn: PeriodicFn, period: number, skipFirstInterval = false) {
         this.periodicFns[key] = {
             fn: fn,
             period: period,
@@ -92,7 +99,7 @@ class GameClock {
         };
     }
 
-    clearInterval(key) {
+    clearInterval(key: string) {
         delete this.periodicFns[key];
     }
 

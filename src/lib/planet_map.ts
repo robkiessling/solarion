@@ -12,7 +12,6 @@ import {
     NUM_PLANET_ROWS,
     PLANET_COLS,
 } from "./planet_geometry";
-
 // Re-exported so existing consumers (e.g. redux) can keep importing planet-size constants from here.
 // The source of truth lives in planet_geometry.
 export { NUM_SECTORS } from "./planet_geometry";
@@ -44,19 +43,19 @@ const SUN_TRACKING_INSET = TERMINATOR_HALF_WIDTH + SUN_TRACKING_NIGHT_SLIVER / 2
 // The planet fraction the sun is directly over at this time of day. The planet spins west to east (columns
 // increase eastward, as on Earth), so the sub-solar meridian travels WEST as the day goes on: dawn arrives
 // from the east, and the terminator sweeps right to left across the disc.
-export function subsolarFraction(fractionOfDay) {
+export function subsolarFraction(fractionOfDay: number) {
     return mod(HOME_FRACTION - (fractionOfDay - NOON_FRACTION_OF_DAY), 1);
 }
 
 // Signed turns from the disc's centre to the sun (positive = to the right on screen), for a camera at
 // `rotation` plus the follow-cam's sub-column shift: the lighting anchor generateImage shades from.
-function sunDirection(fractionOfDay, rotation, cameraShift = 0) {
+function sunDirection(fractionOfDay: number, rotation: number, cameraShift = 0) {
     const centerFraction = rotation + cameraShift / PLANET_COLS + DISPLAY_COLS / 2 / PLANET_COLS;
     return mod(subsolarFraction(fractionOfDay) - centerFraction + 0.5, 1) - 0.5;
 }
 
 // Daylight (0 night .. 1 full day) at `deltaTurns` (0..0.5) from the sub-solar meridian
-function daylightAt(deltaTurns) {
+function daylightAt(deltaTurns: number) {
     const t = (deltaTurns - (0.25 - TERMINATOR_HALF_WIDTH)) / (2 * TERMINATOR_HALF_WIDTH);
     if (t <= 0) return 1;
     if (t >= 1) return 0;
@@ -78,9 +77,9 @@ const SOUTH_ICE_CAP_ROWS = [
 ]
 
 // const HOME_STARTING_ROW_RANGE = [3, 7];
-const HOME_STARTING_ROW_RANGE = [5, 5]; // TODO Leaving dead center otherwise first 3x3 explored area gets stretched poorly
-const NUM_MOUNTAIN_RANGES_RANGE = [50, 62]; // scaled with the uniform grid's larger tile count
-const MOUNTAIN_RANGE_SIZE_RANGE = [1, 20];
+const HOME_STARTING_ROW_RANGE: [number, number] = [5, 5]; // TODO Leaving dead center otherwise first 3x3 explored area gets stretched poorly
+const NUM_MOUNTAIN_RANGES_RANGE: [number, number] = [50, 62]; // scaled with the uniform grid's larger tile count
+const MOUNTAIN_RANGE_SIZE_RANGE: [number, number] = [1, 20];
 const MOUNTAIN_WIDEN_CHANCE = 0.6; // per step, chance of a second mountain beside the spine (ranges read 2-ish wide)
 
 const SHOW_DEBUG_MERIDIANS = false;
@@ -145,7 +144,7 @@ const DEVELOPING_TEXTURE = 0.4; // replicating tiles: the same speckle, shallowe
 // A stable 0..1 value per tile (and per `salt`, so independent uses don't correlate). Anything that varies
 // tile to tile (glyph variants, animation phase) keys off this rather than the clock or Math.random, so the
 // texture never flickers frame to frame and looks the same at every rotation.
-function tileHash(row, col, salt) {
+function tileHash(row: number, col: number, salt: number) {
     return ((row * 7919 + col * 104729 + salt) % 1000) / 1000;
 }
 
@@ -153,7 +152,7 @@ function tileHash(row, col, salt) {
 // A terrain's `variantShare` overrides the default share (flatland keeps its texture sparse: it covers most
 // of the map, and every variant there is visual noise).
 const VARIANT_SHARE = 0.35; // fraction of tiles that show a variant glyph instead of the legend one
-export function terrainGlyph(terrainKey, row, col) {
+export function terrainGlyph(terrainKey: TerrainKey, row: number, col: number) {
     const attributes = TERRAINS[terrainKey];
     if (!attributes.variants) { return attributes.display; }
     const share = attributes.variantShare === undefined ? VARIANT_SHARE : attributes.variantShare;
@@ -165,7 +164,7 @@ export function terrainGlyph(terrainKey, row, col) {
 if (SHOW_DEBUG_MERIDIANS) {
     nTimes(NUM_DEBUG_MERIDIANS, i => {
         const key = `meridian_${i}`;
-        (TERRAINS as Record<string, TerrainDef>)[key] = { key: key as TerrainKey, display: (i % 16).toString(16).toUpperCase(), exploreLength: EXPLORATION_TIME_FACTOR }
+        (TERRAINS as Record<string, TerrainDef>)[key] = { key: key as TerrainKey, display: (i % 16).toString(16).toUpperCase(), crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }
     })
 }
 
@@ -189,8 +188,8 @@ const LASER_BEAM_SPEED = 150;
 const LASER_BEAM_CHAR_OPTS = ['-']
 const LASER_BEAM_ARROW_CHAR = '~'
 // const LASER_BEAM_SKIP_ROWS = [2, 5, 8, 11, 18, 22, 25]; // beam is empty for these rows
-const LASER_BEAM_SKIP_ROWS = []; // beam is empty for these rows
-const LASER_BEAM_STREAKS = { // some beams make a streak onto the planet itself
+const LASER_BEAM_SKIP_ROWS: number[] = []; // beam is empty for these rows
+const LASER_BEAM_STREAKS: Record<number, number> = { // some beams make a streak onto the planet itself
     4: 21, // row 4, streak is 21 chars long
     6: 26,
     7: 15,
@@ -238,20 +237,21 @@ export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coo
             throw new Error(`Authored map row ${rowIndex} has ${line.length} cols, expected ${PLANET_COLS}`);
         }
         return Array.from(line).map((char, colIndex) => {
-            const flat = () => createSector(TERRAINS.flatland, STATUSES.unknown);
+            const coord: Coord = [rowIndex, colIndex];
+            const flat = () => createSector(TERRAINS.flatland, STATUSES.unknown, coord);
             switch (char) {
                 case '.': return flat();
-                case '^': return createSector(TERRAINS.mountain, STATUSES.unknown);
-                case '~': return createSector(TERRAINS.water, STATUSES.unknown);
-                case '*': return createSector(TERRAINS.ice, STATUSES.unknown);
+                case '^': return createSector(TERRAINS.mountain, STATUSES.unknown, coord);
+                case '~': return createSector(TERRAINS.water, STATUSES.unknown, coord);
+                case '*': return createSector(TERRAINS.ice, STATUSES.unknown, coord);
                 case '#':
                     if (homeCoord) throw new Error(`Authored map has two homes: ${homeCoord} and ${[rowIndex, colIndex]}`);
                     homeCoord = [rowIndex, colIndex];
-                    return createSector(TERRAINS.home, STATUSES.explored);
+                    return createSector(TERRAINS.home, STATUSES.explored, coord);
                 case '[': case ']': {
                     const sector = flat();
                     sector.gated = true;
-                    sector.gateKind = char === '[' ? GATE_KINDS.cave : GATE_KINDS.door;
+                    sector.gateKind = char === '[' ? 'cave' : 'door';
                     return sector;
                 }
                 default:
@@ -287,12 +287,12 @@ function generateAuthoredMap() {
 // open, tunnels ignored for now) and reports the flat tiles it can never reach, so a range that seals a
 // valley by accident is caught at load instead of by a player.
 function warnAboutOrphanedLand(map: PlanetMap, homeCoord: Coord) {
-    const walkable = (sector) => sector.terrain !== TERRAINS.mountain.key &&
+    const walkable = (sector: Sector) => sector.terrain !== TERRAINS.mountain.key &&
         sector.terrain !== TERRAINS.water.key && sector.terrain !== TERRAINS.ice.key;
     const seen = new Set([`${homeCoord[0]},${homeCoord[1]}`]);
     let frontier = [homeCoord];
     while (frontier.length > 0) {
-        const next = [];
+        const next: Coord[] = [];
         frontier.forEach(coord => getAdjacentCoords(coord).forEach(([row, col]) => {
             const key = `${row},${col}`;
             if (seen.has(key) || !walkable(map[row][col])) return;
@@ -316,8 +316,8 @@ export function generateRandomMap(): PlanetMap {
     const map: PlanetMap = [];
 
     // Start by initializing entire map as flatland
-    nTimes(NUM_PLANET_ROWS, () => {
-        map.push(createArray(PLANET_COLS, () => createSector(TERRAINS.flatland, STATUSES.unknown)));
+    nTimes(NUM_PLANET_ROWS, (row) => {
+        map.push(createArray(PLANET_COLS, (col) => createSector(TERRAINS.flatland, STATUSES.unknown, [row, col])));
     });
 
     if (ADD_MOUNTAINS) addMountainRanges(map);
@@ -341,7 +341,7 @@ export function generateRandomMap(): PlanetMap {
     return map;
 }
 
-function logMap(map) {
+function logMap(map: PlanetMap) {
     let str = '';
 
     map.forEach((row, rowIndex) => {
@@ -362,16 +362,19 @@ function cacheCoords(map: PlanetMap) {
 }
 
 // A 'sector' is one tile on the map. I.e. the map is a 2d array of sectors
-function createSector(terrain: TerrainDef, status: SectorStatusDef): Sector {
+function createSector(terrain: TerrainDef, status: SectorStatusDef, coord: Coord): Sector {
     return {
         terrain: terrain.key,
         status: status.key,
-        exploreLength: terrain.exploreLength
+        exploreLength: terrain.exploreLength,
+        coord,
+        distanceHome: Infinity,      // both distances are filled in by cacheDistancesToHome once the map is complete
+        graphDistanceHome: Infinity
     }
 }
 
 const NUM_SECTOR_MERIDIANS = 8;
-function markSectors(map) {
+function markSectors(map: PlanetMap) {
     // Meridians are straight columns on the uniform grid: divider lines at evenly-spaced columns
     for (let i = 0; i < NUM_SECTOR_MERIDIANS; i++) {
         const colIndex = floor(i / NUM_SECTOR_MERIDIANS * PLANET_COLS);
@@ -393,24 +396,24 @@ function markSectors(map) {
 }
 
 // Draws some evenly-spaced meridian columns on the map to help with debugging.
-function generateDebugMeridians(map) {
+function generateDebugMeridians(map: PlanetMap) {
     for (let i = 0; i < NUM_DEBUG_MERIDIANS; i++) {
         const colIndex = floor(i / NUM_DEBUG_MERIDIANS * PLANET_COLS);
         for (let rowIndex = 0; rowIndex < NUM_PLANET_ROWS; rowIndex++) {
             if (!map[rowIndex][colIndex].terrain.startsWith('meridian_')) {
-                map[rowIndex][colIndex] = createSector(TERRAINS[`meridian_${i}`], STATUSES.explored);
+                map[rowIndex][colIndex] = createSector((TERRAINS as Record<string, TerrainDef>)[`meridian_${i}`], STATUSES.explored, [rowIndex, colIndex]);
             }
         }
     }
 
     const middleRow = floor(NUM_PLANET_ROWS / 2)
     for (let i = 0; i < PLANET_COLS; i++) {
-        map[middleRow][i] = createSector(TERRAINS[`meridian_${1}`], STATUSES.explored);
+        map[middleRow][i] = createSector((TERRAINS as Record<string, TerrainDef>)[`meridian_${1}`], STATUSES.explored, [middleRow, i]);
     }
 }
 
 // Adds ice in the top row
-function addIceCaps(map) {
+function addIceCaps(map: PlanetMap) {
     NORTH_ICE_CAP_ROWS.forEach((iceLengths, rowIndex) => {
         addIceRow(map, rowIndex, iceLengths);
     })
@@ -421,21 +424,21 @@ function addIceCaps(map) {
     });
 }
 
-function addIceRow(map, rowIndex, iceLengths) {
+function addIceRow(map: PlanetMap, rowIndex: number, iceLengths: number[]) {
     let colIndex = 0;
 
     iceLengths.forEach((iceLength, i) => {
         const isGap = i % 2 === 1;
         nTimes(iceLength, i => {
             if (colIndex + i < PLANET_COLS) {
-                map[rowIndex][colIndex + i] = createSector(isGap ? TERRAINS.flatland : TERRAINS.ice, STATUSES.unknown);
+                map[rowIndex][colIndex + i] = createSector(isGap ? TERRAINS.flatland : TERRAINS.ice, STATUSES.unknown, [rowIndex, colIndex + i]);
             }
         })
         colIndex += iceLength;
     })
 }
 
-function addMountainRanges(map) {
+function addMountainRanges(map: PlanetMap) {
     const numMountainRanges = getRandomIntInclusive(...NUM_MOUNTAIN_RANGES_RANGE);
 
     for (let i = 0; i < numMountainRanges; i++) {
@@ -451,7 +454,7 @@ function addMountainRanges(map) {
  * chance of heading in the primary direction, a smaller chance of heading in the secondary direction
  * (e.g. if primary is E, secondary directions are NE/SE), and a small chance of heading in a random direction.
  */
-function addMountainRange(map, size, startingRow, startingCol) {
+function addMountainRange(map: PlanetMap, size: number, startingRow: number, startingCol: number) {
     const primaryDirection = getRandomFromArray(ALL_DIRECTIONS);
     const secondaryDirections = primaryDirection.length === 2 ? primaryDirection.split('') :
         ALL_DIRECTIONS.filter(dir => dir.length === 2 && dir.includes(primaryDirection));
@@ -460,9 +463,9 @@ function addMountainRange(map, size, startingRow, startingCol) {
 
     // Mountains never overwrite ice: the home-adjacent range is stamped AFTER the ice caps, and it must not
     // punch holes in the polar walls.
-    const raise = ([row, col]) => {
+    const raise = ([row, col]: Coord) => {
         if (map[row][col].terrain !== TERRAINS.ice.key) {
-            map[row][col] = createSector(TERRAINS.mountain, STATUSES.unknown);
+            map[row][col] = createSector(TERRAINS.mountain, STATUSES.unknown, [row, col]);
         }
     };
 
@@ -497,7 +500,7 @@ function addHomeBase(map: PlanetMap): Coord {
     }
 
     // Add home
-    map[homeRow][homeCol] = createSector(TERRAINS.home, STATUSES.explored);
+    map[homeRow][homeCol] = createSector(TERRAINS.home, STATUSES.explored, [homeRow, homeCol]);
 
     // Home must never spawn walled in (the squad couldn't leave until mountaineering): if the scenery range
     // enclosed it, flatten one neighbor as an opening.
@@ -505,7 +508,7 @@ function addHomeBase(map: PlanetMap): Coord {
     if (!neighbors.some(([row, col]) => map[row][col].terrain === TERRAINS.flatland.key)) {
         const opening = getRandomFromArray(neighbors.filter(([row, col]) => map[row][col].terrain !== TERRAINS.ice.key));
         if (opening) {
-            map[opening[0]][opening[1]] = createSector(TERRAINS.flatland, STATUSES.unknown);
+            map[opening[0]][opening[1]] = createSector(TERRAINS.flatland, STATUSES.unknown, opening);
         }
     }
 
@@ -546,31 +549,29 @@ function addHomeBase(map: PlanetMap): Coord {
  * Because neighboring tiles differ by at most 1 in hop distance, making every tile AT the ring distance
  * impassable (except the gate) fully seals the interior; single-tile thickness is enough.
  */
-export const REGIONS: { [K in Region]: K } = { bowl: 'bowl', belt: 'belt', antipode: 'antipode' };
 export const BOWL_RING_DISTANCE = 8;       // ring at this hop distance from home; interior is R1
 export const ANTIPODE_RING_DISTANCE = 7;   // ring around the antipode; interior is R3
 export const ACID_BAND_DISTANCES = [38, 40]; // inclusive hop-distance band of acid (the mid-world gate)
-export const GATE_KINDS: Record<GateKind, GateKind> = { cave: 'cave', door: 'door' };
 
-function stampRegions(map, homeCoord) {
+function stampRegions(map: PlanetMap, homeCoord: Coord) {
     const antipodeCoord: Coord = [
         NUM_PLANET_ROWS - 1 - homeCoord[0],
         mod(homeCoord[1] + PLANET_COLS / 2, PLANET_COLS)
     ];
     const antipodeDistances = getGraphDistancesFrom(antipodeCoord);
-    const isStampable = (sector) => // ice (the polar walls) and home are never restamped
+    const isStampable = (sector: Sector) => // ice (the polar walls) and home are never restamped
         sector.terrain !== TERRAINS.ice.key && sector.terrain !== TERRAINS.home.key;
 
-    const bowlRing = [];
-    const antipodeRing = [];
+    const bowlRing: RingEntry[] = [];
+    const antipodeRing: RingEntry[] = [];
 
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
             const homeDist = sector.graphDistanceHome;
             const antipodeDist = antipodeDistances[rowIndex][colIndex];
 
-            sector.region = homeDist < BOWL_RING_DISTANCE ? REGIONS.bowl :
-                (antipodeDist < ANTIPODE_RING_DISTANCE ? REGIONS.antipode : REGIONS.belt);
+            sector.region = homeDist < BOWL_RING_DISTANCE ? 'bowl' :
+                (antipodeDist < ANTIPODE_RING_DISTANCE ? 'antipode' : 'belt');
 
             if (!isStampable(sector)) return;
 
@@ -587,15 +588,15 @@ function stampRegions(map, homeCoord) {
     });
 
     const caveCoord = stampRingWithGate(map, bowlRing, BOWL_RING_DISTANCE,
-        (r, c) => map[r][c].graphDistanceHome, GATE_KINDS.cave);
+        (r, c) => map[r][c].graphDistanceHome, 'cave');
     const doorCoord = stampRingWithGate(map, antipodeRing, ANTIPODE_RING_DISTANCE,
-        (r, c) => antipodeDistances[r][c], GATE_KINDS.door);
+        (r, c) => antipodeDistances[r][c], 'door');
 
     // Guarantee the critical path. Scenery mountain ranges can otherwise pocket a gate or the antipode
     // interior, leaving the seed unfinishable. Carve the cheapest corridors (converting only scenery
     // mountains -- never ice, never ring tiles) so home -> cave -> door -> antipode are always connected
     // for a fully-tooled squad. Usually carves nothing: existing flat ground costs 0, so open routes win.
-    const isRingTile = ([r, c]) =>
+    const isRingTile = ([r, c]: Coord) =>
         map[r][c].graphDistanceHome === BOWL_RING_DISTANCE || antipodeDistances[r][c] === ANTIPODE_RING_DISTANCE;
     if (caveCoord && doorCoord) {
         carveCorridor(map, homeCoord, caveCoord, isRingTile);
@@ -607,19 +608,19 @@ function stampRegions(map, homeCoord) {
 // Dijkstra from `fromCoord` to `toCoord` where existing squad-walkable ground (with all tools) is free and
 // scenery mountains cost 1; ice and ring tiles (except the endpoints) are walls. Converts the mountains on
 // the winning path to flatland. Generation-time only.
-function carveCorridor(map, fromCoord, toCoord, isRingTile) {
-    const key = ([r, c]) => `${r},${c}`;
+function carveCorridor(map: PlanetMap, fromCoord: Coord, toCoord: Coord, isRingTile: (coord: Coord) => boolean) {
+    const key = ([r, c]: Coord) => `${r},${c}`;
     const fromK = key(fromCoord);
     const toK = key(toCoord);
 
     const dist = { [fromK]: 0 };
-    const prev = {};
-    const settled = new Set();
-    const heap = new MinHeap();
+    const prev: Record<string, Coord> = {};
+    const settled = new Set<string>();
+    const heap = new MinHeap<Coord>();
     heap.push(0, fromCoord);
 
     while (heap.size > 0) {
-        const { priority: distance, value: coord } = heap.pop();
+        const { priority: distance, value: coord } = heap.pop()!;
         const k = key(coord);
         if (k === toK) break;
         if (settled.has(k)) continue;
@@ -655,8 +656,9 @@ function carveCorridor(map, fromCoord, toCoord, isRingTile) {
 // and marks where the gate POI goes; the squad opens it through the POI flow, which clears the flag).
 // Prefers a gate whose interior and exterior neighbors are both flat, so scenery mountains can't leave the
 // opened gate facing a wall; falls back to any flat ring tile, then to converting a mountain one.
-function stampRingWithGate(map, ringEntries, ringDistance, distAt, gateKind) {
-    const isFlat = ([r, c]) => map[r][c].terrain === TERRAINS.flatland.key;
+type RingEntry = { sector: Sector, coord: Coord };
+function stampRingWithGate(map: PlanetMap, ringEntries: RingEntry[], ringDistance: number, distAt: (r: number, c: number) => number, gateKind: GateKind) {
+    const isFlat = ([r, c]: Coord) => map[r][c].terrain === TERRAINS.flatland.key;
 
     const openable = ringEntries.filter(({ coord }) =>
         isFlat(coord) &&
@@ -681,7 +683,7 @@ function stampRingWithGate(map, ringEntries, ringDistance, distAt, gateKind) {
 }
 
 export function getHomeBasePosition(map: PlanetMap): { coord: Coord, rotation: number } {
-    let coord: Coord;
+    let coord: Coord | undefined;
 
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
@@ -691,13 +693,14 @@ export function getHomeBasePosition(map: PlanetMap): { coord: Coord, rotation: n
         });
     });
 
+    if (!coord) throw new Error('Planet map has no home base');
     return {
         coord: coord,
         rotation: HOME_FRACTION - 0.25 // the rotation required to center home base.
     };
 }
 
-function isSameCoord(coord1, coord2) {
+function isSameCoord(coord1: Coord, coord2: Coord) {
     return coord1[0] === coord2[0] && coord1[1] === coord2[1];
 }
 
@@ -725,7 +728,7 @@ export const SURVEY_HALO_RADIUS = 7;
  * exactly `radius` hops (the drawn boundary). Memoized on the map reference: any map change (reveal,
  * development) produces a new array from immutability-helper, so identity is a correct cache key.
  */
-let gridHaloCache = null;
+let gridHaloCache: { map: PlanetMap, radius: number, result: { halo: Set<string>, ring: Set<string> } } | null = null;
 export function getGridHalo(map: PlanetMap, radius: number): { halo: Set<string>, ring: Set<string> } {
     if (gridHaloCache && gridHaloCache.map === map && gridHaloCache.radius === radius) {
         return gridHaloCache.result;
@@ -733,7 +736,7 @@ export function getGridHalo(map: PlanetMap, radius: number): { halo: Set<string>
 
     const halo = new Set<string>();
     const ring = new Set<string>();
-    let frontier = [];
+    let frontier: Coord[] = [];
 
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
@@ -745,7 +748,7 @@ export function getGridHalo(map: PlanetMap, radius: number): { halo: Set<string>
     });
 
     for (let distance = 1; distance <= radius && frontier.length > 0; distance++) {
-        const nextFrontier = [];
+        const nextFrontier: Coord[] = [];
         frontier.forEach(coord => {
             getAdjacentCoords(coord).forEach(([row, col]) => {
                 const key = `${row},${col}`;
@@ -804,10 +807,10 @@ export function blocksVision(terrainKey: TerrainKey): boolean {
 export function getVisibleCoords(map: PlanetMap, coord: Coord, hops: number = VISION_HOPS): Coord[] {
     const visited = new Set([`${coord[0]},${coord[1]}`]);
     let frontier = [coord];
-    const result = [];
+    const result: Coord[] = [];
 
     for (let step = 0; step < hops && frontier.length > 0; step++) {
-        const nextFrontier = [];
+        const nextFrontier: Coord[] = [];
         frontier.forEach(current => {
             getAdjacentCoords(current).forEach(neighbor => {
                 const key = `${neighbor[0]},${neighbor[1]}`;
@@ -827,7 +830,7 @@ export function getVisibleCoords(map: PlanetMap, coord: Coord, hops: number = VI
 // unopened gate tiles (sector.gated) stop the dumb remotes. The player-driven squad ignores both -- it can
 // cross infestation freely and opens gates through the POI flow.
 export function isScoutPassable(map: PlanetMap, coord: Coord | null, unlocks: Unlocks = {}): boolean {
-    if (!isPassable(map, coord, unlocks)) { return false; }
+    if (coord === null || !isPassable(map, coord, unlocks)) { return false; }
     const sector = map[coord[0]][coord[1]];
     return !sector.infestedBy && !sector.gated;
 }
@@ -849,18 +852,18 @@ function cacheDistancesToHome(map: PlanetMap, homeCoord: Coord) {
  * otherwise it expands equally in all directions. Will not pass through walls/ice.
  */
 export function getNextDevelopmentArea(map: PlanetMap, size: number, anchorCoord: Coord | null): Coord[] {
-    const distanceTo = (coord) => anchorCoord ?
+    const distanceTo = (coord: Coord) => anchorCoord ?
         getApproxDistance(anchorCoord, coord) : map[coord[0]][coord[1]].distanceHome;
 
     // Infested ground isn't developable until its nest is cleared; an unopened gate tile isn't either.
-    const isCandidate = ([row, col]) =>
+    const isCandidate = ([row, col]: Coord) =>
         map[row][col].terrain === TERRAINS.flatland.key &&
         map[row][col].status === STATUSES.explored.key &&
         !map[row][col].infestedBy && !map[row][col].gated;
 
-    const seen = new Set(); // candidate or chosen already (never re-added)
-    const candidates = [];
-    const addCandidatesAround = (coord) => {
+    const seen = new Set<string>(); // candidate or chosen already (never re-added)
+    const candidates: Coord[] = [];
+    const addCandidatesAround = (coord: Coord) => {
         getAdjacentCoords(coord).forEach(neighbor => {
             const key = `${neighbor[0]},${neighbor[1]}`;
             if (!seen.has(key) && isCandidate(neighbor)) {
@@ -876,7 +879,7 @@ export function getNextDevelopmentArea(map: PlanetMap, size: number, anchorCoord
         });
     });
 
-    const chosen = [];
+    const chosen: Coord[] = [];
     while (chosen.length < size && candidates.length > 0) {
         let bestIndex = 0;
         for (let i = 1; i < candidates.length; i++) {
@@ -888,7 +891,7 @@ export function getNextDevelopmentArea(map: PlanetMap, size: number, anchorCoord
     }
 
     if (chosen.length < size) {
-        const leftovers = [];
+        const leftovers: Coord[] = [];
         map.forEach((row, rowIndex) => {
             row.forEach((sector, colIndex) => {
                 const coord: Coord = [rowIndex, colIndex];
@@ -904,7 +907,7 @@ export function getNextDevelopmentArea(map: PlanetMap, size: number, anchorCoord
 }
 
 export function getCurrentDevelopmentArea(map: PlanetMap): Coord[] {
-    const coords = []
+    const coords: Coord[] = []
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
             if (sector.terrain === TERRAINS.developing.key) {
@@ -941,7 +944,7 @@ export function numSectorsMatching(map: PlanetMap, status?: SectorStatus, terrai
 // If sunTracking is enabled, the camera is always from the sun's POV; the planet rotates in place
 // The rotation that keeps the sun-tracking camera fixed relative to the sun: the sub-solar meridian just left
 // of the disc's centre (by SUN_TRACKING_INSET), so the ground turns under a still terminator
-export function sunTrackingRotation(fractionOfDay) {
+export function sunTrackingRotation(fractionOfDay: number) {
     return mod(subsolarFraction(fractionOfDay) - DISPLAY_COLS / 2 / PLANET_COLS + SUN_TRACKING_INSET, 1);
 }
 
@@ -973,7 +976,7 @@ export const DISPLAY_MASK = createArray(NUM_PLANET_ROWS, (rowIndex) => {
 });
 
 // Whether a display cell is inside the planet silhouette (clicks on the masked corners should be ignored).
-export function isDisplayCellVisible(imageRow, imageCol) {
+export function isDisplayCellVisible(imageRow: number, imageCol: number) {
     return DISPLAY_MASK[imageRow] !== undefined && (DISPLAY_MASK[imageRow][imageCol] || 0) > 0;
 }
 
@@ -1017,7 +1020,7 @@ export function imageCellToCoord(imageRow: number, imageCol: number, rotation: n
 // The mask factor at a fractional screen column (linear interpolation between the cell samples; 0 outside
 // the display window). With the camera mid-slide, chars land between mask cells; sampling the mask at the
 // char's actual screen position keeps the silhouette and limb fade fixed to the screen while terrain scrolls.
-function maskFactorAt(rowIndex, screenCol) {
+function maskFactorAt(rowIndex: number, screenCol: number) {
     const row = DISPLAY_MASK[rowIndex];
     const left = floor(screenCol);
     const t = screenCol - left;
@@ -1039,14 +1042,14 @@ function maskFactorAt(rowIndex, screenCol) {
 export const LANTERN_RADIUS = 0.8;
 const LANTERN_FALLOFF = 1.2;
 // 0..1 lantern lift at a screen distance (row units) from a light
-function liftAtDistance(distance) {
+function liftAtDistance(distance: number) {
     if (distance <= LANTERN_RADIUS) { return 1; }
     if (distance >= LANTERN_RADIUS + LANTERN_FALLOFF) { return 0; }
     return 1 - (distance - LANTERN_RADIUS) / LANTERN_FALLOFF;
 }
 
 // 0..1 lantern lift for a tile at (row, col) given the lantern at fractional (lRow, lCol)
-function lanternLift(row, col, lantern) {
+function lanternLift(row: number, col: number, lantern: Lantern) {
     const dRow = row - lantern.row;
     // Cells are half as wide as tall (CHAR_RATIO 0.5), so a column counts for half a row on screen
     const dCol = (mod(col - lantern.col + PLANET_COLS / 2, PLANET_COLS) - PLANET_COLS / 2) * 0.5;
@@ -1062,7 +1065,7 @@ function lanternLift(row, col, lantern) {
 const GRID_LANTERN = true;
 const LANTERN_TERRAINS = new Set([TERRAINS.home.key]);
 const LANTERN_KERNEL = (() => {
-    const kernel = [];
+    const kernel: [number, number, number][] = [];
     const reach = LANTERN_RADIUS + LANTERN_FALLOFF;
     for (let dRow = -Math.ceil(reach); dRow <= Math.ceil(reach); dRow++) {
         for (let dCol = -Math.ceil(reach * 2); dCol <= Math.ceil(reach * 2); dCol++) {
@@ -1072,12 +1075,12 @@ const LANTERN_KERNEL = (() => {
     }
     return kernel;
 })();
-let gridNightCache = null;
-function getGridNight(map) {
+let gridNightCache: { map: PlanetMap, result: { lift: Float32Array[], density: Float32Array[] } } | null = null;
+function getGridNight(map: PlanetMap) {
     if (gridNightCache && gridNightCache.map === map) { return gridNightCache.result; }
     const lift = createArray(map.length, () => new Float32Array(PLANET_COLS));
     const density = createArray(map.length, () => new Float32Array(PLANET_COLS));
-    const isDeveloped = (r, c) => r >= 0 && r < map.length && map[r][mod(c, PLANET_COLS)].terrain === TERRAINS.developed.key;
+    const isDeveloped = (r: number, c: number) => r >= 0 && r < map.length && map[r][mod(c, PLANET_COLS)].terrain === TERRAINS.developed.key;
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
             if (GRID_LANTERN && LANTERN_TERRAINS.has(sector.terrain)) {
@@ -1110,7 +1113,13 @@ function getGridNight(map) {
 // entry. Only ever applied to bare ground (no
 // marker on the tile), never to unknown tiles. Set the table to {} to switch it all off. New glyphs must
 // exist in the common monospace fonts (Menlo, Consolas, DejaVu).
-const GROUND_LIFE = {
+/** One kind of living ground: its tuning fields plus animate(), which reads them through `this` */
+interface GroundLife {
+    enabled?: boolean;
+    animate(this: GroundLife, timeMs: number, row: number, col: number, hash: number, daylight: number): { char?: string, alpha?: number } | null;
+    [setting: string]: any;
+}
+const GROUND_LIFE: Partial<Record<TerrainKey | 'infested', GroundLife>> = {
     // Hive tissue breathes: a slow brightness swell, tiles nearly in phase (one organism) with a little
     // per-tile drift; and once in a while a tile twitches, a tendril whipping up and pulling back.
     infested: {
@@ -1162,7 +1171,7 @@ const GROUND_LIFE = {
         }
     }
 };
-function groundLife(sector, timeMs, daylight) {
+function groundLife(sector: Sector, timeMs: number | undefined, daylight: number) {
     if (timeMs === undefined || sector.status === STATUSES.unknown.key) return null;
     const life = GROUND_LIFE[sector.infestedBy ? 'infested' : TERRAINS[sector.terrain].key];
     if (!life || life.enabled === false) return null;
@@ -1177,7 +1186,11 @@ function groundLife(sector, timeMs, daylight) {
 // scrolls smoothly under the screen-fixed silhouette.
 // lantern: { row, col } (fractional planet coords, mid-slide) of the deployed squad's light, or null.
 // timeMs: the game clock that animates the ground (groundLife); undefined leaves the map still.
-export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: number, cookedPct: number, overlays = {}, cameraShift = 0, lantern = null, timeMs = undefined) {
+/** The squad's (or command center's) lantern position, in fractional map rows/cols */
+type Lantern = { row: number, col: number };
+
+export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: number, cookedPct: number,
+                              overlays: Record<string, any> = {}, cameraShift = 0, lantern: Lantern | null = null, timeMs: number | undefined = undefined) {
     const displayStart = floor(rotation * PLANET_COLS);
     const pad = cameraShift === 0 ? 0 : 1;
 
@@ -1193,7 +1206,7 @@ export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: n
     const gridNight = getGridNight(map);
 
     let asciiImage = map.map((planetRow, rowIndex) => {
-        const displayRow = [];
+        const displayRow: DisplayCell[] = [];
         for (let windowIndex = 0; windowIndex < DISPLAY_COLS + pad * 2; windowIndex++) {
             const sector = planetRow[mod(displayStart - pad + windowIndex, PLANET_COLS)];
             // Where this char actually lands on screen, in display-cell units (fractional mid-slide)
@@ -1351,12 +1364,12 @@ const LASER_BEAM_ARROW_OFFSETS = createArray(LASER_BEAM_HEIGHT, rowIndex => {
     return getRandomIntInclusive(1, 7);
 })
 
-function addLaserBeams(planetImage, fractionOfDay) {
+function addLaserBeams(planetImage: DisplayCell[][], fractionOfDay: number): DisplayCell[][] {
     const heightPadding = floor((LASER_BEAM_HEIGHT - NUM_PLANET_ROWS) / 2);
     const widthPadding = floor((LASER_BEAM_WIDTH - DISPLAY_COLS) / 2);
 
     // start by making a 2d array of beams
-    let result = createArray(LASER_BEAM_HEIGHT, (rowIndex) => {
+    let result: DisplayCell[][] = createArray(LASER_BEAM_HEIGHT, (rowIndex) => {
         const char = LASER_BEAM_LINE_CHARS[rowIndex];
 
         // initialize beam as a long array of beam chars

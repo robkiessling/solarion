@@ -2,12 +2,12 @@ import {EQUIPMENT_DEFS} from "../database/equipment";
 import {TERRAIN_PIECES} from "../database/battle_terrain";
 import {BUG_TYPES, DROID_BASE_STATS, GROUND_BLURBS, SWARM_BLURBS} from "../database/battle";
 
-// Content records (stats, scene text) live in database/battle.js; this module is the engine.
+// Content records (stats, scene text) live in database/battle.ts; this module is the engine.
 export {BUG_TYPES, DROID_BASE_STATS} from "../database/battle";
 
 /**
  * Real-time per-unit battle sim: the skirmish that plays out in the encounter popup when the squad attacks
- * a nest. Pure module in the squad.js mold: redux owns the battle object (inside squad.fighting) and calls
+ * a nest. Pure module in the squad.ts mold: redux owns the battle object (inside squad.fighting) and calls
  * advanceBattle from the planet tick; the popup's canvas just draws unit positions.
  *
  * Model: every droid and bug is an agent with position, hp, and an attack cooldown. Units seek the nearest
@@ -24,7 +24,7 @@ export {BUG_TYPES, DROID_BASE_STATS} from "../database/battle";
  * and their catch-up replays stay cheap.
  *
  * Terrain: nests may declare an obstacle layout (poi.terrain -> TERRAIN_LAYOUTS), which stamps ASCII
- * pieces (database/battle_terrain.js) onto a coarse cell grid at battle creation. Blocked cells are
+ * pieces (database/battle_terrain.ts) onto a coarse cell grid at battle creation. Blocked cells are
  * impassable to both sides: bodies collide with them, target acquisition demands line of sight, the
  * flow field and the withdrawal route path around them, and spawn positions that land inside are
  * relocated to the nearest reachable ground. Since frontage is already physical, walls and chokepoints
@@ -36,13 +36,22 @@ export {BUG_TYPES, DROID_BASE_STATS} from "../database/battle";
 // Baseline arena coordinate space. Droids enter from the left, bugs from the right. Battles above
 // ARENA_BASELINE_UNITS total combatants scale both dimensions up (see createBattle); battle.arenaW/arenaH
 // are the authoritative dimensions, these constants are the floor (and the fallback for pre-scaling saves).
+type XY = { x: number, y: number };
+type Layout = (count: number, arenaW: number, arenaH: number, side: BattleSide) => XY[];
+/** Coarse obstacle grid derived from a battle's terrain pieces; see getTerrainGrid */
+type TerrainGrid = { cols: number, rows: number, blocked: Set<number>, exitDist: Int32Array };
+/** Spatial hash of one side's units; see buildGrid */
+type UnitGrid = { cells: Map<number, { unit: BattleUnit, i: number }[]>, cell: number, count: number };
+type Placer = ReturnType<typeof makePlacer>;
+type FlowField = ReturnType<typeof buildFlowField>;
+
 export const ARENA_W = 100;
 export const ARENA_H = 60;
 const ARENA_BASELINE_UNITS = 320;  // a 160v160 fills the baseline arena at design density
 const FRONT_GAP = 44;              // spawn distance between the two front lines, at any arena size
 
 // --- Tuning ---
-// The unit stat blocks (DROID_BASE_STATS, BUG_TYPES) are content records in database/battle.js; the
+// The unit stat blocks (DROID_BASE_STATS, BUG_TYPES) are content records in database/battle.ts; the
 // dials below are engine mechanics.
 const ATTACK_RANGE = 3;
 const UNIT_RADIUS = 1.2;        // hard collision radius, both sides: pairs closer than 2R get pushed apart,
@@ -53,7 +62,6 @@ const ESCAPE_X = 1.5;           // a withdrawing droid past this x has left the 
 const SUBSTEP_MS = 50;          // integration cap; callers may pass any dt (catch-up replays big ones)
 export const FX_TTL_MS = 600;   // hit/death/bomb markers linger this long for the renderer
 
-export const BATTLE_PHASES: { active: 'active', withdrawing: 'withdrawing' } = { active: 'active', withdrawing: 'withdrawing' };
 
 // A fresh squad's per-droid hp list (persistence helpers: squad state and save migration use it too).
 export function fullDroidHp(count: number, maxHp: number = DROID_BASE_STATS.hp): number[] {
@@ -63,7 +71,7 @@ export function fullDroidHp(count: number, maxHp: number = DROID_BASE_STATS.hp):
 // Deterministic 32-bit hash -> [0, 1). Decorrelates per-unit phases (wobble, swing timers, collision
 // tie-breaks) without RNG: linear-in-index seeds made whole formations snake and swing in sync, because
 // neighbors in a lattice have neighboring indices.
-function hash01(n) {
+function hash01(n: number) {
     let h = Math.imul(n + 1, 2654435761);
     h = Math.imul(h ^ (h >>> 13), 1597334677);
     return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
@@ -81,12 +89,12 @@ const R2_A1 = 0.7548776662466927, R2_A2 = 0.5698402909980532;
  */
 const SPAWN_SPACING = 2.6;
 
-function frontX(side, arenaW) {
+function frontX(side: BattleSide, arenaW: number) {
     return side === 'droid' ? arenaW / 2 - FRONT_GAP / 2 : arenaW / 2 + FRONT_GAP / 2;
 }
 
 // Deep front of columns growing away from the center line.
-function columnLayout(count, arenaW, arenaH, side) {
+function columnLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
     const perCol = Math.max(12, Math.ceil(count / 8));
     const spacing = Math.min(4, (arenaH - 8) / perCol);
     const front = frontX(side, arenaW);
@@ -102,7 +110,7 @@ function columnLayout(count, arenaW, arenaH, side) {
 
 // Legion-style blocks: rectangular squadrons of ~24 on a grid with lanes between them. Blocks fill
 // vertically first (a 5-droid team is one short column), ranks deepen away from the front.
-function squadronLayout(count, arenaW, arenaH, side) {
+function squadronLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
     const PER_BLOCK = 24, BLOCK_H = 6, BLOCK_W = 4, LANE = 5;
     const blockHpx = (BLOCK_H - 1) * SPAWN_SPACING, blockWpx = (BLOCK_W - 1) * SPAWN_SPACING;
     const blocks = Math.ceil(count / PER_BLOCK);
@@ -125,8 +133,8 @@ function squadronLayout(count, arenaW, arenaH, side) {
 
 // Concentric rings around a center: the dense nest circle. Ring m holds as many units as fit at spacing;
 // per-ring angular offsets stop the radial spokes lining up.
-function ringPositions(count, cx, cy, startIndex = 0) {
-    const positions = [];
+function ringPositions(count: number, cx: number, cy: number, startIndex = 0): XY[] {
+    const positions: { x: number, y: number }[] = [];
     if (count > 0) positions.push({ x: cx, y: cy });
     let ring = 1;
     while (positions.length < count) {
@@ -142,7 +150,7 @@ function ringPositions(count, cx, cy, startIndex = 0) {
     return positions;
 }
 
-function ringLayout(count, arenaW, arenaH, side) {
+function ringLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
     const radius = SPAWN_SPACING * (Math.sqrt(count / Math.PI) + 1);
     const dir = side === 'droid' ? -1 : 1;
     // Near edge sits where the side's front line would be; clamped back inside the arena
@@ -155,7 +163,7 @@ function ringLayout(count, arenaW, arenaH, side) {
 // layouts budget true extents. (An earlier padded estimate cost midgame fights their pockets entirely:
 // pocket area scales with the garrison exactly as arena area scales with the fight, so at design
 // density the fit is genuinely tight and every wasted unit of padding matters.)
-function ringExtent(n) {
+function ringExtent(n: number) {
     let placed = Math.min(n, 1);
     let ring = 0;
     while (placed < n) {
@@ -168,7 +176,7 @@ function ringExtent(n) {
 // True when every pair of centers ([fx, fy] fractions of a boxW x boxH space; pass 1x1 for absolute
 // coordinates) sits at least minSep apart. The surround layout's fit check: separated pockets need
 // center gaps of both extents plus spawn spacing, or their rings spawn overlapped.
-function fitsApart(centers, boxW, boxH, minSep) {
+function fitsApart(centers: [number, number][], boxW: number, boxH: number, minSep: number) {
     return centers.every(([ax, ay], i) => centers.slice(i + 1).every(([bx, by]) =>
         Math.hypot((ax - bx) * boxW, (ay - by) * boxH) >= minSep));
 }
@@ -178,7 +186,7 @@ function fitsApart(centers, boxW, boxH, minSep) {
 // the box's aspect: a tall half stacks pockets, a wide one ranks them), then jitters each center
 // deterministically inside its spare separation so the openings stay organic rather than parade-ground.
 // An axis without neighbors (single column/row) is free and jitters across its whole span.
-function packCenters(k, boxW, boxH, minSep, salt) {
+function packCenters(k: number, boxW: number, boxH: number, minSep: number, salt: number): [number, number][] | null {
     if (boxW <= 0 || boxH <= 0) return null;
     let cols = 1, rows = k, bestGap = -Infinity;
     for (let c = 1; c <= k; c++) {
@@ -191,7 +199,7 @@ function packCenters(k, boxW, boxH, minSep, salt) {
     const gapY = rows > 1 ? boxH / (rows - 1) : 0;
     const jx = cols > 1 ? Math.min((gapX - minSep) / 2, gapX * 0.3) : boxW / 2;
     const jy = rows > 1 ? Math.min((gapY - minSep) / 2, gapY * 0.3) : boxH / 2;
-    return Array.from({ length: k }, (_, i) => {
+    return Array.from({ length: k }, (_, i): [number, number] => {
         const row = Math.floor(i / cols);
         const inRow = Math.min(k - row * cols, cols); // the last row may be partial (and gets centered)
         const cx = inRow > 1 ? (cols - inRow) * gapX / 2 + (i % cols) * gapX : boxW / 2;
@@ -207,7 +215,7 @@ function packCenters(k, boxW, boxH, minSep, salt) {
 // pockets). Position order leads with one pocket CENTER per group (slot k = pocket k's center), so a
 // garrison's leading composition entries -- hives -- distribute one per pocket instead of stacking in
 // the first one; the escort fill follows, pocket by pocket.
-function pocketPositions(centers, count) {
+function pocketPositions(centers: [number, number][], count: number): XY[] {
     const groups = centers.map(([cx, cy], c) => ringPositions(
         Math.floor(count / centers.length) + (c < count % centers.length ? 1 : 0), cx, cy, c * 1000));
     const occupied = groups.filter(g => g.length > 0);
@@ -217,7 +225,7 @@ function pocketPositions(centers, count) {
 // A few separated groups over the side's half, each a dense mini-ring, packed by packCenters. The
 // ideal pocket count (headcount/40, 2-6) backs off when even the best packing can't fit them with
 // clear water between; the floor is the single ring.
-function clustersLayout(count, arenaW, arenaH, side) {
+function clustersLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
     for (let k = Math.max(2, Math.min(6, Math.round(count / 40))); k >= 2; k--) {
         const extent = ringExtent(Math.ceil(count / k)); // the largest pocket's true outer radius
         const margin = extent + 2;                       // clear of the walls (the spawn clamp sits at 2)
@@ -231,7 +239,7 @@ function clustersLayout(count, arenaW, arenaH, side) {
 
 // Disturbed swarm: low-discrepancy spread over the side's half. R2 keeps points evenly spaced (no RNG,
 // no clumps); collision tidies any near-contact pairs on the first substeps.
-function scatterLayout(count, arenaW, arenaH, side) {
+function scatterLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
     const left = side === 'droid' ? 4 : arenaW / 2 + 4;
     const width = arenaW / 2 - 8;
     return Array.from({ length: count }, (_, i) => ({
@@ -245,11 +253,11 @@ function scatterLayout(count, arenaW, arenaH, side) {
 // `center` counter-layout below, first contact comes from every direction at once. Four corners when
 // they fit with clear water, backing off to a diagonal pincer, then to the plain ring for fights too
 // big for their field to encircle anything.
-function surroundLayout(count, arenaW, arenaH, side) {
+function surroundLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
     for (const k of [4, 2]) {
         const extent = ringExtent(Math.ceil(count / k));
         const margin = extent + 2;
-        const corners = k === 4
+        const corners: [number, number][] = k === 4
             ? [[margin, margin], [arenaW - margin, margin],
                [margin, arenaH - margin], [arenaW - margin, arenaH - margin]]
             : [[margin, margin], [arenaW - margin, arenaH - margin]];
@@ -260,7 +268,7 @@ function surroundLayout(count, arenaW, arenaH, side) {
 
 // Squadron blocks re-anchored to the middle of the field: the droid opening when the enemy doesn't
 // have a "side" to face (see COUNTER_FORMATIONS).
-function centerLayout(count, arenaW, arenaH, side) {
+function centerLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
     const positions = squadronLayout(count, arenaW, arenaH, side);
     const meanX = positions.reduce((sum, p) => sum + p.x, 0) / count;
     return positions.map(p => ({ x: p.x + arenaW / 2 - meanX, y: p.y }));
@@ -276,14 +284,14 @@ export const FORMATIONS = {
     scatter: scatterLayout,     // even scatter over the side's half; slot 0: nothing special (quasi-random)
     surround: surroundLayout,   // ambush: four corner pockets of the WHOLE arena; slots 0-3: one corner center each
     center: centerLayout        // squadron blocks re-anchored mid-field (surround's droid counter-layout)
-};
+} satisfies Record<string, Layout>;
 
 // A bug formation can dictate the droid side's deployment (createBattle consults this): a surround
 // opening only reads as an ambush if the droids actually start encircled in the middle.
-const COUNTER_FORMATIONS = { surround: 'center' };
+const COUNTER_FORMATIONS: Partial<Record<NestFormation, FormationId>> = { surround: 'center' };
 
 /**
- * Terrain: impassable obstacle cells stamped from ASCII pieces (database/battle_terrain.js; the art is
+ * Terrain: impassable obstacle cells stamped from ASCII pieces (database/battle_terrain.ts; the art is
  * the collision map, non-space char = blocked cell). Cells match the renderer's glyph metrics (a body
  * width wide, a glyph tall), so a piece is a fixed size in BODIES at any arena scale; a choke that
  * admits three droids admits three droids in every fight. battle.terrain stores only the placed piece
@@ -310,10 +318,10 @@ export function getTerrainGrid(battle: Battle) {
     return grid;
 }
 
-function buildTerrainGrid(pieces, arenaW, arenaH) {
+function buildTerrainGrid(pieces: BattleTerrainPiece[], arenaW: number, arenaH: number): TerrainGrid {
     const cols = Math.ceil(arenaW / TERRAIN_CELL_W);
     const rows = Math.ceil(arenaH / TERRAIN_CELL_H);
-    const blocked = new Set();
+    const blocked = new Set<number>();
     for (const { art, col, row } of pieces) {
         const lines = TERRAIN_PIECES[art];
         if (!lines) continue; // a save from a version with pieces this build lacks: skip, stay playable
@@ -325,7 +333,7 @@ function buildTerrainGrid(pieces, arenaW, arenaH) {
         });
     }
     const exitDist = new Int32Array(cols * rows).fill(-1);
-    const queue = [];
+    const queue: number[] = [];
     for (let r = 0; r < rows; r++) {
         if (!blocked.has(r * cols)) { exitDist[r * cols] = 0; queue.push(r * cols); }
     }
@@ -351,7 +359,8 @@ function buildTerrainGrid(pieces, arenaW, arenaH) {
 
 // Circle-vs-blocked-cells resolution: pushes the unit fully out of any terrain cell it overlaps.
 // Terrain never yields, mirroring how spawner bodies work; called from the collision pass.
-function collideTerrain(grid, unit) {
+function collideTerrain(grid: TerrainGrid | null, unit: BattleUnit) {
+    if (!grid) return;
     const minC = Math.max(0, Math.floor((unit.x - UNIT_RADIUS) / TERRAIN_CELL_W));
     const maxC = Math.min(grid.cols - 1, Math.floor((unit.x + UNIT_RADIUS) / TERRAIN_CELL_W));
     const minR = Math.max(0, Math.floor((unit.y - UNIT_RADIUS) / TERRAIN_CELL_H));
@@ -386,7 +395,7 @@ function collideTerrain(grid, unit) {
 // Line-of-sight over the terrain grid (a DDA cell walk). Gates both target acquisition (a unit that
 // can see its nearest enemy charges straight at it; one that can't defers to the flow field) and
 // attacks, so nobody stabs through a wall. Trivially true on open fields.
-function hasLOS(grid, x0, y0, x1, y1) {
+function hasLOS(grid: TerrainGrid | null, x0: number, y0: number, x1: number, y1: number) {
     if (!grid) return true;
     // Withdrawing droids can sit just off-field (x < 0); clamp so cell keys never go negative
     const maxX = grid.cols * TERRAIN_CELL_W - 0.001, maxY = grid.rows * TERRAIN_CELL_H - 0.001;
@@ -412,7 +421,7 @@ function hasLOS(grid, x0, y0, x1, y1) {
 // Spawn fixup: a formation position that lands on blocked or sealed-off ground relocates to the nearest
 // reachable open cell (Chebyshev ring scan, fixed order, so it's deterministic). The jitter keeps
 // several relocated units from stacking on the exact cell center; collision separates the rest.
-function freePosition(grid, x, y, salt) {
+function freePosition(grid: TerrainGrid, x: number, y: number, salt: number): XY {
     const c = Math.min(grid.cols - 1, Math.max(0, Math.floor(x / TERRAIN_CELL_W)));
     const r = Math.min(grid.rows - 1, Math.max(0, Math.floor(y / TERRAIN_CELL_H)));
     if (grid.exitDist[r * grid.cols + c] >= 0) return { x, y };
@@ -439,24 +448,24 @@ function freePosition(grid, x, y, salt) {
  * same ground and players can learn it. Coverage scales by COUNT (piece budget follows arena area, and
  * the canyon tiles wall segments into longer runs), never by inflating the pieces themselves.
  */
-function terrainSize(art) {
+function terrainSize(art: TerrainPieceId) {
     const lines = TERRAIN_PIECES[art];
-    return { w: Math.max(...lines.map(l => l.length)), h: lines.length };
+    return { w: Math.max(...lines.map((l: string) => l.length)), h: lines.length };
 }
 
 // Shared placement state. tryPlace rejects out-of-bounds spots and, unless forced, anything within
 // `pad` cells of an existing piece: 2 clear cells between pieces guarantees composed gaps stay wide
 // enough for a body to physically pass (a 1-cell slit is open to the BFS but not to a unit). `force`
 // lets a layout intentionally merge pieces into one mass, like the canyon's wall runs.
-function makePlacer(arenaW, arenaH) {
+function makePlacer(arenaW: number, arenaH: number) {
     const cols = Math.ceil(arenaW / TERRAIN_CELL_W);
     const rows = Math.ceil(arenaH / TERRAIN_CELL_H);
-    const occupied = new Set();
-    const pieces = [];
+    const occupied = new Set<number>();
+    const pieces: BattleTerrainPiece[] = [];
     const PAD = 2;
     return {
         cols, rows, pieces,
-        tryPlace(art, col, row, force = false) {
+        tryPlace(art: TerrainPieceId, col: number, row: number, force = false) {
             const { w, h } = terrainSize(art);
             if (col < 0 || row < 0 || col + w > cols || row + h > rows) return false;
             if (!force) {
@@ -477,7 +486,7 @@ function makePlacer(arenaW, arenaH) {
 
 // Scatters count pieces from the arts pool over the given column band via salted hash draws; spots that
 // collide with earlier pieces or the bounds are simply skipped, so density degrades gracefully.
-function scatterPieces(placer, arts, count, colMin, colMax, salt) {
+function scatterPieces(placer: Placer, arts: TerrainPieceId[], count: number, colMin: number, colMax: number, salt: number) {
     for (let i = 0; placer.pieces.length < count && i < count * 5; i++) {
         const art = arts[Math.floor(hash01(salt + i * 3) * arts.length)];
         const col = colMin + Math.floor(hash01(salt + i * 3 + 1) * Math.max(1, colMax - colMin));
@@ -488,10 +497,10 @@ function scatterPieces(placer, arts, count, colMin, colMax, salt) {
 
 // Boulder field over the mid-field strip between the two spawn fronts: breaks the clean line clash into
 // local skirmishes without ever sitting on top of a formation.
-function rocksTerrain(arenaW, arenaH, salt) {
+function rocksTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
     const placer = makePlacer(arenaW, arenaH);
     const bandHalf = FRONT_GAP / 2 - 3;
-    scatterPieces(placer, ['boulder', 'spire', 'boulderBig', 'boulder', 'spire'],
+    scatterPieces(placer, ['boulder', 'spire', 'boulderBig', 'boulder', 'spire'] as TerrainPieceId[],
         Math.max(3, Math.round((arenaW * arenaH) / 1100)),
         Math.floor((arenaW / 2 - bandHalf) / TERRAIN_CELL_W),
         Math.ceil((arenaW / 2 + bandHalf) / TERRAIN_CELL_W), salt);
@@ -500,10 +509,10 @@ function rocksTerrain(arenaW, arenaH, salt) {
 
 // Broken structures over the whole field (minus breathing room at both spawn edges): walls, arches, and
 // bunkers that funnel the approach. Spawns that land on a ruin get relocated by the fixup.
-function ruinsTerrain(arenaW, arenaH, salt) {
+function ruinsTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
     const placer = makePlacer(arenaW, arenaH);
     const edge = Math.ceil(8 / TERRAIN_CELL_W);
-    scatterPieces(placer, ['ruinWall', 'wallV', 'bunker', 'arch', 'wallH', 'boulder'],
+    scatterPieces(placer, ['ruinWall', 'wallV', 'bunker', 'arch', 'wallH', 'boulder'] as TerrainPieceId[],
         Math.max(4, Math.round((arenaW * arenaH) / 850)), edge, placer.cols - edge, salt);
     return placer.pieces;
 }
@@ -511,7 +520,7 @@ function ruinsTerrain(arenaW, arenaH, salt) {
 // A full-height wall across the middle of the field with one choke (4 cells, about 4 bodies abreast) at
 // a salted height, plus light cover on both approaches. The wall meets both arena edges on purpose:
 // otherwise the boundary strip becomes a rat line and armies single-file along it.
-function canyonTerrain(arenaW, arenaH, salt) {
+function canyonTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
     const placer = makePlacer(arenaW, arenaH);
     const tileH = terrainSize('wallV').h;
     const col = Math.round(placer.cols / 2) - 1 + Math.floor(hash01(salt) * 5) - 2;
@@ -540,14 +549,14 @@ export const TERRAIN_LAYOUTS = {
     rocks: rocksTerrain,     // boulder field over the mid-field strip
     ruins: ruinsTerrain,     // broken structures over the whole field
     canyon: canyonTerrain    // one full-height wall with a single choke
-};
+} satisfies Record<string, (arenaW: number, arenaH: number, salt: number) => BattleTerrainPiece[]>;
 
 // One-line scene description for the battle footer: ground clause + the garrison's opening (text records
-// in database/battle.js), matching what the arena actually shows. Pure presentation (derived at render
+// in database/battle.ts), matching what the arena actually shows. Pure presentation (derived at render
 // time, nothing reads it back), so existing mid-fight saves get it too.
-export function battleBlurb(battle: Battle, formation?: string): string {
+export function battleBlurb(battle: Battle, formation?: NestFormation): string {
     const ground = GROUND_BLURBS[battle.terrain ? battle.terrain.id : 'open'] || GROUND_BLURBS.open;
-    let swarm = SWARM_BLURBS[formation] || SWARM_BLURBS.column;
+    let swarm = (formation && SWARM_BLURBS[formation]) || SWARM_BLURBS.column;
     // The ring's center slot is where a garrison's leading hive stands (see createBattle); name the
     // objective when it's really there
     if (formation === 'ring' && battle.startingSpawners > 0) {
@@ -559,7 +568,7 @@ export function battleBlurb(battle: Battle, formation?: string): string {
 // One combat-ready unit. `base` selects the unit's deterministic hash streams (opening swing delay,
 // wobble phase/period, collision tie-break angle) and must be unique across every unit the battle will
 // ever hold, including bugs a spawner adds mid-fight.
-function makeUnit(id: string, side: BattleSide, type: string, stats: UnitStats, base: number, x: number, y: number, arenaW: number, arenaH: number, hp?: number): BattleUnit {
+function makeUnit(id: string, side: BattleSide, type: UnitType, stats: UnitStats, base: number, x: number, y: number, arenaW: number, arenaH: number, hp?: number): BattleUnit {
     const unit: BattleUnit = {
         id, side, type,
         x: Math.min(arenaW - 2, Math.max(2, x)),
@@ -576,7 +585,7 @@ function makeUnit(id: string, side: BattleSide, type: string, stats: UnitStats, 
 
 // roster: [{ type, hp? }] per unit; hp defaults to the type's full pool. Formation positions that land
 // on terrain are relocated to the nearest reachable ground (see freePosition).
-function spawnUnits(side, roster, statsByType, arenaW, arenaH, formation, terrainGrid) {
+function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number }[], statsByType: Record<string, UnitStats>, arenaW: number, arenaH: number, formation: FormationId, terrainGrid: TerrainGrid | null): BattleUnit[] {
     const layout = FORMATIONS[formation] || columnLayout;
     const positions = layout(roster.length, arenaW, arenaH, side);
     const sideSalt = side === 'droid' ? 0 : 1;
@@ -608,18 +617,19 @@ function spawnUnits(side, roster, statsByType, arenaW, arenaH, formation, terrai
  * from `terrainSalt`. Callers pass a salt derived from the nest's map position, so the same nest always
  * fights on the same ground; unset = open field.
  */
-export function createBattle(droids: number | number[], bugs: number | { [bugType: string]: number },
-                             droidStats: DroidStats = DROID_BASE_STATS, bugFormation = 'column',
-                             terrainId: string | null = null, terrainSalt = 0): Battle {
+export function createBattle(droids: number | number[], bugs: number | Partial<Record<BugType, number>>,
+                             droidStats: DroidStats = DROID_BASE_STATS, bugFormation: NestFormation = 'column',
+                             terrainId: TerrainLayoutId | null = null, terrainSalt = 0): Battle {
     const droidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
-    const composition = typeof bugs === 'number' ? { bug: bugs } : bugs;
+    const composition: Partial<Record<BugType, number>> = typeof bugs === 'number' ? { bug: bugs } : bugs;
 
-    const stats = { droid: droidStats };
-    const bugRoster = [];
-    Object.entries(composition).forEach(([type, n]) => {
+    const stats: Record<string, UnitStats> = { droid: droidStats };
+    const bugRoster: { type: BugType, hp?: number }[] = [];
+    (Object.entries(composition) as [BugType, number][]).forEach(([type, n]) => {
         stats[type] = BUG_TYPES[type];
         // A spawner's output type fights too, even when the opening garrison fields none of it
-        if (BUG_TYPES[type].spawns) stats[BUG_TYPES[type].spawns] = BUG_TYPES[BUG_TYPES[type].spawns];
+        const spawns = BUG_TYPES[type].spawns;
+        if (spawns) stats[spawns] = BUG_TYPES[spawns];
         for (let i = 0; i < n; i++) bugRoster.push({ type });
     });
 
@@ -633,12 +643,12 @@ export function createBattle(droids: number | number[], bugs: number | { [bugTyp
 
     const terrainLayout = terrainId && TERRAIN_LAYOUTS[terrainId];
     const terrainPieces = terrainLayout ? terrainLayout(arenaW, arenaH, terrainSalt) : [];
-    const terrain = terrainPieces.length > 0 ? { id: terrainId, pieces: terrainPieces } : null;
+    const terrain = terrainId && terrainPieces.length > 0 ? { id: terrainId, pieces: terrainPieces } : null;
     const terrainGrid = terrain ? buildTerrainGrid(terrainPieces, arenaW, arenaH) : null;
     if (terrain) TERRAIN_GRID_CACHE.set(terrain, terrainGrid);
 
     return {
-        phase: BATTLE_PHASES.active,
+        phase: 'active',
         elapsedMs: 0,
         stats,                          // per-type stat blocks this battle runs on (upgrade snapshot)
         arenaW,                         // field dimensions for this engagement (renderer + clamps)
@@ -691,12 +701,12 @@ const TARGET_CELL = 12;                   // targeting cell size (arena units); 
 const NEAR_RINGS = 3;                     // exact-search radius in cells; beyond this the flow field steers
 const KEY_OFFSET = 8, KEY_STRIDE = 4096;  // packs (possibly slightly negative) cell coords into one int key
 
-function cellKey(cx, cy) { return (cx + KEY_OFFSET) * KEY_STRIDE + (cy + KEY_OFFSET); }
+function cellKey(cx: number, cy: number) { return (cx + KEY_OFFSET) * KEY_STRIDE + (cy + KEY_OFFSET); }
 
 // One side's units (or all units, side = null) bucketed by cell; entries carry their units-array index
 // for tie-breaking.
-function buildGrid(units, side, cell) {
-    const cells = new Map();
+function buildGrid(units: BattleUnit[], side: BattleSide | null, cell: number): UnitGrid {
+    const cells = new Map<number, { unit: BattleUnit, i: number }[]>();
     let count = 0;
     units.forEach((unit, i) => {
         if (side !== null && unit.side !== side) return;
@@ -712,13 +722,13 @@ function buildGrid(units, side, cell) {
 // (r-1) whole cells away, so the search stops once even that bound can't beat (or tie) the best found.
 // maxDim bounds the expansion so a query against a nearly-empty grid still terminates; ringCap bounds it
 // harder (returns null if nothing lives within that many rings -- callers fall back to the flow field).
-function nearestInGrid(grid, x, y, maxDim, ringCap = Infinity) {
+function nearestInGrid(grid: UnitGrid, x: number, y: number, maxDim: number, ringCap = Infinity): BattleUnit | null {
     if (grid.count === 0) return null;
     const cell = grid.cell;
     const cx = Math.floor(x / cell), cy = Math.floor(y / cell);
     const maxRing = Math.min(Math.ceil(maxDim / cell) + 2, ringCap);
-    let best = null, bestD2 = Infinity, bestI = Infinity;
-    const scanCell = (dx, dy) => {
+    let best: BattleUnit | null = null, bestD2 = Infinity, bestI = Infinity;
+    const scanCell = (dx: number, dy: number) => {
         const bucket = grid.cells.get(cellKey(cx + dx, cy + dy));
         if (!bucket) return;
         for (const { unit, i } of bucket) {
@@ -750,12 +760,12 @@ function nearestInGrid(grid, x, y, maxDim, ringCap = Infinity) {
 // Units with line of sight to the cell's enemy charge it straight (identical to the old open-field
 // behavior); units without it steer to the parent cell instead, which is how armies round walls.
 // O(cells) per side per substep -- still cheap next to the per-unit work it replaces.
-function buildFlowField(units, side, terrainGrid, arenaW, arenaH) {
+function buildFlowField(units: BattleUnit[], side: BattleSide, terrainGrid: TerrainGrid | null, arenaW: number, arenaH: number) {
     const cols = terrainGrid ? terrainGrid.cols : Math.ceil(arenaW / TERRAIN_CELL_W);
     const rows = terrainGrid ? terrainGrid.rows : Math.ceil(arenaH / TERRAIN_CELL_H);
     const target = new Array(cols * rows).fill(null);
     const parent = new Int32Array(cols * rows).fill(-1);
-    const queue = [];
+    const queue: number[] = [];
     for (const unit of units) {
         if (unit.side !== side) continue;
         // Clamped: withdrawing droids can hold positions just off-field (x down to -2)
@@ -797,7 +807,7 @@ const FLOW_LOS_MAX_D2 = 1600;
 // Steering resolution for a unit with no visible near target: { tx, ty, stop } or null when the enemy
 // is unreachable (sealed off; the unit holds). stop is the approach cutoff (ATTACK_RANGE when chasing a
 // unit, 0 when stepping cell to cell so choke queues keep pressing forward).
-function flowSteer(field, terrainGrid, unit) {
+function flowSteer(field: FlowField, terrainGrid: TerrainGrid | null, unit: BattleUnit) {
     const c = Math.min(field.cols - 1, Math.max(0, Math.floor(unit.x / TERRAIN_CELL_W)));
     const r = Math.min(field.rows - 1, Math.max(0, Math.floor(unit.y / TERRAIN_CELL_H)));
     const idx = r * field.cols + c;
@@ -837,7 +847,7 @@ const CATCHUP_BUDGET_MS = 30;
  * until the powered grid repairs them. bugsRemaining is informational only: nests reset fully.
  */
 export function advanceBattle(battle: Battle, dtMs: number): { battle: Battle, events: any[] } {
-    const events = [];
+    const events: SquadEvent[] = [];
     let current = battle;
     let remaining = dtMs;
     let stepsLeft = Math.max(1, Math.ceil(CATCHUP_BUDGET_MS / (battle.units.length / 500)));
@@ -849,11 +859,11 @@ export function advanceBattle(battle: Battle, dtMs: number): { battle: Battle, e
     return { battle: current, events };
 }
 
-function advanceStep(battle, dtMs, events) {
+function advanceStep(battle: Battle, dtMs: number, events: SquadEvent[]) {
     const dtSec = dtMs / 1000;
     const elapsedMs = battle.elapsedMs + dtMs;
     const overchargeMs = Math.max(0, battle.buffs.overchargeMs - dtMs);
-    const withdrawing = battle.phase === BATTLE_PHASES.withdrawing;
+    const withdrawing = battle.phase === 'withdrawing';
     const arenaW = battle.arenaW || ARENA_W;
     const arenaH = battle.arenaH || ARENA_H;
     const maxDim = Math.max(arenaW, arenaH);
@@ -865,7 +875,7 @@ function advanceStep(battle, dtMs, events) {
     // Two passes, matching the units array's droids-then-bugs order: droids target the bugs' pre-move
     // positions, then bugs target the droids' post-move positions.
     const tGrid = getTerrainGrid(battle);
-    const seek = (unit, t) => {
+    const seek = (unit: BattleUnit, t: { tx: number, ty: number, stop: number } | null) => {
         if (!t) return;
         const dx = t.tx - unit.x, dy = t.ty - unit.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -879,7 +889,7 @@ function advanceStep(battle, dtMs, events) {
     // A unit that can SEE its nearest enemy charges it; one that can't (or has none near) defers to the
     // flow field, which knows the way around walls. On open ground LOS is always clear, so this is
     // exactly the historical nearest-or-flow behavior.
-    const acquire = (unit, nearGrid, flow) => {
+    const acquire = (unit: BattleUnit, nearGrid: UnitGrid, flow: FlowField) => {
         const near = nearestInGrid(nearGrid, unit.x, unit.y, maxDim, NEAR_RINGS);
         if (near && hasLOS(tGrid, unit.x, unit.y, near.x, near.y)) {
             return { tx: near.x, ty: near.y, stop: ATTACK_RANGE };
@@ -889,7 +899,7 @@ function advanceStep(battle, dtMs, events) {
     // Withdrawal descends the exit field (BFS distance to the left edge) so routed droids round walls
     // instead of pressing into them; on open ground it stays the straight leftward sprint.
     const NEIGHBORS8 = [[-1, 0], [-1, -1], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 1], [1, 0]];
-    const withdrawStep = (unit) => {
+    const withdrawStep = (unit: BattleUnit) => {
         if (tGrid) {
             const c = Math.min(tGrid.cols - 1, Math.max(0, Math.floor(unit.x / TERRAIN_CELL_W)));
             const r = Math.min(tGrid.rows - 1, Math.max(0, Math.floor(unit.y / TERRAIN_CELL_H)));
@@ -987,7 +997,7 @@ function advanceStep(battle, dtMs, events) {
         const newKey = cellKey(Math.floor(unit.x / contact), Math.floor(unit.y / contact));
         if (newKey !== oldKey) {
             const oldBucket = collGrid.cells.get(oldKey);
-            oldBucket.splice(oldBucket.findIndex(entry => entry.i === i), 1);
+            if (oldBucket) oldBucket.splice(oldBucket.findIndex(entry => entry.i === i), 1);
             const newBucket = collGrid.cells.get(newKey);
             if (newBucket) newBucket.push({ unit, i }); else collGrid.cells.set(newKey, [{ unit, i }]);
         }
@@ -1030,7 +1040,7 @@ function advanceStep(battle, dtMs, events) {
     // Sweep the field: drop the dead, bank withdrawing droids that reached the edge (with their hp).
     let escaped = battle.escaped;
     const escapedHp = battle.escapedHp.slice();
-    const alive = [];
+    const alive: BattleUnit[] = [];
     for (const unit of units) {
         if (unit.hp <= 0) continue;
         if (unit.side === 'droid' && withdrawing && unit.x <= ESCAPE_X) { escaped++; escapedHp.push(unit.hp); continue; }
@@ -1046,20 +1056,22 @@ function advanceStep(battle, dtMs, events) {
     let spawnCounter = battle.spawnCounter || 0;
     let fieldBugs = 0;
     for (const u of alive) if (u.side === 'bug' && !battle.stats[u.type].spawnEveryMs) fieldBugs++;
-    const spawned = [];
+    const spawned: BattleUnit[] = [];
     for (const unit of alive) {
         const stats = battle.stats[unit.type];
         if (unit.side !== 'bug' || !stats.spawnEveryMs) continue;
-        unit.spawnMs = Math.max(0, unit.spawnMs - dtMs);
+        unit.spawnMs = Math.max(0, (unit.spawnMs ?? 0) - dtMs); // a spawner from an older save has no clock: spawn now
         if (unit.spawnMs > 0) continue;
         unit.spawnMs = stats.spawnEveryMs;
-        const spawnStats = battle.stats[stats.spawns];
-        for (let k = 0; k < stats.spawnBatch && fieldBugs < stats.spawnCap; k++) {
+        const spawnType = stats.spawns;
+        if (!spawnType) continue;
+        const spawnStats = battle.stats[spawnType];
+        for (let k = 0; k < (stats.spawnBatch ?? 1) && fieldBugs < (stats.spawnCap ?? Infinity); k++) {
             const base = 1000003 + spawnCounter * 2 + 1; // far above any opening roster's i*2+1 streams
             const angle = hash01(base + 400009) * 2 * Math.PI;
             const sx = unit.x + Math.cos(angle) * (2 * UNIT_RADIUS + 0.6);
             const sy = unit.y + Math.sin(angle) * (2 * UNIT_RADIUS + 0.6);
-            spawned.push(makeUnit(`s${spawnCounter}`, 'bug', stats.spawns, spawnStats, base,
+            spawned.push(makeUnit(`s${spawnCounter}`, 'bug', spawnType, spawnStats, base,
                 sx, sy, arenaW, arenaH));
             fx.push({ type: 'spawn', x: sx, y: sy, t: elapsedMs });
             spawnCounter++;
@@ -1109,7 +1121,7 @@ export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
             if (neighbors > most) { most = neighbors; center = candidate; }
         }
         const fx: BattleFx[] = [...battle.fx, { type: 'bomb', x: center.x, y: center.y, t: battle.elapsedMs }];
-        const units = [];
+        const units: BattleUnit[] = [];
         for (const u of battle.units) {
             const dx = u.x - center.x, dy = u.y - center.y;
             if (u.side === 'bug' && dx * dx + dy * dy <= r2) {
@@ -1142,5 +1154,5 @@ export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
 // Orders the withdrawal; droids stop fighting and run for the edge while bugs keep swinging at whoever is
 // in reach, so the cost of retreating scales with how engaged you were. No-op if already withdrawing.
 export function startWithdrawal(battle: Battle): Battle {
-    return battle.phase === BATTLE_PHASES.withdrawing ? battle : { ...battle, phase: BATTLE_PHASES.withdrawing };
+    return battle.phase === 'withdrawing' ? battle : { ...battle, phase: 'withdrawing' };
 }

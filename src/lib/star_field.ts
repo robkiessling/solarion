@@ -1,4 +1,5 @@
-// @ts-check
+import type AsciiCanvas from "./ascii_canvas";
+
 /**
  * The star field: a hashed, twinkling sky drawn across a whole canvas, shared by every view that looks out
  * into space (the planet tab's sky behind the globe, the star tab's sky behind the sun and swarm).
@@ -32,14 +33,25 @@ const STAR_TWINKLE_MS = [2200, 5200]; // per-star twinkle period, spread across 
 const STAR_BRIGHT_SHARE = 0.06; // fraction of stars that are bright ('*'); the rest are '·'
 const STAR_TINTS = ['#ffffff', '#ffffff', '#ffe9c4', '#c9d8ff']; // white, warm, cool
 
+export interface StarFieldOptions {
+    /** screen columns from the grid origin to sky column 0 (fractional, so the sky glides) */
+    offsetCols?: number;
+    /** make the sky periodic over this many columns; null = not periodic */
+    periodCols?: number | null;
+    timeMs?: number;
+    /** fades stars out toward a bright body (px) */
+    glare?: { x: number, y: number, innerRadius: number, outerRadius: number } | null;
+}
+
 // Well-mixed 0..1 hash of two integers and a salt (a plain linear hash mod 1000 stripes at these densities)
-function skyHash(a, b, salt) {
+function skyHash(a: number, b: number, salt: number) {
     let h = (a * 374761393 + b * 668265263 + salt * 2246822519) | 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
     return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-export function drawStarField(canvasManager, { offsetCols = 0, periodCols = null, timeMs = 0, glare = null } = {}) {
+export function drawStarField(canvasManager: AsciiCanvas,
+                              { offsetCols = 0, periodCols = null, timeMs = 0, glare = null }: StarFieldOptions = {}) {
     const context = canvasManager.context;
     const fontWidth = canvasManager.fontWidth;
     const fontHeight = canvasManager.fontHeight;
@@ -57,11 +69,11 @@ export function drawStarField(canvasManager, { offsetCols = 0, periodCols = null
     const midRow = canvasManager.numRows / 2;
     const waveCols = periodCols || MILKY_WAY_WAVE_COLS;
     const amplitude = MILKY_WAY_AMPLITUDE * canvasManager.numRows;
-    const bandRow = (skyCol) => midRow + amplitude * Math.sin(2 * Math.PI * skyCol / waveCols);
+    const bandRow = (skyCol: number) => midRow + amplitude * Math.sin(2 * Math.PI * skyCol / waveCols);
 
     const font = context.font;
     context.font = `${canvasManager.fontSize}px monospace`;
-    let currentColor = null;
+    let currentColor: string | null = null;
     for (let row = firstRow; row <= lastRow; row++) {
         for (let col = firstCol; col <= lastCol; col++) {
             const skyCol = periodCols ? ((col % periodCols) + periodCols) % periodCols : col;

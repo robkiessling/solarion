@@ -38,8 +38,11 @@ type Effect = { [variable: string]: { add?: number; multiply?: number } };
 interface EffectOperation { variable: string; value: number }
 interface EffectOperations { add: EffectOperation[]; multiply: EffectOperation[] }
 
-/** EFFECT_TARGETS in lib/effect.ts */
-type EffectTarget = 'structure' | 'ability' | 'misc';
+/** What an upgrade's or ability's effect applies to (see lib/effect.ts) */
+type EffectTarget =
+    | 'structure'  // the entire structure (all of its variables)
+    | 'ability'    // one specific ability (all of its variables)
+    | 'misc';      // a one-off, applied by hand wherever it is needed
 interface EffectAffects { type: EffectTarget; id?: string }
 
 /** Recursively optional: the shape of a database override merged over a `base` record */
@@ -55,9 +58,9 @@ type Thunk = (dispatch: Dispatch, getState: GetState) => void;
 // Structures (database/structures.js)
 // ---------------------------------------------------------------------------------------------------------------
 
-/** STATUSES in database/structures.ts */
+/** Whether a structure could afford its last tick's consumption */
 type StructureStatus = 'normal' | 'insufficient';
-/** TYPES in database/structures.ts */
+/** Which structure tab a structure is listed under */
 type StructureType = 'generator' | 'consumer';
 
 interface DroidData {
@@ -100,7 +103,7 @@ interface Structure extends StructureRecord {
 // Upgrades (database/upgrades.js)
 // ---------------------------------------------------------------------------------------------------------------
 
-/** STATES in database/upgrades.ts */
+/** An upgrade's research lifecycle, in order */
 type UpgradeState = 'hidden' | 'discovered' | 'researching' | 'paused' | 'researched';
 
 interface DiscoverWhen {
@@ -139,7 +142,7 @@ interface Upgrade extends UpgradeRecord {
 // Abilities (database/abilities.js)
 // ---------------------------------------------------------------------------------------------------------------
 
-/** STATES in database/abilities.ts */
+/** An ability's cast lifecycle (cooldown starts after the cast finishes) */
 type AbilityState = 'ready' | 'casting' | 'cooldown';
 
 interface AbilityRecord {
@@ -194,7 +197,7 @@ interface Resource extends ResourceRecord {
 // Calculators: per-record functions whose RESULTS are stored on the state record (see recalculateSlice)
 // ---------------------------------------------------------------------------------------------------------------
 
-type Calculator<R> = (state: RootState, record: R, variables?: Variables) => any;
+type Calculator<R> = (state: RootState, record: R, variables: Variables) => any;
 
 type CalculatorSet<R> = {
     /** always calculated first; its result is the third argument to the other calculators */
@@ -303,9 +306,22 @@ type EquipmentCharges = Partial<Record<EquipmentId, number>>;
  * A type alias (not an interface) so it is assignable to Variables, which the upgrade effects are applied through. */
 type DroidStats = { hp: number; damage: number; attackMs: number; speed: number };
 
+/** Bug unit types: the keys of BUG_TYPES (database/battle.ts). Listed by hand so the table must stay complete. */
+type BugType = 'bug' | 'hive';
+type UnitType = 'droid' | BugType;
+
+/** Spawn layouts: the keys of FORMATIONS in lib/battle.ts */
+type FormationId = keyof typeof import('./lib/battle').FORMATIONS;
+/** The formations a nest may declare; squadron and center are droid-side layouts the engine picks itself */
+type NestFormation = Exclude<FormationId, 'squadron' | 'center'>;
+/** Arena obstacle layouts: the keys of TERRAIN_LAYOUTS in lib/battle.ts */
+type TerrainLayoutId = keyof typeof import('./lib/battle').TERRAIN_LAYOUTS;
+/** Obstacle art pieces: the keys of TERRAIN_PIECES in database/battle_terrain.ts */
+type TerrainPieceId = keyof typeof import('./database/battle_terrain').TERRAIN_PIECES;
+
 interface UnitStats extends DroidStats {
     /** spawner-type bugs only */
-    spawns?: string;
+    spawns?: BugType;
     spawnEveryMs?: number;
     spawnBatch?: number;
     spawnCap?: number;
@@ -316,7 +332,7 @@ type BattleSide = 'droid' | 'bug';
 interface BattleUnit {
     id: string;
     side: BattleSide;
-    type: string;
+    type: UnitType;
     x: number;
     y: number;
     hp: number;
@@ -326,14 +342,19 @@ interface BattleUnit {
     wobbleMs: number;
     spawnMs?: number;
     withdrawing?: boolean;
+    /** cosmetic strike cue for the renderer: lunge direction and when it started */
+    strike?: { dx: number, dy: number, t: number };
 }
 
-interface BattleFx { type: 'hit' | 'death' | 'heal' | 'bomb'; x: number; y: number; t: number }
+interface BattleFx { type: 'hit' | 'death' | 'heal' | 'bomb' | 'spawn'; x: number; y: number; t: number }
 
-interface BattleTerrainPiece { art: string[]; col: number; row: number }
+/** A placed obstacle: `art` names a TERRAIN_PIECES entry (database/battle_terrain.ts) */
+interface BattleTerrainPiece { art: TerrainPieceId; col: number; row: number }
+
+type BattlePhase = 'active' | 'withdrawing';
 
 interface Battle {
-    phase: 'active' | 'withdrawing';
+    phase: BattlePhase;
     elapsedMs: number;
     /** per-type stat blocks this battle runs on */
     stats: { [unitType: string]: UnitStats };
@@ -347,7 +368,7 @@ interface Battle {
     escaped: number;
     escapedHp: number[];
     buffs: { overchargeMs: number };
-    terrain: { id: string; pieces: BattleTerrainPiece[] } | null;
+    terrain: { id: TerrainLayoutId; pieces: BattleTerrainPiece[] } | null;
     fx: BattleFx[];
     units: BattleUnit[];
 }
@@ -358,11 +379,11 @@ interface Battle {
 
 /** TERRAINS[x].key (the debug meridians add `meridian_<n>` keys at runtime; they never reach a save) */
 type TerrainKey = 'home' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'acid' | 'water';
-/** STATUSES[x].key in lib/planet_map.ts */
+/** How much of a tile the player has seen (the keys of STATUSES in lib/planet_map.ts) */
 type SectorStatus = 'unknown' | 'exploring' | 'explored';
-/** GATE_KINDS */
+/** The barrier a gate tile is: a cave rockfall (opened with the drill) or a sealed door (the override module) */
 type GateKind = 'cave' | 'door';
-/** REGIONS in lib/planet_map.ts */
+/** The three story regions of the map: the home bowl, the mid-world belt, and the far-side antipode */
 type Region = 'bowl' | 'belt' | 'antipode';
 
 interface TerrainDef {
@@ -372,7 +393,7 @@ interface TerrainDef {
     variantShare?: number;
     label?: string;
     /** seconds for a droid to cross one tile of this terrain */
-    crossTime?: number;
+    crossTime: number;
     /** capability required before the terrain can be crossed at all */
     crossUpgrade?: string;
     blocksVision?: boolean;
@@ -390,10 +411,12 @@ interface Sector {
     terrain: TerrainKey;
     status: SectorStatus;
     exploreLength?: number;
-    /** cached [row, col] */
-    coord?: Coord;
-    distanceHome?: number;
-    graphDistanceHome?: number;
+    /** [row, col]; cached on the sector by map generation so callers iterating a map can address it */
+    coord: Coord;
+    /** heuristic distance to home (development ordering); Infinity until cacheDistancesToHome runs at generation */
+    distanceHome: number;
+    /** BFS hop distance to home (exploration ordering); Infinity until cacheDistancesToHome runs at generation */
+    graphDistanceHome: number;
     region?: Region;
     gated?: boolean;
     gateKind?: GateKind;
@@ -410,15 +433,37 @@ interface Sector {
 
 type PlanetMap = Sector[][];
 
+/** The ground a squad stands on as the driver feels it (see squadZone in lib/squad.ts): hive territory, the powered
+ * grid, or the bare terrain. Keys the terrain notes and the map frame's tint. */
+type SquadZone = TerrainKey | 'infested' | 'grid';
+
 /** The set of unlocked crossing capabilities, e.g. { drill: true } */
 type Unlocks = { [capability: string]: boolean };
+
+/** Options for the scout lookout searches in lib/planet_pathing.ts */
+interface LookoutOptions {
+    /** "row,col" keys of lookouts other scouts already own */
+    claimed?: Set<string>;
+    unlocks?: Unlocks;
+    /** the scout's current [dRow, dCol] heading, to break ties along it */
+    heading?: [number, number] | null;
+    /** "row,col" keys of the grid halo; null = unrestricted */
+    halo?: Set<string> | null;
+}
 
 // ---------------------------------------------------------------------------------------------------------------
 // Expeditions (lib/expeditions.js, database/pois.js, lib/squad.js)
 // ---------------------------------------------------------------------------------------------------------------
 
-type PoiType = 'cache' | 'nest' | 'storySite' | 'gate';
-type PoiStatus = 'hidden' | 'available' | 'cleared';
+type PoiType =
+    | 'cache'      // a supply drop: take it
+    | 'nest'       // a hive: stepping on it starts a fight
+    | 'storySite'  // a ruin with a log to read
+    | 'gate';      // a physical barrier (cave rockfall, sealed door): impassable until opened with its capability
+type PoiStatus =
+    | 'hidden'     // its tile has not been revealed by scouting yet
+    | 'available'  // discovered, not yet resolved
+    | 'cleared';   // resolved
 type Band = 'r1' | 'r2near' | 'r2far' | 'r3';
 type Capability = 'drill' | 'sealedChassis' | 'overrideModule';
 
@@ -434,10 +479,10 @@ interface PoiDef {
     name?: string;
     difficulty?: number;
     infestRadius?: number;
-    formation?: string;
-    terrain?: string;
+    formation?: NestFormation;
+    terrain?: TerrainLayoutId;
     blurb?: string;
-    bugs?: { [bugType: string]: number };
+    bugs?: Partial<Record<BugType, number>>;
     requires?: Capability;
     storyId?: string;
     promptText?: string;
@@ -465,15 +510,18 @@ interface Poi {
     difficultyKnown: boolean;
     reward: PoiReward;
     infestRadius?: number;
-    formation?: string;
-    terrain?: string;
+    formation?: NestFormation;
+    terrain?: TerrainLayoutId;
     blurb?: string;
-    bugs?: { [bugType: string]: number };
+    bugs?: Partial<Record<BugType, number>>;
     storyId?: string;
     promptText?: string;
     actionLabel?: string;
     resultBehavior?: 'auto' | 'narrate';
 }
+
+/** What advanceSquad / advanceBattle report back to the caller (see the advanceSquad doc comment for shapes) */
+interface SquadEvent { type: string; [detail: string]: any }
 
 interface SquadFighting {
     poiId: string;
@@ -504,6 +552,16 @@ interface Squad {
     droidHp: number[];
     fighting: SquadFighting | null;
 }
+
+/** Per-structure animation state the base view renders from (animationData in redux/modules/structures.ts) */
+type StructureAnimationData = Partial<Record<StructureId, { numBuilt: number, animationTag?: string }>>;
+
+/** Base-view sprite ids: the keys of the animation tables in database/animations.ts */
+type DoodadId = keyof typeof import('./database/animations').doodads;
+type StructureAnimationId = keyof typeof import('./database/animations').structures;
+
+/** What a nest's battle grid cell / arena obstacle art is stamped from */
+interface DisplayCell { char: string; [attribute: string]: any }
 
 /** A scout droid (planet.droids) */
 interface ScoutDroid {
@@ -554,6 +612,8 @@ interface GameState {
     hideUI: boolean;
     hideCanvas: boolean;
     gameOver: boolean;
+    /** set by the ending cutscene (not in the initial state) */
+    fadeToBlack?: boolean;
 }
 
 interface ClockState {
@@ -591,7 +651,7 @@ interface AbilitiesState {
     visibleIds: string[];
 }
 
-/** TARGETS in redux/modules/star.ts */
+/** Where the probe swarm's mirrors aim their beam */
 type MirrorTarget = 'none' | 'planet';
 
 interface StarState {
@@ -612,15 +672,20 @@ interface PanelsState {
     };
 }
 
-/** OVERALL_MAP_STATUS in redux/modules/planet.ts */
+/** planet.overallStatus: the state of scout exploration of the map */
 type MapStatus = 'unstarted' | 'inProgress' | 'finished';
+/** Who drives the planet rotation */
+type RotationMode =
+    | 'manual'  // the longitude slider
+    | 'sun'     // the camera locks to the day side
+    | 'squad';  // the camera follows the expedition team (or centers home base when no team is deployed)
 
 interface PlanetState {
     map: PlanetMap;
     homeCoord: Coord | null;
     overallStatus: MapStatus;
     rotation: number;
-    rotationMode: string;
+    rotationMode: RotationMode;
     droidData: DroidAssignment;
     droids: ScoutDroid[];
     unlockedTerrains: Unlocks;

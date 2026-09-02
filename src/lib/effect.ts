@@ -13,12 +13,6 @@
  */
 
 
-export const EFFECT_TARGETS: { [K in EffectTarget]: K } = {
-    structure: 'structure', // Affects the entire structure (all structure variables)
-    ability: 'ability', // Affects a specific ability (all variables of that ability)
-    misc: 'misc' // Affects a one-off thing, will be applied manually
-}
-
 export function initOperations(): EffectOperations {
     return {
         add: [],

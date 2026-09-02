@@ -11,7 +11,7 @@ import {SAVE_FORMAT_VERSION} from './save_version';
 
 // lodash merges arrays index-by-index, which would mangle saved maps, droid lists, etc.
 // This customizer makes saved arrays replace default arrays wholesale instead.
-const replaceArrays = (defaultValue, savedValue) => {
+const replaceArrays = (defaultValue: unknown, savedValue: unknown) => {
     if (_.isArray(savedValue)) {
         return savedValue;
     }
@@ -98,7 +98,7 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
     if (state.log && state.log.bySequenceId) {
         // Inline entries carry their own text and have no database id; only database-backed entries are pruned
         state.log.bySequenceId = _.pickBy(state.log.bySequenceId,
-            (entry) => entry && (entry.entryType === 'inline' || logsDatabase[entry.id]));
+            (entry) => entry && (entry.entryType === 'inline' || (entry.id !== null && logsDatabase[entry.id])));
         state.log.visibleSequenceIds = (state.log.visibleSequenceIds || [])
             .filter(sequenceId => state.log.bySequenceId[sequenceId]);
     }
@@ -108,7 +108,7 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
 
 // Re-merges each saved byId record over its current database definition (mirroring what the LEARN
 // reducers do), and drops records whose id no longer exists in the database.
-function resyncWithDatabase(slice, database) {
+function resyncWithDatabase(slice: { byId: Record<string, any>, visibleIds?: string[] } | undefined, database: Record<string, any>) {
     if (!slice || !slice.byId) {
         return;
     }

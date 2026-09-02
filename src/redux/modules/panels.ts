@@ -8,7 +8,7 @@ import {initOperations, mergeEffectIntoOperations, applyOperationsToVariables} f
 /**
  * Special upgrade panels: full-screen popups owned by a structure, each with its own bespoke UI
  * and content database (vs. the generic one-button upgrades on structure cards). First panel is
- * the droid factory's schematic index ('chassis', database/chassis.js). Future panels (e.g. a
+ * the droid factory's schematic index ('chassis', database/chassis.ts). Future panels (e.g. a
  * solar circuitry board) add: a content database, a component registered in
  * components/panels/panel_host.jsx, their own state key + action handling below, and an opener
  * button on their structure's card. openPanelId / authorizationCount are shared machinery.
@@ -99,7 +99,7 @@ export default function reducer(state: PanelsState = initialState, action: GameA
 }
 
 // Action Creators
-export function openPanel(panelId) {
+export function openPanel(panelId: string) {
     return { type: OPEN_PANEL, payload: { panelId } };
 }
 export function closePanel() {
@@ -107,7 +107,7 @@ export function closePanel() {
 }
 
 // Opens a locked schematic row (site fragments / story triggers / dev call this).
-export function unlockChassisRow(rowId) {
+export function unlockChassisRow(rowId: string) {
     return { type: CHASSIS_UNLOCK_ROW, payload: { rowId } };
 }
 
@@ -116,7 +116,7 @@ export function isChassisRowUnlocked(panelsState: PanelsState, row: ChassisRow):
 }
 
 // The active (signed) option of a row, folding in pre-war authorizations from the database.
-export function getAuthorizedRecord(panelsState, row) {
+export function getAuthorizedRecord(panelsState: PanelsState, row: ChassisRow) {
     if (panelsState.chassis.authorized[row.id]) return panelsState.chassis.authorized[row.id];
     if (row.preAuthorized && row.options.length > 0) {
         return { optionId: row.options[0].id, authNumber: row.preAuthorized };
@@ -137,10 +137,11 @@ export function canAuthorizeChassis(state: RootState, rowId: string, optionId: s
 
 // Sign an option: pay its cost and start the factory downtime (instant when downtime is 0).
 // On a row that's already authorized this IS the retool — same cost, same downtime, new spec.
-export function authorizeChassis(rowId, optionId) {
+export function authorizeChassis(rowId: string, optionId: string) {
     return (dispatch: Dispatch, getState: GetState) => {
         if (!canAuthorizeChassis(getState(), rowId, optionId)) return;
         const option = getChassisOption(rowId, optionId);
+        if (!option) return;
         const downtimeMs = (option.downtime || 0) * 1000;
         batch(() => {
             if (option.cost) dispatch(consumeUnsafe(option.cost));
@@ -154,7 +155,7 @@ export function authorizeChassis(rowId, optionId) {
 }
 
 // Advances factory downtime (called from the game clock's summable tick group).
-export function panelsTick(timeDelta) {
+export function panelsTick(timeDelta: number) {
     return (dispatch: Dispatch, getState: GetState) => {
         if (!getState().panels.chassis.retooling) return;
         batch(() => {
@@ -168,10 +169,11 @@ export function panelsTick(timeDelta) {
     };
 }
 
-function logAuthorization(dispatch, getState, rowId) {
+function logAuthorization(dispatch: Dispatch, getState: GetState, rowId: string) {
     const record = getState().panels.chassis.authorized[rowId];
     if (!record) return;
     const option = getChassisOption(rowId, record.optionId);
+    if (!option) return;
     dispatch(logInline(`Schematic authorized — ${option.name}. Authorization #${record.authNumber}. Refits apply to the next deployed squad.`));
 }
 

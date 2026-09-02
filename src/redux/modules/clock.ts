@@ -3,7 +3,7 @@ import {batch} from "react-redux";
 import {recalculateState} from "../reducer";
 import {roundToDecimal} from "../../lib/helpers";
 
-// todo rename this class planet_clock? or consolidate with planet.js?
+// todo rename this class planet_clock? or consolidate with planet.ts?
 
 // Actions
 export const TICK = 'clock/TICK';
@@ -16,7 +16,7 @@ const WIND_STEP_SIZE = 2000; // seconds per step
 
 const WIND_STEP_COUNT = 5; // steps per target
 
-const WIND_SPEEDS_SPLAT = [];
+const WIND_SPEEDS_SPLAT: number[] = [];
 WIND_SPEEDS.forEach((speed, index) => {
     if (index === 0) {
         WIND_SPEEDS_SPLAT.push(speed);
@@ -52,13 +52,13 @@ export default function reducer(state: ClockState = initialState, action: GameAc
 }
 
 // Action Creators
-// export function clockTick(timeDelta) {
+// export function clockTick(timeDelta: number) {
 //     return { type: TICK, payload: { timeDelta } };
 // }
 
 
 // Note: This is an example of how to dispatch another action during a reduction
-export function clockTick(timeDelta) {
+export function clockTick(timeDelta: number) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             const startingDaylight = daylightPercent(getState().clock);
@@ -87,7 +87,7 @@ export function dayNumber(state: ClockState, includeDecimal = false) {
     return includeDecimal ? day : Math.floor(day);
 }
 
-function elapsedTime(state) {
+function elapsedTime(state: ClockState) {
     return state.elapsedTime / 1000.0 + STARTING_TOD_SECONDS
 }
 
@@ -108,7 +108,7 @@ if (roundToDecimal(totalTime, 5) !== 1.0) {
     console.error('The day fractions in the TIME_PERIODS constant do not add up to a full day');
 }
 
-export function timePeriodData(fractionOfDay) {
+export function timePeriodData(fractionOfDay: number): [number, string, number] {
     let counter = 0;
 
     for (let i = 0; i < TIME_PERIODS.length; i++) {
@@ -118,6 +118,7 @@ export function timePeriodData(fractionOfDay) {
             return TIME_PERIODS[i];
         }
     }
+    return TIME_PERIODS[TIME_PERIODS.length - 1]; // fractionOfDay is always <= 1, so this only guards float drift
 }
 export function timePeriodName(state: ClockState) {
     return timePeriodData(fractionOfDay(state))[1];

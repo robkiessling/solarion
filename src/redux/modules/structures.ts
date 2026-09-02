@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import update from 'immutability-helper';
-import database, {calculators, STATUSES, TYPES} from '../../database/structures'
+import database, {calculators} from '../../database/structures';
 import {recalculateState, withRecalculation} from "../reducer";
 
 export { calculators };
@@ -30,12 +30,12 @@ export default function reducer(state: StructuresState = initialState, action: G
     switch (action.type) {
         case LEARN:
             // If already learned, do nothing (prevents potential error state w/ duplicate visibleIds)
-            if (state.byId[payload.id]) return state;
+            if (state.byId[payload.id as StructureId]) return state;
 
             return update(state, {
                 byId: {
                     [payload.id]: {
-                        $set: _.merge({}, database[payload.id], { id: payload.id })
+                        $set: _.merge({}, database[payload.id as StructureId], { id: payload.id })
                     }
                 },
                 visibleIds: { $push: [payload.id] }
@@ -66,23 +66,23 @@ export default function reducer(state: StructuresState = initialState, action: G
                 byId: {
                     [payload.id]: {
                         status: { $set: payload.status },
-                        runningCooldown: { $set: payload.status === STATUSES.insufficient ? RUNNING_COOLDOWN * 1000 : 0 }
+                        runningCooldown: { $set: payload.status === 'insufficient' ? RUNNING_COOLDOWN * 1000 : 0 }
                     }
                 }
             });
         case PROGRESS:
-            let newState = {};
+            const newState: Partial<Record<StructureId, Structure>> = {};
             for (const [key, value] of Object.entries(state.byId)) {
                 if (value.runningCooldown !== 0) {
                     let newCooldown = value.runningCooldown - payload.timeDelta;
                     if (newCooldown <= 0) { newCooldown = 0; }
 
-                    newState[key] = Object.assign({}, value, {
+                    newState[key as StructureId] = Object.assign({}, value, {
                         runningCooldown: newCooldown
                     });
                 }
                 else {
-                    newState[key] = value;
+                    newState[key as StructureId] = value;
                 }
             }
             return Object.assign({}, state, { byId: newState });
@@ -91,7 +91,7 @@ export default function reducer(state: StructuresState = initialState, action: G
                 byId: {
                     [payload.id]: {
                         droidData: {
-                            numDroidsAssigned: { $apply: (x) => x + payload.amount }
+                            numDroidsAssigned: { $apply: (x: number) => x + payload.amount }
                         }
                     }
                 }
@@ -101,7 +101,7 @@ export default function reducer(state: StructuresState = initialState, action: G
                 byId: {
                     [payload.id]: {
                         droidData: {
-                            numDroidsAssigned: { $apply: (x) => x - payload.amount }
+                            numDroidsAssigned: { $apply: (x: number) => x - payload.amount }
                         }
                     }
                 }
@@ -113,12 +113,12 @@ export default function reducer(state: StructuresState = initialState, action: G
     }
 }
 
-function buildReducer(state, id, amount) {
+function buildReducer(state: StructuresState, id: StructureId, amount: number): StructuresState {
     return update(state, {
         byId: {
             [id]: {
                 count: {
-                    total: { $apply: function(x) { return x + amount; } }
+                    total: { $apply: function(x: number) { return x + amount; } }
                 }
             }
         }
@@ -126,36 +126,36 @@ function buildReducer(state, id, amount) {
 }
 
 // Action Creators
-export function learn(id) {
+export function learn(id: StructureId) {
     return withRecalculation({ type: LEARN, payload: { id } });
 }
 
 // "Unsafe" means this will build the structure regardless of whether we have enough resources; you should always
 // call canBuildStructure beforehand.
 // TODO Maybe we should remove all "unsafe" methods and build them straight into their normal methods?
-export function buildUnsafe(structure, amount) {
+export function buildUnsafe(structure: Structure, amount: number) {
     return withRecalculation({ type: BUILD, payload: { structure, amount } });
 }
 
-export function buildForFree(id, amount) {
+export function buildForFree(id: StructureId, amount: number) {
     return withRecalculation({ type: BUILD_FOR_FREE, payload: { id, amount } });
 }
 
-export function assignDroidUnsafe(id, amount = 1) {
+export function assignDroidUnsafe(id: StructureId, amount = 1) {
     return withRecalculation({ type: ASSIGN_DROID, payload: { id, amount } });
 }
-export function removeDroidUnsafe(id, amount = 1) {
+export function removeDroidUnsafe(id: StructureId, amount = 1) {
     return withRecalculation({ type: REMOVE_DROID, payload: { id, amount } });
 }
 
-export function turnOff(id) {
+export function turnOff(id: StructureId) {
     return setRunningRate(id, 0);
 }
-export function setRunningRate(id, amount) {
+export function setRunningRate(id: StructureId, amount: number) {
     return withRecalculation({ type: SET_RUNNING_RATE, payload: { id, amount } });
 }
 
-export function disable(id) {
+export function disable(id: StructureId) {
     return withRecalculation({ type: DISABLE, payload: { id } });
 }
 
@@ -166,7 +166,7 @@ export function setStatus(dispatch: Dispatch, structure: Structure, status: Stru
     }
 }
 
-export function structuresTick(timeDelta) {
+export function structuresTick(timeDelta: number) {
     return (dispatch: Dispatch, getState: GetState) => {
         dispatch({ type: PROGRESS, payload: { timeDelta } });
 
@@ -182,13 +182,13 @@ export function structuresTick(timeDelta) {
 
 
 // Standard Functions
-export function getStructure(state: StructuresState, id: StructureId): Structure {
+export function getStructure(state: StructuresState, id: StructureId): Structure | undefined {
     return state.byId[id];
 }
 export function getBuildCost(structure: Structure): ResourceAmounts {
     return structure.cost; // todo floor
 }
-export function getNumBuilt(structure: Structure): number {
+export function getNumBuilt(structure: Structure | undefined): number {
     if (!structure) { return 0; }
     return structure.count.total;
 }
@@ -204,7 +204,7 @@ export function isRunning(structure: Structure): boolean {
     return structure.runnable ? (structure.runningRate > 0) : false;
 }
 export function hasInsufficientResources(structure: Structure): boolean {
-    return structure.status === STATUSES.insufficient;
+    return structure.status === 'insufficient';
 }
 
 export function getVisibleIds(state: StructuresState, type?: StructureType) {
@@ -213,14 +213,14 @@ export function getVisibleIds(state: StructuresState, type?: StructureType) {
     }
 
     return state.visibleIds.filter(id => {
-        return getStructure(state, id).type === type;
+        return getStructure(state, id)?.type === type;
     });
 }
 
 export function animationData(state: StructuresState) {
-    const result = {};
+    const result: StructureAnimationData = {};
     state.visibleIds.forEach(id => {
-        const structure = getStructure(state, id)
+        const structure = getStructure(state, id)! // visibleIds is always a subset of byId
         result[id] = {
             numBuilt: getNumBuilt(structure),
             animationTag: structure.animationTag
@@ -232,6 +232,6 @@ export function animationData(state: StructuresState) {
 // Helpers
 export function iterateVisible(state: StructuresState, callback: (structure: Structure) => void) {
     state.visibleIds.forEach(id => {
-        callback(getStructure(state, id));
+        callback(getStructure(state, id)!); // visibleIds is always a subset of byId
     });
 }

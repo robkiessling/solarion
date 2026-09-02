@@ -1,14 +1,14 @@
 import {NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
 import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, STATUSES} from "./planet_map";
 import {mod} from "./helpers";
-import {POI_STATUS} from "./expeditions";
+
 import {advanceBattle, DROID_BASE_STATS, fullDroidHp} from "./battle";
 import {EQUIPMENT_DEFS} from "../database/equipment";
 
 /**
  * The player-driven squad that IS act-2 exploration. Owns the
  * pure movement/charge/reveal simulation plus routing, and ticks the live battle sim while fighting; input
- * handling lives in the planet component and redux thunks. The battle itself (per-unit combat) is lib/battle.js.
+ * handling lives in the planet component and redux thunks. The battle itself (per-unit combat) is lib/battle.ts.
  *
  * Contact model: every uncleared POI is walkable and resolves on entry -- caches and story sites raise their
  * prompt, a nest starts the fight. Only capability-gated sites are impassable, bumping like a wall until the
@@ -46,7 +46,7 @@ export {isOnGrid} from "./planet_map";
 // The kind of ground a coord is, as far as the driver feels it: hive territory first (it overrides the
 // terrain), then powered grid, then the terrain itself. Zone changes drive the terminal's terrain notes and
 // the map frame's tint.
-export function squadZone(map: PlanetMap, coord: Coord): string {
+export function squadZone(map: PlanetMap, coord: Coord): SquadZone {
     const sector = map[coord[0]][coord[1]];
     if (sector.infestedBy) return 'infested';
     if (isOnGrid(map, coord)) return 'grid';
@@ -101,7 +101,7 @@ export function createSquad(homeCoord: Coord, assignedDroids = 1, multiplier = 1
         equipment,               // carried gear charges { itemId: chargesLeft }; spend in battle, reload on the grid
         droidStats,              // effective unit stats (base + upgrades), snapshotted at deploy: refit at base
         droidHp: fullDroidHp(numUnits, droidStats.hp), // per-unit hull; wounds persist in the field, repaired on the grid
-        fighting: null           // null | { poiId, battle } -- live per-unit sim (see lib/battle.js)
+        fighting: null           // null | { poiId, battle } -- live per-unit sim (see lib/battle.ts)
     };
 }
 
@@ -116,7 +116,7 @@ export function droidsRecovered(squad: Squad): number {
 // The available (discovered, unresolved) POI standing on `coord`, or null.
 export function poiAtCoord(pois: Record<string, Poi>, coord: Coord): Poi | null {
     return Object.values(pois || {}).find(poi =>
-        poi.status === POI_STATUS.available && poi.coord[0] === coord[0] && poi.coord[1] === coord[1]
+        poi.status === 'available' && poi.coord[0] === coord[0] && poi.coord[1] === coord[1]
     ) || null;
 }
 
@@ -132,7 +132,7 @@ export function squadCrossMs(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
  * revealed this tick (still-unknown tiles only), and events for the caller to resolve:
  *   { type: 'battleOver', poiId, result, survivors, bugsRemaining, battle, fromCoord }  (live fight ended;
  *       `battle` is the final field state, kept so the result popup can hold the last frame, see
- *       lib/battle.js; `fromCoord` is where a retreat falls back to)
+ *       lib/battle.ts; `fromCoord` is where a retreat falls back to)
  *   { type: 'enteredPoi', poiId, fromCoord } (stepped onto an available POI: resolve it. fromCoord is the
  *       tile just left, which a nest assault holds onto so a retreat can walk back out)
  *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)
@@ -141,7 +141,7 @@ export function squadCrossMs(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
  */
 export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: Squad, moveAmountMs: number, unlocks: Unlocks):
     { squad: Squad | null, reveals: Coord[], events: any[] } {
-    const events = [];
+    const events: SquadEvent[] = [];
 
     if (squad.fighting) {
         // The descent. For CONTACT_MS after stepping in, the battle is held at its opening frame while the
@@ -167,7 +167,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
     moveProgress = (moveProgress || 0) + moveAmountMs;
 
     const reveals = new Set<string>();
-    const reveal = ([r, c]) => {
+    const reveal = ([r, c]: Coord) => {
         if (map[r][c].status === STATUSES.unknown.key) reveals.add(`${r},${c}`);
     };
 
@@ -196,9 +196,9 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
             if (droidHp && droidHp.some(hp => hp < maxHp)) {
                 droidHp = fullDroidHp(droidHp.length, maxHp);
             }
-            if (equipment && Object.entries(equipment).some(([id, n]) => n < EQUIPMENT_DEFS[id].charges)) {
+            if (equipment && Object.entries(equipment).some(([id, n]) => n < EQUIPMENT_DEFS[id as EquipmentId].charges)) {
                 equipment = Object.fromEntries(
-                    Object.keys(equipment).map(id => [id, EQUIPMENT_DEFS[id].charges]));
+                    Object.keys(equipment).map(id => [id, EQUIPMENT_DEFS[id as EquipmentId].charges]));
             }
             events.push({ type: 'onGrid' });
         }

@@ -64,7 +64,7 @@ export default function reducer(state: LogState = initialState, action: GameActi
 // sequence is a random uuid, just has to be unique: https://egghead.io/lessons/javascript-redux-persisting-the-state-to-the-local-storage
 // vars: optional {placeholder: value} map for {placeholders} in the database text. Values are captured
 // here at dispatch time and stored on the entry, so backfilled history re-renders the original text.
-export function logMessage(id, vars = null) {
+export function logMessage(id: string, vars: LogEntry['vars'] = null) {
     return { type: LOG, payload: { id: id, vars: vars, sequence: v4() } };
 }
 
@@ -73,15 +73,15 @@ export function logMessage(id, vars = null) {
 // a record, so old lines keeping their old copy is correct. (Used for ambient expedition telemetry: cargo
 // banked, sealed sites, disband summaries, squad wipes.)
 // style: optional inline CSS properties for the entry (e.g. a colour taken from the map palette)
-export function logInline(text, className = '', style = null) {
+export function logInline(text: string, className = '', style: { [property: string]: string | number } | null = null) {
     return { type: LOG, payload: { id: null, entryType: 'inline', text, className, style, sequence: v4() } };
 }
 
 // Starts a log sequence (outputs the text over time). vars: see logMessage.
-export function startLogSequence(id, vars = null) {
+export function startLogSequence(id: string, vars: LogEntry['vars'] = null) {
     return { type: START_LOG_SEQUENCE, payload: { id: id, vars: vars, sequence: v4() } };
 }
-export function endLogSequence(sequence) {
+export function endLogSequence(sequence: string) {
     return { type: END_LOG_SEQUENCE, payload: { sequence } };
 }
 

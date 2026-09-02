@@ -1,5 +1,5 @@
 // System/terminal chatter: bootup, unlock notifications, milestone lines. Story-site logs live in
-// story.js; the ending cinematic chain lives in cutscenes.js; dev skip modes live in src/dev/skips.js.
+// story.ts; the ending cinematic chain lives in cutscenes.ts; dev skip modes live in src/dev/skips.ts.
 import * as fromStructures from '../../redux/modules/structures';
 import * as fromResources from '../../redux/modules/resources';
 import * as fromUpgrades from '../../redux/modules/upgrades';

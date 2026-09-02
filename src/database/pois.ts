@@ -1,27 +1,19 @@
 import {getRandomIntInclusive} from "../lib/helpers";
-import {GATE_KINDS} from "../lib/planet_map";
 
 /**
  * POI content definitions: WHAT exists on the planet. One POI_DEFS entry per placed POI; gates are defined
  * per gate kind (they sit on the tiles the map-gen stamp pass marked, not in placement bands). The placement
- * pass (generatePois in lib/expeditions.js) owns the mechanics: band selection, reachability, nest
+ * pass (generatePois in lib/expeditions.ts) owns the mechanics: band selection, reachability, nest
  * infestation stamping.
  *
  * Names, texts, difficulties, and rewards are PLACEHOLDERS until the content pass; this file is what that
  * pass edits.
  */
 
-export const POI_TYPES: Record<PoiType, PoiType> = {
-    cache: 'cache',
-    nest: 'nest',
-    storySite: 'storySite',
-    gate: 'gate' // a physical barrier POI (cave rockfall, sealed door): impassable until opened with its capability
-}
-
 // Per-type encounter popup behavior; individual definitions override. `result` decides what accepting does:
 // 'auto' resolves and closes the popup (the map change is the feedback), 'narrate' holds it open on a result
 // phase (story text, salvage, losses) until the player continues or drives away. `promptText` is the offer
-// line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.js); gates carry theirs
+// line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.ts); gates carry theirs
 // per gate kind (GATE_DEFS), nests never prompt (the fight starts on entry).
 export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: 'auto' | 'narrate', promptText?: string }> = {
     cache: { actionLabel: 'Take', result: 'auto', promptText: 'Supply cache found{loot}. Take it?' },
@@ -30,7 +22,7 @@ export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: 
     nest: { result: 'narrate' }
 }
 
-// Map display vocabulary (colorKeys index into PLANET_COLORS in planet_render.js; FIGHT_EFFECT_CHARS
+// Map display vocabulary (colorKeys index into PLANET_COLORS in planet_render.ts; FIGHT_EFFECT_CHARS
 // animate over a nest tile while a battle runs there).
 export const POI_GLYPHS = { cache: '□', nest: 'Ω', storySite: '?', gate: '∩' }; // cache: a crate; nest: the hive's Ω (its ground is 'ω'); gate: a cave mouth
 export const POI_COLOR_KEYS = { cache: 'poiCache', nest: 'poiNest', storySite: 'poiStory', gate: 'poiGate' };
@@ -69,60 +61,60 @@ export const STORY_TEXTS = {
 // Resource reward amounts are [lo, hi] ranges, rolled to a multiple of 100 at map generation (rollPoiReward).
 export const POI_DEFS: PoiDef[] = [
     // R1, the bowl (tutorial): one easy nest, two caches, the dead-droid story site
-    { type: POI_TYPES.nest, band: BANDS.r1, difficulty: 3, infestRadius: 1 },
-    { type: POI_TYPES.cache, band: BANDS.r1, reward: { resources: { ore: [500, 1000] } } },
-    { type: POI_TYPES.cache, band: BANDS.r1, reward: { resources: { refinedMinerals: [200, 400] } } },
-    { type: POI_TYPES.storySite, band: BANDS.r1, storyId: 'r1_deadDroid' },
+    { type: 'nest', band: BANDS.r1, difficulty: 3, infestRadius: 1 },
+    { type: 'cache', band: BANDS.r1, reward: { resources: { ore: [500, 1000] } } },
+    { type: 'cache', band: BANDS.r1, reward: { resources: { refinedMinerals: [200, 400] } } },
+    { type: 'storySite', band: BANDS.r1, storyId: 'r1_deadDroid' },
 
     // R2 near (before the acid): the Sealed Chassis salvage lives HERE so the belt is crossable.
-    // `formation` is the nest's battle spawn layout (FORMATIONS in lib/battle.js); unset = column front.
-    // `terrain` scatters impassable obstacles over the arena (TERRAIN_LAYOUTS in lib/battle.js); unset =
+    // `formation` is the nest's battle spawn layout (FORMATIONS in lib/battle.ts); unset = column front.
+    // `terrain` scatters impassable obstacles over the arena (TERRAIN_LAYOUTS in lib/battle.ts); unset =
     // open ground. The battlefield is stable per nest (seeded from its map coord), so it can be learned.
     // A nest may also declare `blurb`, a bespoke scene line for the battle footer; unset = generated from
-    // its terrain + formation (GROUND_BLURBS/SWARM_BLURBS in database/battle.js).
-    { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 6, infestRadius: 2, terrain: 'rocks' },
-    { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 10, infestRadius: 2, formation: 'scatter', terrain: 'rocks' },
-    { type: POI_TYPES.nest, band: BANDS.r2near, difficulty: 14, infestRadius: 2, formation: 'clusters', terrain: 'ruins' },
-    { type: POI_TYPES.cache, band: BANDS.r2near, reward: { resources: { ore: [2000, 4000] } } },
+    // its terrain + formation (GROUND_BLURBS/SWARM_BLURBS in database/battle.ts).
+    { type: 'nest', band: BANDS.r2near, difficulty: 6, infestRadius: 2, terrain: 'rocks' },
+    { type: 'nest', band: BANDS.r2near, difficulty: 10, infestRadius: 2, formation: 'scatter', terrain: 'rocks' },
+    { type: 'nest', band: BANDS.r2near, difficulty: 14, infestRadius: 2, formation: 'clusters', terrain: 'ruins' },
+    { type: 'cache', band: BANDS.r2near, reward: { resources: { ore: [2000, 4000] } } },
     {
-        type: POI_TYPES.cache, band: BANDS.r2near,
+        type: 'cache', band: BANDS.r2near,
         requires: 'sealedChassis', // teased before the unlock: visible, sealed, backtrack target
         reward: { resources: { refinedMinerals: [1000, 2000] } }
     },
-    { type: POI_TYPES.storySite, band: BANDS.r2near, storyId: 'r2_scorchedCore' },
-    { type: POI_TYPES.storySite, band: BANDS.r2near, storyId: 'r2_chassisCache', reward: { capability: 'sealedChassis' } },
+    { type: 'storySite', band: BANDS.r2near, storyId: 'r2_scorchedCore' },
+    { type: 'storySite', band: BANDS.r2near, storyId: 'r2_chassisCache', reward: { capability: 'sealedChassis' } },
 
     // R2 far (beyond the acid): the Override Module salvage; the red-herring wreckage.
     // `surround` is the ambush opening: the garrison starts in all four corners with the squad encircled.
-    // `bugs` declares a typed garrison ({ type: count }, see BUG_TYPES in lib/battle.js) instead of
+    // `bugs` declares a typed garrison ({ type: count }, see BUG_TYPES in lib/battle.ts) instead of
     // `difficulty` standard bugs; entry order maps to formation slots, so the hive leads to take the
     // ring's center. `difficulty` remains the displayed threat estimate either way.
-    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 18, infestRadius: 2, formation: 'surround' },
-    { type: POI_TYPES.nest, band: BANDS.r2far, difficulty: 24, infestRadius: 2, formation: 'ring',
+    { type: 'nest', band: BANDS.r2far, difficulty: 18, infestRadius: 2, formation: 'surround' },
+    { type: 'nest', band: BANDS.r2far, difficulty: 24, infestRadius: 2, formation: 'ring',
         bugs: { hive: 1, bug: 18 }, terrain: 'canyon' },
-    { type: POI_TYPES.cache, band: BANDS.r2far, reward: { resources: { ore: [5000, 9000] } } },
-    { type: POI_TYPES.cache, band: BANDS.r2far, reward: { resources: { refinedMinerals: [2000, 4000] } } },
-    { type: POI_TYPES.storySite, band: BANDS.r2far, storyId: 'r2_wreckage' },
-    { type: POI_TYPES.storySite, band: BANDS.r2far, storyId: 'r2_overrideVault', reward: { capability: 'overrideModule' } },
+    { type: 'cache', band: BANDS.r2far, reward: { resources: { ore: [5000, 9000] } } },
+    { type: 'cache', band: BANDS.r2far, reward: { resources: { refinedMinerals: [2000, 4000] } } },
+    { type: 'storySite', band: BANDS.r2far, storyId: 'r2_wreckage' },
+    { type: 'storySite', band: BANDS.r2far, storyId: 'r2_overrideVault', reward: { capability: 'overrideModule' } },
 
     // R3, the antipode (finale): two hard nests, one cache, the command ruin + hive heart
-    { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 30, infestRadius: 2, formation: 'scatter', terrain: 'ruins' },
-    { type: POI_TYPES.nest, band: BANDS.r3, difficulty: 40, infestRadius: 2, formation: 'ring',
+    { type: 'nest', band: BANDS.r3, difficulty: 30, infestRadius: 2, formation: 'scatter', terrain: 'ruins' },
+    { type: 'nest', band: BANDS.r3, difficulty: 40, infestRadius: 2, formation: 'ring',
         bugs: { hive: 2, bug: 32 }, terrain: 'canyon' },
-    { type: POI_TYPES.cache, band: BANDS.r3, reward: { resources: { refinedMinerals: [5000, 8000] } } },
-    { type: POI_TYPES.storySite, band: BANDS.r3, storyId: 'r3_commandRuin' },
-    { type: POI_TYPES.storySite, band: BANDS.r3, storyId: 'r3_hiveHeart' }
+    { type: 'cache', band: BANDS.r3, reward: { resources: { refinedMinerals: [5000, 8000] } } },
+    { type: 'storySite', band: BANDS.r3, storyId: 'r3_commandRuin' },
+    { type: 'storySite', band: BANDS.r3, storyId: 'r3_hiveHeart' }
 ]
 
 // Gate POIs, one definition per gate kind (the map-gen stamp pass marks sector.gated/gateKind tiles).
-export const GATE_DEFS: Record<string, GateDef> = {
-    [GATE_KINDS.cave]: {
+export const GATE_DEFS: Record<GateKind, GateDef> = {
+    cave: {
         name: 'Collapsed Cave',
         requires: 'drill',
         promptText: 'The only pass through the ring is choked with rockfall. Drill through?',
         actionLabel: 'Drill'
     },
-    [GATE_KINDS.door]: {
+    door: {
         name: 'Sealed Bulkhead',
         requires: 'overrideModule',
         promptText: 'A first-swarm bulkhead, still powered. The override module interfaces cleanly. Open it?',
@@ -132,13 +124,13 @@ export const GATE_DEFS: Record<string, GateDef> = {
 
 // Resolves a definition's reward at generation time: [lo, hi] resource ranges roll to a multiple of 100;
 // capability rewards pass through unchanged.
-export function rollPoiReward(rewardDef: PoiDef['reward']): PoiReward {
+export function rollPoiReward(rewardDef: NonNullable<PoiDef['reward']>): PoiReward {
     const { resources, ...rest } = rewardDef;
     const reward: PoiReward = { ...rest };
     if (resources) {
         reward.resources = {};
-        Object.entries(resources).forEach(([resource, [lo, hi]]) => {
-            reward.resources[resource] = getRandomIntInclusive(lo / 100, hi / 100) * 100;
+        (Object.entries(resources) as [ResourceId, [number, number]][]).forEach(([resource, [lo, hi]]) => {
+            reward.resources![resource] = getRandomIntInclusive(lo / 100, hi / 100) * 100;
         });
     }
     return reward;

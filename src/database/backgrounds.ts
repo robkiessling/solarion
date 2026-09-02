@@ -15,7 +15,7 @@ export default {
             '                                                           *                       ·                                                               ',
             '            *                       ·                                                       .            ·                         .            *  ',
         ],
-        color: (elapsedTime, fractionOfDay) => {
+        color: (elapsedTime: number, fractionOfDay: number) => {
             /**
              * Star opacity follows a linear (broken) graph that looks like this:
              *

@@ -1,4 +1,3 @@
-// @ts-check
 import {mod} from "./helpers";
 
 const MAX_THETA = 2 * Math.PI;
@@ -18,7 +17,15 @@ const MAX_THETA = 2 * Math.PI;
  *   t = theta (independent variable, angle of desired [x,y] coordinate)
  */
 export default class Ellipse {
-    constructor(a, b, h, k, r) {
+    a: number;
+    b: number;
+    h: number;
+    k: number;
+    r: number;
+    rotationDegrees: number;
+    rotationRadians: number;
+
+    constructor(a?: number, b?: number, h?: number, k?: number, r?: number) {
         this.a = a === undefined ? 10 : a;
         this.b = b === undefined ? 10 : b;
         this.h = h === undefined ? 0 : h;
@@ -29,20 +36,20 @@ export default class Ellipse {
         this.rotationRadians = this.r * Math.PI / 180;
     }
 
-    x(t) {
+    x(t: number) {
         return this.h +
             (this.a * Math.cos(t)) * Math.cos(this.rotationRadians) +
             (this.b * Math.sin(t)) * -1 * Math.sin(this.rotationRadians)
     }
 
-    y(t) {
+    y(t: number) {
         return this.k +
             (this.a * Math.cos(t)) * Math.sin(this.rotationRadians) +
             (this.b * Math.sin(t)) * Math.cos(this.rotationRadians)
     }
 
     // Generates a list of xy coordinates following the ellipse's arc
-    xyPoints(numPoints, thetaOffset, callback) {
+    xyPoints(numPoints: number, thetaOffset: number, callback: (x: number, y: number) => void) {
         for (let i = 0; i < numPoints; i++) {
             const t = mod(i / numPoints * MAX_THETA + thetaOffset, MAX_THETA);
             callback(this.x(t), this.y(t));
@@ -50,9 +57,8 @@ export default class Ellipse {
     }
 
     // Generates a single xy coordinates on the ellipse's arc
-    xyPoint(numPoints, thetaOffset, i) {
+    xyPoint(numPoints: number, thetaOffset: number, i: number): [number, number] {
         const t = mod(i / numPoints * MAX_THETA + thetaOffset, MAX_THETA);
         return [this.x(t), this.y(t)];
     }
 }
-

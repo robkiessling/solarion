@@ -75,13 +75,13 @@ export const calculators: Partial<Record<ResourceId, CalculatorSet<Resource>>> =
 
             const energyBay = getStructure(state.structures, 'energyBay');
             if (energyBay) {
-                capacity += getStructureStatistic(state, energyBay, 'capacity').energy;
+                capacity += getStructureStatistic(state, energyBay, 'capacity').energy ?? 0;
             }
 
             if (isTargetingPlanet(state.star)) {
                 // Capacity becomes directly proportional to mirrored energy output
                 const solarPanel = getStructure(state.structures, 'solarPanel');
-                capacity = getStructureStatistic(state, solarPanel, 'produces').energy
+                capacity = getStructureStatistic(state, solarPanel, 'produces').energy ?? 0
             }
 
             return capacity;

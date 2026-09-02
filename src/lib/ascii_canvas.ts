@@ -1,5 +1,5 @@
-// @ts-check
 import {debounce} from "./helpers";
+import type Ellipse from "./ellipse";
 
 const FONT_RATIO = 3/5;
 const FONT_COLOR = '#fff';
@@ -10,7 +10,39 @@ export const QUEUE_TYPES = {
     drawCachedChar: 2
 }
 
+/** Decides whether a draw call is queued (true) or drawn now; see addQueueFilter */
+export type QueueFilter = (type: number, args: any) => boolean | undefined;
+type QueueItem = { type: number, args: any };
+export type XY = { x: number, y: number };
+/** A cell of an outside/base image: [char, color], or empty for a blank cell */
+export type ImageCell = [string, string] | [];
+
+export interface AsciiCanvasOptions {
+    fillContainer?: boolean;
+    padding?: number | { x?: number, y?: number };
+    charRatio?: number;
+}
+
 export default class AsciiCanvas {
+    container: HTMLElement;
+    canvas: HTMLCanvasElement;
+    options: AsciiCanvasOptions;
+    charRatio: number;
+    context: CanvasRenderingContext2D;
+    numRows: number;
+    numCols: number;
+    queue: QueueItem[];
+    cachedCanvas?: HTMLCanvasElement;
+    cachedContext?: CanvasRenderingContext2D;
+    fontWidth: number;
+    fontHeight: number;
+    fontSize: number;
+    width = 0;
+    height = 0;
+    ratio = 1;
+    queueFilter?: QueueFilter;
+    cache?: { char: string, color: string }[];
+
     // options.fillContainer: the canvas covers the whole container and the char grid is contain-fit (fully visible,
     // scaled to the largest size that fits) and centered inside it. The letterbox area around the grid is still
     // drawable. Default mode: canvas is sized to the grid itself, fit to container height (sides may crop).
@@ -19,7 +51,8 @@ export default class AsciiCanvas {
     // options.charRatio: width/height of one grid cell. Defaults to the glyph's natural ratio (FONT_RATIO). Smaller
     // values add vertical leading between rows (like CSS line-height), stretching the image taller; the font is
     // shrunk to fit the narrower cell so glyphs never overlap horizontally.
-    constructor(container, canvas, numRows, numCols, cachedCanvas, options = {}) {
+    constructor(container: HTMLElement, canvas: HTMLCanvasElement, numRows: number, numCols: number,
+                cachedCanvas?: HTMLCanvasElement, options: AsciiCanvasOptions = {}) {
         this.container = container;
         this.canvas = canvas;
         this.options = options;
@@ -27,7 +60,7 @@ export default class AsciiCanvas {
 
         // Turn off alpha for performance boost:
         // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas#turn_off_transparency
-        this.context = this.canvas.getContext('2d', { alpha: true });
+        this.context = this.canvas.getContext('2d', { alpha: true })!;
         this.context.fillStyle = FONT_COLOR;
         this.numRows = numRows;
         this.numCols = numCols;
@@ -36,9 +69,14 @@ export default class AsciiCanvas {
         if (cachedCanvas) {
             // cachedCanvas is used for pre-rendering and caching of text. See cacheChar function below for more information
             this.cachedCanvas = cachedCanvas;
-            this.cachedContext = this.cachedCanvas.getContext('2d', { alpha: true });
+            this.cachedContext = this.cachedCanvas.getContext('2d', { alpha: true })!;
             this.cachedContext.fillStyle = FONT_COLOR;
         }
+
+        // Sized by resize() (called below); initialised here so the fields always hold a number
+        this.fontWidth = 0;
+        this.fontHeight = 0;
+        this.fontSize = 0;
 
         this._setupResize();
 
@@ -49,7 +87,7 @@ export default class AsciiCanvas {
         this.clearArea(0, 0, this.width, this.height);
     }
 
-    clearArea(x, y, width, height) {
+    clearArea(x: number, y: number, width: number, height: number) {
         this.context.clearRect(x, y, width, height);
     }
 
@@ -96,7 +134,7 @@ export default class AsciiCanvas {
     }
 
     // [horizontal, vertical] px margins from options.padding (see constructor)
-    _padding() {
+    _padding(): [number, number] {
         const padding = this.options.padding || 0;
         return typeof padding === 'number' ? [padding, padding] : [padding.x || 0, padding.y || 0];
     }
@@ -107,12 +145,12 @@ export default class AsciiCanvas {
         this.fontSize = Math.min(this.fontHeight, this.fontWidth / FONT_RATIO);
     }
 
-    center() {
+    center(): [number, number] {
         return [this.width / 2, this.height / 2]
     }
 
     // Top-left pixel of the char grid. [0, 0] unless fillContainer mode centers the grid within a larger canvas.
-    gridOrigin() {
+    gridOrigin(): [number, number] {
         if (!this.options.fillContainer) {
             return [0, 0];
         }
@@ -124,19 +162,19 @@ export default class AsciiCanvas {
 
     // Inverse of the grid drawing math: returns fractional [row, col] for a pixel coordinate (e.g. from a mouse
     // event relative to the canvas). Callers floor the values and bounds-check against the grid.
-    xyToGrid(x, y) {
+    xyToGrid(x: number, y: number): [number, number] {
         const [originX, originY] = this.gridOrigin();
         return [(y - originY) / this.fontHeight, (x - originX) / this.fontWidth];
     }
 
     /**
      * Draws an ellipse shape out of characters.
-     * @param ellipse {import('./ellipse').default} Ellipse object used to shape the ellipse
-     * @param char {String} The character to repeat over the ellipse's arc
-     * @param numPoints {Number} The number of points (chars) that make up the ellipse
-     * @param thetaOffset {Number} How much to offset the ring of characters
+     * @param ellipse Ellipse object used to shape the ellipse
+     * @param char The character to repeat over the ellipse's arc
+     * @param numPoints The number of points (chars) that make up the ellipse
+     * @param thetaOffset How much to offset the ring of characters
      */
-    drawEllipse(ellipse, char, numPoints, thetaOffset = 0) {
+    drawEllipse(ellipse: Ellipse, char: string, numPoints: number, thetaOffset = 0) {
         const [canvasCenterX, canvasCenterY] = this.center();
 
         ellipse.xyPoints(numPoints, thetaOffset, (x, y) => {
@@ -145,7 +183,7 @@ export default class AsciiCanvas {
     }
 
     // Same as drawEllipse but uses a cached char
-    drawEllipseCachedChar(ellipse, cacheIndex, numPoints, thetaOffset = 0) {
+    drawEllipseCachedChar(ellipse: Ellipse, cacheIndex: number, numPoints: number, thetaOffset = 0) {
         const [canvasCenterX, canvasCenterY] = this.center();
 
         ellipse.xyPoints(numPoints, thetaOffset, (x, y) => {
@@ -153,7 +191,7 @@ export default class AsciiCanvas {
         });
     }
 
-    drawFilledCircle(radius, color = '#000', xOffset = 0, yOffset = 0) {
+    drawFilledCircle(radius: number, color = '#000', xOffset = 0, yOffset = 0) {
         const [canvasCenterX, canvasCenterY] = this.center();
 
         this.context.beginPath();
@@ -162,7 +200,7 @@ export default class AsciiCanvas {
         this.context.fill();
     }
 
-    drawImage(charArray, x, y) {
+    drawImage(charArray: ImageCell[][], x: number, y: number) {
         const startingX = x * this.fontWidth;
         let startingY = y * this.fontHeight;
         startingY += (this.fontHeight - 2); // Move down one row. Move up a tiny bit.
@@ -170,8 +208,9 @@ export default class AsciiCanvas {
         // Draw one character at a time (inefficient)
         for (let row = 0; row < charArray.length; row++) {
            for (let col = 0; col < charArray[row].length; col++) {
-               const [char, color] = charArray[row][col];
-               if (char !== undefined) {
+               const cell = charArray[row][col];
+               if (cell.length === 2) {
+                   const [char, color] = cell;
                    this.context.fillStyle = color;
                    this.fillText(char, startingX + col * this.fontWidth, startingY + row * this.fontHeight)
                }
@@ -189,7 +228,7 @@ export default class AsciiCanvas {
         // }
     }
 
-    drawLine(start, end) {
+    drawLine(start: XY, end: XY) {
         if (this.queueFilter) {
             const filterArgs = { startX: start.x, startY: start.y, endX: end.x, endY: end.y }
             if (this.queueFilter(QUEUE_TYPES.stroke, filterArgs)) {
@@ -204,11 +243,11 @@ export default class AsciiCanvas {
         this.context.stroke();
     }
 
-    setFillStyle(color) {
+    setFillStyle(color: string) {
         this.context.fillStyle = color;
     }
 
-    setStrokeStyle(color) {
+    setStrokeStyle(color: string) {
         this.context.strokeStyle = color;
     }
 
@@ -223,7 +262,7 @@ export default class AsciiCanvas {
      * 
      * At a later time, you can call processQueue to draw all the queued fillText items.
      */
-    addQueueFilter(filter) {
+    addQueueFilter(filter: QueueFilter) {
         this.queueFilter = filter;
     }
     
@@ -252,7 +291,7 @@ export default class AsciiCanvas {
         this.queue = [];
     }
 
-    fillText(text, x, y) {
+    fillText(text: string, x: number, y: number) {
         if (this.queueFilter) {
             const filterArgs = { x, y, text };
             if (this.queueFilter(QUEUE_TYPES.fillText, filterArgs)) {
@@ -273,7 +312,7 @@ export default class AsciiCanvas {
      */
 
     // Caches a char for later use. Returns the index of the cached char so you can refer to it with drawCachedChar
-    cacheChar(char, color) {
+    cacheChar(char: string, color: string): number {
         if (this.cache === undefined) {
             this.cache = [];
         }
@@ -285,7 +324,7 @@ export default class AsciiCanvas {
 
 
     // Draws a cached char to the real canvas (alternative to fillText)
-    drawCachedChar(cacheIndex, x, y) {
+    drawCachedChar(cacheIndex: number, x: number, y: number) {
         if (this.queueFilter) {
             const filterArgs = { x, y, cacheIndex };
             if (this.queueFilter(QUEUE_TYPES.drawCachedChar, filterArgs)) {
@@ -296,7 +335,8 @@ export default class AsciiCanvas {
         this._copyCachedChar(cacheIndex, x, y);
     }
 
-    _copyCachedChar(cacheIndex, x, y) {
+    _copyCachedChar(cacheIndex: number, x: number, y: number) {
+        if (!this.cachedCanvas) return;
         this.context.drawImage(
             this.cachedCanvas,
             cacheIndex * this.fontWidth * this.ratio, // sx
@@ -311,11 +351,13 @@ export default class AsciiCanvas {
     }
 
     _redrawCache() {
-        this.cachedContext.clearRect(0, 0, this.width, this.height);
+        if (!this.cache || !this.cachedContext) return; // nothing cached yet
+        const cachedContext = this.cachedContext;
+        cachedContext.clearRect(0, 0, this.width, this.height);
 
         this.cache.forEach((item, index) => {
-            this.cachedContext.fillStyle = item.color;
-            this.cachedContext.fillText(item.char, index * this.fontWidth, this.fontHeight);
+            cachedContext.fillStyle = item.color;
+            cachedContext.fillText(item.char, index * this.fontWidth, this.fontHeight);
         });
     }
 
@@ -332,13 +374,13 @@ export default class AsciiCanvas {
 
         this._convertCanvasToHiDPI(this.canvas, this.context);
 
-        if (this.cachedCanvas) {
+        if (this.cachedCanvas && this.cachedContext) {
             this._convertCanvasToHiDPI(this.cachedCanvas, this.cachedContext);
         }
 
         this.context.font = this.fontSize + 'px monospace';
 
-        if (this.cachedCanvas) {
+        if (this.cachedContext) {
             this.cachedContext.font = this.fontSize + 'px monospace';
         }
 
@@ -352,16 +394,17 @@ export default class AsciiCanvas {
         window.addEventListener("resize", debounce(() => this.resize()));
     }
 
-    _convertCanvasToHiDPI(canvas, context, ratio) {
+    _convertCanvasToHiDPI(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, ratio?: number) {
         if (!ratio) {
             // TODO Internet Explorer
             // https://stackoverflow.com/questions/22483296/html5-msbackingstorepixelratio-and-window-devicepixelratio-dont-exist-are-the
             const dpr = window.devicePixelRatio || 1;
-            const bsr = context.webkitBackingStorePixelRatio ||
-                context.mozBackingStorePixelRatio ||
-                context.msBackingStorePixelRatio ||
-                context.oBackingStorePixelRatio ||
-                context.backingStorePixelRatio || 1;
+            const vendor = context as any; // legacy vendor-prefixed backing store ratios
+            const bsr = vendor.webkitBackingStorePixelRatio ||
+                vendor.mozBackingStorePixelRatio ||
+                vendor.msBackingStorePixelRatio ||
+                vendor.oBackingStorePixelRatio ||
+                vendor.backingStorePixelRatio || 1;
             ratio = dpr / bsr;
         }
 

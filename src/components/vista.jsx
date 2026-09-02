@@ -10,7 +10,7 @@ const SHOW_VISTA = false;
 
 /**
  * The view out the front window: an ASCII skyline of the ground ahead of the deployed squad, in the
- * direction it last pushed (see lib/vista.js). Sits at the top of the Expedition panel while a team is out.
+ * direction it last pushed (see lib/vista.ts). Sits at the top of the Expedition panel while a team is out.
  */
 class Vista extends React.Component {
     render() {

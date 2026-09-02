@@ -29,17 +29,17 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
     switch (action.type) {
         case LEARN:
             // If already learned, do nothing (prevents potential error state w/ duplicate visibleIds)
-            if (state.byId[payload.id]) return state;
+            if (state.byId[payload.id as ResourceId]) return state;
 
             return update(state, {
                 byId: {
                     [payload.id]: {
-                        $set: _.merge({}, database[payload.id], { id: payload.id, lifetimeTotal: database[payload.id].amount })
+                        $set: _.merge({}, database[payload.id as ResourceId], { id: payload.id, lifetimeTotal: database[payload.id as ResourceId].amount })
                     }
                 },
 
                 // Only resources with the visible:true attribute get added to visibleIds
-                visibleIds: { $push: database[payload.id].visible ? [payload.id] : [] }
+                visibleIds: { $push: database[payload.id as ResourceId].visible ? [payload.id] : [] }
             });
         case CONSUME:
             return consumeReducer(state, payload.amounts);
@@ -90,7 +90,7 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             // Starting land: the already-explored flatland around home. Infested flatland never counts until
             // its nest is cleared (see SQUAD_FIGHT_WON below).
             let startingLand = 0;
-            payload.map.forEach(row => row.forEach(sector => {
+            (payload.map as PlanetMap).forEach(row => row.forEach(sector => {
                 if (sector.status === STATUSES.explored.key &&
                     sector.terrain === TERRAINS.flatland.key && !sector.infestedBy) {
                     startingLand++;
@@ -124,17 +124,17 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             return state;
     }
 }
-function consumeReducer(state, amounts) {
+function consumeReducer(state: ResourcesState, amounts: ResourceAmounts) {
     return update(state, {
         byId: mapObject(amounts, (resourceId, amount) => (
-            { amount: { $apply: function(x) { return x - amount; } } }
+            { amount: { $apply: function(x: number) { return x - (amount ?? 0); } } }
         ))
     });
 }
-function produceReducer(state, amounts, incrementLifetimeTotal = true) {
+function produceReducer(state: ResourcesState, amounts: ResourceAmounts, incrementLifetimeTotal = true) {
     return update(state, {
-        byId: mapObject(amounts, (resourceId, amount) => {
-            const resource = getResource(state, resourceId);
+        byId: mapObject(amounts, (resourceId, amount = 0) => {
+            const resource = getResource(state, resourceId as ResourceId);
             if (!resource) { return {}; }
             const capacity = getCapacity(resource);
             const oldAmount = getQuantity(resource);
@@ -142,7 +142,7 @@ function produceReducer(state, amounts, incrementLifetimeTotal = true) {
             const gain = capacity === INFINITY ? amount : (newAmount - oldAmount);
             return {
                 amount: { $set: roundToDecimal(newAmount, 5) },
-                lifetimeTotal: { $apply: function(x) { return incrementLifetimeTotal ? roundToDecimal(x + gain, 5) : x; } }
+                lifetimeTotal: { $apply: function(x: number) { return incrementLifetimeTotal ? roundToDecimal(x + gain, 5) : x; } }
             }
         })
     });
@@ -153,7 +153,7 @@ export function learn(id: ResourceId) {
     return withRecalculation({ type: LEARN, payload: { id } });
 }
 
-export function consume(amounts) {
+export function consume(amounts: ResourceAmounts) {
     return function(dispatch: Dispatch, getState: GetState) {
         if (canConsume(getState().resources, amounts)) {
             dispatch(consumeUnsafe(amounts));
@@ -170,7 +170,7 @@ export function produce(amounts: ResourceAmounts) {
 
 
 // Standard Functions
-export function getResource(state: ResourcesState, id: ResourceId): Resource {
+export function getResource(state: ResourcesState, id: ResourceId): Resource | undefined {
     return state.byId[id];
 }
 export function canConsume(state: ResourcesState, amounts: ResourceAmounts): boolean {
@@ -179,32 +179,32 @@ export function canConsume(state: ResourcesState, amounts: ResourceAmounts): boo
 export function hasLifetimeQuantities(state: ResourcesState, amounts: ResourceAmounts): boolean {
     return (Object.entries(amounts) as [ResourceId, number][]).every(([k,v]) => getLifetimeQuantity(getResource(state, k)) >= v);
 }
-export function getQuantity(resource: Resource): number {
+export function getQuantity(resource: Resource | undefined): number {
     if (!resource) {
         return 0;
     }
     return resource.amount;
 }
-export function getLifetimeQuantity(resource: Resource): number {
+export function getLifetimeQuantity(resource: Resource | undefined): number {
     if (!resource) {
         return 0;
     }
     return resource.lifetimeTotal;
 }
-export function getCapacity(resource: Resource): number {
-    return resource.capacity;
+export function getCapacity(resource: Resource | undefined): number {
+    return resource ? resource.capacity : 0;
 }
-export function getIcon(id: ResourceId): string {
+export function getIcon(id: ResourceId): string | undefined {
     return database[id].icon;
 }
 export function getIconSpan(id: ResourceId, skinny: boolean = false, colorless: boolean = true): string {
-    return `<span class="${getIcon(id)} ${skinny ? 'skinny-icon' : ''} ${colorless ? 'colorless-icon' : ''}"></span>`;
+    return `<span class="${getIcon(id) ?? ''} ${skinny ? 'skinny-icon' : ''} ${colorless ? 'colorless-icon' : ''}"></span>`;
 }
 export function highlightCosts(state: ResourcesState, amounts: ResourceAmounts) {
-    return mapObject(amounts, (resourceId, resourceCost) => {
+    return mapObject(amounts as Record<string, number>, (resourceId, resourceCost) => {
         return {
             amount: resourceCost,
-            hasEnough: getQuantity(getResource(state, resourceId)) >= resourceCost
+            hasEnough: getQuantity(getResource(state, resourceId as ResourceId)) >= resourceCost
         }
     });
 }

@@ -7,7 +7,6 @@ import {getAbility} from "../redux/modules/abilities";
 import {getIcon, getQuantity, getResource} from "../redux/modules/resources";
 import {clearBeacon, percentExplored} from "../redux/modules/planet";
 import {planetDevelopmentProgress, showDroidsUI, surveyAutomationUnlocked} from "../redux/reducer";
-import {POI_STATUS} from "../lib/expeditions";
 
 /**
  * The Planet tab's left-slot status card, the counterpart of the Base tab's Command Center: how much of the
@@ -72,7 +71,7 @@ class PlanetCard extends React.Component {
 const mapStateToProps = (state, ownProps) => {
     return {
         percentExplored: percentExplored(state.planet),
-        sitesFound: Object.values(state.planet.pois).filter(poi => poi.status !== POI_STATUS.hidden).length,
+        sitesFound: Object.values(state.planet.pois).filter(poi => poi.status !== 'hidden').length,
         buildableLand: getQuantity(getResource(state.resources, 'buildableLand')),
         buildableLandIcon: getIcon('buildableLand'),
         developedLand: getQuantity(getResource(state.resources, 'developedLand')),

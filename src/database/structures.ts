@@ -14,17 +14,8 @@ import {upgradesAffectingStructure} from "./upgrades";
 import {abilitiesAffectingStructure} from "./abilities";
 import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 import {energyBeamStrengthEnergy, energyBeamStrengthPct, getStructureStatistic} from "../redux/reducer";
-import {isTargetingPlanet, TARGETS} from "../redux/modules/star";
+import {isTargetingPlanet} from "../redux/modules/star";
 import {probeCapacity} from "../lib/star";
-
-export const STATUSES: { [K in StructureStatus]: K } = {
-    normal: 'normal',
-    insufficient: 'insufficient',
-}
-export const TYPES: { [K in StructureType]: K } = {
-    generator: 'generator',
-    consumer: 'consumer'
-}
 
 const IDLE_LABEL = 'Idle';
 const RUNNING_LABEL = 'Running';
@@ -47,12 +38,12 @@ const base: StructureRecord = {
         total: 0, // todo why is this an object? maybe for total/broken/etc.?
         max: INFINITY
     },
-    status: STATUSES.normal,
+    status: 'normal',
     statusMessage: '',
     cost: {},
     consumes: {},
     produces: {},
-    type: TYPES.generator,
+    type: 'generator',
 
     droidData: {
         usesDroids: true,
@@ -66,7 +57,7 @@ export default {
     commandCenter: _.merge({}, base, {
         name: COMMAND_CENTER_NAME_GARBLED,
         // description: "A twisted mass of cables, switches and monitors surround a large device.",
-        type: TYPES.generator,
+        type: 'generator',
         count: {
             max: 1
         },
@@ -79,7 +70,7 @@ export default {
         description: "Drills into the planet's surface to gather ore." +
             " Less energy efficient as harvesting rate is increased.",
         runnable: true,
-        type: TYPES.consumer,
+        type: 'consumer',
     } satisfies DeepPartial<StructureRecord>),
     solarPanel: _.merge({}, base, {
         name: "Solar Farm",
@@ -102,13 +93,13 @@ export default {
     refinery: _.merge({}, base, {
         name: "Refinery",
         runnable: true,
-        type: TYPES.consumer,
+        type: 'consumer',
         description: "Filters rare minerals out of ore.",
     } satisfies DeepPartial<StructureRecord>),
     droidFactory: _.merge({}, base, {
         name: "Droid Factory",
         description: "Constructs droids that can assist with production.",
-        type: TYPES.consumer,
+        type: 'consumer',
         droidData: {
             usesDroids: false
         },
@@ -120,7 +111,7 @@ export default {
         name: "Probe Launcher",
         description: "Manufactures and launches probes towards Solarion.",
         runnable: true,
-        type: TYPES.consumer,
+        type: 'consumer',
         droidData: {
             usesDroids: false
         },
@@ -176,12 +167,12 @@ export const calculators: Partial<Record<StructureId, CalculatorSet<Structure>>>
     // }),
     harvester: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
-            const variables = {
+            const variables: Variables = {
                 lowEndRate: 0.25, // Running at this rate or lower will result in 100% efficiency
                 topEndEfficiency: 0.25, // Running at 100% rate will result in this efficiency
                 ore: 10, // how much ore is being produced
                 energy: 5, // how much energy is being consumed
-                efficiency: undefined, // resulting efficiency (defined later based on running rate)
+                // efficiency: resulting efficiency, set below based on running rate
             }
 
             applyAllEffects(state, variables, structure);
@@ -230,13 +221,13 @@ export const calculators: Partial<Record<StructureId, CalculatorSet<Structure>>>
     } satisfies CalculatorSet<Structure>),
     solarPanel: _.merge({}, baseCalculator, {
         variables: (state, structure) => {
-            const variables = {
+            const variables: Variables = {
                 daylight: daylightPercent(state.clock),
                 minDaylight: 0, // minimum daylight percentage
                 globalAverageRate: 0, // once set (when solarPanel has expanded across global), will replace daylight value
                 probeMirrorPct: 0, // if probes are targeting the planet, this value will be set and overrides all other daylight
                 peakEnergy: 5, // amount of energy generated in peak daylight
-                actualEnergy: undefined // amount of energy actually generated (defined later based on sunlight)
+                // actualEnergy: amount of energy actually generated, set below based on sunlight
             }
 
             applyAllEffects(state, variables, structure);
@@ -527,7 +518,7 @@ export function droidPerformanceBoost(state: RootState) {
     }
 
     const improvedMaintenance = getUpgrade(state.upgrades, 'droidFactory_improvedMaintenance');
-    if (isResearched(improvedMaintenance)) {
+    if (improvedMaintenance && isResearched(improvedMaintenance) && improvedMaintenance.effect) {
         applySingleEffect(improvedMaintenance.effect, variables);
     }
 
@@ -547,7 +538,7 @@ export function energyBayBoost(state: RootState) {
     // TODO This relies on updating this constant...
     ['energyBay_production1', 'energyBay_production2', 'energyBay_production3', 'energyBay_production4'].forEach(upgradeId => {
         const upgrade = getUpgrade(state.upgrades, upgradeId);
-        if (isResearched(upgrade)) {
+        if (upgrade && isResearched(upgrade) && upgrade.effect) {
             applySingleEffect(upgrade.effect, variables);
         }
     })
@@ -589,7 +580,7 @@ function applyAllEffects(state: RootState, variables: Variables, structure: Stru
     if (upgradeIds) {
         upgradeIds.forEach(upgradeId => {
             const upgrade = getUpgrade(state.upgrades, upgradeId);
-            if (isResearched(upgrade) && upgrade.effect) {
+            if (upgrade && isResearched(upgrade) && upgrade.effect) {
                 mergeEffectIntoOperations(upgrade.effect, operations);
             }
         })

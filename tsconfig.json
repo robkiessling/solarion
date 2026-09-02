@@ -7,15 +7,14 @@
     "jsx": "react",
     "types": ["vite/client"],
 
-    // Type-check the existing JavaScript in place (no renames). Files opt in with a `// @ts-check` line;
-    // files without it still contribute their JSDoc-declared types to importers but are not checked themselves.
+    // The React components are still JavaScript (.jsx); allowJs lets them import the typed modules without being
+    // checked themselves. A .js/.jsx file can opt into checking with a `// @ts-check` line. Everything else is .ts
+    // and checked under strict.
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
 
-    // Deliberately loose to start: untyped parameters are `any`, null/undefined are not tracked.
-    // Tighten (strictNullChecks, noImplicitAny) once the record types have settled.
-    "strict": false,
+    "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

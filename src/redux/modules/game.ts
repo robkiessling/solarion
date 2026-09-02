@@ -65,11 +65,11 @@ export default function reducer(state: GameState = initialState, action: GameAct
     }
 }
 
-export function updateSetting(key, value) {
+export function updateSetting(key: keyof GameState, value: any) {
     return { type: UPDATE_SETTING, payload: { key, value } }
 }
 
-export function addNavTab(tab) {
+export function addNavTab(tab: string) {
     return { type: ADD_NAV_TAB, payload: { tab } }
 }
 

@@ -14,7 +14,7 @@ import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
  * truthful source hint (the "shell"). Authorized rows collapse to one line with their
  * authorization number; a fork's declined variant stays greyed beneath with a RETOOL button.
  * Rows flagged postIndex render below "END OF INDEX", unnumbered (the AI's own late designs).
- * Content lives in database/chassis.js; state in redux/modules/panels.js.
+ * Content lives in database/chassis.ts; state in redux/modules/panels.ts.
  */
 
 // One "hull +3" / "attack +50%" line per operation in an option's effect. Improvements read

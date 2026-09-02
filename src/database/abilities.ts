@@ -4,18 +4,12 @@ import {numStandardDroids} from "../redux/reducer";
 import * as fromAbilities from "../redux/modules/abilities";
 import * as fromPlanet from "../redux/modules/planet";
 import {upgradesAffectingAbility, upgradesAffectingStructure} from "./upgrades";
-import {applyOperationsToVariables, EFFECT_TARGETS, initOperations, mergeEffectIntoOperations} from "../lib/effect";
+import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {STANDARD_COST_EXP} from "./structures";
 import {countAllStructuresBuilt} from "../redux/modules/structures";
 
 const DEBUG_FF = false;
-
-export const STATES: { [K in AbilityState]: K } = {
-    ready: 'ready',
-    casting: 'casting',
-    cooldown: 'cooldown'
-}
 
 const base: AbilityRecord = {
     name: 'Unknown',
@@ -23,10 +17,10 @@ const base: AbilityRecord = {
     cost: {},
     produces: {},
     castTime: 5,
-    state: STATES.ready,
+    state: 'ready',
     effect: undefined, // Any effects will be applied for the duration of the CAST
     affects: {
-        type: EFFECT_TARGETS.structure
+        type: 'structure'
         // No default id necessary; if blank it is assumed to be the ability's structure
     },
     hidden: '', // if true, will not show an ability button even after the ability is learned
@@ -63,7 +57,7 @@ const database: Record<string, AbilityRecord> = {
     } satisfies DeepPartial<AbilityRecord>),
 
     // Squad equipment is NOT crafted here: each piece is a one-time droid-factory upgrade
-    // (database/equipment.js); charges reload on the powered grid.
+    // (database/equipment.ts); charges reload on the powered grid.
 
     replicate: _.merge({}, base, {
         name: 'Replicate',
@@ -142,7 +136,7 @@ export const calculators: Record<string, CalculatorSet<Ability>> = {
         }),
         displayInfo: (state, ability) => {
             const total = numStandardDroids(state);
-            const remaining = getResource(state.resources, 'standardDroids').amount;
+            const remaining = getQuantity(getResource(state.resources, 'standardDroids'));
 
             if (total === 0) {
                 return `0 droid(s)`;
@@ -198,7 +192,7 @@ export const callbacks: Record<string, { onStart?: (dispatch: Dispatch, getState
     },
     replicate: {
         onStart: (dispatch, getState, ability) => {
-            fromPlanet.startDevelopment(dispatch, getState, ability.produces.developedLand)
+            fromPlanet.startDevelopment(dispatch, getState, ability.produces.developedLand ?? 0)
         },
         onFinish: (dispatch, getState) => {
             fromPlanet.finishDevelopment(dispatch, getState);
@@ -213,15 +207,16 @@ export const abilitiesAffectingStructure: Record<string, string[]> = {}
 
 for (const [abilityId, abilityDbRecord] of Object.entries(database)) {
     switch(abilityDbRecord.affects.type) {
-        case EFFECT_TARGETS.structure:
+        case 'structure':
             // If `affects` obj has no id we default to affecting the ability's structure
             const structureId = abilityDbRecord.affects.id || abilityDbRecord.structure;
+            if (!structureId) break; // standalone abilities (e.g. replicate) belong to no structure, so there is nothing to affect
             if (abilitiesAffectingStructure[structureId] === undefined) {
                 abilitiesAffectingStructure[structureId] = []
             }
             abilitiesAffectingStructure[structureId].push(abilityId);
             break;
-        case EFFECT_TARGETS.ability:
+        case 'ability':
             console.warn("It is not currently possible for an ability to affect another ability")
             break;
     }
@@ -238,7 +233,7 @@ function applyAllEffects(state: RootState, variables: Variables, ability: Abilit
     if (upgradeIds) {
         upgradeIds.forEach(upgradeId => {
             const upgrade = getUpgrade(state.upgrades, upgradeId);
-            if (isResearched(upgrade) && upgrade.effect) {
+            if (upgrade && isResearched(upgrade) && upgrade.effect) {
                 mergeEffectIntoOperations(upgrade.effect, operations);
             }
         })

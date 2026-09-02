@@ -1,5 +1,5 @@
 import React from 'react';
-import {ARENA_H, ARENA_W, BATTLE_PHASES, BUG_TYPES, FX_TTL_MS, TERRAIN_CELL_H, TERRAIN_CELL_W} from "../lib/battle";
+import {ARENA_H, ARENA_W, BUG_TYPES, FX_TTL_MS, TERRAIN_CELL_H, TERRAIN_CELL_W} from "../lib/battle";
 import {TERRAIN_PIECES} from "../database/battle_terrain";
 import {PLANET_COLORS} from "../lib/planet_render";
 
@@ -53,7 +53,7 @@ export default class BattleCanvas extends React.Component {
 
     // Terrain never moves, so its ASCII pieces rasterize once to an offscreen canvas and get stamped
     // each frame; the cache invalidates on popup resize or when a different battle's terrain arrives.
-    // Chars draw at the terrain cell metrics (TERRAIN_CELL_W/H in lib/battle.js), so the art sits
+    // Chars draw at the terrain cell metrics (TERRAIN_CELL_W/H in lib/battle.ts), so the art sits
     // exactly on the cells the sim blocks.
     terrainSprite(terrain, width, height, scaleX, scaleY) {
         if (!terrain || !terrain.pieces || terrain.pieces.length === 0) return null;
@@ -275,7 +275,7 @@ export default class BattleCanvas extends React.Component {
         });
 
         // Withdrawal banner: the field edge the droids are running for glows as the way out
-        if (battle.phase === BATTLE_PHASES.withdrawing) {
+        if (battle.phase === 'withdrawing') {
             const gradient = ctx.createLinearGradient(0, 0, px(12), 0);
             gradient.addColorStop(0, 'rgba(32, 217, 255, 0.25)');
             gradient.addColorStop(1, 'rgba(32, 217, 255, 0)');

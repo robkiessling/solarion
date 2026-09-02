@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import update from 'immutability-helper';
-import database, {STATES, callbacks} from '../../database/upgrades'
+import database, {callbacks} from '../../database/upgrades';
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {LEARN} from "./abilities";
@@ -28,25 +28,25 @@ export default function reducer(state: UpgradesState = initialState, action: Gam
 
     switch (action.type) {
         case DISCOVER:
-            return setUpgradeState(state, payload.id, STATES.discovered)
+            return setUpgradeState(state, payload.id, 'discovered')
         case RESEARCH:
             return update(state, {
                 byId: {
                     [payload.upgrade.id]: {
-                        state: { $set: STATES.researching },
+                        state: { $set: 'researching' },
                         researchProgress: { $set: 0 }
                     }
                 }
             });
         case PROGRESS:
             // If none are researching, short circuit
-            if (!Object.values(state.byId).some(upgrade => upgrade.state === STATES.researching)) {
+            if (!Object.values(state.byId).some(upgrade => upgrade.state === 'researching')) {
                 return state;
             }
 
-            let newState = {};
+            const newState: Record<string, Upgrade> = {};
             for (const [key, value] of Object.entries(state.byId)) {
-                if (value.state === STATES.researching) {
+                if (value.state === 'researching') {
                     newState[key] = Object.assign({}, value, {
                         researchProgress: value.researchProgress + payload.timeDelta
                     });
@@ -57,19 +57,19 @@ export default function reducer(state: UpgradesState = initialState, action: Gam
             }
             return Object.assign({}, state, { byId: newState });
         case PAUSE:
-            return setUpgradeState(state, payload.id, STATES.paused);
+            return setUpgradeState(state, payload.id, 'paused');
         case RESUME:
-            return setUpgradeState(state, payload.id, STATES.researching);
+            return setUpgradeState(state, payload.id, 'researching');
         case FINISH:
-            return setUpgradeState(state, payload.id, STATES.researched);
+            return setUpgradeState(state, payload.id, 'researched');
         case SKIP:
-            return setUpgradeState(state, payload.id, STATES.researched);
+            return setUpgradeState(state, payload.id, 'researched');
         default:
             return state;
     }
 }
 
-function setUpgradeState(state, upgradeId, upgradeState) {
+function setUpgradeState(state: UpgradesState, upgradeId: string, upgradeState: UpgradeState): UpgradesState {
     if (state.byId[upgradeId]) {
         return update(state, {
             byId: {
@@ -96,11 +96,11 @@ function setUpgradeState(state, upgradeId, upgradeState) {
 // export function silhouette(id) {
 //     return { type: SILHOUETTE, payload: { id } };
 // }
-export function discover(id) {
+export function discover(id: string) {
     return withRecalculation({ type: DISCOVER, payload: { id } }); // recalculate so we immediately calculate costs
 }
 
-export function researchUnsafe(upgrade) {
+export function researchUnsafe(upgrade: Upgrade) {
     if (upgrade.researchTime) {
         return { type: RESEARCH, payload: { upgrade } };
     }
@@ -113,7 +113,7 @@ export function researchUnsafe(upgrade) {
         }
     }
 }
-export function researchForFree(upgradeId) {
+export function researchForFree(upgradeId: string) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             finishResearch(dispatch, getState, upgradeId)
@@ -121,7 +121,7 @@ export function researchForFree(upgradeId) {
     }
 }
 
-export function skipResearch(upgradeId) {
+export function skipResearch(upgradeId: string) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             dispatch({ type: SKIP, payload: { id: upgradeId } });
@@ -130,20 +130,20 @@ export function skipResearch(upgradeId) {
     }
 }
 
-export function pause(id) {
+export function pause(id: string) {
     return { type: PAUSE, payload: { id } };
 }
-export function resume(id) {
+export function resume(id: string) {
     return { type: RESUME, payload: { id } };
 }
 
-export function upgradesTick(timeDelta) {
+export function upgradesTick(timeDelta: number) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             dispatch({ type: PROGRESS, payload: { timeDelta } });
 
             for (const [key, value] of Object.entries(getState().upgrades.byId)) {
-                if (value.state === STATES.researching && value.researchProgress >= value.researchTime * 1000) {
+                if (value.state === 'researching' && (value.researchProgress ?? 0) >= value.researchTime * 1000) {
                     finishResearch(dispatch, getState, key);
                 }
             }
@@ -151,12 +151,12 @@ export function upgradesTick(timeDelta) {
     }
 }
 
-function checkForUpgradeDiscoveries(state, dispatch) {
+function checkForUpgradeDiscoveries(state: RootState, dispatch: Dispatch) {
     let hasDiscovery = false;
 
     for (const [upgradeId, upgradeDbRecord] of Object.entries(database)) {
         const upgrade = getUpgrade(state.upgrades, upgradeId);
-        if ((!upgrade || upgrade.state === STATES.hidden)) {
+        if ((!upgrade || upgrade.state === 'hidden')) {
             if (shouldDiscover(upgradeDbRecord.discoverWhen, state)) {
                 dispatch({ type: DISCOVER, payload: { id: upgradeId } })
                 hasDiscovery = true;
@@ -192,7 +192,7 @@ function shouldDiscover(discoverWhen: DiscoverWhen | undefined, state: RootState
 }
 
 // This runs at a slower rate to save processing power (it is not important that it updates immediately)
-export function upgradesTickSlow(timeDelta) {
+export function upgradesTickSlow(timeDelta: number) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             if (checkForUpgradeDiscoveries(getState(), dispatch)) {
@@ -202,7 +202,7 @@ export function upgradesTickSlow(timeDelta) {
     }
 }
 
-function finishResearch(dispatch, getState, upgradeId) {
+function finishResearch(dispatch: Dispatch, getState: GetState, upgradeId: string) {
     dispatch({ type: FINISH, payload: { id: upgradeId } });
 
     if (callbacks[upgradeId] && callbacks[upgradeId].onFinish) {
@@ -217,17 +217,17 @@ function finishResearch(dispatch, getState, upgradeId) {
 
 
 // Standard Functions
-export function getUpgrade(state: UpgradesState, id: string): Upgrade {
+export function getUpgrade(state: UpgradesState, id: string): Upgrade | undefined {
     return state.byId[id];
 }
 export function getResearchCost(upgrade: Upgrade): ResourceAmounts {
     return upgrade.cost;
 }
-export function isResearchable(upgrade: Upgrade): boolean {
-    return upgrade && upgrade.state === STATES.discovered;
+export function isResearchable(upgrade: Upgrade | undefined): boolean {
+    return !!upgrade && upgrade.state === 'discovered';
 }
-export function isResearched(upgrade: Upgrade): boolean {
-    return upgrade && upgrade.state === STATES.researched;
+export function isResearched(upgrade: Upgrade | undefined): boolean {
+    return !!upgrade && upgrade.state === 'researched';
 }
 
 export function visibleIds(state: UpgradesState): string[] {
@@ -239,15 +239,15 @@ export function visibleIds(state: UpgradesState): string[] {
 
 export function getStandaloneIds(state: UpgradesState) {
     return Object.keys(state.byId).filter(id => {
-        const upgrade = getUpgrade(state, id);
-        return upgrade.standalone && upgrade.state !== STATES.researched;
+        const upgrade = state.byId[id];
+        return upgrade.standalone && upgrade.state !== 'researched';
     });
 }
 
 const ANIMATION_SPEED = 100; // should match transition-duration in ui.scss -> .progress-bar
 
 // Returns an integer between 0 and 100 to represent % progress
-export function getProgress(upgrade, forAnimation) {
+export function getProgress(upgrade: Upgrade, forAnimation?: boolean) {
     if (upgrade.researchProgress) {
         let progressDecimal = upgrade.researchProgress / (upgrade.researchTime * 1000);
 

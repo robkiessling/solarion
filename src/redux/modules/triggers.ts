@@ -40,7 +40,7 @@ export default function reducer(state: TriggersState = initialState, action: Gam
     }
 }
 
-export function addTrigger(id) {
+export function addTrigger(id: string) {
     return (dispatch: Dispatch, getState: GetState) => {
         if (!isTriggered(getState().triggers, id)) {
             dispatch({ type: ADD_TRIGGER, payload: { id } })
@@ -49,10 +49,10 @@ export function addTrigger(id) {
     }
 }
 
-function isPending(state, id) {
+function isPending(state: TriggersState, id: string) {
     return state.byId[id] && !state.byId[id].triggered;
 }
-function isTriggered(state, id) {
+function isTriggered(state: TriggersState, id: string) {
     return state.byId[id] && state.byId[id].triggered;
 }
 
@@ -78,13 +78,13 @@ export function syncTriggers(state: TriggersState) {
 // Keeps track of subscriptions that are actually loaded
 // This variable will not persist through localStorage save state; after loading a saved state you need to call
 // syncTriggers to populate this variable.
-const activeTriggers = {};
+const activeTriggers: Record<string, () => void> = {};
 
 
 // Subscribes to changes to a specific part of the store (specified by the `selector` parameter function).
 // Taken from: https://github.com/reduxjs/redux/issues/303#issuecomment-125184409
-function observeStore(store, selector, onChange) {
-    let currentState;
+function observeStore(store: { getState: () => RootState, subscribe: (listener: () => void) => () => void }, selector: (state: RootState) => any, onChange: (slice: any, unsubscribe: () => void) => void) {
+    let currentState: any;
 
     function handleChange() {
         let nextState = selector(store.getState());

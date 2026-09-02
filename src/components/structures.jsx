@@ -5,7 +5,7 @@ import ProbeFactory from "./structures/probe_factory";
 import EnergyBay from "./structures/energy_bay";
 import DroidFactory from "./structures/droid_factory";
 import {getStructure, getVisibleIds} from "../redux/modules/structures";
-import {TYPES} from "../database/structures";
+
 import Tabs from "./ui/tabs";
 import {updateSetting} from "../redux/modules/game";
 
@@ -76,10 +76,10 @@ const mapStateToProps = (state, ownProps) => {
                     structureIds = getVisibleIds(state.structures)
                     break;
                 case 'consumers':
-                    structureIds = getVisibleIds(state.structures, TYPES.consumer)
+                    structureIds = getVisibleIds(state.structures, 'consumer')
                     break;
                 case 'generators':
-                    structureIds = getVisibleIds(state.structures, TYPES.generator)
+                    structureIds = getVisibleIds(state.structures, 'generator')
                     break;
                 default:
                     console.warn(`Unhandled tab: ${state.game.currentStructureTab}`)

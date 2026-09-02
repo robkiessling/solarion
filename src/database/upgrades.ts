@@ -5,25 +5,17 @@ import * as fromStructures from "../redux/modules/structures";
 import * as fromLog from "../redux/modules/log"
 import * as fromUpgrades from "../redux/modules/upgrades";
 import * as fromAbilities from "../redux/modules/abilities";
-import {EFFECT_TARGETS} from "../lib/effect";
+
 import * as fromGame from "../redux/modules/game";
 import * as fromPlanet from "../redux/modules/planet";
 import {generateMap} from "../redux/modules/planet";
 import * as fromStar from "../redux/modules/star";
 
-export const STATES: { [K in UpgradeState]: K } = {
-    hidden: 'hidden',
-    discovered: 'discovered',
-    researching: 'researching',
-    paused: 'paused',
-    researched: 'researched'
-}
-
 const base: UpgradeRecord = {
     name: 'Unknown',
     description: "",
     researchTime: 0, // if 0, research will occur instantly
-    state: STATES.hidden,
+    state: 'hidden',
     cost: {},
 
     // Possible options -- discoverWhen: { resources: { x/y/z }, upgrades: [], structures: { x/y/z} }
@@ -34,7 +26,7 @@ const base: UpgradeRecord = {
     
     effect: undefined,
     affects: {
-        type: EFFECT_TARGETS.structure
+        type: 'structure'
         // No default id necessary; if blank it is assumed to be the upgrade's structure
     }
 }
@@ -125,7 +117,7 @@ const database: Record<string, UpgradeRecord> = {
             ore: 75
         },
         affects: {
-            type: EFFECT_TARGETS.ability,
+            type: 'ability',
             id: 'commandCenter_charge'
         },
         effect: {
@@ -147,7 +139,7 @@ const database: Record<string, UpgradeRecord> = {
             energy: 100
         },
         affects: {
-            type: EFFECT_TARGETS.ability,
+            type: 'ability',
             id: 'commandCenter_charge'
         },
         effect: {
@@ -169,7 +161,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 25
         },
         affects: {
-            type: EFFECT_TARGETS.ability,
+            type: 'ability',
             id: 'commandCenter_charge'
         },
         effect: {
@@ -191,7 +183,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 125
         },
         affects: {
-            type: EFFECT_TARGETS.ability,
+            type: 'ability',
             id: 'commandCenter_charge'
         },
         effect: {
@@ -212,7 +204,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 35000
         },
         affects: {
-            type: EFFECT_TARGETS.ability,
+            type: 'ability',
             id: 'commandCenter_charge'
         },
         effect: {
@@ -237,7 +229,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 20
         },
         affects: {
-            type: EFFECT_TARGETS.ability,
+            type: 'ability',
             id: 'commandCenter_charge'
         },
         effect: {
@@ -479,7 +471,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 5000
         },
         affects: {
-            type: EFFECT_TARGETS.ability,
+            type: 'ability',
             id: 'harvester_overclock'
         },
         effect: {
@@ -500,7 +492,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 50000
         },
         affects: {
-            type: EFFECT_TARGETS.ability,
+            type: 'ability',
             id: 'harvester_overclock'
         },
         effect: {
@@ -954,7 +946,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 950,
         },
         affects: {
-            type: EFFECT_TARGETS.misc
+            type: 'misc'
         },
         effect: {
             boost: { multiply: 1.5 }
@@ -974,7 +966,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 500,
         },
         affects: {
-            type: EFFECT_TARGETS.misc
+            type: 'misc'
         },
     } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_drill: _.merge({}, base, {
@@ -992,7 +984,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 800,
         },
         affects: {
-            type: EFFECT_TARGETS.misc
+            type: 'misc'
         },
     } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_surveyAutomation: _.merge({}, base, {
@@ -1010,7 +1002,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 1,
         },
         affects: {
-            type: EFFECT_TARGETS.misc
+            type: 'misc'
         },
     } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_fasterBuild: _.merge({}, base, {
@@ -1027,19 +1019,19 @@ const database: Record<string, UpgradeRecord> = {
             energy: 500
         },
         affects: {
-            type: EFFECT_TARGETS.ability,
+            type: 'ability',
             id: 'droidFactory_buildStandardDroid'
         },
         effect: {
             castTime: { add: -15 }
         }
     } satisfies DeepPartial<UpgradeRecord>),
-    // Squad equipment: one-time acquisitions (see database/equipment.js). Researching one permanently
+    // Squad equipment: one-time acquisitions (see database/equipment.ts). Researching one permanently
     // outfits every future squad with the piece; its charges spend in battle and reload on the grid.
     // Story salvage can grant these later by researchForFree-ing the same ids.
     // `squad: true` (here and on the combat/battery upgrades below) instead of a `structure`: these only
     // affect expeditions, so they're offered in the Expedition panel's Outfitting section, not on any
-    // structure's card. (Ids keep the droidFactory_ prefix; saves and equipment.js reference them.)
+    // structure's card. (Ids keep the droidFactory_ prefix; saves and equipment.ts reference them.)
     droidFactory_demoLauncher: _.merge({}, base, {
         squad: true,
         name: "Demo Launcher",
@@ -1055,7 +1047,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 800
         },
         affects: {
-            type: EFFECT_TARGETS.misc
+            type: 'misc'
         },
     } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_repairRig: _.merge({}, base, {
@@ -1073,7 +1065,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 500
         },
         affects: {
-            type: EFFECT_TARGETS.misc
+            type: 'misc'
         },
     } satisfies DeepPartial<UpgradeRecord>),
     droidFactory_overchargeCell: _.merge({}, base, {
@@ -1091,12 +1083,12 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 600
         },
         affects: {
-            type: EFFECT_TARGETS.misc
+            type: 'misc'
         },
     } satisfies DeepPartial<UpgradeRecord>),
 
-    // Droid combat upgrades: EFFECT_TARGETS.misc effects on the expedition droids' unit stats
-    // (hp/damage/attackMs/speed), applied by getDroidStats in redux/reducer.js and snapshotted onto the
+    // Droid combat upgrades: 'misc' effects on the expedition droids' unit stats
+    // (hp/damage/attackMs/speed), applied by getDroidStats in redux/reducer.ts and snapshotted onto the
     // squad at deploy. Refits apply to the next deployment, not squads already in the field.
     droidFactory_reinforcedPlating: _.merge({}, base, {
         squad: true,
@@ -1112,7 +1104,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 600
         },
         affects: {
-            type: EFFECT_TARGETS.misc
+            type: 'misc'
         },
         effect: {
             hp: { add: 3 }
@@ -1133,13 +1125,13 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 1500
         },
         affects: {
-            type: EFFECT_TARGETS.misc
+            type: 'misc'
         },
         effect: {
             damage: { multiply: 1.5 }
         }
     } satisfies DeepPartial<UpgradeRecord>),
-    // Squad battery upgrade: applied by getBatteryCapacity in redux/reducer.js (squad-level, not per-droid)
+    // Squad battery upgrade: applied by getBatteryCapacity in redux/reducer.ts (squad-level, not per-droid)
     // and snapshotted at deploy like the combat stats above.
     droidFactory_extendedCells: _.merge({}, base, {
         squad: true,
@@ -1156,7 +1148,7 @@ const database: Record<string, UpgradeRecord> = {
             refinedMinerals: 1000
         },
         affects: {
-            type: EFFECT_TARGETS.misc
+            type: 'misc'
         },
         effect: {
             batteryCapacity: { add: 50 }
@@ -1335,16 +1327,18 @@ export const upgradesAffectingAbility: Record<string, string[]> = {}
 
 for (const [upgradeId, upgradeDbRecord] of Object.entries(database)) {
     switch(upgradeDbRecord.affects.type) {
-        case EFFECT_TARGETS.structure:
+        case 'structure':
             // If `affects` obj has no id we default to affecting the upgrade's structure
             const structureId = upgradeDbRecord.affects.id || upgradeDbRecord.structure;
+            if (!structureId) break; // standalone upgrades belong to no structure, so there is nothing to affect
             if (upgradesAffectingStructure[structureId] === undefined) {
                 upgradesAffectingStructure[structureId] = []
             }
             upgradesAffectingStructure[structureId].push(upgradeId);
             break;
-        case EFFECT_TARGETS.ability:
+        case 'ability':
             const abilityId = upgradeDbRecord.affects.id;
+            if (!abilityId) break; // an ability-targeted upgrade must name the ability; without one there is nothing to affect
             if (upgradesAffectingAbility[abilityId] === undefined) {
                 upgradesAffectingAbility[abilityId] = []
             }

@@ -1,4 +1,3 @@
-// @ts-check
 /**
  * Canvas renderer for the planet view. Takes the cell grid produced by planet_map's generateImage and draws it
  * onto an AsciiCanvas. Colors used to live in outside.scss as tile classNames; the canvas needs them in JS, so
@@ -7,8 +6,9 @@
 
 import {PLANET_COLS} from "./planet_geometry";
 import {drawStarField} from "./star_field";
+import type AsciiCanvas from "./ascii_canvas";
 
-export const PLANET_COLORS = {
+export const PLANET_COLORS: Record<string, string> = {
     unknown: '#3f4652',   // fog: dim and cool (blue-grey), so warm flatland reads as new ground next to it
     home: '#20d9ff',
     flatland: '#7f5d47',  // dusty clay: warm like the mountains but desaturated, so ground recedes yet never matches the cool fog
@@ -36,22 +36,22 @@ export const PLANET_COLORS = {
     beacon: '#6fd3b0'    // growth beacon; matches developed land, which grows toward it
 };
 
-// The map colour of a squad zone (lib/squad.js squadZone: a terrain key, 'infested', or 'grid' for powered
+// The map colour of a squad zone (lib/squad.ts squadZone: a terrain key, 'infested', or 'grid' for powered
 // ground). DOM chrome that echoes the ground the squad is on (terminal terrain notes, the HUD, the frame rim)
 // reads this instead of restating the hex in scss, so the palette has one home.
-export function zoneColor(zone) {
+export function zoneColor(zone: SquadZone) {
     return PLANET_COLORS[zone === 'grid' ? 'home' : zone];
 }
 
 const HALO_EDGE_ALPHA = 0.45; // how faint the survey-range boundary line is
 
 // Linear blend of two '#rrggbb' colours, t = 0 -> a, 1 -> b (cached per pair at 1% steps: this runs per cell)
-const mixCache = new Map();
-function mixHex(a, b, t) {
+const mixCache = new Map<string, string>();
+function mixHex(a: string, b: string, t: number): string {
     const key = `${a}|${b}|${Math.round(t * 100)}`;
     let mixed = mixCache.get(key);
     if (mixed) return mixed;
-    const ch = (hex, i) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+    const ch = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
     const q = Math.round(t * 100) / 100;
     mixed = `rgb(${Math.round(ch(a, 0) + (ch(b, 0) - ch(a, 0)) * q)},${Math.round(ch(a, 1) + (ch(b, 1) - ch(a, 1)) * q)},${Math.round(ch(a, 2) + (ch(b, 2) - ch(a, 2)) * q)})`;
     mixCache.set(key, mixed);
@@ -59,7 +59,7 @@ function mixHex(a, b, t) {
 }
 
 /**
- * The sky behind the planet: the shared star field (lib/star_field.js), then the disc's occluding fill.
+ * The sky behind the planet: the shared star field (lib/star_field.ts), then the disc's occluding fill.
  *
  * The star field is the depth cue that makes the disc read as a ball being orbited rather than a flat map
  * under a spotlight: the camera pivots about the planet's centre, so the near-side ground slides one way on
@@ -84,7 +84,7 @@ function mixHex(a, b, t) {
 const STAR_PARALLAX = 1.5;   // sky columns per planet column: how much faster the sky pans than the near-side ground
 const SKY_COLS = Math.round(PLANET_COLS * STAR_PARALLAX);
 
-export function drawSky(canvasManager, phase, timeMs) {
+export function drawSky(canvasManager: AsciiCanvas, phase: number, timeMs: number) {
     const context = canvasManager.context;
     const fontWidth = canvasManager.fontWidth;
     const fontHeight = canvasManager.fontHeight;
@@ -116,10 +116,11 @@ const FLOAT_MASK_PADDING = 1;
 // Ink box of a glyph: the tight rectangle its strokes actually paint, as offsets from the (x, baseline)
 // anchor fillText draws at. Measured rather than assumed, so a marker's footprint hugs the character
 // instead of blanking its whole cell. Cached per font+char; the font only changes on resize.
-const inkBoxCache = new Map();
-function glyphInkBox(context, char) {
+type InkBox = { dx: number, dy: number, width: number, height: number };
+const inkBoxCache = new Map<string, InkBox | null>();
+function glyphInkBox(context: CanvasRenderingContext2D, char: string): InkBox | null {
     const cacheKey = `${context.font}|${char}`;
-    if (inkBoxCache.has(cacheKey)) { return inkBoxCache.get(cacheKey); } // has(), so a null result caches too
+    if (inkBoxCache.has(cacheKey)) { return inkBoxCache.get(cacheKey) ?? null; } // has(), so a null result caches too
 
     const metrics = context.measureText(char);
     // Very old browsers don't report the actual bounding box; fall back to blanking the advance width
@@ -149,7 +150,7 @@ const NIGHT_ALPHA = 0.08;
 const SELF_LIT_ALPHA = 0.8;
 
 // Effective brightness of a cell or float from its daylight, self-lit floor, and lantern lift
-function shadeAlpha(daylight, selfLit, lit) {
+function shadeAlpha(daylight: number | undefined, selfLit: boolean | number | undefined, lit: number | undefined) {
     let alpha = daylight === undefined ? 1 : NIGHT_ALPHA + (1 - NIGHT_ALPHA) * daylight;
     if (selfLit) { alpha = Math.max(alpha, selfLit === true ? SELF_LIT_ALPHA : selfLit); }
     if (lit) { alpha += (1 - alpha) * lit; }
@@ -160,7 +161,9 @@ const SECTOR_DIVIDER_COLOR = 'rgba(62,192,218,0.5)';
 
 // Radar pings: expanding, fading rings around a cell. 'hover' is the loud attention ping on a hovered POI
 // marker; 'squad' is the quiet always-on locator pulse that lets you follow a deployed expedition team.
-const PING_VARIANTS = {
+type PingVariant = { color: string, maxRadiusCells: number, lineWidth: number, rings: number, maxAlpha: number };
+type PingVariantId = 'hover' | 'squad' | 'beacon';
+const PING_VARIANTS: Record<PingVariantId, PingVariant> = {
     hover: { color: '#7fe3f5', maxRadiusCells: 2.2, lineWidth: 1.5, rings: 2, maxAlpha: 1 },
     squad: { color: '#20d9ff', maxRadiusCells: 1.5, lineWidth: 1, rings: 1, maxAlpha: 0.45 },
     beacon: { color: PLANET_COLORS.beacon, maxRadiusCells: 1.8, lineWidth: 1, rings: 1, maxAlpha: 0.5 }
@@ -171,13 +174,13 @@ const PING_VARIANTS = {
  * (the endgame laser-beam overlay is much wider than the planet); extra cells draw into the canvas letterbox
  * area and clip at the canvas edge.
  *
- * @param canvasManager {import('./ascii_canvas').default} must be constructed with the fillContainer option
- * @param image {Array} 2d array of cells from generateImage: { char, colorKey, color, daylight, dividers }
- * @param cameraShift {number} sub-column camera offset in cell units (the follow-cam mid-slide); shifts the
+ * @param canvasManager must be constructed with the fillContainer option
+ * @param image 2d array of cells from generateImage: { char, colorKey, color, daylight, dividers }
+ * @param cameraShift sub-column camera offset in cell units (the follow-cam mid-slide); shifts the
  *        whole scene -- chars, halo segments, pings -- while the canvas/silhouette stays put. generateImage
  *        must have been called with the same value (it widens the window and masks by screen position).
  */
-export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
+export function drawPlanetImage(canvasManager: AsciiCanvas, image: DisplayCell[][], cameraShift = 0) {
     if (image.length === 0) { return; }
 
     const context = canvasManager.context;
@@ -192,12 +195,13 @@ export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
     const originY = gridY - ((image.length - canvasManager.numRows) / 2) * fontHeight;
 
     // fillStyle/globalAlpha changes are canvas state churn; neighboring cells usually share them, so only set on change
-    let currentColor = null;
-    let currentAlpha = null;
+    let currentColor: string | null = null;
+    let currentAlpha: number | null = null;
 
-    const pings = []; // collected during the cell pass, drawn last so rings sit on top of everything
-    const haloEdges = []; // survey-boundary segments, batched into one stroke after the cell pass
-    const floats = []; // sliding markers (the squad), drawn after the cell pass so they clear their neighbors
+    const pings: { x: number, y: number, ping: { variant?: PingVariantId, fraction: number } }[] = []; // collected during the cell pass, drawn last so rings sit on top of everything
+    const haloEdges: { x: number, y: number, edges: any }[] = []; // survey-boundary segments, batched into one stroke after the cell pass
+    // sliding markers (the squad), drawn after the cell pass so they clear their neighbors
+    const floats: { x: number, top: number, char: string, color: string, alpha: number, maskAlpha: number, scale: number }[] = [];
 
     // Baseline sits at the cell bottom (same offset AsciiCanvas.drawImage uses), shifted up by half of any leading
     // (fontHeight minus fontSize) so glyphs are vertically centered when rows have extra spacing
@@ -361,7 +365,7 @@ export function drawPlanetImage(canvasManager, image, cameraShift = 0) {
     // Radar pings: rings expand from the cell center and fade as they grow; multiple rings stagger evenly
     if (pings.length > 0) {
         pings.forEach(({ x, y, ping }) => {
-            const variant = PING_VARIANTS[ping.variant] || PING_VARIANTS.hover;
+            const variant = (ping.variant && PING_VARIANTS[ping.variant]) || PING_VARIANTS.hover;
             const maxRadius = variant.maxRadiusCells * fontHeight;
             context.strokeStyle = variant.color;
             context.lineWidth = variant.lineWidth;

@@ -4,7 +4,7 @@
  * later), never a recurring purchase -- one-time costs coexist with the exponential economy the way
  * structures and upgrades already do. In the field each piece holds `charges` uses; charges spend in
  * battle and reload when the squad touches the powered grid (everyone heals at home, gear reloads at
- * home). WHAT each piece does mechanically lives in the `effect` block (interpreted by lib/battle.js).
+ * home). WHAT each piece does mechanically lives in the `effect` block (interpreted by lib/battle.ts).
  */
 
 export const EQUIPMENT_DEFS = {

@@ -1,5 +1,5 @@
 /**
- * Battle-arena obstacle art: multi-line ASCII pieces stamped onto the arena's terrain grid (lib/battle.js).
+ * Battle-arena obstacle art: multi-line ASCII pieces stamped onto the arena's terrain grid (lib/battle.ts).
  * The drawing IS the collision map: every non-space character blocks one terrain cell (about one body
  * wide), spaces are passable. So a gap drawn into a wall plays as a doorway, and editing a piece here is
  * a gameplay change, not just a visual one.
@@ -10,7 +10,7 @@
  * - Never draw a fully enclosed hollow. A sealed interior is unreachable; anything that spawns inside
  *   (or gets relocated there) could make a battle unwinnable. The spawn fixup guards against this, but
  *   the art should not rely on it.
- * - Pieces are placed by the TERRAIN_LAYOUTS generators (lib/battle.js); add a new piece here, then
+ * - Pieces are placed by the TERRAIN_LAYOUTS generators (lib/battle.ts); add a new piece here, then
  *   reference its key from a layout.
  */
 export const TERRAIN_PIECES = {
@@ -62,4 +62,4 @@ export const TERRAIN_PIECES = {
         '##     ##',
         '##     ##'
     ]
-};
+} satisfies Record<string, string[]>;

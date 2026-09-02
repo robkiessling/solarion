@@ -16,13 +16,11 @@ import {
     POI_COLOR_KEYS,
     POI_GLYPHS,
     POI_LABELS,
-    POI_STATUS
 } from "../lib/expeditions";
 import {stepInDirection, squadCrossMs, squadZone, CONTACT_MS, SQUAD_GLYPH} from "../lib/squad";
 import {EQUIPMENT_ORDER} from "../database/equipment";
 import {
     retreatFromFight,
-    ROTATION_MODES,
     setBeaconAt,
     setRotation,
     setRotationMode,
@@ -307,8 +305,8 @@ class Planet extends React.Component {
             this.drag.baseX = event.clientX;
             this.didPan = true;
             this.canvas.current.style.cursor = 'grabbing';
-            if (this.props.rotationMode !== ROTATION_MODES.manual) {
-                this.props.setRotationMode(ROTATION_MODES.manual);
+            if (this.props.rotationMode !== 'manual') {
+                this.props.setRotationMode('manual');
             }
         }
 
@@ -348,7 +346,7 @@ class Planet extends React.Component {
     // never tracks rows) and in the manual/sun camera modes.
     cameraShift() {
         const squad = this.props.squad;
-        if (!squad || this.props.rotationMode !== ROTATION_MODES.squad || squad.path.length === 0) return 0;
+        if (!squad || this.props.rotationMode !== 'squad' || squad.path.length === 0) return 0;
 
         const next = squad.path[0];
         // Wrap-aware step direction: +1 east / -1 west, including across the seam (col 119 -> 0)
@@ -428,7 +426,7 @@ class Planet extends React.Component {
         });
 
         Object.values(this.props.pois || {}).forEach(poi => {
-            if (poi.status !== POI_STATUS.available) return;
+            if (poi.status !== 'available') return;
             const hovered = poi.id === this.props.hoveredPoiId;
             overlays[`${poi.coord[0]},${poi.coord[1]}`] = {
                 char: POI_GLYPHS[poi.type],
@@ -623,7 +621,7 @@ class Planet extends React.Component {
         }
 
         // POI legend entries only appear once relevant (any POI discovered)
-        const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== POI_STATUS.hidden);
+        const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== 'hidden');
         if (anyPoiVisible) {
             ['cache', 'nest', 'storySite', 'gate'].forEach(type => {
                 markerLegend.push({ key: POI_COLOR_KEYS[type], display: POI_GLYPHS[type], label: POI_LABELS[type] });

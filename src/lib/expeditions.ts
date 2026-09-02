@@ -1,24 +1,17 @@
 import {getRandomFromArray} from "./helpers";
-import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, REGIONS, STATUSES, TERRAINS} from "./planet_map";
+import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, STATUSES, TERRAINS} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {BANDS, GATE_DEFS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, POI_TYPES, rollPoiReward} from "../database/pois";
+import {BANDS, GATE_DEFS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward} from "../database/pois";
 
 /**
  * This module owns the point-of-interest (POI) domain logic: POI placement mechanics, encounter resolution
- * math, and report text. WHAT gets placed (counts, rewards, story text) is data in database/pois.js; squad
- * movement/driving lives in squad.js (the squad is player-driven).
+ * math, and report text. WHAT gets placed (counts, rewards, story text) is data in database/pois.ts; squad
+ * movement/driving lives in squad.ts (the squad is player-driven).
  */
 
-// POI content records (types, texts, labels, glyphs) live in database/pois.js; re-exported here so
+// POI content records (types, texts, labels, glyphs) live in database/pois.ts; re-exported here so
 // consumers keep one import site.
-export {CAPABILITY_LABELS, FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, POI_TYPES,
-    STORY_TEXTS} from "../database/pois";
-
-export const POI_STATUS: Record<PoiStatus, PoiStatus> = {
-    hidden: 'hidden',       // tile not yet revealed by scouting
-    available: 'available', // discovered, not yet resolved
-    cleared: 'cleared'
-}
+export {CAPABILITY_LABELS, FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, STORY_TEXTS} from "../database/pois";
 
 /**
  * The region/stamp placement pass: the POI_DEFS content manifest scattered per placement band, gate POIs on
@@ -30,9 +23,9 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     const pois: Record<string, Poi> = {};
     const usedKeys = new Set();
 
-    const bandOf = (sector) => {
-        if (sector.region === REGIONS.bowl) return BANDS.r1;
-        if (sector.region === REGIONS.antipode) return BANDS.r3;
+    const bandOf = (sector: Sector): Band => {
+        if (sector.region === 'bowl') return BANDS.r1;
+        if (sector.region === 'antipode') return BANDS.r3;
         return sector.graphDistanceHome < ACID_BAND_DISTANCES[0] ? BANDS.r2near : BANDS.r2far;
     };
 
@@ -41,7 +34,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     // seed unfinishable; the map-gen corridor carve guarantees each region has reachable ground.
     const reachable = squadReachableSet(map);
 
-    const candidates = [];
+    const candidates: Sector[] = [];
     map.forEach(row => {
         row.forEach(sector => {
             if (sector.terrain === TERRAINS.flatland.key && sector.graphDistanceHome > 2 &&
@@ -51,7 +44,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         });
     });
 
-    const pick = (band) => {
+    const pick = (band: Band): Sector | null => {
         const pool = candidates.filter(sector =>
             bandOf(sector) === band &&
             !sector.infestedBy && // never place on (or roll a nest whose center is inside) existing infestation
@@ -63,7 +56,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         return sector;
     };
 
-    const add = (type, sector, extras = {}) => {
+    const add = (type: PoiType, sector: Sector | null, extras: Partial<Poi> = {}): Poi | null => {
         if (!sector) return null;
         const id = `poi_${sector.coord[0]}_${sector.coord[1]}`;
         pois[id] = {
@@ -73,7 +66,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             name: POI_LABELS[type],
             // Discovery normally happens when scouting reveals the tile; a POI born on already-explored
             // ground (the home ring, or an EXPLORE_EVERYTHING debug map) would otherwise stay hidden forever
-            status: sector.status === STATUSES.explored.key ? POI_STATUS.available : POI_STATUS.hidden,
+            status: sector.status === STATUSES.explored.key ? 'available' : 'hidden',
             distance: sector.graphDistanceHome, // cached for display/sorting (static once the map is generated)
             requires: null,
             difficulty: null,
@@ -86,20 +79,21 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
 
     // A nest additionally stamps its infestation radius (flatland only; mountains/acid are barriers already).
     // Placement requires clean ground out to radius+1, so stamps never overlap (retraction assumes one owner).
-    const addNest = (def) => {
+    const addNest = (def: PoiDef) => {
         for (let attempt = 0; attempt < 20; attempt++) {
             const sector = pick(def.band);
             if (!sector) return;
-            const area = [sector.coord, ...getCoordsWithinHops(sector.coord, def.infestRadius + 1)];
+            const infestRadius = def.infestRadius ?? 0;
+            const area = [sector.coord, ...getCoordsWithinHops(sector.coord, infestRadius + 1)];
             const clean = area.every(([r, c]) => !map[r][c].infestedBy && !map[r][c].gated &&
                 map[r][c].terrain !== TERRAINS.home.key);
             if (!clean) continue; // pick() already marked it used; just try another tile
 
-            const poi = add(POI_TYPES.nest, sector, { difficulty: def.difficulty, infestRadius: def.infestRadius,
+            const poi = add('nest', sector, { difficulty: def.difficulty, infestRadius,
                 formation: def.formation, bugs: def.bugs, terrain: def.terrain, blurb: def.blurb });
-            [sector.coord, ...getCoordsWithinHops(sector.coord, def.infestRadius)].forEach(([r, c]) => {
+            [sector.coord, ...getCoordsWithinHops(sector.coord, infestRadius)].forEach(([r, c]) => {
                 if (map[r][c].terrain === TERRAINS.flatland.key && !map[r][c].gated) {
-                    map[r][c].infestedBy = poi.id;
+                    map[r][c].infestedBy = poi!.id; // add() only returns null for a null sector, checked above
                 }
             });
             return;
@@ -109,15 +103,15 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     // Gate POIs sit on the tiles the stamp pass marked (sector.gated/gateKind)
     map.forEach(row => {
         row.forEach(sector => {
-            if (!sector.gated) return;
+            if (!sector.gated || !sector.gateKind) return;
             usedKeys.add(`${sector.coord[0]},${sector.coord[1]}`);
-            add(POI_TYPES.gate, sector, { ...GATE_DEFS[sector.gateKind] });
+            add('gate', sector, { ...GATE_DEFS[sector.gateKind] });
         });
     });
 
     // The content manifest: each definition placed in its band, rewards rolled from their declared ranges
     POI_DEFS.forEach(def => {
-        if (def.type === POI_TYPES.nest) {
+        if (def.type === 'nest') {
             addNest(def);
             return;
         }
@@ -143,7 +137,7 @@ function squadReachableSet(map: PlanetMap): Set<string> {
     const reachable = new Set([`${home[0]},${home[1]}`]);
     let frontier = [home];
     while (frontier.length > 0) {
-        const next = [];
+        const next: Coord[] = [];
         frontier.forEach(coord => {
             getAdjacentCoords(coord).forEach(([r, c]) => {
                 const key = `${r},${c}`;
@@ -166,7 +160,7 @@ export function formatResourceList(resources: ResourceAmounts): string {
 
 /**
  * Encounter popup content accessors: definition field if present, else the type default (POI_TYPE_DEFAULTS
- * in database/pois.js). Prompt texts are templates; {loot} expands to the POI's rolled reward.
+ * in database/pois.ts). Prompt texts are templates; {loot} expands to the POI's rolled reward.
  */
 
 export function promptTextFor(poi: Poi): string {

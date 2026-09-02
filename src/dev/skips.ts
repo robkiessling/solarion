@@ -21,9 +21,9 @@ const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE = SKIP_TO_GLOBE; /* Controls overall game mode */
+const GAME_MODE: string = SKIP_TO_GLOBE; /* Controls overall game mode */
 
-export function runGameMode(dispatch) {
+export function runGameMode(dispatch: Dispatch) {
     switch (GAME_MODE) {
         case NORMAL_BOOTUP:
             dispatch(fromLog.startLogSequence('normalBootup'));
@@ -41,7 +41,7 @@ export function runGameMode(dispatch) {
     }
 }
 
-function skipStart(dispatch) {
+function skipStart(dispatch: Dispatch) {
     dispatch(fromLog.logInline('Skipping start'));
 
     dispatch(fromResources.learn('energy'));
@@ -56,7 +56,7 @@ function skipStart(dispatch) {
     dispatch(fromUpgrades.researchForFree('commandCenter_openShutters'));
 }
 
-function skipToGlobe(dispatch) {
+function skipToGlobe(dispatch: Dispatch) {
     dispatch(fromLog.logInline('Skipping to globe'));
 
     dispatch(fromGame.updateSetting('shuttersOpen', true));
@@ -141,7 +141,7 @@ function skipToGlobe(dispatch) {
     dispatch(addTrigger('startExploringMap'))
 }
 
-function skipToStar(dispatch) {
+function skipToStar(dispatch: Dispatch) {
     dispatch(fromLog.logInline('Skipping to star'));
 
     dispatch(fromGame.updateSetting('shuttersOpen', true));

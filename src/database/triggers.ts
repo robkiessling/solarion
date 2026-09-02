@@ -3,8 +3,6 @@ import * as fromLog from "../redux/modules/log";
 import * as fromUpgrades from "../redux/modules/upgrades";
 import store from "../redux/store";
 import {probeCapacity} from "../lib/star";
-import {TARGETS} from "../redux/modules/star";
-
 
 /**
  *
@@ -53,7 +51,7 @@ export default {
     },
     solarPanelReceivingProbes: {
         selector: (state) => state.star.mirrorTarget,
-        condition: (slice) => slice === TARGETS.PLANET,
+        condition: (slice) => slice === 'planet',
         action: () => store.dispatch(fromLog.startLogSequence('solarPanelReceivingProbes'))
     },
     swarm50Pct: {
@@ -73,4 +71,4 @@ export default {
     },
 
 
-} satisfies Record<string, TriggerRecord>;
+} as Record<string, TriggerRecord>;

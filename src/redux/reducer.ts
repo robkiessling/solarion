@@ -1,4 +1,4 @@
-import { combineReducers } from 'redux'
+import { combineReducers, Reducer } from 'redux'
 import {batch} from "react-redux";
 import reduceReducers from "reduce-reducers";
 import update from 'immutability-helper';
@@ -15,9 +15,8 @@ import planet, * as fromPlanet from "./modules/planet";
 import star, * as fromStar from "./modules/star";
 import panels, * as fromPanels from "./modules/panels";
 import {mapObject, roundToDecimal} from "../lib/helpers";
-import {STATUSES} from "../database/structures";
 import {getQuantity, getResource} from "./modules/resources";
-import {aimMirrors, isTargetingPlanet, startEnergyBeam, TARGETS} from "./modules/star";
+import {aimMirrors, isTargetingPlanet, startEnergyBeam} from "./modules/star";
 import {HYPER_BEAM_CHARGE_TIME} from "../lib/star";
 import {getStructure} from "./modules/structures";
 import {DROID_BASE_STATS} from "../lib/battle";
@@ -28,9 +27,12 @@ import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations} f
 // Actions
 export const RECALCULATE = 'reducer/RECALCULATE';
 
+/** The per-structure resource tables that scale with the number built */
+type StructureStatistic = 'cost' | 'consumes' | 'produces' | 'capacity' | 'boost';
+
 // Reducers
-export default reduceReducers(
-    combineReducers({
+const rootReducer = reduceReducers<RootState>(
+    combineReducers<RootState>({
         game,
         triggers,
         clock,
@@ -53,7 +55,8 @@ export default reduceReducers(
                 return state;
         }
     }
-);
+) as unknown as Reducer<RootState, GameAction>; // reduce-reducers' own Reducer type doesn't accept the undefined initial state
+export default rootReducer;
 
 
 // Action Creators
@@ -83,7 +86,7 @@ export function withRecalculation(action: GameAction | Thunk) {
  * @param onlyId (optional) If onlyId is specified, ONLY that id (e.g. 'solarPanel') will be recalculated
  * @returns Overrides to update various structure values
  */
-function recalculateReducer(state, onlySlice, onlyId) {
+function recalculateReducer(state: RootState, onlySlice?: string, onlyId?: string): RootState {
     if (onlySlice === undefined || onlySlice === 'structures') {
         state = update(state, {
             structures: {
@@ -119,14 +122,15 @@ function recalculateReducer(state, onlySlice, onlyId) {
  * @param onlyId (optional) If onlyId is specified, ONLY that id will be recalculated
  * @returns Overrides to update various structure values
  */
-function recalculateSlice(state, sliceKey, calculators, onlyId) {
+function recalculateSlice(state: RootState, sliceKey: 'structures' | 'abilities' | 'resources', calculators: Record<string, CalculatorSet<any>>, onlyId?: string): Record<string, any> {
+    const byId = state[sliceKey].byId as Record<string, any>;
     if (onlyId === undefined) {
-        return mapObject(state[sliceKey].byId, (id, record) => {
+        return mapObject(byId, (id, record) => {
             return recalculateRecord(state, calculators, id, record)
         });
     }
     else {
-        const record = state[sliceKey].byId[onlyId];
+        const record = byId[onlyId];
         return record ? { [onlyId]: recalculateRecord(state, calculators, onlyId, record) } : {};
     }
 
@@ -161,16 +165,15 @@ function recalculateRecord(state: RootState, calculators: Record<string, Calcula
 // Returns ids of available upgrades for a structure
 export function getStructureUpgradeIds(state: RootState, structure: Structure) {
     return fromUpgrades.visibleIds(state.upgrades).filter(upgradeId => {
-        const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
+        const upgrade = state.upgrades.byId[upgradeId];
         return upgrade.structure === structure.id;
     })
 }
 
-// Expedition-only upgrades (`squad: true` in database/upgrades.js, no structure): equipment, combat stats,
+// Expedition-only upgrades (`squad: true` in database/upgrades.ts, no structure): equipment, combat stats,
 // battery. Offered in the Expedition panel's Outfitting section, not on any structure's card.
 export function getSquadUpgradeIds(state: RootState) {
-    return fromUpgrades.visibleIds(state.upgrades).filter(upgradeId =>
-        fromUpgrades.getUpgrade(state.upgrades, upgradeId).squad);
+    return fromUpgrades.visibleIds(state.upgrades).filter(upgradeId => state.upgrades.byId[upgradeId].squad);
 }
 
 export function canResearchUpgrade(state: RootState, upgrade: Upgrade) {
@@ -180,17 +183,17 @@ export function canResearchUpgrade(state: RootState, upgrade: Upgrade) {
     return fromResources.canConsume(state.resources, fromUpgrades.getResearchCost(upgrade));
 }
 
-export function researchUpgrade(upgradeId) {
+export function researchUpgrade(upgradeId: string) {
     return function(dispatch: Dispatch, getState: GetState) {
         const upgrade = fromUpgrades.getUpgrade(getState().upgrades, upgradeId);
-        if (canResearchUpgrade(getState(), upgrade)) {
+        if (upgrade && canResearchUpgrade(getState(), upgrade)) {
             dispatch(fromUpgrades.researchUnsafe(upgrade));
         }
     }
 }
 
 // Returns ids of available abilities for a structure
-// Droid combat upgrades (EFFECT_TARGETS.misc, applied manually here): each researched entry's effect
+// Droid combat upgrades ('misc', applied manually here): each researched entry's effect
 // modifies the expedition droids' unit stats. New combat upgrades just join this list.
 const DROID_COMBAT_UPGRADE_IDS = ['droidFactory_reinforcedPlating', 'droidFactory_weaponCalibration'];
 
@@ -199,7 +202,7 @@ const DROID_COMBAT_UPGRADE_IDS = ['droidFactory_reinforcedPlating', 'droidFactor
 const BATTERY_UPGRADE_IDS = ['droidFactory_extendedCells'];
 
 // Folds every researched upgrade's effect from `upgradeIds` into the `variables` object, in place.
-function applyResearchedUpgradeEffects(state, upgradeIds, variables) {
+function applyResearchedUpgradeEffects(state: RootState, upgradeIds: string[], variables: Variables) {
     const operations = initOperations();
     upgradeIds.forEach(upgradeId => {
         const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
@@ -234,7 +237,7 @@ export function getBatteryCapacity(state: RootState): number {
 // researched (story salvage can researchForFree the same upgrade ids later). Returns the fresh
 // loadout { itemId: maxCharges } a deploying squad walks out with.
 export function ownedEquipment(state: RootState): EquipmentCharges {
-    const equipment = {};
+    const equipment: EquipmentCharges = {};
     EQUIPMENT_ORDER.forEach(itemId => {
         const upgrade = fromUpgrades.getUpgrade(state.upgrades, EQUIPMENT_DEFS[itemId].upgradeId);
         if (upgrade && fromUpgrades.isResearched(upgrade)) {
@@ -246,7 +249,7 @@ export function ownedEquipment(state: RootState): EquipmentCharges {
 
 export function getStructureAbilityIds(state: RootState, structure: Structure) {
     return fromAbilities.visibleIds(state.abilities).filter(abilityId => {
-        const ability = fromAbilities.getAbility(state.abilities, abilityId);
+        const ability = state.abilities.byId[abilityId];
         return ability.structure === structure.id;
     })
 }
@@ -258,10 +261,10 @@ export function canCastAbility(state: RootState, ability: Ability) {
     return fromResources.canConsume(state.resources, fromAbilities.getAbilityCost(ability));
 }
 
-export function castAbility(abilityId) {
+export function castAbility(abilityId: string) {
     return function(dispatch: Dispatch, getState: GetState) {
         const ability = fromAbilities.getAbility(getState().abilities, abilityId);
-        if (canCastAbility(getState(), ability)) {
+        if (ability && canCastAbility(getState(), ability)) {
             dispatch(fromAbilities.startCastUnsafe(ability));
         }
     }
@@ -271,16 +274,16 @@ export function canBuildStructure(state: RootState, structure: Structure) {
     return fromResources.canConsume(state.resources, fromStructures.getBuildCost(structure));
 }
 
-export function buildStructure(id, amount) {
+export function buildStructure(id: StructureId, amount: number) {
     return function(dispatch: Dispatch, getState: GetState) {
         const structure = fromStructures.getStructure(getState().structures, id);
-        if (canBuildStructure(getState(), structure)) {
+        if (structure && canBuildStructure(getState(), structure)) {
             dispatch(fromStructures.buildUnsafe(structure, amount));
         }
     }
 }
 
-export function getReplicatedStructureCount(structure: Structure, state: RootState): number {
+export function getReplicatedStructureCount(structure: Structure | undefined, state: RootState): number {
     const developedLand = fromResources.getResource(state.resources, 'developedLand')
     const replicationMultiplier = developedLand ? fromResources.getQuantity(developedLand) : 1;
     return fromStructures.getNumBuilt(structure) * replicationMultiplier;
@@ -295,7 +298,7 @@ export function getReplicationMultiplier(state: RootState): number {
 }
 
 // Gets structure statistic based on how many of the structures are built. Statistics can be any keys on the structure record.
-export function getStructureStatistic(state: RootState, structure: Structure, statistic: string, includeReplications: boolean = true): ResourceAmounts {
+export function getStructureStatistic(state: RootState, structure: Structure | undefined, statistic: StructureStatistic, includeReplications: boolean = true): ResourceAmounts {
     if (structure === undefined || structure[statistic] === undefined) {
         return {};
     }
@@ -304,7 +307,7 @@ export function getStructureStatistic(state: RootState, structure: Structure, st
         getReplicatedStructureCount(structure, state) :
         fromStructures.getNumBuilt(structure);
 
-    return mapObject(structure[statistic], (key, value) => value * structureCount);
+    return mapObject(structure[statistic] as Record<string, number>, (key, value) => value * structureCount) as ResourceAmounts;
 }
 
 
@@ -330,7 +333,7 @@ export function canRemoveDroid(state: RootState, droidData: DroidAssignment) {
     return droidData.numDroidsAssigned > 0;
 }
 
-export function assignDroid(droidData, targetId) {
+export function assignDroid(droidData: DroidAssignment, targetId: StructureId) {
     return function(dispatch: Dispatch, getState: GetState) {
         if (canAssignDroid(getState(), droidData)) {
             switch(droidData.droidAssignmentType) {
@@ -347,7 +350,7 @@ export function assignDroid(droidData, targetId) {
     }
 }
 
-export function assignAllDroids(droidData, targetId) {
+export function assignAllDroids(droidData: DroidAssignment, targetId: StructureId) {
     return function(dispatch: Dispatch, getState: GetState) {
         let numDroids = fromResources.getQuantity(fromResources.getResource(getState().resources, 'standardDroids'));
 
@@ -373,7 +376,7 @@ export function assignAllDroids(droidData, targetId) {
     }
 }
 
-export function removeDroid(droidData, targetId) {
+export function removeDroid(droidData: DroidAssignment, targetId: StructureId) {
     return function(dispatch: Dispatch, getState: GetState) {
         if (canRemoveDroid(getState(), droidData)) {
             switch(droidData.droidAssignmentType) {
@@ -390,7 +393,7 @@ export function removeDroid(droidData, targetId) {
     }
 }
 
-export function removeAllDroids(droidData, targetId) {
+export function removeAllDroids(droidData: DroidAssignment, targetId: StructureId) {
     return function(dispatch: Dispatch, getState: GetState) {
         const numDroids = droidData.numDroidsAssigned;
 
@@ -447,7 +450,7 @@ export function numStandardDroids(state: RootState): number {
 // For each structure:
 //      1) try to consume. if CAN -> consume it AND produce what those structures can
 //      2) if cannot consume -> DON'T produce and DON'T consume
-export function resourcesTick(time) {
+export function resourcesTick(time: number) {
     return function(dispatch: Dispatch, getState: GetState) {
         fromStructures.iterateVisible(getState().structures, structure => {
             if (structure.runningCooldown && structure.runningCooldown > 0) { return; }
@@ -456,10 +459,10 @@ export function resourcesTick(time) {
             if (fromResources.canConsume(getState().resources, consumption)) {
                 dispatch(fromResources.consumeUnsafe(consumption));
                 dispatch(fromResources.produce(mapObject(getStructureStatistic(getState(), structure, 'produces'), (resourceId, amount) => amount * time)));
-                fromStructures.setStatus(dispatch, structure, STATUSES.normal);
+                fromStructures.setStatus(dispatch, structure, 'normal');
             }
             else {
-                fromStructures.setStatus(dispatch, structure, STATUSES.insufficient);
+                fromStructures.setStatus(dispatch, structure, 'insufficient');
                 // dispatch(fromStructures.turnOff(structure.id)); // todo we are not turning off anymore; too jarring
             }
         });
@@ -511,7 +514,7 @@ export function planetDevelopmentProgress(state: RootState) {
 
 
 export function energyBeamStrengthPct(state: RootState): number {
-    if (!state.star || !state.star.mirrorTarget || state.star.mirrorTarget === TARGETS.NONE) {
+    if (!state.star || !state.star.mirrorTarget || state.star.mirrorTarget === 'none') {
         return 0;
     }
 
@@ -553,7 +556,7 @@ export function energyBeamStrengthEnergy(state: RootState): number {
 
 export function kickoffDoomsday() {
     return function(dispatch: Dispatch, getState: GetState) {
-        dispatch(aimMirrors(TARGETS.PLANET));
+        dispatch(aimMirrors('planet'));
         dispatch(startEnergyBeam(getState().clock.elapsedTime));
         dispatch(fromLog.startLogSequence('finalSequence_planet1'))
     }

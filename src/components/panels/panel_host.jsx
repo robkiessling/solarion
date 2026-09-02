@@ -9,7 +9,7 @@ import PopupFrame from "../ui/popup_frame";
  * Host for special upgrade panels: full-screen structure-owned popups with bespoke UIs (vs. the
  * one-button upgrades on structure cards). Renders whichever panel state.panels.openPanelId names,
  * over a dimmed backdrop; Esc or ✕ closes. To add a panel (e.g. a solar circuitry board): register
- * its component + title here, add its state/actions in redux/modules/panels.js, and give its
+ * its component + title here, add its state/actions in redux/modules/panels.ts, and give its
  * structure card an opener button (see structures/droid_factory.jsx).
  */
 const PANEL_REGISTRY = {

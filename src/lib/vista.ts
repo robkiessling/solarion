@@ -1,8 +1,7 @@
-// @ts-check
 import {NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
 import {getTerrain, STATUSES, TERRAINS} from "./planet_map";
 import {mod} from "./helpers";
-import {POI_COLOR_KEYS, POI_GLYPHS, POI_STATUS} from "./expeditions";
+import {POI_COLOR_KEYS, POI_GLYPHS} from "./expeditions";
 
 /**
  * The vista: a driver's-eye skyline of the ground ahead of the squad, drawn from the map tiles in the
@@ -22,8 +21,13 @@ export const VISTA_DEPTH = 3;
 export const BAND_WIDTH = 5;
 export const SKY_ROWS = VISTA_DEPTH;
 
+export interface VistaSegment { text: string; colorKey: string }
+
 // Ground line per terrain key (BAND_WIDTH chars). Unknown ground is the dark past the headlights.
-const GROUND = {
+/** What the ground row can show: a terrain, hive ground, the dark past the headlights, or nothing past the poles */
+type VistaGround = TerrainKey | 'infested' | 'unknown' | 'void';
+
+const GROUND: Record<VistaGround, string> = {
     home: '#####',
     flatland: '_____',
     developing: '+++++',
@@ -39,50 +43,50 @@ const GROUND = {
 
 // Peak sprites by height (rows), top row first, each BAND_WIDTH wide; adjacent full-height peaks join
 // into a range ("/   \/   \")
-const PEAKS = {
+const PEAKS: Record<number, string[]> = {
     1: ['  Λ  '],
     2: ['  Λ  ', ' / \\ '],
     3: ['  Λ  ', ' / \\ ', '/   \\']
 };
 
-const HEADINGS = { '0,-1': 'north', '1,0': 'east', '0,1': 'south', '-1,0': 'west' };
-export function headingName(facing) {
+const HEADINGS: Record<string, string> = { '0,-1': 'north', '1,0': 'east', '0,1': 'south', '-1,0': 'west' };
+export function headingName(facing: [number, number]) {
     return HEADINGS[`${facing[0]},${facing[1]}`] || 'north';
 }
 
 // The tile `ahead` steps out and `side` steps to the driver's right of coord, given a screen-space facing
 // [dx, dy] (right-hand vector is facing rotated a quarter turn clockwise: [-dy, dx]). null past the poles.
-function tileAt(map, coord, facing, ahead, side) {
+function tileAt(map: PlanetMap, coord: Coord, facing: [number, number], ahead: number, side: number): Sector | null {
     const [dx, dy] = facing;
     const row = coord[0] + ahead * dy + side * dx;
     if (row < 0 || row >= NUM_PLANET_ROWS) return null;
     return map[row][mod(coord[1] + ahead * dx + side * (-dy), PLANET_COLS)];
 }
 
-function groundKey(sector) {
+function groundKey(sector: Sector | null): VistaGround {
     if (!sector) return 'void';
     if (sector.status === STATUSES.unknown.key) return 'unknown';
     if (sector.infestedBy) return 'infested';
     return getTerrain(sector.terrain).key;
 }
 
-export function buildVista(map, pois, squad) {
+export function buildVista(map: PlanetMap, pois: Record<string, Poi>, squad: Squad): VistaSegment[][] {
     const facing = squad.facing || [0, -1];
     const half = Math.floor(VISTA_BANDS / 2);
-    const rows = [];
+    const rows: VistaSegment[][] = [];
     for (let i = 0; i <= SKY_ROWS; i++) rows.push([]);
 
     // Available site markers by tile, so a band can pick up what is standing ahead of it
-    const markers = {};
+    const markers: Record<string, Poi> = {};
     Object.values(pois || {}).forEach(poi => {
-        if (poi.status !== POI_STATUS.available) return;
+        if (poi.status !== 'available') return;
         markers[`${poi.coord[0]},${poi.coord[1]}`] = poi;
     });
 
     for (let side = -half; side <= half; side++) {
         // Nearest visible ridge in this band, and any marker within sight of it
-        let peakDistance = null;
-        let marker = null;
+        let peakDistance: number | null = null;
+        let marker: { poi: Poi, ahead: number } | null = null;
         for (let ahead = 1; ahead <= VISTA_DEPTH; ahead++) {
             const sector = tileAt(map, squad.coord, facing, ahead, side);
             if (!sector || sector.status === STATUSES.unknown.key) continue;
@@ -126,7 +130,7 @@ export function buildVista(map, pois, squad) {
 }
 
 // A band's row with the site glyph dropped into its center char
-function pushWithMarker(row, text, colorKey, poi) {
+function pushWithMarker(row: VistaSegment[], text: string, colorKey: string, poi: Poi) {
     const mid = Math.floor(BAND_WIDTH / 2);
     row.push({ text: text.slice(0, mid), colorKey });
     row.push({ text: POI_GLYPHS[poi.type], colorKey: POI_COLOR_KEYS[poi.type] });
