@@ -1,8 +1,7 @@
 import _ from 'lodash';
 import update from 'immutability-helper';
-import database, {calculators} from '../../database/structures';
+import database, {calculators, type Structure, type StructureStatus, type StructureType} from '../../database/structures';
 import {recalculateState, withRecalculation} from "../reducer";
-import type {Structure, StructureStatus, StructureType} from '../../database/structures';
 
 /** Per-structure animation state the base view renders from (see animationData) */
 export type StructureAnimationData = Partial<Record<StructureId, { numBuilt: number, animationTag?: string }>>;

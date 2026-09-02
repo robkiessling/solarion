@@ -1,9 +1,6 @@
-import {EQUIPMENT_DEFS} from "../database/equipment";
-import {TERRAIN_PIECES} from "../database/battle_terrain";
-import {BUG_TYPES, DROID_BASE_STATS, GROUND_BLURBS, SWARM_BLURBS} from "../database/battle";
-import type {BugType, DroidStats, UnitStats, UnitType} from '../database/battle';
-import type {EquipmentId} from '../database/equipment';
-import type {TerrainPieceId} from '../database/battle_terrain';
+import {EQUIPMENT_DEFS, type EquipmentId} from "../database/equipment";
+import {TERRAIN_PIECES, type TerrainPieceId} from "../database/battle_terrain";
+import {BUG_TYPES, DROID_BASE_STATS, GROUND_BLURBS, SWARM_BLURBS, type BugType, type DroidStats, type UnitStats, type UnitType} from "../database/battle";
 
 /** Spawn layouts: the keys of FORMATIONS */
 export type FormationId = keyof typeof FORMATIONS;

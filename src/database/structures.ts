@@ -9,15 +9,12 @@ import {daylightPercent, windSpeed} from "../redux/modules/clock";
 import {getCapacity, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
 import _ from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
-import {formatInteger, INFINITY, redText} from "../lib/helpers";
+import {formatInteger, INFINITY, redText, type DeepPartial} from "../lib/helpers";
 import {upgradesAffectingStructure} from "./upgrades";
 import {abilitiesAffectingStructure} from "./abilities";
-import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations} from "../lib/effect";
-import {energyBeamStrengthEnergy, energyBeamStrengthPct} from "../redux/reducer";
+import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations, type Variables} from "../lib/effect";
+import {energyBeamStrengthEnergy, energyBeamStrengthPct, type CalculatorSet} from "../redux/reducer";
 import {isTargetingPlanet} from "../redux/modules/star";
-import type {CalculatorSet} from '../redux/reducer';
-import type {DeepPartial} from '../lib/helpers';
-import type {Variables} from '../lib/effect';
 
 /** Whether a structure could afford its last tick's consumption */
 export type StructureStatus = 'normal' | 'insufficient';

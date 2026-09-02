@@ -9,8 +9,8 @@ import * as fromGame from "../redux/modules/game";
 import * as fromPlanet from "../redux/modules/planet";
 import {generateMap} from "../redux/modules/planet";
 import * as fromStar from "../redux/modules/star";
-import type {DeepPartial} from '../lib/helpers';
-import type {Effect, EffectAffects} from '../lib/effect';
+import type {Effect, EffectAffects} from "../lib/effect";
+import type {DeepPartial} from "../lib/helpers";
 
 /** An upgrade's research lifecycle, in order */
 export type UpgradeState = 'hidden' | 'discovered' | 'researching' | 'paused' | 'researched';

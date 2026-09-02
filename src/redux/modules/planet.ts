@@ -16,7 +16,9 @@ import {
     SCOUT_VISION_HOPS,
     STATUSES, sunTrackingRotation,
     SURVEY_HALO_RADIUS,
-    TERRAINS
+    TERRAINS,
+    type PlanetMap,
+    type Unlocks,
 } from "../../lib/planet_map";
 import {getCoordsWithinHops} from "../../lib/planet_geometry";
 import {
@@ -29,22 +31,19 @@ import {
     CAPABILITY_LABELS,
     formatResourceList,
     generatePois,
-    resultBehaviorFor
+    resultBehaviorFor,
+    type Poi,
 } from "../../lib/expeditions";
-import {applyEquipment, createBattle, startWithdrawal} from "../../lib/battle";
+import {applyEquipment, createBattle, startWithdrawal, type Battle} from "../../lib/battle";
 import {canConsume} from "./resources";
-import {advanceSquad, createSquad, droidsRecovered, isOnGrid} from "../../lib/squad";
+import {advanceSquad, createSquad, droidsRecovered, isOnGrid, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
 import {logInline} from "./log";
 import {zoneColor} from "../../lib/planet_render";
 import {TERRAIN_BLURBS} from "../../database/terrain_blurbs";
-import type {Battle} from '../../lib/battle';
-import type {Capability, PoiReward} from '../../database/pois';
-import type {DroidAssignment} from '../../database/structures';
-import type {DroidStats} from '../../database/battle';
-import type {EquipmentCharges, EquipmentId} from '../../database/equipment';
-import type {PlanetMap, Unlocks} from '../../lib/planet_map';
-import type {Poi} from '../../lib/expeditions';
-import type {Squad, SquadEvent, SquadZone} from '../../lib/squad';
+import type {DroidStats} from "../../database/battle";
+import type {EquipmentCharges, EquipmentId} from "../../database/equipment";
+import type {Capability, PoiReward} from "../../database/pois";
+import type {DroidAssignment} from "../../database/structures";
 
 /** A scout droid (planet.droids) */
 export interface ScoutDroid {

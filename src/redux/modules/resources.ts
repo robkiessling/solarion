@@ -1,15 +1,13 @@
 import _ from 'lodash';
 import update from 'immutability-helper';
 import {INFINITY, mapObject, roundToDecimal} from "../../lib/helpers";
-import database, {calculators} from '../../database/resources';
+import database, {calculators, type Resource} from "../../database/resources";
 import * as fromStructures from "./structures";
 import * as fromUpgrades from "./upgrades";
 import * as fromAbilities from "./abilities";
 import * as fromPlanet from "./planet";
 import {withRecalculation} from "../reducer";
-import {STATUSES, TERRAINS} from "../../lib/planet_map";
-import type {PlanetMap} from '../../lib/planet_map';
-import type {Resource} from '../../database/resources';
+import {STATUSES, TERRAINS, type PlanetMap} from "../../lib/planet_map";
 
 export interface ResourcesState {
     byId: Partial<Record<ResourceId, Resource>>;

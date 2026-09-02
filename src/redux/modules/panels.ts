@@ -1,11 +1,9 @@
 import update from 'immutability-helper';
 import {batch} from "react-redux";
-import {CHASSIS_ROWS_BY_ID, getChassisOption} from "../../database/chassis";
+import {CHASSIS_ROWS_BY_ID, getChassisOption, type ChassisRow} from "../../database/chassis";
 import {canConsume, consumeUnsafe} from "./resources";
 import {logInline} from "./log";
-import {initOperations, mergeEffectIntoOperations, applyOperationsToVariables} from "../../lib/effect";
-import type {ChassisRow} from '../../database/chassis';
-import type {Variables} from '../../lib/effect';
+import {initOperations, mergeEffectIntoOperations, applyOperationsToVariables, type Variables} from "../../lib/effect";
 
 export interface PanelsState {
     openPanelId: string | null;

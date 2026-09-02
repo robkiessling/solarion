@@ -1,12 +1,10 @@
 import _ from 'lodash';
 
 import {getStructure} from "../redux/modules/structures";
-import {getStructureStatistic} from "../redux/reducer";
+import {getStructureStatistic, type CalculatorSet} from "../redux/reducer";
 import {probeCapacity} from "../lib/star";
 import {isTargetingPlanet} from "../redux/modules/star";
-import {INFINITY} from "../lib/helpers";
-import type {CalculatorSet} from '../redux/reducer';
-import type {DeepPartial} from '../lib/helpers';
+import {INFINITY, type DeepPartial} from "../lib/helpers";
 
 export interface ResourceRecord {
     name: string;

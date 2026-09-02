@@ -1,7 +1,7 @@
 import {getRandomIntInclusive} from "../lib/helpers";
-import type {BugType} from './battle';
-import type {GateKind} from '../lib/planet_map';
-import type {NestFormation, TerrainLayoutId} from '../lib/battle';
+import type {NestFormation, TerrainLayoutId} from "../lib/battle";
+import type {GateKind} from "../lib/planet_map";
+import type {BugType} from "./battle";
 
 export type PoiType =
     | 'cache'      // a supply drop: take it

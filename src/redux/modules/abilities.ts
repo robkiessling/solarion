@@ -1,9 +1,8 @@
 import update, {Spec} from 'immutability-helper';
-import database, {callbacks, calculators} from '../../database/abilities';
+import database, {callbacks, calculators, type Ability} from "../../database/abilities";
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import _ from "lodash";
-import type {Ability} from '../../database/abilities';
 
 export interface AbilitiesState {
     byId: { [abilityId: string]: Ability };

@@ -1,11 +1,10 @@
 import _ from 'lodash';
 import update from 'immutability-helper';
-import database, {callbacks} from '../../database/upgrades';
+import database, {callbacks, type DiscoverWhen, type Upgrade, type UpgradeState} from "../../database/upgrades";
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {hasLifetimeQuantities} from "./resources";
 import {getNumBuilt, getStructure} from "./structures";
-import type {DiscoverWhen, Upgrade, UpgradeState} from '../../database/upgrades';
 
 export interface UpgradesState {
     byId: { [upgradeId: string]: Upgrade };

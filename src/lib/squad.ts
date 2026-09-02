@@ -1,14 +1,11 @@
 import {NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
-import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, STATUSES} from "./planet_map";
+import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, STATUSES, type PlanetMap, type TerrainKey, type Unlocks} from "./planet_map";
 import {mod} from "./helpers";
 
-import {advanceBattle, DROID_BASE_STATS, fullDroidHp} from "./battle";
-import {EQUIPMENT_DEFS} from "../database/equipment";
-import type {Battle, BattleOverEvent} from './battle';
-import type {DroidStats} from '../database/battle';
-import type {EquipmentCharges, EquipmentId} from '../database/equipment';
-import type {PlanetMap, TerrainKey, Unlocks} from './planet_map';
-import type {Poi} from './expeditions';
+import {advanceBattle, DROID_BASE_STATS, fullDroidHp, type Battle, type BattleOverEvent} from "./battle";
+import {EQUIPMENT_DEFS, type EquipmentCharges, type EquipmentId} from "../database/equipment";
+import type {DroidStats} from "../database/battle";
+import type {Poi} from "./expeditions";
 
 /** The ground a squad stands on as the driver feels it (see squadZone): hive territory, the powered
  * grid, or the bare terrain. Keys the terrain notes and the map frame's tint. */

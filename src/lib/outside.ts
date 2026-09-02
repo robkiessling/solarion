@@ -5,10 +5,9 @@ import {
     mod
 } from "./helpers";
 import backgrounds from "../database/backgrounds";
-import { structures, doodads, Frame, Animation } from '../database/animations'
-import type {ImageCell} from "./ascii_canvas";
-import type {DoodadId, StructureAnimationId} from '../database/animations';
+import {structures, doodads, Frame, Animation, type DoodadId, type StructureAnimationId} from '../database/animations'
 import type {StructureAnimationData} from '../redux/modules/structures';
+import type {ImageCell} from './ascii_canvas';
 
 type OutsideImage = ImageCell[][];
 type StructurePosition = { row: number, col: number, animationId?: StructureAnimationId };

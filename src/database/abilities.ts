@@ -1,16 +1,14 @@
 import _ from 'lodash';
 import {getQuantity, getResource} from "../redux/modules/resources";
-import {numStandardDroids} from "../redux/reducer";
+import {numStandardDroids, type CalculatorSet} from "../redux/reducer";
 import * as fromAbilities from "../redux/modules/abilities";
 import * as fromPlanet from "../redux/modules/planet";
 import {upgradesAffectingAbility} from "./upgrades";
-import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations} from "../lib/effect";
+import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations, type Effect, type EffectAffects, type Variables} from "../lib/effect";
 import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {STANDARD_COST_EXP} from "./structures";
 import {countAllStructuresBuilt} from "../redux/modules/structures";
-import type {CalculatorSet} from '../redux/reducer';
-import type {DeepPartial} from '../lib/helpers';
-import type {Effect, EffectAffects, Variables} from '../lib/effect';
+import type {DeepPartial} from "../lib/helpers";
 
 /** An ability's cast lifecycle (cooldown starts after the cast finishes) */
 export type AbilityState = 'ready' | 'casting' | 'cooldown';

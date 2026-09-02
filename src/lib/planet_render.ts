@@ -7,8 +7,8 @@
 import {PLANET_COLS} from "./planet_geometry";
 import {drawStarField} from "./star_field";
 import type AsciiCanvas from "./ascii_canvas";
-import type {DisplayCell} from './planet_map';
-import type {SquadZone} from './squad';
+import type {DisplayCell} from "./planet_map";
+import type {SquadZone} from "./squad";
 
 export const PLANET_COLORS: Record<string, string> = {
     unknown: '#3f4652',   // fog: dim and cool (blue-grey), so warm flatland reads as new ground next to it

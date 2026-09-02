@@ -1,7 +1,6 @@
 import update from 'immutability-helper';
 import {withRecalculation} from "../reducer";
-import {generateRandomProbeDist} from "../../lib/star";
-import type {ProbeDistribution} from '../../lib/star';
+import {generateRandomProbeDist, type ProbeDistribution} from "../../lib/star";
 
 /** Where the probe swarm's mirrors aim their beam */
 export type MirrorTarget = 'none' | 'planet';

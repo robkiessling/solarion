@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import {NUM_PLANET_ROWS, PLANET_COLS} from './planet_geometry';
 import structuresDatabase from '../database/structures';
-import resourcesDatabase from '../database/resources';
+import resourcesDatabase, {type Resource} from '../database/resources';
 import upgradesDatabase from '../database/upgrades';
 import abilitiesDatabase from '../database/abilities';
 import triggersDatabase from '../database/triggers';
@@ -10,7 +10,6 @@ import {DROID_BASE_STATS, fullDroidHp} from './battle';
 import {SAVE_FORMAT_VERSION} from './save_version';
 import type {EncounterPrompt} from '../redux/modules/planet';
 import type {Squad} from './squad';
-import type {Resource} from '../database/resources';
 
 // lodash merges arrays index-by-index, which would mangle saved maps, droid lists, etc.
 // This customizer makes saved arrays replace default arrays wholesale instead.
