@@ -34,7 +34,7 @@ export interface AbilityRecord {
 }
 
 export interface Ability extends AbilityRecord {
-    id: string;
+    id: AbilityId;
     castProgress?: number;
     cooldownProgress?: number;
     variables?: Variables;
@@ -60,7 +60,7 @@ const base: AbilityRecord = {
     cooldown: 0 // Note: cooldown starts after cast FINISHES (not at start of cast)
 }
 
-const database: Record<string, AbilityRecord> = {
+const database = {
     commandCenter_charge: _.merge({}, base, {
         name: "Manually Charge",
         structure: "commandCenter",
@@ -94,7 +94,10 @@ const database: Record<string, AbilityRecord> = {
     replicate: _.merge({}, base, {
         name: 'Replicate',
     } satisfies DeepPartial<AbilityRecord>)
-};
+} satisfies Record<string, AbilityRecord>;
+
+/** The ability ids: the keys of the table above */
+export type AbilityId = keyof typeof database;
 
 export default database;
 
@@ -105,7 +108,7 @@ export default database;
  * Note: `variables` is a special object that is calculated first; its result is provided to the rest of the functions as a
  * third parameter (that way many functions can be built off the same variables)
  */
-export const calculators: Record<string, CalculatorSet<Ability>> = {
+export const calculators: Partial<Record<AbilityId, CalculatorSet<Ability>>> = {
     commandCenter_charge: {
         variables: (state, ability) => {
             const variables = {
@@ -216,7 +219,7 @@ export const calculators: Record<string, CalculatorSet<Ability>> = {
 
 // Functions can't be stored in the state so storing them in this const
 // TODO Should all callbacks be in reducers??
-export const callbacks: Record<string, { onStart?: (dispatch: Dispatch, getState: GetState, ability: Ability) => void, onFinish?: (dispatch: Dispatch, getState: GetState) => void }> = {
+export const callbacks: Partial<Record<AbilityId, { onStart?: (dispatch: Dispatch, getState: GetState, ability: Ability) => void, onFinish?: (dispatch: Dispatch, getState: GetState) => void }>> = {
     commandCenter_charge: {
         onFinish: (dispatch, getState) => {
             fromAbilities.chargeRNG(dispatch, getState);
@@ -235,18 +238,15 @@ export const callbacks: Record<string, { onStart?: (dispatch: Dispatch, getState
 
 // A lookup of abilities that AFFECT a structure
 // Format: { structureId => [ability1, ability2, ...], ... }
-export const abilitiesAffectingStructure: Record<string, string[]> = {}
+export const abilitiesAffectingStructure: Partial<Record<StructureId, AbilityId[]>> = {}
 
-for (const [abilityId, abilityDbRecord] of Object.entries(database)) {
+for (const [abilityId, abilityDbRecord] of Object.entries(database) as [AbilityId, AbilityRecord][]) {
     switch(abilityDbRecord.affects.type) {
         case 'structure':
             // If `affects` obj has no id we default to affecting the ability's structure
-            const structureId = abilityDbRecord.affects.id || abilityDbRecord.structure;
+            const structureId = (abilityDbRecord.affects.id as StructureId | undefined) || abilityDbRecord.structure;
             if (!structureId) break; // standalone abilities (e.g. replicate) belong to no structure, so there is nothing to affect
-            if (abilitiesAffectingStructure[structureId] === undefined) {
-                abilitiesAffectingStructure[structureId] = []
-            }
-            abilitiesAffectingStructure[structureId].push(abilityId);
+            (abilitiesAffectingStructure[structureId] ??= []).push(abilityId);
             break;
         case 'ability':
             console.warn("It is not currently possible for an ability to affect another ability")

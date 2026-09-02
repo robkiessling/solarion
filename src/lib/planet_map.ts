@@ -234,7 +234,7 @@ if (SHOW_DEBUG_MERIDIANS) {
     })
 }
 
-export const STATUSES: Record<'unknown' | 'exploring' | 'explored', SectorStatusDef> = {
+export const STATUSES: Record<SectorStatus, SectorStatusDef> = {
     unknown: { key: 'unknown', display: '·', label: 'Unknown' },
     exploring: { key: 'exploring', label: 'Exploring' },
     explored: { key: 'explored', label: 'Explored' }

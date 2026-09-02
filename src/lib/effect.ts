@@ -69,10 +69,10 @@ export function applySingleEffect(effect: Effect, variables: Variables) {
     applyOperationsToVariables(operations, variables);
 }
 
-function parseEffect(effect: Effect, callback: (variable: string, operation: 'add' | 'multiply', value: number) => void) {
+function parseEffect(effect: Effect, callback: (variable: string, operation: keyof EffectOperations, value: number) => void) {
     for (const [variable, operations] of Object.entries(effect)) {
         for (const [operation, value] of Object.entries(operations)) {
-            callback(variable, (operation as 'add' | 'multiply'), value);
+            callback(variable, (operation as keyof EffectOperations), value);
         }
     }
 }

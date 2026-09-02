@@ -14,6 +14,7 @@ import * as fromStar from '../redux/modules/star';
 import * as fromLog from '../redux/modules/log';
 import {addTrigger} from '../redux/modules/triggers';
 import {kickoffDoomsday} from '../redux/reducer';
+import type {UpgradeId} from '../database/upgrades';
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard campaign start
 const SKIP_START = 'skipStart';
@@ -180,7 +181,7 @@ function skipToStar(dispatch: Dispatch) {
 
     dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity'));
     dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity2'));
-    [
+    ([
         'harvester_ore1', 'harvester_ore2', 'harvester_ore3', 'harvester_ore4',
         'harvester_eff1', 'harvester_eff2', 'harvester_overclock', 'harvester_overclockUpgrade1',
         'solarPanel_production1', 'solarPanel_ambientLight', 'solarPanel_production2', 'solarPanel_global',
@@ -190,7 +191,7 @@ function skipToStar(dispatch: Dispatch) {
         'windTurbine_global', 'refinery_improveProduction', 'refinery_cooling', 'refinery_improveProduction2',
         'droidFactory_improvedMaintenance', 'droidFactory_longerComm', 'droidFactory_fasterBuild',
         'droidFactory_fasterExplore'
-    ].forEach(upgrade => dispatch(fromUpgrades.researchForFree(upgrade)));
+    ] satisfies UpgradeId[]).forEach(upgrade => dispatch(fromUpgrades.researchForFree(upgrade)));
 
     dispatch(fromPlanet.startExploringMap());
     dispatch(fromResources.produce({

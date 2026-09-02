@@ -1,12 +1,12 @@
 import update, {Spec} from 'immutability-helper';
-import database, {callbacks, calculators, type Ability} from "../../database/abilities";
+import database, {callbacks, calculators, type Ability, type AbilityId} from "../../database/abilities";
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import _ from "lodash";
 
 export interface AbilitiesState {
-    byId: { [abilityId: string]: Ability };
-    visibleIds: string[];
+    byId: Partial<Record<AbilityId, Ability>>;
+    visibleIds: AbilityId[];
 }
 
 export { calculators }
@@ -21,7 +21,7 @@ export const END_COOLDOWN = 'abilities/END_COOLDOWN' as const;
 export const CHARGE_RNG = 'abilities/CHARGE_RNG' as const;
 
 export type AbilitiesAction =
-    | { type: typeof LEARN; payload: { id: string } }
+    | { type: typeof LEARN; payload: { id: AbilityId } }
     | { type: typeof START_CAST; payload: { ability: Ability } }
     | { type: typeof PROGRESS; payload: { timeDelta: number } }
     | { type: typeof END_CAST; payload: { ability: Ability } }
@@ -83,7 +83,7 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
             }
             return Object.assign({}, state, { byId: newState });
         case END_CAST:
-            if (state.byId[action.payload.ability.id].cooldown > 0) {
+            if ((state.byId[action.payload.ability.id]?.cooldown ?? 0) > 0) {
                 return update(state, {
                     byId: {
                         [action.payload.ability.id]: {
@@ -127,7 +127,7 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
 }
 
 // Action Creators
-export function learn(id: string) {
+export function learn(id: AbilityId) {
     return withRecalculation({ type: LEARN, payload: { id } }); // recalculate so we immediately calculate costs
 }
 export function startCastUnsafe(ability: Ability) {
@@ -212,7 +212,7 @@ function endCooldown(dispatch: Dispatch, getState: GetState, ability: Ability) {
 
 
 // Standard Functions
-export function getAbility(state: AbilitiesState, id: string): Ability | undefined {
+export function getAbility(state: AbilitiesState, id: AbilityId): Ability | undefined {
     return state.byId[id];
 }
 export function getAbilityCost(ability: Ability): ResourceAmounts {
@@ -228,8 +228,8 @@ export function isCasting(ability: Ability): boolean {
     return ability.state === 'casting';
 }
 
-export function visibleIds(state: AbilitiesState): string[] {
-    return Object.keys(state.byId); // every ability that is learned is visible
+export function visibleIds(state: AbilitiesState): AbilityId[] {
+    return Object.keys(state.byId) as AbilityId[]; // every ability that is learned is visible
 }
 
 

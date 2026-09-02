@@ -52,7 +52,7 @@ export default function reducer(state: StructuresState = initialState, action: G
             return update(state, {
                 byId: {
                     [action.payload.id]: {
-                        $set: _.merge({}, database[action.payload.id as StructureId], { id: action.payload.id })
+                        $set: _.merge({}, database[action.payload.id], { id: action.payload.id })
                     }
                 },
                 visibleIds: { $push: [action.payload.id] }

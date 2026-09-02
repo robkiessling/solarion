@@ -23,10 +23,10 @@ import {DROID_BASE_STATS} from "../lib/battle";
 import {SQUAD_BATTERY_CAPACITY} from "../lib/squad";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER, type EquipmentCharges} from "../database/equipment";
 import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations, type Variables} from "../lib/effect";
-import type {Ability} from "../database/abilities";
+import type {Ability, AbilityId} from "../database/abilities";
 import type {DroidStats} from "../database/battle";
 import type {DroidAssignment, Structure} from "../database/structures";
-import type {Upgrade} from "../database/upgrades";
+import type {Upgrade, UpgradeId} from "../database/upgrades";
 import type {AbilitiesState} from "./modules/abilities";
 import type {LogState} from "./modules/log";
 import type {PanelsState} from "./modules/panels";
@@ -160,7 +160,7 @@ function recalculateReducer(state: RootState, onlySlice?: RecalculableSlice, onl
  * @param onlyId (optional) If onlyId is specified, ONLY that id will be recalculated
  * @returns Overrides to update various structure values
  */
-function recalculateSlice(state: RootState, sliceKey: 'structures' | 'abilities' | 'resources', calculators: Record<string, CalculatorSet<any>>, onlyId?: string): Record<string, any> {
+function recalculateSlice(state: RootState, sliceKey: RecalculableSlice, calculators: Record<string, CalculatorSet<any>>, onlyId?: string): Record<string, any> {
     const byId = state[sliceKey].byId as Record<string, any>;
     if (onlyId === undefined) {
         return mapObject(byId, (id, record) => {
@@ -204,14 +204,14 @@ function recalculateRecord(state: RootState, calculators: Record<string, Calcula
 export function getStructureUpgradeIds(state: RootState, structure: Structure) {
     return fromUpgrades.visibleIds(state.upgrades).filter(upgradeId => {
         const upgrade = state.upgrades.byId[upgradeId];
-        return upgrade.structure === structure.id;
+        return upgrade?.structure === structure.id;
     })
 }
 
 // Expedition-only upgrades (`squad: true` in database/upgrades.ts, no structure): equipment, combat stats,
 // battery. Offered in the Expedition panel's Outfitting section, not on any structure's card.
 export function getSquadUpgradeIds(state: RootState) {
-    return fromUpgrades.visibleIds(state.upgrades).filter(upgradeId => state.upgrades.byId[upgradeId].squad);
+    return fromUpgrades.visibleIds(state.upgrades).filter(upgradeId => state.upgrades.byId[upgradeId]?.squad);
 }
 
 export function canResearchUpgrade(state: RootState, upgrade: Upgrade) {
@@ -221,7 +221,7 @@ export function canResearchUpgrade(state: RootState, upgrade: Upgrade) {
     return fromResources.canConsume(state.resources, fromUpgrades.getResearchCost(upgrade));
 }
 
-export function researchUpgrade(upgradeId: string) {
+export function researchUpgrade(upgradeId: UpgradeId) {
     return function(dispatch: Dispatch, getState: GetState) {
         const upgrade = fromUpgrades.getUpgrade(getState().upgrades, upgradeId);
         if (upgrade && canResearchUpgrade(getState(), upgrade)) {
@@ -233,14 +233,14 @@ export function researchUpgrade(upgradeId: string) {
 // Returns ids of available abilities for a structure
 // Droid combat upgrades ('misc', applied manually here): each researched entry's effect
 // modifies the expedition droids' unit stats. New combat upgrades just join this list.
-const DROID_COMBAT_UPGRADE_IDS = ['droidFactory_reinforcedPlating', 'droidFactory_weaponCalibration'];
+const DROID_COMBAT_UPGRADE_IDS: UpgradeId[] = ['droidFactory_reinforcedPlating', 'droidFactory_weaponCalibration'];
 
 // Squad battery upgrades (squad-level, not per-droid: capacity scaling with team size would erase the
 // big-team-short-legs range tradeoff).
-const BATTERY_UPGRADE_IDS = ['droidFactory_extendedCells'];
+const BATTERY_UPGRADE_IDS: UpgradeId[] = ['droidFactory_extendedCells'];
 
 // Folds every researched upgrade's effect from `upgradeIds` into the `variables` object, in place.
-function applyResearchedUpgradeEffects(state: RootState, upgradeIds: string[], variables: Variables) {
+function applyResearchedUpgradeEffects(state: RootState, upgradeIds: UpgradeId[], variables: Variables) {
     const operations = initOperations();
     upgradeIds.forEach(upgradeId => {
         const upgrade = fromUpgrades.getUpgrade(state.upgrades, upgradeId);
@@ -288,7 +288,7 @@ export function ownedEquipment(state: RootState): EquipmentCharges {
 export function getStructureAbilityIds(state: RootState, structure: Structure) {
     return fromAbilities.visibleIds(state.abilities).filter(abilityId => {
         const ability = state.abilities.byId[abilityId];
-        return ability.structure === structure.id;
+        return ability?.structure === structure.id;
     })
 }
 
@@ -299,7 +299,7 @@ export function canCastAbility(state: RootState, ability: Ability) {
     return fromResources.canConsume(state.resources, fromAbilities.getAbilityCost(ability));
 }
 
-export function castAbility(abilityId: string) {
+export function castAbility(abilityId: AbilityId) {
     return function(dispatch: Dispatch, getState: GetState) {
         const ability = fromAbilities.getAbility(getState().abilities, abilityId);
         if (ability && canCastAbility(getState(), ability)) {

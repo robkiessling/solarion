@@ -1,7 +1,7 @@
 import {getRandomFromArray} from "./helpers";
 import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, type PlanetMap, type Sector} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {BANDS, GATE_DEFS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Band, type Capability, type PoiDef, type PoiReward, type PoiStatus, type PoiType} from "../database/pois";
+import {BANDS, GATE_DEFS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Band, type Capability, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior} from "../database/pois";
 import type {BugType} from "../database/battle";
 import type {NestFormation, TerrainLayoutId} from "./battle";
 
@@ -25,7 +25,7 @@ export interface Poi {
     storyId?: string;
     promptText?: string;
     actionLabel?: string;
-    resultBehavior?: 'auto' | 'narrate';
+    resultBehavior?: ResultBehavior;
 }
 
 /**
@@ -199,7 +199,7 @@ export function actionLabelFor(poi: Poi): string {
 }
 
 // 'auto' (resolve and close) | 'narrate' (hold the popup open on a result phase)
-export function resultBehaviorFor(poi: Poi): 'auto' | 'narrate' {
+export function resultBehaviorFor(poi: Poi): ResultBehavior {
     return poi.resultBehavior || POI_TYPE_DEFAULTS[poi.type].result;
 }
 

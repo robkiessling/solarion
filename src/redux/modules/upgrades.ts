@@ -1,13 +1,13 @@
 import _ from 'lodash';
 import update from 'immutability-helper';
-import database, {callbacks, type DiscoverWhen, type Upgrade, type UpgradeState} from "../../database/upgrades";
+import database, {callbacks, type DiscoverWhen, type Upgrade, type UpgradeId, type UpgradeRecord, type UpgradeState} from "../../database/upgrades";
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {hasLifetimeQuantities} from "./resources";
 import {getNumBuilt, getStructure} from "./structures";
 
 export interface UpgradesState {
-    byId: { [upgradeId: string]: Upgrade };
+    byId: Partial<Record<UpgradeId, Upgrade>>;
 }
 
 // Actions
@@ -21,13 +21,13 @@ export const FINISH = 'upgrades/FINISH' as const;
 export const SKIP = 'upgrades/SKIP' as const; // same as finish but no callbacks (used for testing)
 
 export type UpgradesAction =
-    | { type: typeof DISCOVER; payload: { id: string } }
+    | { type: typeof DISCOVER; payload: { id: UpgradeId } }
     | { type: typeof RESEARCH; payload: { upgrade: Upgrade } }
     | { type: typeof PROGRESS; payload: { timeDelta: number } }
-    | { type: typeof PAUSE; payload: { id: string } }
-    | { type: typeof RESUME; payload: { id: string } }
-    | { type: typeof FINISH; payload: { id: string } }
-    | { type: typeof SKIP; payload: { id: string } };
+    | { type: typeof PAUSE; payload: { id: UpgradeId } }
+    | { type: typeof RESUME; payload: { id: UpgradeId } }
+    | { type: typeof FINISH; payload: { id: UpgradeId } }
+    | { type: typeof SKIP; payload: { id: UpgradeId } };
 
 // Initial State
 const initialState: UpgradesState = {
@@ -50,12 +50,12 @@ export default function reducer(state: UpgradesState = initialState, action: Gam
             });
         case PROGRESS:
             // If none are researching, short circuit
-            if (!Object.values(state.byId).some(upgrade => upgrade.state === 'researching')) {
+            if (!Object.values(state.byId).some(upgrade => upgrade?.state === 'researching')) {
                 return state;
             }
 
-            const newState: Record<string, Upgrade> = {};
-            for (const [key, value] of Object.entries(state.byId)) {
+            const newState: Partial<Record<UpgradeId, Upgrade>> = {};
+            for (const [key, value] of Object.entries(state.byId) as [UpgradeId, Upgrade][]) {
                 if (value.state === 'researching') {
                     newState[key] = Object.assign({}, value, {
                         researchProgress: (value.researchProgress ?? 0) + action.payload.timeDelta
@@ -79,7 +79,7 @@ export default function reducer(state: UpgradesState = initialState, action: Gam
     }
 }
 
-function setUpgradeState(state: UpgradesState, upgradeId: string, upgradeState: UpgradeState): UpgradesState {
+function setUpgradeState(state: UpgradesState, upgradeId: UpgradeId, upgradeState: UpgradeState): UpgradesState {
     if (state.byId[upgradeId]) {
         return update(state, {
             byId: {
@@ -106,7 +106,7 @@ function setUpgradeState(state: UpgradesState, upgradeId: string, upgradeState: 
 // export function silhouette(id) {
 //     return { type: SILHOUETTE, payload: { id } };
 // }
-export function discover(id: string) {
+export function discover(id: UpgradeId) {
     return withRecalculation({ type: DISCOVER, payload: { id } }); // recalculate so we immediately calculate costs
 }
 
@@ -123,7 +123,7 @@ export function researchUnsafe(upgrade: Upgrade): UpgradesAction | Thunk {
         }
     }
 }
-export function researchForFree(upgradeId: string) {
+export function researchForFree(upgradeId: UpgradeId) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             finishResearch(dispatch, getState, upgradeId)
@@ -131,7 +131,7 @@ export function researchForFree(upgradeId: string) {
     }
 }
 
-export function skipResearch(upgradeId: string) {
+export function skipResearch(upgradeId: UpgradeId) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
             dispatch({ type: SKIP, payload: { id: upgradeId } });
@@ -140,10 +140,10 @@ export function skipResearch(upgradeId: string) {
     }
 }
 
-export function pause(id: string): UpgradesAction {
+export function pause(id: UpgradeId): UpgradesAction {
     return { type: PAUSE, payload: { id } };
 }
-export function resume(id: string): UpgradesAction {
+export function resume(id: UpgradeId): UpgradesAction {
     return { type: RESUME, payload: { id } };
 }
 
@@ -152,7 +152,7 @@ export function upgradesTick(timeDelta: number) {
         batch(() => {
             dispatch({ type: PROGRESS, payload: { timeDelta } });
 
-            for (const [key, value] of Object.entries(getState().upgrades.byId)) {
+            for (const [key, value] of Object.entries(getState().upgrades.byId) as [UpgradeId, Upgrade][]) {
                 if (value.state === 'researching' && (value.researchProgress ?? 0) >= value.researchTime * 1000) {
                     finishResearch(dispatch, getState, key);
                 }
@@ -164,7 +164,7 @@ export function upgradesTick(timeDelta: number) {
 function checkForUpgradeDiscoveries(state: RootState, dispatch: Dispatch) {
     let hasDiscovery = false;
 
-    for (const [upgradeId, upgradeDbRecord] of Object.entries(database)) {
+    for (const [upgradeId, upgradeDbRecord] of Object.entries(database) as [UpgradeId, UpgradeRecord][]) {
         const upgrade = getUpgrade(state.upgrades, upgradeId);
         if ((!upgrade || upgrade.state === 'hidden')) {
             if (shouldDiscover(upgradeDbRecord.discoverWhen, state)) {
@@ -194,7 +194,7 @@ function shouldDiscover(discoverWhen: DiscoverWhen | undefined, state: RootState
     }
 
     if (discoverWhen.upgrades &&
-        !discoverWhen.upgrades.every(upgradeId => isResearched(getUpgrade(state.upgrades, upgradeId)))) {
+        !discoverWhen.upgrades.every(upgradeId => isResearched(getUpgrade(state.upgrades, upgradeId as UpgradeId)))) {
         return false;
     }
 
@@ -212,12 +212,10 @@ export function upgradesTickSlow(timeDelta: number) {
     }
 }
 
-function finishResearch(dispatch: Dispatch, getState: GetState, upgradeId: string) {
+function finishResearch(dispatch: Dispatch, getState: GetState, upgradeId: UpgradeId) {
     dispatch({ type: FINISH, payload: { id: upgradeId } });
 
-    if (callbacks[upgradeId] && callbacks[upgradeId].onFinish) {
-        callbacks[upgradeId].onFinish(dispatch);
-    }
+    callbacks[upgradeId]?.onFinish?.(dispatch);
 
     // uncomment this if you want to immediately check for new upgrades
     // checkForUpgradeDiscoveries(getState(), dispatch)
@@ -227,7 +225,7 @@ function finishResearch(dispatch: Dispatch, getState: GetState, upgradeId: strin
 
 
 // Standard Functions
-export function getUpgrade(state: UpgradesState, id: string): Upgrade | undefined {
+export function getUpgrade(state: UpgradesState, id: UpgradeId): Upgrade | undefined {
     return state.byId[id];
 }
 export function getResearchCost(upgrade: Upgrade): ResourceAmounts {
@@ -240,17 +238,17 @@ export function isResearched(upgrade: Upgrade | undefined): boolean {
     return !!upgrade && upgrade.state === 'researched';
 }
 
-export function visibleIds(state: UpgradesState): string[] {
-    return Object.keys(state.byId).filter(id => {
+export function visibleIds(state: UpgradesState): UpgradeId[] {
+    return (Object.keys(state.byId) as UpgradeId[]).filter(id => {
         const upgrade = getUpgrade(state, id);
         return !isResearched(upgrade); // all states before 'researched' are visible
     });
 }
 
-export function getStandaloneIds(state: UpgradesState) {
-    return Object.keys(state.byId).filter(id => {
+export function getStandaloneIds(state: UpgradesState): UpgradeId[] {
+    return (Object.keys(state.byId) as UpgradeId[]).filter(id => {
         const upgrade = state.byId[id];
-        return upgrade.standalone && upgrade.state !== 'researched';
+        return upgrade?.standalone && upgrade.state !== 'researched';
     });
 }
 

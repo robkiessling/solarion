@@ -7,6 +7,8 @@
  * home). WHAT each piece does mechanically lives in the `effect` block (interpreted by lib/battle.ts).
  */
 
+import type {UpgradeId} from "./upgrades";
+
 export type EquipmentEffect =
     { kind: 'aoe'; damage: number; radius: number } |
     { kind: 'heal'; amount: number } |
@@ -15,7 +17,7 @@ export type EquipmentEffect =
 export interface EquipmentDef {
     name: string;
     description: string;
-    upgradeId: string;
+    upgradeId: UpgradeId;
     charges: number;
     effect: EquipmentEffect;
 }

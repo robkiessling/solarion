@@ -42,7 +42,7 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             return update(state, {
                 byId: {
                     [action.payload.id]: {
-                        $set: _.merge({}, database[action.payload.id as ResourceId], { id: action.payload.id, lifetimeTotal: database[action.payload.id as ResourceId].amount })
+                        $set: _.merge({}, database[action.payload.id], { id: action.payload.id, lifetimeTotal: database[action.payload.id].amount })
                     }
                 },
 

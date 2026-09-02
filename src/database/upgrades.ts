@@ -11,6 +11,7 @@ import {generateMap} from "../redux/modules/planet";
 import * as fromStar from "../redux/modules/star";
 import type {Effect, EffectAffects} from "../lib/effect";
 import type {DeepPartial} from "../lib/helpers";
+import type {AbilityId} from "./abilities";
 
 /** An upgrade's research lifecycle, in order */
 export type UpgradeState = 'hidden' | 'discovered' | 'researching' | 'paused' | 'researched';
@@ -18,7 +19,7 @@ export type UpgradeState = 'hidden' | 'discovered' | 'researching' | 'paused' | 
 export interface DiscoverWhen {
     /** lifetime resource totals that must be reached */
     resources?: ResourceAmounts;
-    /** upgrade ids that must already be researched */
+    /** upgrade ids that must already be researched (UpgradeId, but naming it here would make the table's type circular) */
     upgrades?: string[];
     /** structure build counts that must be reached */
     structures?: Partial<Record<StructureId, number>>;
@@ -42,7 +43,7 @@ export interface UpgradeRecord {
 }
 
 export interface Upgrade extends UpgradeRecord {
-    id: string;
+    id: UpgradeId;
     /** ms of research done so far */
     researchProgress?: number;
 }
@@ -69,7 +70,7 @@ const base: UpgradeRecord = {
 
 // TODO don't hardcode values into description, e.g. "Increase energy production by {{ multiplier * 100 }}% ..."
 // Note: 'effect' keys correspond to structure calculated variables
-const database: Record<string, UpgradeRecord> = {
+const database = {
     commandCenter_showTerminal: _.merge({}, base, {
         name: "Boot-Up",
         structure: 'commandCenter',
@@ -1230,13 +1231,16 @@ const database: Record<string, UpgradeRecord> = {
             energy: 10
         }
     } satisfies DeepPartial<UpgradeRecord>)
-};
+} satisfies Record<string, UpgradeRecord>;
+
+/** The upgrade ids: the keys of the table above */
+export type UpgradeId = keyof typeof database;
 
 export default database;
 
 
 // Functions can't be stored in the state so storing them in this const
-export const callbacks: Record<string, { onFinish?: (dispatch: Dispatch) => void }> = {
+export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispatch) => void }>> = {
     commandCenter_showTerminal: {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showTerminal', true));
@@ -1355,30 +1359,24 @@ export const callbacks: Record<string, { onFinish?: (dispatch: Dispatch) => void
 
 // A lookup of upgrades that AFFECT a structure
 // Format: { structureId => [upgrade1, upgrade2, ...], ... }
-export const upgradesAffectingStructure: Record<string, string[]> = {}
+export const upgradesAffectingStructure: Partial<Record<StructureId, UpgradeId[]>> = {}
 
 // A lookup of upgrades that AFFECT an ability
 // Format: { abilityId => [upgrade1, upgrade2, ...], ... }
-export const upgradesAffectingAbility: Record<string, string[]> = {}
+export const upgradesAffectingAbility: Partial<Record<AbilityId, UpgradeId[]>> = {}
 
-for (const [upgradeId, upgradeDbRecord] of Object.entries(database)) {
+for (const [upgradeId, upgradeDbRecord] of Object.entries(database) as [UpgradeId, UpgradeRecord][]) {
     switch(upgradeDbRecord.affects.type) {
         case 'structure':
             // If `affects` obj has no id we default to affecting the upgrade's structure
-            const structureId = upgradeDbRecord.affects.id || upgradeDbRecord.structure;
+            const structureId = (upgradeDbRecord.affects.id as StructureId | undefined) || upgradeDbRecord.structure;
             if (!structureId) break; // standalone upgrades belong to no structure, so there is nothing to affect
-            if (upgradesAffectingStructure[structureId] === undefined) {
-                upgradesAffectingStructure[structureId] = []
-            }
-            upgradesAffectingStructure[structureId].push(upgradeId);
+            (upgradesAffectingStructure[structureId] ??= []).push(upgradeId);
             break;
         case 'ability':
-            const abilityId = upgradeDbRecord.affects.id;
+            const abilityId = upgradeDbRecord.affects.id as AbilityId | undefined;
             if (!abilityId) break; // an ability-targeted upgrade must name the ability; without one there is nothing to affect
-            if (upgradesAffectingAbility[abilityId] === undefined) {
-                upgradesAffectingAbility[abilityId] = []
-            }
-            upgradesAffectingAbility[abilityId].push(upgradeId);
+            (upgradesAffectingAbility[abilityId] ??= []).push(upgradeId);
             break;
     }
 }

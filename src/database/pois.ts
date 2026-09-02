@@ -18,6 +18,9 @@ export type Band = 'r1' | 'r2near' | 'r2far' | 'r3';
 
 export type Capability = 'drill' | 'sealedChassis' | 'overrideModule';
 
+/** What accepting an encounter popup does: 'auto' resolves and closes it, 'narrate' holds it open on a result phase */
+export type ResultBehavior = 'auto' | 'narrate';
+
 export interface PoiReward {
     resources?: ResourceAmounts;
     capability?: Capability;
@@ -63,7 +66,7 @@ export interface GateDef {
 // phase (story text, salvage, losses) until the player continues or drives away. `promptText` is the offer
 // line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.ts); gates carry theirs
 // per gate kind (GATE_DEFS), nests never prompt (the fight starts on entry).
-export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: 'auto' | 'narrate', promptText?: string }> = {
+export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: ResultBehavior, promptText?: string }> = {
     cache: { actionLabel: 'Take', result: 'auto', promptText: 'Supply cache found{loot}. Take it?' },
     storySite: { actionLabel: 'Explore', result: 'narrate', promptText: 'Structure of unknown origin. Investigate?' },
     gate: { actionLabel: 'Open', result: 'auto' },

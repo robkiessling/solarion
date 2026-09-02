@@ -10,7 +10,7 @@ import {getCapacity, getIconSpan, getQuantity, getResource} from "../redux/modul
 import _ from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
 import {formatInteger, INFINITY, redText, type DeepPartial} from "../lib/helpers";
-import {upgradesAffectingStructure} from "./upgrades";
+import {upgradesAffectingStructure, type UpgradeId} from "./upgrades";
 import {abilitiesAffectingStructure} from "./abilities";
 import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations, type Variables} from "../lib/effect";
 import {energyBeamStrengthEnergy, energyBeamStrengthPct, type CalculatorSet} from "../redux/reducer";
@@ -583,7 +583,7 @@ export function energyBayBoost(state: RootState) {
     };
 
     // TODO This relies on updating this constant...
-    ['energyBay_production1', 'energyBay_production2', 'energyBay_production3', 'energyBay_production4'].forEach(upgradeId => {
+    (['energyBay_production1', 'energyBay_production2', 'energyBay_production3', 'energyBay_production4'] satisfies UpgradeId[]).forEach(upgradeId => {
         const upgrade = getUpgrade(state.upgrades, upgradeId);
         if (upgrade && isResearched(upgrade) && upgrade.effect) {
             applySingleEffect(upgrade.effect, variables);
