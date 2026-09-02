@@ -18,12 +18,20 @@ import {initOperations, mergeEffectIntoOperations, applyOperationsToVariables} f
  */
 
 // Actions
-export const OPEN_PANEL = 'panels/OPEN_PANEL';
-export const CLOSE_PANEL = 'panels/CLOSE_PANEL';
-export const CHASSIS_AUTHORIZE = 'panels/CHASSIS_AUTHORIZE'; // start (or instantly finish) a retool
-export const CHASSIS_TICK = 'panels/CHASSIS_TICK';
-export const CHASSIS_COMMIT = 'panels/CHASSIS_COMMIT';
-export const CHASSIS_UNLOCK_ROW = 'panels/CHASSIS_UNLOCK_ROW';
+export const OPEN_PANEL = 'panels/OPEN_PANEL' as const;
+export const CLOSE_PANEL = 'panels/CLOSE_PANEL' as const;
+export const CHASSIS_AUTHORIZE = 'panels/CHASSIS_AUTHORIZE' as const; // start (or instantly finish) a retool
+export const CHASSIS_TICK = 'panels/CHASSIS_TICK' as const;
+export const CHASSIS_COMMIT = 'panels/CHASSIS_COMMIT' as const;
+export const CHASSIS_UNLOCK_ROW = 'panels/CHASSIS_UNLOCK_ROW' as const;
+
+export type PanelsAction =
+    | { type: typeof OPEN_PANEL; payload: { panelId: string } }
+    | { type: typeof CLOSE_PANEL }
+    | { type: typeof CHASSIS_AUTHORIZE; payload: { rowId: string; optionId: string; downtimeMs: number } }
+    | { type: typeof CHASSIS_TICK; payload: { timeDelta: number } }
+    | { type: typeof CHASSIS_COMMIT }
+    | { type: typeof CHASSIS_UNLOCK_ROW; payload: { rowId: string } };
 
 // Initial State
 const initialState: PanelsState = {
@@ -39,12 +47,10 @@ const initialState: PanelsState = {
 
 // Reducer
 export default function reducer(state: PanelsState = initialState, action: GameAction): PanelsState {
-    const payload = action.payload;
-
     switch (action.type) {
         case OPEN_PANEL: {
-            const next = update(state, { openPanelId: { $set: payload.panelId } });
-            if (payload.panelId !== 'chassis') return next;
+            const next = update(state, { openPanelId: { $set: action.payload.panelId } });
+            if (action.payload.panelId !== 'chassis') return next;
             // Opening the index marks every currently unlocked row as seen (clears the "new" indicator)
             const visibleIds = Object.values(CHASSIS_ROWS_BY_ID)
                 .filter(row => isChassisRowUnlocked(next, row))
@@ -58,10 +64,10 @@ export default function reducer(state: PanelsState = initialState, action: GameA
                 chassis: {
                     retooling: {
                         $set: {
-                            rowId: payload.rowId,
-                            optionId: payload.optionId,
-                            remainingMs: payload.downtimeMs,
-                            totalMs: payload.downtimeMs,
+                            rowId: action.payload.rowId,
+                            optionId: action.payload.optionId,
+                            remainingMs: action.payload.downtimeMs,
+                            totalMs: action.payload.downtimeMs,
                         }
                     }
                 }
@@ -71,7 +77,7 @@ export default function reducer(state: PanelsState = initialState, action: GameA
             return update(state, {
                 chassis: {
                     retooling: {
-                        remainingMs: { $apply: (ms) => ms - payload.timeDelta }
+                        remainingMs: { $apply: (ms) => ms - action.payload.timeDelta }
                     }
                 }
             });
@@ -91,23 +97,23 @@ export default function reducer(state: PanelsState = initialState, action: GameA
             });
         }
         case CHASSIS_UNLOCK_ROW:
-            if (state.chassis.unlocked.includes(payload.rowId)) return state;
-            return update(state, { chassis: { unlocked: { $push: [payload.rowId] } } });
+            if (state.chassis.unlocked.includes(action.payload.rowId)) return state;
+            return update(state, { chassis: { unlocked: { $push: [action.payload.rowId] } } });
         default:
             return state;
     }
 }
 
 // Action Creators
-export function openPanel(panelId: string) {
+export function openPanel(panelId: string): PanelsAction {
     return { type: OPEN_PANEL, payload: { panelId } };
 }
-export function closePanel() {
+export function closePanel(): PanelsAction {
     return { type: CLOSE_PANEL };
 }
 
 // Opens a locked schematic row (site fragments / story triggers / dev call this).
-export function unlockChassisRow(rowId: string) {
+export function unlockChassisRow(rowId: string): PanelsAction {
     return { type: CHASSIS_UNLOCK_ROW, payload: { rowId } };
 }
 

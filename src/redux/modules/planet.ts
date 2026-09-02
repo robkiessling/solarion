@@ -46,37 +46,74 @@ import {batch} from "react-redux";
 import * as fromClock from "./clock";
 
 // Actions
-export const GENERATE_MAP = 'planet/GENERATE_MAP';
-export const PROGRESS = 'planet/PROGRESS';
-export const FINISH_EXPLORING_MAP = 'planet/FINISH_EXPLORING_MAP';
-export const SET_ROTATION = 'planet/SET_ROTATION';
-export const SET_ROTATION_MODE = 'planet/SET_ROTATION_MODE';
-export const ASSIGN_DROID = 'planet/ASSIGN_DROID';
-export const REMOVE_DROID = 'planet/REMOVE_DROID';
-export const START_DEVELOPMENT = 'planet/START_DEVELOPMENT';
-export const FINISH_DEVELOPMENT = 'planet/FINISH_DEVELOPMENT';
-export const SET_EXPLORE_SPEED = 'planet/SET_EXPLORE_SPEED';
-export const SET_BEACON = 'planet/SET_BEACON';
-export const UNLOCK_TERRAIN = 'planet/UNLOCK_TERRAIN';
-export const START_COOK = 'planet/START_COOK';
-export const INCREMENT_COOK = 'planet/INCREMENT_COOK';
+export const GENERATE_MAP = 'planet/GENERATE_MAP' as const;
+export const PROGRESS = 'planet/PROGRESS' as const;
+export const FINISH_EXPLORING_MAP = 'planet/FINISH_EXPLORING_MAP' as const;
+export const SET_ROTATION = 'planet/SET_ROTATION' as const;
+export const SET_ROTATION_MODE = 'planet/SET_ROTATION_MODE' as const;
+export const ASSIGN_DROID = 'planet/ASSIGN_DROID' as const;
+export const REMOVE_DROID = 'planet/REMOVE_DROID' as const;
+export const START_DEVELOPMENT = 'planet/START_DEVELOPMENT' as const;
+export const FINISH_DEVELOPMENT = 'planet/FINISH_DEVELOPMENT' as const;
+export const SET_EXPLORE_SPEED = 'planet/SET_EXPLORE_SPEED' as const;
+export const SET_BEACON = 'planet/SET_BEACON' as const;
+export const UNLOCK_TERRAIN = 'planet/UNLOCK_TERRAIN' as const;
+export const START_COOK = 'planet/START_COOK' as const;
+export const INCREMENT_COOK = 'planet/INCREMENT_COOK' as const;
 
 // The player-driven squad (see lib/squad.ts)
-export const DEPLOY_SQUAD = 'planet/DEPLOY_SQUAD';
-export const DISBAND_SQUAD = 'planet/DISBAND_SQUAD';
-export const SQUAD_SET_PATH = 'planet/SQUAD_SET_PATH';
-export const SQUAD_FACE = 'planet/SQUAD_FACE';
-export const ADVANCE_SQUAD = 'planet/ADVANCE_SQUAD';
-export const SQUAD_START_FIGHT = 'planet/SQUAD_START_FIGHT';
-export const SQUAD_FIGHT_WON = 'planet/SQUAD_FIGHT_WON';
-export const SQUAD_WIPED = 'planet/SQUAD_WIPED';
-export const SQUAD_RETREATED = 'planet/SQUAD_RETREATED';
-export const SQUAD_RETREAT_ORDERED = 'planet/SQUAD_RETREAT_ORDERED';
-export const SQUAD_USE_EQUIPMENT = 'planet/SQUAD_USE_EQUIPMENT';
-export const SQUAD_PROMPT = 'planet/SQUAD_PROMPT';
-export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT';
-export const SQUAD_RESOLVE_POI = 'planet/SQUAD_RESOLVE_POI';
-export const SQUAD_DELIVER_CARGO = 'planet/SQUAD_DELIVER_CARGO';
+export const DEPLOY_SQUAD = 'planet/DEPLOY_SQUAD' as const;
+export const DISBAND_SQUAD = 'planet/DISBAND_SQUAD' as const;
+export const SQUAD_SET_PATH = 'planet/SQUAD_SET_PATH' as const;
+export const SQUAD_FACE = 'planet/SQUAD_FACE' as const;
+export const ADVANCE_SQUAD = 'planet/ADVANCE_SQUAD' as const;
+export const SQUAD_START_FIGHT = 'planet/SQUAD_START_FIGHT' as const;
+export const SQUAD_FIGHT_WON = 'planet/SQUAD_FIGHT_WON' as const;
+export const SQUAD_WIPED = 'planet/SQUAD_WIPED' as const;
+export const SQUAD_RETREATED = 'planet/SQUAD_RETREATED' as const;
+export const SQUAD_RETREAT_ORDERED = 'planet/SQUAD_RETREAT_ORDERED' as const;
+export const SQUAD_USE_EQUIPMENT = 'planet/SQUAD_USE_EQUIPMENT' as const;
+export const SQUAD_PROMPT = 'planet/SQUAD_PROMPT' as const;
+export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT' as const;
+export const SQUAD_RESOLVE_POI = 'planet/SQUAD_RESOLVE_POI' as const;
+export const SQUAD_DELIVER_CARGO = 'planet/SQUAD_DELIVER_CARGO' as const;
+
+export type PlanetAction =
+    | { type: typeof GENERATE_MAP; payload: { map: PlanetMap; homeCoord: Coord; pois: PlanetState['pois'] } }
+    /** newRotation is absent when the camera isn't being driven this tick (0 is a real rotation, the seam) */
+    | { type: typeof PROGRESS; payload: { newRotation?: number; droids: ScoutDroid[]; reveals: Coord[];
+        revealedFlatland: number; numArrivedHome: number } }
+    | { type: typeof FINISH_EXPLORING_MAP }
+    | { type: typeof SET_ROTATION; payload: { value: number } }
+    | { type: typeof SET_ROTATION_MODE; payload: { mode: RotationMode } }
+    /** amount is the SPAWNED count (what the resources reducer debits); turnAroundIndices are recalled scouts resuming */
+    | { type: typeof ASSIGN_DROID; payload: { amount: number; turnAroundIndices: number[] } }
+    /** recalls walk home along `path`; instantIndices despawn now */
+    | { type: typeof REMOVE_DROID; payload: { recalls: { index: number; path: Coord[] }[]; instantIndices: number[] } }
+    | { type: typeof START_DEVELOPMENT; payload: { coords: Coord[] } }
+    | { type: typeof FINISH_DEVELOPMENT; payload: { coords: Coord[] } }
+    | { type: typeof SET_EXPLORE_SPEED; payload: { value: number } }
+    | { type: typeof SET_BEACON; payload: { coord: Coord | null } }
+    | { type: typeof UNLOCK_TERRAIN; payload: { upgrade: string } }
+    | { type: typeof START_COOK }
+    | { type: typeof INCREMENT_COOK; payload: { timeDelta: number } }
+    | { type: typeof DEPLOY_SQUAD; payload: { assignedDroids: number; multiplier: number; equipment: EquipmentCharges;
+        droidStats: DroidStats; batteryCapacity: number } }
+    | { type: typeof DISBAND_SQUAD; payload: { droidsReturned: number; cargo: ResourceAmounts } }
+    | { type: typeof SQUAD_SET_PATH; payload: { path: Coord[] } }
+    | { type: typeof SQUAD_FACE; payload: { facing: [number, number] } }
+    | { type: typeof ADVANCE_SQUAD; payload: { squad: Squad | null; reveals: Coord[]; revealedFlatland: number } }
+    | { type: typeof SQUAD_START_FIGHT; payload: { poiId: string; fromCoord: Coord; battle: Battle } }
+    | { type: typeof SQUAD_FIGHT_WON; payload: { poiId: string; survivors: number; droidHp: number[]; reward: PoiReward;
+        landCredit: number; result: EncounterResult } }
+    | { type: typeof SQUAD_WIPED; payload: { poiId: string; result: EncounterResult } }
+    | { type: typeof SQUAD_RETREATED; payload: { poiId: string; survivors: number; droidHp: number[] } }
+    | { type: typeof SQUAD_RETREAT_ORDERED }
+    | { type: typeof SQUAD_USE_EQUIPMENT; payload: { itemId: EquipmentId } }
+    | { type: typeof SQUAD_PROMPT; payload: { poiId: string } }
+    | { type: typeof SQUAD_LEAVE_PROMPT }
+    | { type: typeof SQUAD_RESOLVE_POI; payload: { poiId: string; reward: PoiReward; result: EncounterResult | null } }
+    | { type: typeof SQUAD_DELIVER_CARGO; payload: { cargo: ResourceAmounts } };
 
 // Initial State
 const initialState: PlanetState = {
@@ -115,31 +152,30 @@ const initialState: PlanetState = {
 
 // Reducer
 export default function reducer(state: PlanetState = initialState, action: GameAction): PlanetState {
-    const payload = action.payload;
     let updates: Record<string, any>;
 
     switch (action.type) {
         case GENERATE_MAP:
             return update(state, {
-                map: { $set: payload.map },
-                homeCoord: { $set: payload.homeCoord },
-                numExplored: { $set: numSectorsMatching(payload.map, STATUSES.explored.key) },
-                maxDevelopedLand: { $set: numSectorsMatching(payload.map, undefined, TERRAINS.flatland.key) + 1 }, // add 1 for home base
-                pois: { $set: payload.pois },
+                map: { $set: action.payload.map },
+                homeCoord: { $set: action.payload.homeCoord },
+                numExplored: { $set: numSectorsMatching(action.payload.map, STATUSES.explored.key) },
+                maxDevelopedLand: { $set: numSectorsMatching(action.payload.map, undefined, TERRAINS.flatland.key) + 1 }, // add 1 for home base
+                pois: { $set: action.payload.pois },
                 squad: { $set: null },
                 prompt: { $set: null },
                 beaconCoord: { $set: null }
             })
         case PROGRESS:
             updates = {
-                droids: { $set: payload.droids }
+                droids: { $set: action.payload.droids }
             }
 
-            if (payload.newRotation !== undefined) { // 0 is a real rotation (the seam), not "no update"
-                updates.rotation = { $set: payload.newRotation };
+            if (action.payload.newRotation !== undefined) { // 0 is a real rotation (the seam), not "no update"
+                updates.rotation = { $set: action.payload.newRotation };
             }
 
-            addRevealUpdates(state, updates, payload.reveals);
+            addRevealUpdates(state, updates, action.payload.reveals);
 
             return update(state, updates);
         case FINISH_EXPLORING_MAP:
@@ -148,23 +184,23 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             })
         case SET_ROTATION:
             return update(state, {
-                rotation: { $set: payload.value }
+                rotation: { $set: action.payload.value }
             })
         case SET_ROTATION_MODE:
             return update(state, {
-                rotationMode: { $set: payload.mode }
+                rotationMode: { $set: action.payload.mode }
             })
         case ASSIGN_DROID: {
             // payload.amount fresh droids spawn docked (in the grid; they surface wherever there's work);
             // payload.turnAroundIndices are returning droids that turn around in place (recall undone) and
             // resume exploring from wherever they stand next tick.
-            const turnAroundSet = new Set(payload.turnAroundIndices || []);
+            const turnAroundSet = new Set(action.payload.turnAroundIndices || []);
             const spawned: ScoutDroid[] = [];
-            for (let i = 0; i < payload.amount; i++) {
+            for (let i = 0; i < action.payload.amount; i++) {
                 spawned.push({ docked: true, coord: null, path: [], target: null, moveProgress: 0, heading: null });
             }
             return update(state, {
-                droidData: { numDroidsAssigned: { $apply: (x: number) => x + payload.amount + turnAroundSet.size } },
+                droidData: { numDroidsAssigned: { $apply: (x: number) => x + action.payload.amount + turnAroundSet.size } },
                 droids: {
                     $apply: (droids: ScoutDroid[]) => droids
                         .map((droid: ScoutDroid, i: number) => turnAroundSet.has(i) ?
@@ -179,9 +215,9 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             // home and only rejoins the idle pool on arrival (see numArrivedHome on PROGRESS). Droids with no
             // position/route (payload.instantIndices) despawn immediately and credit on this action instead.
             const recallByIndex: Record<number, { index: number, path: Coord[] }> = {};
-            payload.recalls.forEach((recall: { index: number, path: Coord[] }) => { recallByIndex[recall.index] = recall; });
-            const instantSet = new Set(payload.instantIndices);
-            const numRemoved = payload.recalls.length + payload.instantIndices.length;
+            action.payload.recalls.forEach((recall: { index: number, path: Coord[] }) => { recallByIndex[recall.index] = recall; });
+            const instantSet = new Set(action.payload.instantIndices);
+            const numRemoved = action.payload.recalls.length + action.payload.instantIndices.length;
 
             return update(state, {
                 droidData: { numDroidsAssigned: { $apply: (x: number) => x - numRemoved } },
@@ -197,7 +233,7 @@ export default function reducer(state: PlanetState = initialState, action: GameA
         }
         case START_DEVELOPMENT:
             updates = { map: {} }
-            payload.coords.forEach((coord: Coord) => {
+            action.payload.coords.forEach((coord: Coord) => {
                 if (updates.map[coord[0]] === undefined) { updates.map[coord[0]] = {} }
                 updates.map[coord[0]][coord[1]] = {
                     terrain: { $set: TERRAINS.developing.key }
@@ -211,7 +247,7 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                 map: {},
                 overallStatus: { $set: 'inProgress' }
             }
-            payload.coords.forEach((coord: Coord) => {
+            action.payload.coords.forEach((coord: Coord) => {
                 if (updates.map[coord[0]] === undefined) { updates.map[coord[0]] = {} }
                 updates.map[coord[0]][coord[1]] = {
                     terrain: { $set: TERRAINS.developed.key }
@@ -220,17 +256,17 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             return update(state, updates);
         case SET_EXPLORE_SPEED:
             return update(state, {
-                exploreSpeed: { $set: payload.value }
+                exploreSpeed: { $set: action.payload.value }
             })
         case SET_BEACON:
             return update(state, {
-                beaconCoord: { $set: payload.coord }
+                beaconCoord: { $set: action.payload.coord }
             })
         case UNLOCK_TERRAIN:
             // A terrain-crossing upgrade (e.g. mountaineering) makes that terrain passable, which re-opens frontier.
             // Clear any 'finished' status so planetTick resumes exploring the newly-reachable ground.
             return update(state, {
-                unlockedTerrains: { [payload.upgrade]: { $set: true } },
+                unlockedTerrains: { [action.payload.upgrade]: { $set: true } },
                 overallStatus: { $set: 'inProgress' }
             })
         case START_COOK:
@@ -239,14 +275,14 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             })
         case INCREMENT_COOK:
             return update(state, {
-                cookedPct: { $apply: (x: number) => Math.min(x + (payload.timeDelta / COOK_TIME), 1) }
+                cookedPct: { $apply: (x: number) => Math.min(x + (action.payload.timeDelta / COOK_TIME), 1) }
             })
 
         case DEPLOY_SQUAD:
             if (!state.homeCoord) return state; // no map generated yet
             return update(state, {
-                squad: { $set: createSquad(state.homeCoord, payload.assignedDroids, payload.multiplier,
-                    payload.equipment, payload.droidStats, payload.batteryCapacity) }
+                squad: { $set: createSquad(state.homeCoord, action.payload.assignedDroids, action.payload.multiplier,
+                    action.payload.equipment, action.payload.droidStats, action.payload.batteryCapacity) }
             });
         case DISBAND_SQUAD:
             return update(state, {
@@ -257,13 +293,13 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             // The way the driver is looking (screen-space [dx, dy]); drives the Expedition panel's vista.
             // Set on every attempted step, so bumping into a ridge turns the team to face it.
             if (!state.squad) return state;
-            return update(state, { squad: { facing: { $set: payload.facing } } });
+            return update(state, { squad: { facing: { $set: action.payload.facing } } });
         case SQUAD_SET_PATH:
             // Safety net: any new path clears a lingering prompt (the input layer blocks movement while one
             // is open, so this shouldn't fire in practice)
             return update(state, {
                 squad: {
-                    path: { $set: payload.path },
+                    path: { $set: action.payload.path },
                     moveProgress: { $set: 0 }
                 },
                 prompt: { $set: null }
@@ -276,10 +312,10 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                 squad: {
                     path: { $set: [] },
                     moveProgress: { $set: 0 },
-                    fighting: { $set: { poiId: payload.poiId, battle: payload.battle,
-                        fromCoord: payload.fromCoord, contactMs: 0 } }
+                    fighting: { $set: { poiId: action.payload.poiId, battle: action.payload.battle,
+                        fromCoord: action.payload.fromCoord, contactMs: 0 } }
                 },
-                pois: { [payload.poiId]: { difficultyKnown: { $set: true } } },
+                pois: { [action.payload.poiId]: { difficultyKnown: { $set: true } } },
                 prompt: { $set: null }
             });
         case SQUAD_PROMPT:
@@ -289,7 +325,7 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                     path: { $set: [] },
                     moveProgress: { $set: 0 }
                 },
-                prompt: { $set: { poiId: payload.poiId, phase: 'offer' } }
+                prompt: { $set: { poiId: action.payload.poiId, phase: 'offer' } }
             });
         case SQUAD_LEAVE_PROMPT:
             return update(state, {
@@ -298,22 +334,22 @@ export default function reducer(state: PlanetState = initialState, action: GameA
         case SQUAD_FIGHT_WON: {
             // The battle's outcome shows in the encounter popup's result phase (losses, reclaimed land, loot)
             updates = {
-                pois: { [payload.poiId]: { status: { $set: 'cleared' } } },
+                pois: { [action.payload.poiId]: { status: { $set: 'cleared' } } },
                 squad: {
-                    squadSize: { $set: payload.survivors },
-                    droidHp: { $set: payload.droidHp },
-                    cargo: { $apply: (cargo: ResourceAmounts) => mergeCargo(cargo, payload.reward) }
+                    squadSize: { $set: action.payload.survivors },
+                    droidHp: { $set: action.payload.droidHp },
+                    cargo: { $apply: (cargo: ResourceAmounts) => mergeCargo(cargo, action.payload.reward) }
                 },
-                prompt: { $set: { poiId: payload.poiId, phase: 'result', result: payload.result } }
+                prompt: { $set: { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } }
             };
 
             // The nest is dead: its infestation stamp retracts (the land becomes sweepable and developable
             // again, so any 'finished' exploration status is cleared too)
-            const nest = state.pois[payload.poiId];
+            const nest = state.pois[action.payload.poiId];
             if (nest && nest.infestRadius != null) {
                 updates.map = {};
                 [nest.coord, ...getCoordsWithinHops(nest.coord, nest.infestRadius)].forEach(([r, c]) => {
-                    if (state.map[r][c].infestedBy === payload.poiId) {
+                    if (state.map[r][c].infestedBy === action.payload.poiId) {
                         if (updates.map[r] === undefined) updates.map[r] = {};
                         updates.map[r][c] = { infestedBy: { $set: null } };
                     }
@@ -329,15 +365,15 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             // strength (each side heals at home), so the next assault must be decisive too.
             return update(state, {
                 squad: { $set: null },
-                prompt: { $set: { poiId: payload.poiId, phase: 'result', result: payload.result } }
+                prompt: { $set: { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } }
             });
         case SQUAD_RETREATED:
             // Withdrawal complete: the escapees keep driving (no popup to dismiss mid-flight), carrying
             // their wounds; the nest restores itself to full strength behind them.
             return update(state, {
                 squad: {
-                    squadSize: { $set: payload.survivors },
-                    droidHp: { $set: payload.droidHp }
+                    squadSize: { $set: action.payload.survivors },
+                    droidHp: { $set: action.payload.droidHp }
                 }
             });
         case SQUAD_RETREAT_ORDERED:
@@ -347,25 +383,25 @@ export default function reducer(state: PlanetState = initialState, action: GameA
         case SQUAD_USE_EQUIPMENT:
             return update(state, {
                 squad: {
-                    equipment: { [payload.itemId]: { $apply: (charges: number) => charges - 1 } },
-                    fighting: { battle: { $apply: (battle) => applyEquipment(battle, payload.itemId) } }
+                    equipment: { [action.payload.itemId]: { $apply: (charges: number) => charges - 1 } },
+                    fighting: { battle: { $apply: (battle) => applyEquipment(battle, action.payload.itemId) } }
                 }
             });
         case SQUAD_RESOLVE_POI: {
             // Player chose to take/explore/open the site: clear it and load any reward as cargo. A 'narrate'
             // POI holds the popup open on its result phase (story text, salvage); 'auto' closes it here.
             updates = {
-                pois: { [payload.poiId]: { status: { $set: 'cleared' } } },
+                pois: { [action.payload.poiId]: { status: { $set: 'cleared' } } },
                 squad: {
-                    cargo: { $apply: (cargo: ResourceAmounts) => mergeCargo(cargo, payload.reward) }
+                    cargo: { $apply: (cargo: ResourceAmounts) => mergeCargo(cargo, action.payload.reward) }
                 },
-                prompt: { $set: payload.result ?
-                    { poiId: payload.poiId, phase: 'result', result: payload.result } : null }
+                prompt: { $set: action.payload.result ?
+                    { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } : null }
             };
 
             // Opening a gate unblocks its tile (scouts can pass, land can develop through) and may put new
             // ground in reach, so any 'finished' exploration status is cleared
-            const poi = state.pois[payload.poiId];
+            const poi = state.pois[action.payload.poiId];
             if (poi && poi.type === 'gate') {
                 updates.map = {
                     [poi.coord[0]]: { [poi.coord[1]]: { gated: { $set: false } } }
@@ -383,9 +419,9 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             // Wholesale snapshot from the pure advanceSquad, plus its line-of-sight reveals (same treatment
             // as scout reveals on PROGRESS: mark explored, discover POIs; resources credits land off this action).
             updates = {
-                squad: { $set: payload.squad }
+                squad: { $set: action.payload.squad }
             };
-            addRevealUpdates(state, updates, payload.reveals);
+            addRevealUpdates(state, updates, action.payload.reveals);
             return update(state, updates);
         default:
             return state;
@@ -427,17 +463,17 @@ function addRevealUpdates(state: PlanetState, updates: Record<string, any>, reve
 
 
 // Action Creators
-export function setRotation(value: number) {
+export function setRotation(value: number): PlanetAction {
     return { type: SET_ROTATION, payload: { value } }
 }
-export function setRotationMode(mode: RotationMode) {
+export function setRotationMode(mode: RotationMode): PlanetAction {
     return { type: SET_ROTATION_MODE, payload: { mode } }
 }
-export function startCooking() {
+export function startCooking(): PlanetAction {
     return { type: START_COOK }
 }
 
-export function generateMap() {
+export function generateMap(): PlanetAction {
     const map = generatePlanetMap();
     const homeCoord = getHomeBasePosition(map).coord;
     const pois = generatePois(map); // also stamps infestation flags onto the map
@@ -507,8 +543,8 @@ export function startExploringMap() {
     return () => {};
 }
 
-function finishExploringMap() {
-    return { type: FINISH_EXPLORING_MAP, payload: {} };
+function finishExploringMap(): PlanetAction {
+    return { type: FINISH_EXPLORING_MAP };
 }
 
 export function startDevelopment(dispatch: Dispatch, getState: GetState, size: number) {
@@ -525,7 +561,7 @@ export function finishDevelopment(dispatch: Dispatch, getState: GetState) {
     dispatch(recalculateState());
 }
 
-export function setExploreSpeed(value: number) {
+export function setExploreSpeed(value: number): PlanetAction {
     return { type: SET_EXPLORE_SPEED, payload: { value } }
 }
 
@@ -541,13 +577,13 @@ export function setBeaconAt(coord: Coord) {
     }
 }
 
-export function clearBeacon() {
+export function clearBeacon(): PlanetAction {
     return { type: SET_BEACON, payload: { coord: null } };
 }
 
 // Marks a terrain-crossing upgrade as researched (e.g. 'mountaineering'), making that terrain passable and resuming
 // exploration. Call this from the upgrade's onFinish; `upgrade` must match the terrain's `crossUpgrade` key.
-export function unlockTerrain(upgrade: string) {
+export function unlockTerrain(upgrade: string): PlanetAction {
     return { type: UNLOCK_TERRAIN, payload: { upgrade } };
 }
 
@@ -709,7 +745,7 @@ export function disbandSquad() {
 // wall and learned something) but does not move -- the caller shows a bump either way on `false`.
 // POI blocking (nests, sealed sites) is the component's concern: it decides bump-vs-attack per input rules.
 // Turn the squad to look along dir ([dx, dy] in screen space, see KEY_DIRS in the planet component)
-export function squadFace(dir: [number, number]) {
+export function squadFace(dir: [number, number]): PlanetAction {
     return { type: SQUAD_FACE, payload: { facing: dir } };
 }
 
@@ -804,7 +840,7 @@ export function squadInteract() {
 }
 
 // Player declines the offer (or continues past a result); the popup's only exits besides accepting.
-export function squadLeavePrompt() {
+export function squadLeavePrompt(): PlanetAction {
     return { type: SQUAD_LEAVE_PROMPT };
 }
 
@@ -869,7 +905,7 @@ export function retreatFromFight() {
 }
 
 // Applies advanceSquad's contact/fight events (dispatched from planetTick).
-function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad | null, event: any) {
+function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad | null, event: SquadEvent) {
     const pois = getState().planet.pois;
 
     switch (event.type) {

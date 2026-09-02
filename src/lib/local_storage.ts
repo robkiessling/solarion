@@ -1,4 +1,3 @@
-// @ts-check
 import {resetLastSavedAt, updateLastSavedAt} from "../redux/modules/game";
 import store from "../redux/store";
 

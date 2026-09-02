@@ -1,4 +1,4 @@
-import { combineReducers, Reducer } from 'redux'
+import { Action, combineReducers, Reducer } from 'redux'
 import {batch} from "react-redux";
 import reduceReducers from "reduce-reducers";
 import update from 'immutability-helper';
@@ -25,7 +25,13 @@ import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations} from "../lib/effect";
 
 // Actions
-export const RECALCULATE = 'reducer/RECALCULATE';
+export const RECALCULATE = 'reducer/RECALCULATE' as const;
+
+/** The state slices whose records carry database calculators (see recalculateSlice) */
+export type RecalculableSlice = 'structures' | 'abilities' | 'resources';
+
+export type RecalculateAction =
+    | { type: typeof RECALCULATE; payload: { onlySlice?: RecalculableSlice; onlyId?: string } };
 
 /** The per-structure resource tables that scale with the number built */
 type StructureStatistic = 'cost' | 'consumes' | 'produces' | 'capacity' | 'boost';
@@ -47,10 +53,12 @@ const rootReducer = reduceReducers<RootState>(
     }),
 
     // cross-cutting entire state
-    (state: RootState, action: GameAction) => {
+    (state: RootState, action: Action) => {
         switch (action.type) {
-            case RECALCULATE:
-                return recalculateReducer(state, action.payload.onlySlice, action.payload.onlyId);
+            case RECALCULATE: {
+                const { payload } = action as RecalculateAction;
+                return recalculateReducer(state, payload.onlySlice, payload.onlyId);
+            }
             default:
                 return state;
         }
@@ -60,7 +68,7 @@ export default rootReducer;
 
 
 // Action Creators
-export function recalculateState(onlySlice?: string, onlyId?: string) {
+export function recalculateState(onlySlice?: RecalculableSlice, onlyId?: string): RecalculateAction {
     return { type: RECALCULATE, payload: { onlySlice, onlyId } };
 }
 
@@ -86,7 +94,7 @@ export function withRecalculation(action: GameAction | Thunk) {
  * @param onlyId (optional) If onlyId is specified, ONLY that id (e.g. 'solarPanel') will be recalculated
  * @returns Overrides to update various structure values
  */
-function recalculateReducer(state: RootState, onlySlice?: string, onlyId?: string): RootState {
+function recalculateReducer(state: RootState, onlySlice?: RecalculableSlice, onlyId?: string): RootState {
     if (onlySlice === undefined || onlySlice === 'structures') {
         state = update(state, {
             structures: {

@@ -6,7 +6,10 @@ import {roundToDecimal} from "../../lib/helpers";
 // todo rename this class planet_clock? or consolidate with planet.ts?
 
 // Actions
-export const TICK = 'clock/TICK';
+export const TICK = 'clock/TICK' as const;
+
+export type ClockAction =
+    | { type: typeof TICK; payload: { timeDelta: number } };
 
 const WIND_SPEEDS = [17, 18, 22, 33, 25, 20, 15, 22, 12, 3, 10, 15, 25, 35, 60, 40, 33, 25, 20];
 const WIND_STEP_SIZE = 2000; // seconds per step

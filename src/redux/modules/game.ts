@@ -2,8 +2,12 @@ import update from 'immutability-helper';
 import {SAVE_FORMAT_VERSION} from "../../lib/save_version";
 
 // Actions
-export const UPDATE_SETTING = 'game/UPDATE_SETTING';
-export const ADD_NAV_TAB = 'game/ADD_NAV_TAB';
+export const UPDATE_SETTING = 'game/UPDATE_SETTING' as const;
+export const ADD_NAV_TAB = 'game/ADD_NAV_TAB' as const;
+
+export type GameSliceAction =
+    | { type: typeof UPDATE_SETTING; payload: { key: keyof GameState; value: GameState[keyof GameState] } }
+    | { type: typeof ADD_NAV_TAB; payload: { tab: string } };
 
 // Constants
 export const NAV_TAB_TITLES = {
@@ -49,35 +53,33 @@ const initialState: GameState = {
 
 // Reducers
 export default function reducer(state: GameState = initialState, action: GameAction): GameState {
-    const payload = action.payload;
-
     switch (action.type) {
         case UPDATE_SETTING:
             return update(state, {
-                [payload.key]: { $set: payload.value }
+                [action.payload.key]: { $set: action.payload.value }
             });
         case ADD_NAV_TAB:
             return update(state, {
-                visibleNavTabs: { $push: [payload.tab] }
+                visibleNavTabs: { $push: [action.payload.tab] }
             });
         default:
             return state;
     }
 }
 
-export function updateSetting(key: keyof GameState, value: any) {
+export function updateSetting<K extends keyof GameState>(key: K, value: GameState[K]): GameSliceAction {
     return { type: UPDATE_SETTING, payload: { key, value } }
 }
 
-export function addNavTab(tab: string) {
+export function addNavTab(tab: string): GameSliceAction {
     return { type: ADD_NAV_TAB, payload: { tab } }
 }
 
 
-export function updateLastSavedAt() {
+export function updateLastSavedAt(): GameSliceAction {
     return { type: UPDATE_SETTING, payload: { key: 'lastSavedAt', value: (new Date()).valueOf() } }
 }
-export function resetLastSavedAt() {
+export function resetLastSavedAt(): GameSliceAction {
     return { type: UPDATE_SETTING, payload: { key: 'lastSavedAt', value: null } }
 }
 export function formattedLastSavedAt(state: GameState) {

@@ -140,7 +140,7 @@ export function squadCrossMs(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
  *       unit; the returned squad is null and the caller settles the loss)
  */
 export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: Squad, moveAmountMs: number, unlocks: Unlocks):
-    { squad: Squad | null, reveals: Coord[], events: any[] } {
+    { squad: Squad | null, reveals: Coord[], events: SquadEvent[] } {
     const events: SquadEvent[] = [];
 
     if (squad.fighting) {

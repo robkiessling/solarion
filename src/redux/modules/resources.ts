@@ -12,9 +12,14 @@ import {STATUSES, TERRAINS} from "../../lib/planet_map";
 export { calculators };
 
 // Actions
-export const LEARN = 'resources/LEARN';
-export const CONSUME = 'resources/CONSUME';
-export const PRODUCE = 'resources/PRODUCE';
+export const LEARN = 'resources/LEARN' as const;
+export const CONSUME = 'resources/CONSUME' as const;
+export const PRODUCE = 'resources/PRODUCE' as const;
+
+export type ResourcesAction =
+    | { type: typeof LEARN; payload: { id: ResourceId } }
+    | { type: typeof CONSUME; payload: { amounts: ResourceAmounts } }
+    | { type: typeof PRODUCE; payload: { amounts: ResourceAmounts } };
 
 // Initial State
 const initialState: ResourcesState = {
@@ -24,73 +29,71 @@ const initialState: ResourcesState = {
 
 // Reducer
 export default function reducer(state: ResourcesState = initialState, action: GameAction): ResourcesState {
-    const payload = action.payload;
-
     switch (action.type) {
         case LEARN:
             // If already learned, do nothing (prevents potential error state w/ duplicate visibleIds)
-            if (state.byId[payload.id as ResourceId]) return state;
+            if (state.byId[action.payload.id as ResourceId]) return state;
 
             return update(state, {
                 byId: {
-                    [payload.id]: {
-                        $set: _.merge({}, database[payload.id as ResourceId], { id: payload.id, lifetimeTotal: database[payload.id as ResourceId].amount })
+                    [action.payload.id]: {
+                        $set: _.merge({}, database[action.payload.id as ResourceId], { id: action.payload.id, lifetimeTotal: database[action.payload.id as ResourceId].amount })
                     }
                 },
 
                 // Only resources with the visible:true attribute get added to visibleIds
-                visibleIds: { $push: database[payload.id as ResourceId].visible ? [payload.id] : [] }
+                visibleIds: { $push: database[action.payload.id as ResourceId].visible ? [action.payload.id] : [] }
             });
         case CONSUME:
-            return consumeReducer(state, payload.amounts);
+            return consumeReducer(state, action.payload.amounts);
         case PRODUCE:
-            return produceReducer(state, payload.amounts);
+            return produceReducer(state, action.payload.amounts);
         case fromStructures.BUILD:
-            return consumeReducer(state, fromStructures.getBuildCost(payload.structure));
+            return consumeReducer(state, fromStructures.getBuildCost(action.payload.structure));
         case fromUpgrades.RESEARCH:
-            return consumeReducer(state, fromUpgrades.getResearchCost(payload.upgrade));
+            return consumeReducer(state, fromUpgrades.getResearchCost(action.payload.upgrade));
         case fromAbilities.START_CAST:
-            return consumeReducer(state, fromAbilities.getAbilityCost(payload.ability));
+            return consumeReducer(state, fromAbilities.getAbilityCost(action.payload.ability));
         case fromAbilities.END_CAST:
-            return produceReducer(state, fromAbilities.getAbilityProduction(payload.ability));
+            return produceReducer(state, fromAbilities.getAbilityProduction(action.payload.ability));
         case fromAbilities.CHARGE_RNG:
-            return produceReducer(state, payload.resources)
+            return produceReducer(state, action.payload.resources)
         case fromStructures.ASSIGN_DROID:
         case fromPlanet.ASSIGN_DROID:
-            return consumeReducer(state, { standardDroids: payload.amount })
+            return consumeReducer(state, { standardDroids: action.payload.amount })
         case fromStructures.REMOVE_DROID:
             // Do not want assigning/removing droids to affect lifetimeTotal
-            return produceReducer(state, { standardDroids: payload.amount }, false)
+            return produceReducer(state, { standardDroids: action.payload.amount }, false)
         case fromPlanet.REMOVE_DROID:
             // Recalled scouts walk home and credit on arrival (see PROGRESS numArrivedHome below); only droids that
             // despawned immediately (unplaced/already home) credit now
-            return payload.instantIndices.length > 0
-                ? produceReducer(state, { standardDroids: payload.instantIndices.length }, false)
+            return action.payload.instantIndices.length > 0
+                ? produceReducer(state, { standardDroids: action.payload.instantIndices.length }, false)
                 : state;
         case fromPlanet.DEPLOY_SQUAD:
-            return consumeReducer(state, { standardDroids: payload.assignedDroids })
+            return consumeReducer(state, { standardDroids: action.payload.assignedDroids })
         case fromPlanet.DISBAND_SQUAD: {
             // Only recovered droids return to the idle pool (surviving units settled back into whole droids
             // by the disband thunk); combat losses are permanent (never re-credited). Any undelivered cargo
             // banks here too. Rewards must be already-LEARNed resources (unlearned ids are dropped silently
             // by produceReducer).
             let next = state;
-            if (payload.droidsReturned > 0) {
-                next = produceReducer(next, { standardDroids: payload.droidsReturned }, false);
+            if (action.payload.droidsReturned > 0) {
+                next = produceReducer(next, { standardDroids: action.payload.droidsReturned }, false);
             }
-            if (payload.cargo && Object.keys(payload.cargo).length > 0) {
-                next = produceReducer(next, payload.cargo);
+            if (action.payload.cargo && Object.keys(action.payload.cargo).length > 0) {
+                next = produceReducer(next, action.payload.cargo);
             }
             return next;
         }
         case fromPlanet.SQUAD_DELIVER_CARGO:
             // The squad touched the powered grid: cargo banks (lost on a wipe, so this is the payoff moment)
-            return produceReducer(state, payload.cargo)
+            return produceReducer(state, action.payload.cargo)
         case fromPlanet.GENERATE_MAP: {
             // Starting land: the already-explored flatland around home. Infested flatland never counts until
             // its nest is cleared (see SQUAD_FIGHT_WON below).
             let startingLand = 0;
-            (payload.map as PlanetMap).forEach(row => row.forEach(sector => {
+            (action.payload.map as PlanetMap).forEach(row => row.forEach(sector => {
                 if (sector.status === STATUSES.explored.key &&
                     sector.terrain === TERRAINS.flatland.key && !sector.infestedBy) {
                     startingLand++;
@@ -100,23 +103,23 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
         }
         case fromPlanet.SQUAD_FIGHT_WON:
             // A cleared nest retracts its infestation; the revealed flatland under it credits as one chunk
-            return payload.landCredit > 0
-                ? produceReducer(state, { buildableLand: payload.landCredit })
+            return action.payload.landCredit > 0
+                ? produceReducer(state, { buildableLand: action.payload.landCredit })
                 : state;
         case fromPlanet.ADVANCE_SQUAD:
             // The driven squad reveals tiles just like scouts do; same land credit.
-            return payload.revealedFlatland > 0
-                ? produceReducer(state, { buildableLand: payload.revealedFlatland })
+            return action.payload.revealedFlatland > 0
+                ? produceReducer(state, { buildableLand: action.payload.revealedFlatland })
                 : state;
         case fromPlanet.PROGRESS: {
             // Droids reveal tiles as they explore; each newly-revealed flatland tile adds buildable land.
             let next = state;
-            if (payload.revealedFlatland > 0) {
-                next = produceReducer(next, { buildableLand: payload.revealedFlatland });
+            if (action.payload.revealedFlatland > 0) {
+                next = produceReducer(next, { buildableLand: action.payload.revealedFlatland });
             }
             // Recalled scouts rejoin the idle pool as they arrive home
-            if (payload.numArrivedHome > 0) {
-                next = produceReducer(next, { standardDroids: payload.numArrivedHome }, false);
+            if (action.payload.numArrivedHome > 0) {
+                next = produceReducer(next, { standardDroids: action.payload.numArrivedHome }, false);
             }
             return next;
         }
@@ -160,11 +163,11 @@ export function consume(amounts: ResourceAmounts) {
         }
     }
 }
-export function consumeUnsafe(amounts: ResourceAmounts) {
+export function consumeUnsafe(amounts: ResourceAmounts): ResourcesAction {
     return { type: CONSUME, payload: { amounts } };
 }
 
-export function produce(amounts: ResourceAmounts) {
+export function produce(amounts: ResourceAmounts): ResourcesAction {
     return { type: PRODUCE, payload: { amounts } };
 }
 

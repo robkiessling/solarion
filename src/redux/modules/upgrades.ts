@@ -8,13 +8,22 @@ import {getNumBuilt, getStructure} from "./structures";
 
 // Actions
 // export const SILHOUETTE = 'upgrades/SILHOUETTE';
-export const DISCOVER = 'upgrades/DISCOVER';
-export const RESEARCH = 'upgrades/RESEARCH';
-export const PROGRESS = 'upgrades/PROGRESS';
-export const PAUSE = 'upgrades/PAUSE';
-export const RESUME = 'upgrades/RESUME';
-export const FINISH = 'upgrades/FINISH';
-export const SKIP = 'upgrades/SKIP'; // same as finish but no callbacks (used for testing)
+export const DISCOVER = 'upgrades/DISCOVER' as const;
+export const RESEARCH = 'upgrades/RESEARCH' as const;
+export const PROGRESS = 'upgrades/PROGRESS' as const;
+export const PAUSE = 'upgrades/PAUSE' as const;
+export const RESUME = 'upgrades/RESUME' as const;
+export const FINISH = 'upgrades/FINISH' as const;
+export const SKIP = 'upgrades/SKIP' as const; // same as finish but no callbacks (used for testing)
+
+export type UpgradesAction =
+    | { type: typeof DISCOVER; payload: { id: string } }
+    | { type: typeof RESEARCH; payload: { upgrade: Upgrade } }
+    | { type: typeof PROGRESS; payload: { timeDelta: number } }
+    | { type: typeof PAUSE; payload: { id: string } }
+    | { type: typeof RESUME; payload: { id: string } }
+    | { type: typeof FINISH; payload: { id: string } }
+    | { type: typeof SKIP; payload: { id: string } };
 
 // Initial State
 const initialState: UpgradesState = {
@@ -23,15 +32,13 @@ const initialState: UpgradesState = {
 
 // Reducers
 export default function reducer(state: UpgradesState = initialState, action: GameAction): UpgradesState {
-    const payload = action.payload;
-
     switch (action.type) {
         case DISCOVER:
-            return setUpgradeState(state, payload.id, 'discovered')
+            return setUpgradeState(state, action.payload.id, 'discovered')
         case RESEARCH:
             return update(state, {
                 byId: {
-                    [payload.upgrade.id]: {
+                    [action.payload.upgrade.id]: {
                         state: { $set: 'researching' },
                         researchProgress: { $set: 0 }
                     }
@@ -47,7 +54,7 @@ export default function reducer(state: UpgradesState = initialState, action: Gam
             for (const [key, value] of Object.entries(state.byId)) {
                 if (value.state === 'researching') {
                     newState[key] = Object.assign({}, value, {
-                        researchProgress: value.researchProgress + payload.timeDelta
+                        researchProgress: (value.researchProgress ?? 0) + action.payload.timeDelta
                     });
                 }
                 else {
@@ -56,13 +63,13 @@ export default function reducer(state: UpgradesState = initialState, action: Gam
             }
             return Object.assign({}, state, { byId: newState });
         case PAUSE:
-            return setUpgradeState(state, payload.id, 'paused');
+            return setUpgradeState(state, action.payload.id, 'paused');
         case RESUME:
-            return setUpgradeState(state, payload.id, 'researching');
+            return setUpgradeState(state, action.payload.id, 'researching');
         case FINISH:
-            return setUpgradeState(state, payload.id, 'researched');
+            return setUpgradeState(state, action.payload.id, 'researched');
         case SKIP:
-            return setUpgradeState(state, payload.id, 'researched');
+            return setUpgradeState(state, action.payload.id, 'researched');
         default:
             return state;
     }
@@ -99,7 +106,7 @@ export function discover(id: string) {
     return withRecalculation({ type: DISCOVER, payload: { id } }); // recalculate so we immediately calculate costs
 }
 
-export function researchUnsafe(upgrade: Upgrade) {
+export function researchUnsafe(upgrade: Upgrade): UpgradesAction | Thunk {
     if (upgrade.researchTime) {
         return { type: RESEARCH, payload: { upgrade } };
     }
@@ -129,10 +136,10 @@ export function skipResearch(upgradeId: string) {
     }
 }
 
-export function pause(id: string) {
+export function pause(id: string): UpgradesAction {
     return { type: PAUSE, payload: { id } };
 }
-export function resume(id: string) {
+export function resume(id: string): UpgradesAction {
     return { type: RESUME, payload: { id } };
 }
 

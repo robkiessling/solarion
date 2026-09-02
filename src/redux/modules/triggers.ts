@@ -2,23 +2,25 @@ import store from '../store';
 import update from "immutability-helper";
 import database from '../../database/triggers';
 
-export const ADD_TRIGGER = 'triggers/ADD_TRIGGER';
-export const REMOVE_TRIGGER = 'triggers/REMOVE_TRIGGER';
+export const ADD_TRIGGER = 'triggers/ADD_TRIGGER' as const;
+export const REMOVE_TRIGGER = 'triggers/REMOVE_TRIGGER' as const;
+
+export type TriggersAction =
+    | { type: typeof ADD_TRIGGER; payload: { id: string } }
+    | { type: typeof REMOVE_TRIGGER; payload: { id: string } };
 
 const initialState: TriggersState = {
     byId: {},
 }
 
 export default function reducer(state: TriggersState = initialState, action: GameAction): TriggersState {
-    const payload = action.payload;
-
     switch(action.type) {
         case ADD_TRIGGER:
             return update(state, {
                 byId: {
-                    [payload.id]: {
+                    [action.payload.id]: {
                         $set: {
-                            id: payload.id,
+                            id: action.payload.id,
                             triggered: false
                         }
                     }
@@ -27,9 +29,9 @@ export default function reducer(state: TriggersState = initialState, action: Gam
         case REMOVE_TRIGGER:
             return update(state, {
                 byId: {
-                    [payload.id]: {
+                    [action.payload.id]: {
                         $set: {
-                            id: payload.id,
+                            id: action.payload.id,
                             triggered: true
                         }
                     }
@@ -83,8 +85,8 @@ const activeTriggers: Record<string, () => void> = {};
 
 // Subscribes to changes to a specific part of the store (specified by the `selector` parameter function).
 // Taken from: https://github.com/reduxjs/redux/issues/303#issuecomment-125184409
-function observeStore(store: { getState: () => RootState, subscribe: (listener: () => void) => () => void }, selector: (state: RootState) => any, onChange: (slice: any, unsubscribe: () => void) => void) {
-    let currentState: any;
+function observeStore<S>(store: { getState: () => RootState, subscribe: (listener: () => void) => () => void }, selector: (state: RootState) => S, onChange: (slice: S, unsubscribe: () => void) => void) {
+    let currentState: S | undefined;
 
     function handleChange() {
         let nextState = selector(store.getState());

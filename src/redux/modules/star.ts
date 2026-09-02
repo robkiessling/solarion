@@ -8,8 +8,12 @@ export const TARGET_LABELS: Record<MirrorTarget, string> = {
 }
 
 // Actions
-export const GENERATE_PROBE_DIST = 'star/GENERATE_PROBE_DIST';
-export const UPDATE_SETTING = 'star/UPDATE_SETTING';
+export const GENERATE_PROBE_DIST = 'star/GENERATE_PROBE_DIST' as const;
+export const UPDATE_SETTING = 'star/UPDATE_SETTING' as const;
+
+export type StarAction =
+    | { type: typeof GENERATE_PROBE_DIST; payload: { distribution: StarState['distribution'] } }
+    | { type: typeof UPDATE_SETTING; payload: { key: keyof StarState; value: StarState[keyof StarState] } };
 
 // Initial State
 const initialState: StarState = {
@@ -21,16 +25,14 @@ const initialState: StarState = {
 
 // Reducer
 export default function reducer(state: StarState = initialState, action: GameAction): StarState {
-    const payload = action.payload;
-
     switch (action.type) {
         case GENERATE_PROBE_DIST:
             return update(state, {
-                distribution: { $set: payload.distribution }
+                distribution: { $set: action.payload.distribution }
             })
         case UPDATE_SETTING:
             return update(state, {
-                [payload.key]: { $set: payload.value }
+                [action.payload.key]: { $set: action.payload.value }
             });
         default:
             return state;
@@ -39,12 +41,12 @@ export default function reducer(state: StarState = initialState, action: GameAct
 
 
 // Action Creators
-export function generateProbeDist() {
+export function generateProbeDist(): StarAction {
     const distribution = generateRandomProbeDist();
     return { type: GENERATE_PROBE_DIST, payload: { distribution } };
 }
 
-export function updateSetting(key: keyof StarState, value: any) {
+export function updateSetting<K extends keyof StarState>(key: K, value: StarState[K]): StarAction {
     return { type: UPDATE_SETTING, payload: { key, value } }
 }
 
@@ -52,7 +54,7 @@ export function aimMirrors(target: MirrorTarget) {
     return withRecalculation(updateSetting('mirrorTarget', target));
 }
 
-export function startEnergyBeam(time: number) {
+export function startEnergyBeam(time: number): StarAction {
     return { type: UPDATE_SETTING, payload: { key: 'hyperBeamStartedAt', value: time } }
 }
 

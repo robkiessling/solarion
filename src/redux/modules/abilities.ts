@@ -1,4 +1,4 @@
-import update from 'immutability-helper';
+import update, {Spec} from 'immutability-helper';
 import database, {callbacks, calculators} from '../../database/abilities';
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
@@ -7,13 +7,22 @@ import _ from "lodash";
 export { calculators }
 
 // Actions
-export const LEARN = 'abilities/LEARN';
-export const START_CAST = 'abilities/START_CAST';
-export const PROGRESS = 'abilities/PROGRESS';
-export const END_CAST = 'abilities/END_CAST';
-export const END_COOLDOWN = 'abilities/END_COOLDOWN';
+export const LEARN = 'abilities/LEARN' as const;
+export const START_CAST = 'abilities/START_CAST' as const;
+export const PROGRESS = 'abilities/PROGRESS' as const;
+export const END_CAST = 'abilities/END_CAST' as const;
+export const END_COOLDOWN = 'abilities/END_COOLDOWN' as const;
 
-export const CHARGE_RNG = 'abilities/CHARGE_RNG';
+export const CHARGE_RNG = 'abilities/CHARGE_RNG' as const;
+
+export type AbilitiesAction =
+    | { type: typeof LEARN; payload: { id: string } }
+    | { type: typeof START_CAST; payload: { ability: Ability } }
+    | { type: typeof PROGRESS; payload: { timeDelta: number } }
+    | { type: typeof END_CAST; payload: { ability: Ability } }
+    | { type: typeof END_COOLDOWN; payload: { ability: Ability } }
+    /** animations: immutability-helper specs applied to the charge ability's animation counters */
+    | { type: typeof CHARGE_RNG; payload: { resources: ResourceAmounts; animations: { [counter: string]: Spec<number> } } };
 
 // Initial State
 const initialState: AbilitiesState = {
@@ -23,25 +32,23 @@ const initialState: AbilitiesState = {
 
 // Reducers
 export default function reducer(state: AbilitiesState = initialState, action: GameAction): AbilitiesState {
-    const payload = action.payload;
-
     switch (action.type) {
         case LEARN:
             // If already learned, do nothing (prevents potential error state w/ duplicate visibleIds)
-            if (state.byId[payload.id]) return state;
+            if (state.byId[action.payload.id]) return state;
 
             return update(state, {
                 byId: {
-                    [payload.id]: {
-                        $set: _.merge({}, database[payload.id], { id: payload.id })
+                    [action.payload.id]: {
+                        $set: _.merge({}, database[action.payload.id], { id: action.payload.id })
                     }
                 },
-                visibleIds: { $push: [payload.id] }
+                visibleIds: { $push: [action.payload.id] }
             });
         case START_CAST:
             return update(state, {
                 byId: {
-                    [payload.ability.id]: {
+                    [action.payload.ability.id]: {
                         state: { $set: 'casting' },
                         castProgress: { $set: 0 }
                     }
@@ -57,12 +64,12 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
             for (const [key, value] of Object.entries(state.byId)) {
                 if (value.state === 'casting') {
                     newState[key] = Object.assign({}, value, {
-                        castProgress: value.castProgress + payload.timeDelta
+                        castProgress: (value.castProgress ?? 0) + action.payload.timeDelta
                     });
                 }
                 else if (value.state === 'cooldown') {
                     newState[key] = Object.assign({}, value, {
-                        cooldownProgress: value.cooldownProgress + payload.timeDelta
+                        cooldownProgress: (value.cooldownProgress ?? 0) + action.payload.timeDelta
                     });
                 }
                 else {
@@ -71,10 +78,10 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
             }
             return Object.assign({}, state, { byId: newState });
         case END_CAST:
-            if (state.byId[payload.ability.id].cooldown > 0) {
+            if (state.byId[action.payload.ability.id].cooldown > 0) {
                 return update(state, {
                     byId: {
-                        [payload.ability.id]: {
+                        [action.payload.ability.id]: {
                             state: { $set: 'cooldown' },
                             castProgress: { $set: undefined },
                             cooldownProgress: { $set: 0 },
@@ -85,7 +92,7 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
             else {
                 return update(state, {
                     byId: {
-                        [payload.ability.id]: {
+                        [action.payload.ability.id]: {
                             state: { $set: 'ready' },
                             castProgress: { $set: undefined },
                         }
@@ -95,7 +102,7 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
         case END_COOLDOWN:
             return update(state, {
                 byId: {
-                    [payload.ability.id]: {
+                    [action.payload.ability.id]: {
                         state: { $set: 'ready' },
                         cooldownProgress: { $set: undefined },
                     }
@@ -105,7 +112,7 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
             return update(state, {
                 byId: {
                     commandCenter_charge: {
-                        animations: payload.animations
+                        animations: action.payload.animations
                     }
                 }
             })
@@ -148,7 +155,7 @@ export function chargeRNG(dispatch: Dispatch, getState: GetState) {
         energy: 0,
         refinedMinerals: 0,
     }
-    const animations: Record<string, any> = {}; // immutability-helper specs for the CHARGE_RNG reducer
+    const animations: { [counter: string]: Spec<number> } = {}; // immutability-helper specs for the CHARGE_RNG reducer
 
     // 100% chance to generate energy
     resources.energy += charge.variables.energy;

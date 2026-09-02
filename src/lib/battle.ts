@@ -846,8 +846,8 @@ const CATCHUP_BUDGET_MS = 30;
  * droidHp is the survivors' per-droid hp (arena standers + escapees); the squad carries these wounds
  * until the powered grid repairs them. bugsRemaining is informational only: nests reset fully.
  */
-export function advanceBattle(battle: Battle, dtMs: number): { battle: Battle, events: any[] } {
-    const events: SquadEvent[] = [];
+export function advanceBattle(battle: Battle, dtMs: number): { battle: Battle, events: BattleEvent[] } {
+    const events: BattleEvent[] = [];
     let current = battle;
     let remaining = dtMs;
     let stepsLeft = Math.max(1, Math.ceil(CATCHUP_BUDGET_MS / (battle.units.length / 500)));
@@ -859,7 +859,7 @@ export function advanceBattle(battle: Battle, dtMs: number): { battle: Battle, e
     return { battle: current, events };
 }
 
-function advanceStep(battle: Battle, dtMs: number, events: SquadEvent[]) {
+function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
     const dtSec = dtMs / 1000;
     const elapsedMs = battle.elapsedMs + dtMs;
     const overchargeMs = Math.max(0, battle.buffs.overchargeMs - dtMs);

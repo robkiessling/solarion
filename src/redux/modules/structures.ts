@@ -7,15 +7,26 @@ export { calculators };
 const RUNNING_COOLDOWN = 2; // After running out of resources, wait this number of seconds before running again
 
 // Actions
-export const LEARN = 'structures/LEARN';
-export const BUILD = 'structures/BUILD';
-export const BUILD_FOR_FREE = 'structures/BUILD_FOR_FREE';
-export const SET_RUNNING_RATE = 'structures/SET_RUNNING_RATE';
-export const SET_STATUS = 'structures/SET_STATUS';
-export const PROGRESS = 'structures/PROGRESS';
-export const ASSIGN_DROID = 'structures/ASSIGN_DROID';
-export const REMOVE_DROID = 'structures/REMOVE_DROID';
-export const DISABLE = 'structures/DISABLE';
+export const LEARN = 'structures/LEARN' as const;
+export const BUILD = 'structures/BUILD' as const;
+export const BUILD_FOR_FREE = 'structures/BUILD_FOR_FREE' as const;
+export const SET_RUNNING_RATE = 'structures/SET_RUNNING_RATE' as const;
+export const SET_STATUS = 'structures/SET_STATUS' as const;
+export const PROGRESS = 'structures/PROGRESS' as const;
+export const ASSIGN_DROID = 'structures/ASSIGN_DROID' as const;
+export const REMOVE_DROID = 'structures/REMOVE_DROID' as const;
+export const DISABLE = 'structures/DISABLE' as const;
+
+export type StructuresAction =
+    | { type: typeof LEARN; payload: { id: StructureId } }
+    | { type: typeof BUILD; payload: { structure: Structure; amount: number } }
+    | { type: typeof BUILD_FOR_FREE; payload: { id: StructureId; amount: number } }
+    | { type: typeof SET_RUNNING_RATE; payload: { id: StructureId; amount: number } }
+    | { type: typeof SET_STATUS; payload: { id: StructureId; status: StructureStatus } }
+    | { type: typeof PROGRESS; payload: { timeDelta: number } }
+    | { type: typeof ASSIGN_DROID; payload: { id: StructureId; amount: number } }
+    | { type: typeof REMOVE_DROID; payload: { id: StructureId; amount: number } }
+    | { type: typeof DISABLE; payload: { id: StructureId } };
 
 // Initial State
 const initialState: StructuresState = {
@@ -25,37 +36,35 @@ const initialState: StructuresState = {
 
 // Reducers
 export default function reducer(state: StructuresState = initialState, action: GameAction): StructuresState {
-    const payload = action.payload;
-
     switch (action.type) {
         case LEARN:
             // If already learned, do nothing (prevents potential error state w/ duplicate visibleIds)
-            if (state.byId[payload.id as StructureId]) return state;
+            if (state.byId[action.payload.id as StructureId]) return state;
 
             return update(state, {
                 byId: {
-                    [payload.id]: {
-                        $set: _.merge({}, database[payload.id as StructureId], { id: payload.id })
+                    [action.payload.id]: {
+                        $set: _.merge({}, database[action.payload.id as StructureId], { id: action.payload.id })
                     }
                 },
-                visibleIds: { $push: [payload.id] }
+                visibleIds: { $push: [action.payload.id] }
             });
         case BUILD:
-            return buildReducer(state, payload.structure.id, payload.amount);
+            return buildReducer(state, action.payload.structure.id, action.payload.amount);
         case BUILD_FOR_FREE:
-            return buildReducer(state, payload.id, payload.amount);
+            return buildReducer(state, action.payload.id, action.payload.amount);
         case SET_RUNNING_RATE:
             return update(state, {
                 byId: {
-                    [payload.id]: {
-                        runningRate: { $set: payload.amount }
+                    [action.payload.id]: {
+                        runningRate: { $set: action.payload.amount }
                     }
                 }
             });
         case DISABLE:
             return update(state, {
                 byId: {
-                    [payload.id]: {
+                    [action.payload.id]: {
                         runningRate: { $set: 0 },
                         disabled: { $set: true }
                     }
@@ -64,9 +73,9 @@ export default function reducer(state: StructuresState = initialState, action: G
         case SET_STATUS:
             return update(state, {
                 byId: {
-                    [payload.id]: {
-                        status: { $set: payload.status },
-                        runningCooldown: { $set: payload.status === 'insufficient' ? RUNNING_COOLDOWN * 1000 : 0 }
+                    [action.payload.id]: {
+                        status: { $set: action.payload.status },
+                        runningCooldown: { $set: action.payload.status === 'insufficient' ? RUNNING_COOLDOWN * 1000 : 0 }
                     }
                 }
             });
@@ -74,7 +83,7 @@ export default function reducer(state: StructuresState = initialState, action: G
             const newState: Partial<Record<StructureId, Structure>> = {};
             for (const [key, value] of Object.entries(state.byId)) {
                 if (value.runningCooldown !== 0) {
-                    let newCooldown = value.runningCooldown - payload.timeDelta;
+                    let newCooldown = value.runningCooldown - action.payload.timeDelta;
                     if (newCooldown <= 0) { newCooldown = 0; }
 
                     newState[key as StructureId] = Object.assign({}, value, {
@@ -89,9 +98,9 @@ export default function reducer(state: StructuresState = initialState, action: G
         case ASSIGN_DROID:
             return update(state, {
                 byId: {
-                    [payload.id]: {
+                    [action.payload.id]: {
                         droidData: {
-                            numDroidsAssigned: { $apply: (x: number) => x + payload.amount }
+                            numDroidsAssigned: { $apply: (x: number) => x + action.payload.amount }
                         }
                     }
                 }
@@ -99,9 +108,9 @@ export default function reducer(state: StructuresState = initialState, action: G
         case REMOVE_DROID:
             return update(state, {
                 byId: {
-                    [payload.id]: {
+                    [action.payload.id]: {
                         droidData: {
-                            numDroidsAssigned: { $apply: (x: number) => x - payload.amount }
+                            numDroidsAssigned: { $apply: (x: number) => x - action.payload.amount }
                         }
                     }
                 }

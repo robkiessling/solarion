@@ -20,14 +20,14 @@ const enhancer = composeEnhancers(
 
 // Saves from older versions of the game may be missing newer state fields; migrate them over the
 // current default state instead of loading them raw (which crashes or silently freezes the game).
-const defaultState = reducer(undefined, { type: '@@INIT' });
+const defaultState = reducer(undefined, { type: '@@INIT' } as unknown as GameAction); // redux's own init action, not a game action
 
 // Thunk middleware widens dispatch to accept functions; the loose Dispatch type reflects that
 const store = createStore(
     reducer,
     migrateSavedState(loadState(), defaultState),
     enhancer
-) as Store<RootState> & { dispatch: Dispatch };
+) as unknown as Omit<Store<RootState, GameAction>, 'dispatch'> & { dispatch: Dispatch };
 
 store.subscribe(throttle(() => {
     const state = store.getState();

@@ -763,7 +763,7 @@ export function getGridHalo(map: PlanetMap, radius: number): { halo: Set<string>
     return result;
 }
 
-// The TERRAINS attributes object for a sector's terrain enum (display char, label, colorKey, crossTime).
+// The TERRAINS attributes object for a sector's terrain enum (display char, label, crossTime).
 export function getTerrain(terrainKey: TerrainKey): TerrainDef {
     return TERRAINS[terrainKey];
 }

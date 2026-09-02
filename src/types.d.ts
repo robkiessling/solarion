@@ -48,11 +48,36 @@ interface EffectAffects { type: EffectTarget; id?: string }
 /** Recursively optional: the shape of a database override merged over a `base` record */
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends (...args: any[]) => any ? T[K] : T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
-/** Redux plumbing, loosely typed: actions are checked by their string type, payloads are free-form */
-interface GameAction { type: string; payload?: any }
-type Dispatch = (action: any) => any;
+/**
+ * Every action the reducers handle: the union of each module's action type (the `XxxAction` exports next to the
+ * action constants in redux/modules). Reducers switch on `action.type`, which narrows `action.payload` to that
+ * action's shape; dispatch sites are checked against the same shapes.
+ */
+type GameAction =
+    | import('./redux/reducer').RecalculateAction
+    | import('./redux/modules/game').GameSliceAction
+    | import('./redux/modules/clock').ClockAction
+    | import('./redux/modules/log').LogAction
+    | import('./redux/modules/triggers').TriggersAction
+    | import('./redux/modules/resources').ResourcesAction
+    | import('./redux/modules/structures').StructuresAction
+    | import('./redux/modules/upgrades').UpgradesAction
+    | import('./redux/modules/abilities').AbilitiesAction
+    | import('./redux/modules/planet').PlanetAction
+    | import('./redux/modules/star').StarAction
+    | import('./redux/modules/panels').PanelsAction;
+
 type GetState = () => RootState;
-type Thunk = (dispatch: Dispatch, getState: GetState) => void;
+type Thunk<R = void> = (dispatch: Dispatch, getState: GetState) => R;
+/**
+ * Thunk middleware: dispatching a thunk runs it and returns its result; dispatching an action returns the action.
+ * The plain-action signature is what redux's own Store type expects, so the store still satisfies react-redux's Provider.
+ */
+interface Dispatch {
+    <R>(thunk: Thunk<R>): R;
+    <A extends GameAction>(action: A): A;
+    (action: GameAction | Thunk<unknown>): unknown;
+}
 
 // ---------------------------------------------------------------------------------------------------------------
 // Structures (database/structures.js)
@@ -520,8 +545,25 @@ interface Poi {
     resultBehavior?: 'auto' | 'narrate';
 }
 
-/** What advanceSquad / advanceBattle report back to the caller (see the advanceSquad doc comment for shapes) */
-interface SquadEvent { type: string; [detail: string]: any }
+/** How a battle ended, reported by advanceBattle (lib/battle.ts) */
+interface BattleOverEvent {
+    type: 'battleOver';
+    result: 'won' | 'wiped' | 'retreated';
+    /** droids still standing (plus escapees on a retreat) */
+    survivors: number;
+    bugsRemaining: number;
+    /** the survivors' hulls */
+    droidHp: number[];
+}
+type BattleEvent = BattleOverEvent;
+
+/** What advanceSquad (lib/squad.ts) reports back to the caller; resolved by resolveSquadEvent in redux/modules/planet.ts */
+type SquadEvent =
+    | (BattleOverEvent & { poiId: string; battle: Battle; fromCoord?: Coord })
+    | { type: 'enteredPoi'; poiId: string; fromCoord: Coord }
+    | { type: 'enteredZone'; zone: SquadZone }
+    | { type: 'onGrid' }
+    | { type: 'fieldWiped'; unitsLost: number; multiplier: number; cargoLost: ResourceAmounts };
 
 interface SquadFighting {
     poiId: string;
@@ -576,10 +618,28 @@ interface ScoutDroid {
     returning?: boolean;
 }
 
+/**
+ * What the encounter popup narrates in its result phase. Fight outcomes carry the roster numbers and the final
+ * battle frame; site outcomes (caches, story sites, gates) carry what was found. Display strings are composed at
+ * render time so the stored shape stays serializable.
+ */
+interface EncounterResult {
+    wiped?: boolean;
+    losses?: number;
+    squadSize?: number;
+    multiplier?: number;
+    landCredit?: number;
+    cargoLost?: ResourceAmounts | null;
+    finalBattle?: Battle;
+    storyId?: string | null;
+    capability?: Capability | null;
+    loaded?: ResourceAmounts | null;
+}
+
 interface EncounterPrompt {
     poiId: string;
     phase: 'offer' | 'result';
-    result?: any;
+    result?: EncounterResult | null;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -655,7 +715,8 @@ interface AbilitiesState {
 type MirrorTarget = 'none' | 'planet';
 
 interface StarState {
-    distribution: number[];
+    /** the probe swarm's [angle, radius] pairs (see generateRandomProbeDist in lib/star.ts) */
+    distribution: import('./lib/star').ProbeDistribution;
     mirrorsOnline: boolean;
     mirrorTarget: MirrorTarget;
     hyperBeamStartedAt: number | null;
