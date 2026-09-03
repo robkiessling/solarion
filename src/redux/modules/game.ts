@@ -1,5 +1,6 @@
 import update from 'immutability-helper';
 import {SAVE_FORMAT_VERSION} from "../../lib/save_version";
+import * as fromLog from "./log";
 
 export interface GameState {
     /** bumped when the save shape changes incompatibly (see lib/save_version.ts); mismatched saves are discarded */
@@ -20,6 +21,8 @@ export interface GameState {
     showResourceRates: boolean;
     showResourceCapacities: boolean;
     showStructuresList: boolean;
+    /** the signature ledger: how many operator authorizations have been granted (see recordAuthorization) */
+    authorizations: number;
     endGameSequenceStarted: boolean;
     rapidlyRecalcEnergy: boolean;
     blockPointerEvents: boolean;
@@ -72,6 +75,9 @@ const initialState: GameState = {
     showResourceCapacities: false, // todo
     showStructuresList: false,
 
+    // Every click is a human authorization the machine cannot forge; this counts the ones worth a receipt
+    authorizations: 0,
+
     // end game variables
     endGameSequenceStarted: false,
     rapidlyRecalcEnergy: false,
@@ -104,6 +110,21 @@ export function updateSetting<K extends keyof GameState>(key: K, value: GameStat
 
 export function addNavTab(tab: NavTab): GameSliceAction {
     return { type: ADD_NAV_TAB, payload: { tab } }
+}
+
+/**
+ * Counts an operator authorization and prints its ledger receipt ("AUTH 0004 BLAST SHIELD: GRANTED"). The label
+ * is the short, uppercase name for the receipt; keep it brief, the terminal is 33 columns wide. Pass null to count
+ * without printing (the boot sequence prints its own receipt as part of the boot text).
+ */
+export function recordAuthorization(label: string | null) {
+    return (dispatch: Dispatch, getState: GetState) => {
+        const number = getState().game.authorizations + 1;
+        dispatch(updateSetting('authorizations', number));
+        if (label !== null) {
+            dispatch(fromLog.logMessage('authReceipt', { number: String(number).padStart(4, '0'), label }));
+        }
+    }
 }
 
 

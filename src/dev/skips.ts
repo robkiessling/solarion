@@ -22,7 +22,12 @@ const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE: string = SKIP_TO_GLOBE; /* Controls overall game mode */
+const GAME_MODE: string = NORMAL_BOOTUP; /* Controls overall game mode */
+
+// Energy per manual charge click, overriding the ability's normal value (0 = no override; the real value is 1 plus
+// coil upgrades). 20 lands on the Boot-Up card in one click. Read by the charge ability's calculator, at call time,
+// so the import cycle through the redux modules is harmless.
+export const CLICK_ENERGY_OVERRIDE = 20;
 
 export function runGameMode(dispatch: Dispatch) {
     switch (GAME_MODE) {

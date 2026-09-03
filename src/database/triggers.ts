@@ -1,5 +1,6 @@
 import * as fromLog from "../redux/modules/log";
 import * as fromUpgrades from "../redux/modules/upgrades";
+import * as fromGame from "../redux/modules/game";
 import store from "../redux/store";
 import {probeCapacity} from "../lib/star";
 
@@ -34,6 +35,14 @@ function trigger<S>(record: TriggerRecord<S>): TriggerRecord<S> {
  * @param action    Function to call when triggered.
  */
 const database = {
+    harvesterStarted: trigger({
+        selector: (state) => state.structures.byId.harvester,
+        condition: (slice) => !!slice && slice.runningRate > 0,
+        action: () => {
+            store.dispatch(fromGame.recordAuthorization('HARVESTER'));
+            store.dispatch(fromLog.startLogSequence('harvesterStarted'));
+        }
+    }),
     energyAlmostFull: trigger({
         selector: (state) => state.resources.byId.energy,
         condition: (slice) => !!slice && slice.amount >= slice.capacity * 0.9,

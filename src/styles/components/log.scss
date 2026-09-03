@@ -75,6 +75,9 @@
     // Expedition report lines (log.logInline entries); colors override the section's active/inactive gray
     &.report-success { color: #9be29b; }
     &.report-failure { color: #ff6b6b; }
+
+    // Ledger receipts (AUTH 0004 BLAST SHIELD: GRANTED): bookkeeping, kept quieter than the machine's own lines
+    &.receipt { color: #777; }
   }
 }
 

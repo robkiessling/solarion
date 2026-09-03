@@ -9,6 +9,7 @@ import {getUpgrade, isResearched} from "../redux/modules/upgrades";
 import {STANDARD_COST_EXP} from "./structures";
 import {countAllStructuresBuilt} from "../redux/modules/structures";
 import {typedKeys, type DeepPartial} from "../lib/helpers";
+import {CLICK_ENERGY_OVERRIDE} from "../dev/skips";
 
 /** An ability's cast lifecycle (cooldown starts after the cast finishes) */
 export type AbilityState = 'ready' | 'casting' | 'cooldown';
@@ -41,7 +42,6 @@ export interface Ability extends AbilityRecord {
     displayInfo?: string;
 }
 
-const DEBUG_FF = false;
 
 const base: AbilityRecord = {
     name: 'Unknown',
@@ -117,7 +117,7 @@ export const calculators: Partial<Record<AbilityId, CalculatorSet<Ability>>> = {
     commandCenter_charge: {
         variables: (state, ability) => {
             const variables = {
-                energy: DEBUG_FF ? 10 : 1,
+                energy: CLICK_ENERGY_OVERRIDE || 1,
                 mineralChance: 0,
                 mineralBonus: 0
             }

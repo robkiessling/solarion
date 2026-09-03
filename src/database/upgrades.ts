@@ -1249,27 +1249,32 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     commandCenter_showTerminal: {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showTerminal', true));
-            dispatch(fromLog.startLogSequence('turnOnComputer'));
+            dispatch(fromGame.recordAuthorization(null)); // the boot text carries this receipt itself
+            dispatch(fromLog.startLogSequence('turnOnComputer2'));
         }
     },
     commandCenter_showResourceBar: {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showResourceBar', true));
+            dispatch(fromGame.recordAuthorization('MONITOR 2'));
             dispatch(fromLog.startLogSequence('showResourceBar'));
         }
     },
     commandCenter_showResourceRates: {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showResourceRates', true));
+            dispatch(fromGame.recordAuthorization('ADV STATS'));
         }
     },
     commandCenter_showPlanetStatus: {
         onFinish: (dispatch) => {
+            dispatch(fromGame.recordAuthorization('SENSORS'));
             dispatch(fromLog.startLogSequence('showPlanetStatus'));
         }
     },
     commandCenter_openShutters: {
         onFinish: (dispatch) => {
+            dispatch(fromGame.recordAuthorization('BLAST SHIELD'));
             dispatch(fromGame.updateSetting('shuttersOpen', true));
             dispatch(fromStructures.learn('harvester'));
             dispatch(fromStructures.buildForFree('harvester', 1));
