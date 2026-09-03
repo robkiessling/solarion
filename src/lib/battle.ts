@@ -654,7 +654,7 @@ function makeUnit(id: string, side: BattleSide, type: UnitType, stats: UnitStats
 
 // roster: [{ type, hp? }] per unit; hp defaults to the type's full pool. Formation positions that land
 // on terrain are relocated to the nearest reachable ground (see freePosition).
-function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number }[], statsByType: Record<string, UnitStats>, arenaW: number, arenaH: number, formation: FormationId, terrainGrid: TerrainGrid | null): BattleUnit[] {
+function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number }[], statsByType: Record<UnitType, UnitStats>, arenaW: number, arenaH: number, formation: FormationId, terrainGrid: TerrainGrid | null): BattleUnit[] {
     const layout = FORMATIONS[formation] || columnLayout;
     const positions = layout(roster.length, arenaW, arenaH, side);
     const sideSalt = side === 'droid' ? 0 : 1;
@@ -692,13 +692,9 @@ export function createBattle(droids: number | number[], bugs: number | Partial<R
     const droidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
     const composition: Partial<Record<BugType, number>> = typeof bugs === 'number' ? { bug: bugs } : bugs;
 
-    const stats: Record<string, UnitStats> = { droid: droidStats };
+    const stats: Record<UnitType, UnitStats> = { droid: droidStats, ...BUG_TYPES };
     const bugRoster: { type: BugType, hp?: number }[] = [];
     typedEntries(composition).forEach(([type, n]) => {
-        stats[type] = BUG_TYPES[type];
-        // A spawner's output type fights too, even when the opening garrison fields none of it
-        const spawns = BUG_TYPES[type].spawns;
-        if (spawns) stats[spawns] = BUG_TYPES[spawns];
         for (let i = 0; i < n; i++) bugRoster.push({ type });
     });
 

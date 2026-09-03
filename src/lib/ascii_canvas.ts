@@ -4,17 +4,11 @@ import type Ellipse from "./ellipse";
 const FONT_RATIO = 3/5;
 const FONT_COLOR = '#fff';
 
-export const QUEUE_TYPES = {
-    fillText: 0,
-    stroke: 1,
-    drawCachedChar: 2
-} as const;
-
 /** A deferred draw call (see addQueueFilter): which drawing method, and the arguments it was called with */
 export type QueueItem =
-    | { type: typeof QUEUE_TYPES.fillText, args: { text: string, x: number, y: number } }
-    | { type: typeof QUEUE_TYPES.stroke, args: { startX: number, startY: number, endX: number, endY: number } }
-    | { type: typeof QUEUE_TYPES.drawCachedChar, args: { cacheIndex: number, x: number, y: number } };
+    | { type: 'fillText', args: { text: string, x: number, y: number } }
+    | { type: 'stroke', args: { startX: number, startY: number, endX: number, endY: number } }
+    | { type: 'drawCachedChar', args: { cacheIndex: number, x: number, y: number } };
 /** Decides whether a draw call is queued (true) or drawn now; see addQueueFilter */
 export type QueueFilter = (item: QueueItem) => boolean | undefined;
 export type XY = { x: number, y: number };
@@ -234,7 +228,7 @@ export default class AsciiCanvas {
 
     drawLine(start: XY, end: XY) {
         if (this.queueFilter) {
-            const item: QueueItem = { type: QUEUE_TYPES.stroke, args: { startX: start.x, startY: start.y, endX: end.x, endY: end.y } };
+            const item: QueueItem = { type: 'stroke', args: { startX: start.x, startY: start.y, endX: end.x, endY: end.y } };
             if (this.queueFilter(item)) {
                 this.queue.push(item);
                 return;
@@ -277,16 +271,16 @@ export default class AsciiCanvas {
     processQueue() {
         this.queue.forEach(item => {
             switch(item.type) {
-                case QUEUE_TYPES.fillText:
+                case 'fillText':
                     this.context.fillText(item.args.text, item.args.x, item.args.y);
                     break;
-                case QUEUE_TYPES.stroke:
+                case 'stroke':
                     this.context.beginPath();
                     this.context.moveTo(item.args.startX, item.args.startY);
                     this.context.lineTo(item.args.endX, item.args.endY);
                     this.context.stroke();
                     break;
-                case QUEUE_TYPES.drawCachedChar:
+                case 'drawCachedChar':
                     this._copyCachedChar(item.args.cacheIndex, item.args.x, item.args.y);
                     break;
             }
@@ -296,7 +290,7 @@ export default class AsciiCanvas {
 
     fillText(text: string, x: number, y: number) {
         if (this.queueFilter) {
-            const item: QueueItem = { type: QUEUE_TYPES.fillText, args: { x, y, text } };
+            const item: QueueItem = { type: 'fillText', args: { x, y, text } };
             if (this.queueFilter(item)) {
                 this.queue.push(item);
                 return;
@@ -329,7 +323,7 @@ export default class AsciiCanvas {
     // Draws a cached char to the real canvas (alternative to fillText)
     drawCachedChar(cacheIndex: number, x: number, y: number) {
         if (this.queueFilter) {
-            const item: QueueItem = { type: QUEUE_TYPES.drawCachedChar, args: { x, y, cacheIndex } };
+            const item: QueueItem = { type: 'drawCachedChar', args: { x, y, cacheIndex } };
             if (this.queueFilter(item)) {
                 this.queue.push(item);
                 return;

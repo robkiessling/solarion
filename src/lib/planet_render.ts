@@ -10,7 +10,8 @@ import type AsciiCanvas from "./ascii_canvas";
 import type {DisplayCell, HaloEdges, Ping, PingVariantId} from "./planet_map";
 import type {SquadZone} from "./squad";
 
-export const PLANET_COLORS: Record<string, string> = {
+export type PlanetColorKey = keyof typeof PLANET_COLORS;
+export const PLANET_COLORS = {
     unknown: '#3f4652',   // fog: dim and cool (blue-grey), so warm flatland reads as new ground next to it
     home: '#20d9ff',
     flatland: '#7f5d47',  // dusty clay: warm like the mountains but desaturated, so ground recedes yet never matches the cool fog
@@ -36,7 +37,7 @@ export const PLANET_COLORS: Record<string, string> = {
     battle: '#ff6b35',
     haloRing: '#3ec0da', // survey-range boundary (stroked cell-edge segments, not a char tint)
     beacon: '#6fd3b0'    // growth beacon; matches developed land, which grows toward it
-};
+} satisfies Record<string, string>;;
 
 // The map colour of a squad zone (lib/squad.ts squadZone: a terrain key, 'infested', or 'grid' for powered
 // ground). DOM chrome that echoes the ground the squad is on (terminal terrain notes, the HUD, the frame rim)
@@ -153,7 +154,7 @@ const SELF_LIT_ALPHA = 0.8;
 
 // Effective brightness of a cell or float from its daylight, self-lit floor, and lantern lift
 /** A cell's colour: an explicit color wins over its palette key; a missing or unknown key falls back to white */
-function colorFor(color: string | undefined, colorKey: string | undefined): string {
+function colorFor(color: string | undefined, colorKey: PlanetColorKey | undefined): string {
     return color || (colorKey !== undefined ? PLANET_COLORS[colorKey] : undefined) || '#ffffff';
 }
 

@@ -1,7 +1,7 @@
 import {getRandomFromArray} from "./helpers";
 import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, type PlanetMap, type Sector} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {BANDS, GATE_DEFS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Band, type Capability, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior} from "../database/pois";
+import {GATE_DEFS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Band, type Capability, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
 import type {BugType} from "../database/battle";
 import type {NestFormation, TerrainLayoutId} from "./battle";
 
@@ -22,7 +22,7 @@ export interface Poi {
     terrain?: TerrainLayoutId;
     blurb?: string;
     bugs?: Partial<Record<BugType, number>>;
-    storyId?: string;
+    storyId?: StoryId;
     promptText?: string;
     actionLabel?: string;
     resultBehavior?: ResultBehavior;
@@ -49,9 +49,9 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     const usedKeys = new Set();
 
     const bandOf = (sector: Sector): Band => {
-        if (sector.region === 'bowl') return BANDS.r1;
-        if (sector.region === 'antipode') return BANDS.r3;
-        return sector.graphDistanceHome < ACID_BAND_DISTANCES[0] ? BANDS.r2near : BANDS.r2far;
+        if (sector.region === 'bowl') return 'r1';
+        if (sector.region === 'antipode') return 'r3';
+        return sector.graphDistanceHome < ACID_BAND_DISTANCES[0] ? 'r2near' : 'r2far';
     };
 
     // Only place POIs where a fully-tooled squad can actually walk (gates treated as open, acid as

@@ -2,6 +2,7 @@ import {
     createArray,
     mod,
     roundToDecimal,
+    typedKeys,
 } from "./helpers";
 /**
  * This module owns the SHAPE of the planet and the spatial relationships between tiles (adjacency, distance).
@@ -22,33 +23,22 @@ export const PLANET_COLS = DISPLAY_COLS * 2; // Display only shows half of real 
 
 export const NUM_SECTORS = NUM_PLANET_ROWS * PLANET_COLS;
 
-export const DIRECTIONS = {
-    north: 'N',  northEast: 'NE',  east: 'E',  southEast: 'SE',
-    south: 'S', southWest: 'SW', west: 'W', northWest: 'NW'
-}
-export const ALL_DIRECTIONS = Object.values(DIRECTIONS);
+// Compass directions as [rowOffset, colOffset]. Two-letter keys are the diagonals (map generation reads
+// the letters to pick the secondaries next to a primary direction, e.g. E -> NE/SE).
+const DIRECTION_OFFSETS = {
+    N: [-1, 0], NE: [-1, 1], E: [0, 1], SE: [1, 1],
+    S: [1, 0], SW: [1, -1], W: [0, -1], NW: [-1, -1]
+} satisfies Record<string, [number, number]>;
+export type CompassDirection = keyof typeof DIRECTION_OFFSETS;
+export const ALL_DIRECTIONS = typedKeys(DIRECTION_OFFSETS);
 
 // Steps one tile in a compass direction: columns wrap, rows stop at the poles (returns null past them).
 // Used by map generation (mountain ranges walk in a direction); gameplay movement uses getAdjacentCoords.
-export function stepInCompassDirection(currentCoord: Coord, direction: string): Coord | null {
-    const [rowOffset, colOffset] = directionToOffset(direction);
+export function stepInCompassDirection(currentCoord: Coord, direction: CompassDirection): Coord | null {
+    const [rowOffset, colOffset] = DIRECTION_OFFSETS[direction];
     const newRow = currentCoord[0] + rowOffset;
     if (newRow < 0 || newRow >= NUM_PLANET_ROWS) return null;
     return [newRow, mod(currentCoord[1] + colOffset, PLANET_COLS)];
-}
-
-function directionToOffset(direction: string): [number, number] {
-    switch(direction) {
-        case DIRECTIONS.north: return [-1, 0];
-        case DIRECTIONS.northEast: return [-1, 1];
-        case DIRECTIONS.east: return [0, 1];
-        case DIRECTIONS.southEast: return [1, 1];
-        case DIRECTIONS.south: return [1, 0];
-        case DIRECTIONS.southWest: return [1, -1];
-        case DIRECTIONS.west: return [0, -1];
-        case DIRECTIONS.northWest: return [-1, -1];
-        default: throw new Error(`Unknown compass direction: ${direction}`);
-    }
 }
 
 // ADJACENT_COORDS[row][col] => array of [row, col] neighbor coords: east/west (wrapping) plus north/south

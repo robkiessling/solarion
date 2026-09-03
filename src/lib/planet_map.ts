@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import {createArray, getIntermediateColor, getRandomFromArray, getRandomIntInclusive, mod, floor, nTimes} from "./helpers";
 import {MinHeap} from "./min_heap";
+import type {PlanetColorKey} from "./planet_render";
 import AUTHORED_MAP_TEXT from "../database/planet_map.txt?raw";
 import {
     ALL_DIRECTIONS,
@@ -83,7 +84,7 @@ export interface HaloEdges { top?: boolean; bottom?: boolean; left?: boolean; ri
 /** A marker that slides between tiles on its own offsets (the squad), drawn over the tile's own glyph */
 export interface FloatMarker {
     char: string;
-    colorKey?: string;
+    colorKey?: PlanetColorKey;
     color?: string;
     selfLit?: boolean | number;
     alpha?: number;
@@ -98,7 +99,7 @@ export interface FloatMarker {
 /** A marker drawn over a tile (scout droid, POI, path highlight, ...); see the overlays parameter of generateImage */
 export interface CellOverlay {
     char?: string;
-    colorKey?: string;
+    colorKey?: PlanetColorKey;
     color?: string;
     selfLit?: boolean | number;
     ping?: Ping;
@@ -111,9 +112,9 @@ export interface CellOverlay {
 /** One cell of the rendered planet image (see the field notes in generateImage); drawPlanetImage in planet_render draws these */
 export interface DisplayCell {
     char?: string;
-    colorKey?: string;
+    colorKey?: PlanetColorKey;
     color?: string;
-    nightColorKey?: string;
+    nightColorKey?: PlanetColorKey;
     daylight?: number;
     lit?: number;
     selfLit?: boolean | number;
@@ -570,8 +571,9 @@ function addMountainRanges(map: PlanetMap) {
  */
 function addMountainRange(map: PlanetMap, size: number, startingRow: number, startingCol: number) {
     const primaryDirection = getRandomFromArray(ALL_DIRECTIONS);
-    const secondaryDirections = primaryDirection.length === 2 ? primaryDirection.split('') :
-        ALL_DIRECTIONS.filter(dir => dir.length === 2 && dir.includes(primaryDirection));
+    // Neighbors on the compass rose: a diagonal's two cardinals, or a cardinal's two diagonals
+    const secondaryDirections = ALL_DIRECTIONS.filter(dir =>
+        dir !== primaryDirection && (dir.includes(primaryDirection) || primaryDirection.includes(dir)));
 
     let currentCoord: Coord = [startingRow, startingCol];
 
@@ -1339,7 +1341,8 @@ export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: n
             //   selfLit: brightness floor under the night shading (a marker's running lights, the grid's lights)
             //   nightColorKey: colour to blend toward as daylight falls (city lights warm up at night)
             //   dividers: { left, right, bottom } debug sector borders
-            let char, colorKey, color, dividers, selfLit, nightColorKey;
+            let char, color, dividers, selfLit;
+            let colorKey: PlanetColorKey | undefined, nightColorKey: PlanetColorKey | undefined;
             let textureAlpha; // static per-tile brightness texture (replicated land), applied to bare tiles
 
             // Unknown ground draws as a full, dim dot field, not blank or sparse: the limb fade and the
@@ -1349,7 +1352,7 @@ export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: n
             // colour instead: cool grey fog against warm ground (PLANET_COLORS.unknown / flatland).
             if (sector.status === STATUSES.unknown.key) {
                 char = STATUSES.unknown.display;
-                colorKey = STATUSES.unknown.key;
+                colorKey = 'unknown';
             }
             else {
                 char = terrainGlyph(sector.terrain, sector.coord[0], sector.coord[1]);
@@ -1488,7 +1491,7 @@ function addLaserBeams(planetImage: DisplayCell[][], fractionOfDay: number): Dis
         const char = LASER_BEAM_LINE_CHARS[rowIndex];
 
         // initialize beam as a long array of beam chars
-        const row = createArray(LASER_BEAM_WIDTH, () => {
+        const row = createArray(LASER_BEAM_WIDTH, (): DisplayCell => {
             return {
                 char: char,
                 colorKey: 'laserBeam'

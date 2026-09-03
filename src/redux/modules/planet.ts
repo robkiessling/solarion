@@ -43,7 +43,7 @@ import {zoneColor} from "../../lib/planet_render";
 import {TERRAIN_BLURBS} from "../../database/terrain_blurbs";
 import type {DroidStats} from "../../database/battle";
 import type {EquipmentCharges, EquipmentId} from "../../database/equipment";
-import type {Capability, PoiReward} from "../../database/pois";
+import type {Capability, PoiReward, StoryId} from "../../database/pois";
 import type {DroidAssignment} from "../../database/structures";
 
 /** A scout droid (planet.droids) */
@@ -72,7 +72,7 @@ export interface EncounterResult {
     landCredit?: number;
     cargoLost?: ResourceAmounts | null;
     finalBattle?: Battle;
-    storyId?: string | null;
+    storyId?: StoryId | null;
     capability?: Capability | null;
     loaded?: ResourceAmounts | null;
 }

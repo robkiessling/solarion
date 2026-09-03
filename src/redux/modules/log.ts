@@ -4,7 +4,7 @@ import type {LogId} from '../../database/logs';
 
 export interface LogEntry {
     /** database id, or null for inline entries */
-    id: string | null;
+    id: LogId | null;
     sequence: string;
     status: 'in_progress' | 'completed';
     vars?: { [placeholder: string]: string | number } | null;
@@ -25,7 +25,7 @@ export const START_LOG_SEQUENCE = 'log/START_LOG_SEQUENCE' as const;
 export const END_LOG_SEQUENCE = 'log/END_LOG_SEQUENCE' as const;
 
 export type LogAction =
-    | { type: typeof LOG; payload: { sequence: string; id: string | null; vars?: LogEntry['vars']; entryType?: 'inline';
+    | { type: typeof LOG; payload: { sequence: string; id: LogId | null; vars?: LogEntry['vars']; entryType?: 'inline';
         text?: string; className?: string; style?: LogEntry['style'] } }
     | { type: typeof START_LOG_SEQUENCE; payload: { sequence: string; id: LogId; vars: LogEntry['vars'] } }
     | { type: typeof END_LOG_SEQUENCE; payload: { sequence: string } };
@@ -86,7 +86,7 @@ export default function reducer(state: LogState = initialState, action: GameActi
 // sequence is a random uuid, just has to be unique: https://egghead.io/lessons/javascript-redux-persisting-the-state-to-the-local-storage
 // vars: optional {placeholder: value} map for {placeholders} in the database text. Values are captured
 // here at dispatch time and stored on the entry, so backfilled history re-renders the original text.
-export function logMessage(id: string, vars: LogEntry['vars'] = null): LogAction {
+export function logMessage(id: LogId, vars: LogEntry['vars'] = null): LogAction {
     return { type: LOG, payload: { id: id, vars: vars, sequence: v4() } };
 }
 

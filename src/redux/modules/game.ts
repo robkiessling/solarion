@@ -8,8 +8,8 @@ export interface GameState {
     lastSavedAt: number | null;
     settingsModalOpen: boolean;
     autoSaveEnabled: boolean;
-    visibleNavTabs: string[];
-    currentNavTab: string;
+    visibleNavTabs: NavTab[];
+    currentNavTab: NavTab;
     showStructureTabs: boolean;
     currentStructureTab: string;
     hoveredPoiId: string | null;
@@ -37,9 +37,10 @@ export const ADD_NAV_TAB = 'game/ADD_NAV_TAB' as const;
 
 export type GameSliceAction =
     | { type: typeof UPDATE_SETTING; payload: { key: keyof GameState; value: GameState[keyof GameState] } }
-    | { type: typeof ADD_NAV_TAB; payload: { tab: string } };
+    | { type: typeof ADD_NAV_TAB; payload: { tab: NavTab } };
 
 // Constants
+export type NavTab = keyof typeof NAV_TAB_TITLES;
 export const NAV_TAB_TITLES = {
     outside: 'Base',
     planet: 'Planet',
@@ -101,7 +102,7 @@ export function updateSetting<K extends keyof GameState>(key: K, value: GameStat
     return { type: UPDATE_SETTING, payload: { key, value } }
 }
 
-export function addNavTab(tab: string): GameSliceAction {
+export function addNavTab(tab: NavTab): GameSliceAction {
     return { type: ADD_NAV_TAB, payload: { tab } }
 }
 

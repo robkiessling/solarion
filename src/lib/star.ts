@@ -1,6 +1,6 @@
 import {shuffleArray} from "./helpers";
 import Ellipse from "./ellipse";
-import AsciiCanvas, {QUEUE_TYPES} from "./ascii_canvas";
+import AsciiCanvas from "./ascii_canvas";
 import {drawStarField} from "./star_field";
 import type {MirrorTarget} from "../redux/modules/star";
 
@@ -184,10 +184,10 @@ export function drawStarAndProbes(canvas: AsciiCanvas, elapsedTime: number, prob
         // Queue update if point is below our imaginary line from bottom-left to top-right corner.
         // We multiply y by -1 because for a canvas a positive y means go DOWN.
         switch(item.type) {
-            case QUEUE_TYPES.fillText:
-            case QUEUE_TYPES.drawCachedChar:
+            case 'fillText':
+            case 'drawCachedChar':
                 return -1 * item.args.y < m * item.args.x + b;
-            case QUEUE_TYPES.stroke:
+            case 'stroke':
                 return -1 * item.args.startY < m * item.args.startX + b;
         }
     })

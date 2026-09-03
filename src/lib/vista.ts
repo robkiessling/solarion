@@ -3,6 +3,7 @@ import {getTerrain, STATUSES, TERRAINS, type PlanetMap, type Sector, type Terrai
 import {mod} from "./helpers";
 import {POI_COLOR_KEYS, POI_GLYPHS, type Poi} from "./expeditions";
 import type {Squad} from "./squad";
+import type {PlanetColorKey} from "./planet_render";
 
 /**
  * The vista: a driver's-eye skyline of the ground ahead of the squad, drawn from the map tiles in the
@@ -22,7 +23,7 @@ export const VISTA_DEPTH = 3;
 export const BAND_WIDTH = 5;
 export const SKY_ROWS = VISTA_DEPTH;
 
-export interface VistaSegment { text: string; colorKey: string }
+export interface VistaSegment { text: string; colorKey: PlanetColorKey }
 
 // Ground line per terrain key (BAND_WIDTH chars). Unknown ground is the dark past the headlights.
 /** What the ground row can show: a terrain, hive ground, the dark past the headlights, or nothing past the poles */
@@ -107,7 +108,7 @@ export function buildVista(map: PlanetMap, pois: Record<string, Poi>, squad: Squ
         for (let r = 0; r < SKY_ROWS; r++) {
             const peakRow = r - (SKY_ROWS - peak.length);
             let text = peakRow >= 0 ? peak[peakRow] : ' '.repeat(BAND_WIDTH);
-            let colorKey = 'mountain';
+            let colorKey: PlanetColorKey = 'mountain';
             // A site two steps out shows just above the ground line, unless a nearer ridge is in the way
             if (r === SKY_ROWS - 1 && marker && marker.ahead === 2 && peakDistance !== 1) {
                 pushWithMarker(rows[r], text, colorKey, marker.poi);
@@ -117,13 +118,14 @@ export function buildVista(map: PlanetMap, pois: Record<string, Poi>, squad: Squ
             }
         }
 
-        // Ground row, with a site one step out sitting on it
+        // Ground row, with a site one step out sitting on it (the void past the poles is blank, so any colour does)
         const groundText = GROUND[ground] || GROUND.flatland;
+        const groundColor: PlanetColorKey = ground === 'void' ? 'unknown' : ground;
         if (marker && marker.ahead === 1) {
-            pushWithMarker(rows[SKY_ROWS], groundText, ground, marker.poi);
+            pushWithMarker(rows[SKY_ROWS], groundText, groundColor, marker.poi);
         }
         else {
-            rows[SKY_ROWS].push({ text: groundText, colorKey: ground });
+            rows[SKY_ROWS].push({ text: groundText, colorKey: groundColor });
         }
     }
 
@@ -131,7 +133,7 @@ export function buildVista(map: PlanetMap, pois: Record<string, Poi>, squad: Squ
 }
 
 // A band's row with the site glyph dropped into its center char
-function pushWithMarker(row: VistaSegment[], text: string, colorKey: string, poi: Poi) {
+function pushWithMarker(row: VistaSegment[], text: string, colorKey: PlanetColorKey, poi: Poi) {
     const mid = Math.floor(BAND_WIDTH / 2);
     row.push({ text: text.slice(0, mid), colorKey });
     row.push({ text: POI_GLYPHS[poi.type], colorKey: POI_COLOR_KEYS[poi.type] });
