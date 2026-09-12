@@ -6,9 +6,11 @@ import {endLogSequence, getLogData} from "../redux/modules/log";
 import {LOG_SPEED} from "../dev/skips";
 
 const DEFAULT_CHAR_DELAY = 30; // ms per character in 'chars' mode
+const DEFAULT_FRAME_DELAY = 200; // ms per frame in 'frames' mode
+const FRESH_MS = 5000; // how long a newly landed line stays white before fading to scrollback grey
 
 // Database lines come in two shapes: the legacy tuple [text, delayAfterMs, flash] and an options
-// object { text, delay, flash, className, style, mode: 'chars', charDelay }.
+// object { text, delay, flash, className, style, mode: 'chars' | 'frames', charDelay, frames, frameDelay }.
 function normalizeLine(line) {
     return Array.isArray(line) ? { text: line[0], delay: line[1], flash: line[2] } : line;
 }
@@ -53,7 +55,8 @@ class LogSection extends React.Component {
         }
     }
 
-    // Inline entries carry their own text (dynamic content like expedition reports); always rendered instantly
+    // Inline entries carry their own text (dynamic content like expedition reports); always rendered instantly.
+    // Their status is always 'completed', so whether the line is new comes from the parent (see log.jsx).
     renderInline() {
         const node = document.createElement('p');
         node.appendChild(document.createTextNode(this.props.logData.text));
@@ -63,8 +66,19 @@ class LogSection extends React.Component {
         if (this.props.logData.style) {
             Object.assign(node.style, this.props.logData.style);
         }
+        if (this.props.fresh) {
+            node.classList.add('fresh');
+            this.settleLine(node);
+        }
         this.logSectionRef.current.appendChild(node);
         this.props.onUpdate();
+    }
+
+    // A new line is white (.fresh) and fades to the scrollback grey FRESH_MS after it has fully landed
+    // (transition in log.scss). The class must be on the node BEFORE it is inserted: onUpdate forces a style
+    // computation, and adding the class afterwards would run the colour transition in reverse, grey to white.
+    settleLine(node) {
+        this.scheduleTimeout(() => node.classList.remove('fresh'), FRESH_MS);
     }
 
     componentWillUnmount() {
@@ -88,12 +102,19 @@ class LogSection extends React.Component {
         return node;
     }
 
-    // Just displaying it for historical purposes; skipping all callbacks and animation
+    // Prints every line at once, skipping all callbacks and animation. Two cases land here: restored history
+    // (grey from the start) and entries logged as already completed, i.e. logMessage receipts and notices,
+    // which are new and get the same land-then-fade as any other fresh line.
     backfillSequence(databaseRecord) {
         const logSection = this.logSectionRef.current;
 
         databaseRecord.text.forEach((rawLine) => {
-            logSection.appendChild(this.buildLineNode(normalizeLine(rawLine)));
+            const node = this.buildLineNode(normalizeLine(rawLine));
+            if (this.props.fresh) {
+                node.classList.add('fresh');
+                this.settleLine(node);
+            }
+            logSection.appendChild(node);
         });
 
         this.props.onUpdate();
@@ -125,8 +146,10 @@ class LogSection extends React.Component {
                 const line = normalizeLine(text[i]);
                 const content = interpolate(line.text, this.props.logData.vars);
                 const typing = line.mode === 'chars' && content;
+                const frames = line.mode === 'frames' && line.frames && line.frames.length ? line.frames : null;
 
-                const node = typing ? this.buildEmptyLineNode(line) : this.buildLineNode(line);
+                const node = typing || frames ? this.buildEmptyLineNode(line) : this.buildLineNode(line);
+                node.classList.add('fresh');
 
                 if (line.flash && content) {
                     node.classList.add('flash');
@@ -139,6 +162,7 @@ class LogSection extends React.Component {
                 this.props.onUpdate();
 
                 const advance = () => {
+                    this.settleLine(node); // starts the fade countdown only once the line is fully on screen
                     let nextDelay = line.delay / LOG_SPEED;
 
                     i++;
@@ -167,6 +191,25 @@ class LogSection extends React.Component {
                     };
                     typeNextChar();
                 }
+                else if (frames) {
+                    // Redraw the same line through each frame, then rest on the final text
+                    let frameDelay = (line.frameDelay || DEFAULT_FRAME_DELAY) / LOG_SPEED;
+                    let shown = 0;
+
+                    const showNextFrame = () => {
+                        if (shown < frames.length) {
+                            node.textContent = interpolate(frames[shown], this.props.logData.vars);
+                            shown++;
+                            this.scheduleTimeout(showNextFrame, frameDelay);
+                        }
+                        else {
+                            node.textContent = content;
+                            this.props.onUpdate();
+                            advance();
+                        }
+                    };
+                    showNextFrame();
+                }
                 else {
                     advance();
                 }
@@ -179,7 +222,7 @@ class LogSection extends React.Component {
     render() {
         const inlineClass = this.props.logData.entryType === 'inline' ? 'log-inline' : '';
         return (
-            <div className={`log-section ${inlineClass} ${this.props.active ? 'active' : 'inactive'}`} ref={this.logSectionRef}/>
+            <div className={`log-section ${inlineClass}`} ref={this.logSectionRef}/>
         );
     }
 }

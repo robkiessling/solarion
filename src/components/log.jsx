@@ -10,6 +10,12 @@ class Log extends React.Component {
 
         this.logRef = React.createRef();
         this.wasAtBottom = true;
+
+        // Entries already in the log when the terminal mounts are history (a reload); anything added later is
+        // new and gets the white-then-fade treatment. A running sequence can tell from its status, but inline
+        // entries and logMessage entries are stored as 'completed' from the start, so this snapshot is what
+        // distinguishes new from restored for them.
+        this.initialSequenceIds = new Set(props.visibleSequenceIds);
     }
 
     componentDidMount() {
@@ -77,11 +83,11 @@ class Log extends React.Component {
                 <OverlayScrollbarsComponent className="log" ref={this.logRef} defer
                                             events={{ scroll: (instance) => this.trackScrollPosition(instance) }}>
                     {
-                        this.props.visibleSequenceIds.map((sequenceId, index) => {
+                        this.props.visibleSequenceIds.map((sequenceId) => {
                             return <LogSection sequenceId={sequenceId}
                                                key={sequenceId}
                                                onUpdate={() => this.onSectionUpdate()}
-                                               active={index === (this.props.visibleSequenceIds.length - 1)}
+                                               fresh={!this.initialSequenceIds.has(sequenceId)}
                             />;
                         })
                     }

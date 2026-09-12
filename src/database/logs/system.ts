@@ -11,6 +11,7 @@ import * as fromLog from "../../redux/modules/log";
 import * as fromStar from "../../redux/modules/star";
 import {batch} from "react-redux";
 import type {LogRecord} from './index';
+import {progressBar} from './helpers';
 import {INFINITY} from "../../lib/helpers";
 
 export default {
@@ -133,29 +134,23 @@ export default {
     // Alternate boot for comparison
     turnOnComputer2: {
         text: [
-            ['Restoring session...', 1000],
-            ['', 1500],
-            ['> harvester rate 0.50', 60],
-            ['> site 3 survey ..ACK', 60],
-            ['SITE 3: CLEAR▒▒CE REQ▒', 60],
-            ['> uplink retry 0412 ..SOS', 60],
-            ['puKrMbdJZoO09kbxo40X', 50],
-            ['> log append "they keep com', 50],
-            ['gFfKhzGPVSHwvGyYwdT6', 40],
-            ['dQ9kq7RMbVkTPjrHaqUF', 40],
-            ['> uplink retry 0413 ..S▒▒', 40],
-            ['Fu2ZOLxLqCa5JIrs4dYn', 30],
-            ['Uoiq▓WCg..CTt8║      qZ2WVOeTx', 20],
-            ['Qu7h uAvF...xef  9gGUC6ZDSt', 20],
-            ['JuFZ 9hgp2F       [[[[iUvQvnsAxl', 10],
-            ['[[[ [ |||| =- **▒ ▒ ||    || |]]', 10],
-            ['▒▒▒ ║           |||| X  ▓', 10],
-            ['||', 10],
-            ['▒', 10],
-            ['', 1500],
-            ['FATAL ERROR OCCURRED', 800, true],
-            ['', 0],
-            ['RECOVERING...', 2500, true],
+            // progressBar('Restoring session ', 8, 150, 400, '.'),
+            // ['', 3000],
+            // ['> Harvester rate: 0.25', 2000],
+            // ['> Energy: depleted', 2000],
+            // ['> SITE 3: CLEAR▒▒CE REQ~', 2000],
+            // ['> Upl▒nk retry 0412', 2000],
+            // ['> Uplink retry 0413 ..S▒▒', 2000],
+            // ['> Xu2ZOLxLqCa5JIrs4dYn', 0],
+            // ['  Uoiq▓WCg..CTt8║    qZ2WVOeTx', 0],
+            // ['> Qu7h uAvF...xef  9gGUC6ZDSt', 0],
+            // ['           [[[[iUvQvnsAxl', 0],
+            // ['  |||| =- **▒ ▒ ||    || |]]', 0],
+            // ['', 3000],
+            // ['FATAL ERROR OCCURRED', 2000, true],
+            // progressBar('Recovering ', 8, 150, 400, '.'),
+
+            progressBar('', 20, 250, 400, '▒'),
             ['', 0],
             ['#################################', 10],
             ['Safe boot', 10],
@@ -166,28 +161,36 @@ export default {
             ['', 10],
             ['Solarion CORE', 10],
             ['SITE 1 / PILOT FACILITY', 10],
-            ['#################################', 3000],
+            ['#################################', 5000],
             ['', 10],
-            ['Last authorized session:', 100],
-            ['  73 years, 266 days ago.', 2500],
-            ['', 10],
-            ['Living operator: confirmed.', 1500, true],
+            // ['Last authorized session:', 100],
+            // ['  73 years, 266 days ago.', 2500],
+            // ['', 10],
+            progressBar('Biometric scan ', 8, 1000, 400, '%'),
+            // ['Biometric scan: confirmed.', 1500, true],
+            // ['Session 4 opened.', 1500, true],
+            // ['', 10],
+            { text: 'AUTH {number} BOOT-UP: GRANTED', delay: 2000, className: 'receipt' },
             ['Session 4 opened.', 1500, true],
             ['', 10],
-            { text: 'AUTH {number} BOOT-UP: GRANTED', delay: 2000, className: 'receipt' },
-            ['', 10],
-            ['Resources: Critical', 1000, true],
-            ['Sensors:   Offline', 1000, true],
-            ['Reactor:   Cold', 1000, true],
-            ['', 10],
-            ['Awaiting operator authorization.', 0, true]
+            // ['', 10],
+            // progressBar('System status  ', 8, 250, 400, '#'),
+            // ['Resources:     Critical', 1000, true],
+            // ['Sensors:       Offline', 1000, true],
+            // ['Reactor:       Cold', 1000, true],
+            // ['', 10],
+            ['More energy required.', 0, true]
         ],
     },
 
     showResourceBar: {
         text: [
             ['', 100],
-            ['Resource status activated.', 3000, true],
+            progressBar('System status  ', 8, 250, 400, '#'),
+            ['Resources:     Critical', 1000, true],
+            ['Sensors:       Offline', 1000, true],
+            ['Reactor:       Cold', 1000, true],
+            ['', 10],
         ]
     },
 
