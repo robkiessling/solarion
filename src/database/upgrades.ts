@@ -6,6 +6,7 @@ import * as fromLog from "../redux/modules/log"
 import * as fromAbilities from "../redux/modules/abilities";
 
 import * as fromGame from "../redux/modules/game";
+import * as fromPanels from "../redux/modules/panels";
 import * as fromPlanet from "../redux/modules/planet";
 import {generateMap} from "../redux/modules/planet";
 import * as fromStar from "../redux/modules/star";
@@ -322,6 +323,17 @@ const database = {
         cost: {
             energy: 50,
             ore: 50
+        }
+    }),
+    // The energy-cap wall's second remedy (database/decisions.ts): spend more instead of storing more
+    commandCenter_researchHarvesterFab: upgrade({
+        name: "Research: Harvester Fabrication",
+        structure: 'commandCenter',
+        description: "Reconstructs the fabrication line for additional harvesters. More drills, more draw on the battery.",
+        researchTime: 30,
+        cost: {
+            energy: 40,
+            ore: 40
         }
     }),
     commandCenter_researchRefinery: upgrade({
@@ -1249,32 +1261,33 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     commandCenter_showTerminal: {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showTerminal', true));
-            dispatch(fromGame.recordAuthorization(null)); // the boot text carries this receipt itself
-            dispatch(fromLog.startLogSequence('turnOnComputer2'));
+            // The boot text prints this receipt itself, with the ledger number as a var
+            const number = dispatch(fromPanels.recordAuthorization(null));
+            dispatch(fromLog.startLogSequence('turnOnComputer2', { number: fromPanels.formatAuthNumber(number) }));
         }
     },
     commandCenter_showResourceBar: {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showResourceBar', true));
-            dispatch(fromGame.recordAuthorization('MONITOR 2'));
+            dispatch(fromPanels.recordAuthorization('MONITOR 2'));
             dispatch(fromLog.startLogSequence('showResourceBar'));
         }
     },
     commandCenter_showResourceRates: {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showResourceRates', true));
-            dispatch(fromGame.recordAuthorization('ADV STATS'));
+            dispatch(fromPanels.recordAuthorization('ADV STATS'));
         }
     },
     commandCenter_showPlanetStatus: {
         onFinish: (dispatch) => {
-            dispatch(fromGame.recordAuthorization('SENSORS'));
+            dispatch(fromPanels.recordAuthorization('SENSORS'));
             dispatch(fromLog.startLogSequence('showPlanetStatus'));
         }
     },
     commandCenter_openShutters: {
         onFinish: (dispatch) => {
-            dispatch(fromGame.recordAuthorization('BLAST SHIELD'));
+            dispatch(fromPanels.recordAuthorization('BLAST SHIELD'));
             dispatch(fromGame.updateSetting('shuttersOpen', true));
             dispatch(fromStructures.learn('harvester'));
             dispatch(fromStructures.buildForFree('harvester', 1));
@@ -1294,6 +1307,11 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     commandCenter_researchEnergyBay: {
         onFinish: (dispatch) => {
             dispatch(fromLog.startLogSequence('researchedEnergyBay'))
+        }
+    },
+    commandCenter_researchHarvesterFab: {
+        onFinish: (dispatch) => {
+            dispatch(fromLog.startLogSequence('researchedHarvesterFab'))
         }
     },
     commandCenter_researchRefinery: {

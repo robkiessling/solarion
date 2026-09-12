@@ -3,6 +3,7 @@ import {batch} from "react-redux";
 import {CHASSIS_ROWS_BY_ID, getChassisOption, type ChassisRow} from "../../database/chassis";
 import {canConsume, consumeUnsafe} from "./resources";
 import {logInline} from "./log";
+import * as fromLog from "./log";
 import {initOperations, mergeEffectIntoOperations, applyOperationsToVariables, type Variables} from "../../lib/effect";
 
 export interface PanelsState {
@@ -35,6 +36,7 @@ export const CHASSIS_AUTHORIZE = 'panels/CHASSIS_AUTHORIZE' as const; // start (
 export const CHASSIS_TICK = 'panels/CHASSIS_TICK' as const;
 export const CHASSIS_COMMIT = 'panels/CHASSIS_COMMIT' as const;
 export const CHASSIS_UNLOCK_ROW = 'panels/CHASSIS_UNLOCK_ROW' as const;
+export const RECORD_AUTHORIZATION = 'panels/RECORD_AUTHORIZATION' as const;
 
 export type PanelsAction =
     | { type: typeof OPEN_PANEL; payload: { panelId: string } }
@@ -42,7 +44,8 @@ export type PanelsAction =
     | { type: typeof CHASSIS_AUTHORIZE; payload: { rowId: string; optionId: string; downtimeMs: number } }
     | { type: typeof CHASSIS_TICK; payload: { timeDelta: number } }
     | { type: typeof CHASSIS_COMMIT }
-    | { type: typeof CHASSIS_UNLOCK_ROW; payload: { rowId: string } };
+    | { type: typeof CHASSIS_UNLOCK_ROW; payload: { rowId: string } }
+    | { type: typeof RECORD_AUTHORIZATION };
 
 // Initial State
 const initialState: PanelsState = {
@@ -110,6 +113,8 @@ export default function reducer(state: PanelsState = initialState, action: GameA
         case CHASSIS_UNLOCK_ROW:
             if (state.chassis.unlocked.includes(action.payload.rowId)) return state;
             return update(state, { chassis: { unlocked: { $push: [action.payload.rowId] } } });
+        case RECORD_AUTHORIZATION:
+            return update(state, { authorizationCount: { $set: state.authorizationCount + 1 } });
         default:
             return state;
     }
@@ -121,6 +126,26 @@ export function openPanel(panelId: string): PanelsAction {
 }
 export function closePanel(): PanelsAction {
     return { type: CLOSE_PANEL };
+}
+
+/**
+ * Takes the next number in the authorization ledger and prints its receipt ("AUTH 0312 BLAST SHIELD: GRANTED").
+ * Every operator signature that matters goes through here: the intro cards, research, decisions; the chassis panel
+ * numbers its own commits from the same counter. Returns the number. Pass null to count without a receipt (the boot
+ * sequence prints its own, with the number as a var). Labels stay short: the terminal is 33 columns wide.
+ */
+export function recordAuthorization(label: string | null) {
+    return (dispatch: Dispatch, getState: GetState): number => {
+        dispatch({ type: RECORD_AUTHORIZATION });
+        const number = getState().panels.authorizationCount;
+        if (label !== null) {
+            dispatch(fromLog.logMessage('authReceipt', { number: formatAuthNumber(number), label }));
+        }
+        return number;
+    }
+}
+export function formatAuthNumber(number: number): string {
+    return String(number).padStart(4, '0');
 }
 
 // Opens a locked schematic row (site fragments / story triggers / dev call this).

@@ -118,6 +118,10 @@ const database = {
             " Less energy efficient as harvesting rate is increased.",
         runnable: true,
         type: 'consumer',
+        // The one field harvester is a given; building more waits on the fabrication line (commandCenter_researchHarvesterFab)
+        count: {
+            max: 1
+        },
     }),
     solarPanel: structure({
         name: "Solar Farm",

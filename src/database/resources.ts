@@ -10,6 +10,8 @@ export interface ResourceRecord {
     name: string;
     amount: number;
     lifetimeTotal: number;
+    /** lifetime amount produced into a full store and thrown away (the felt cost of a capacity wall) */
+    discarded: number;
     capacity: number;
     /** whether the resource shows up in the resource bar */
     visible: boolean;
@@ -26,6 +28,7 @@ const base: ResourceRecord = {
     name: 'Unknown',
     amount: 0,
     lifetimeTotal: 0,
+    discarded: 0,
     capacity: INFINITY,
     visible: true, // Whether the resources shows up in display
     showRate: true // Whether the resource shows a rate in the display (only relevant if visible:true)

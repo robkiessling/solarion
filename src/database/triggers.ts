@@ -1,8 +1,10 @@
 import * as fromLog from "../redux/modules/log";
 import * as fromUpgrades from "../redux/modules/upgrades";
-import * as fromGame from "../redux/modules/game";
+import * as fromPanels from "../redux/modules/panels";
+import * as fromDecisions from "../redux/modules/decisions";
 import store from "../redux/store";
 import {probeCapacity} from "../lib/star";
+import {getCapacity} from "../redux/modules/resources";
 
 export interface TriggerRecord<S = any> {
     /** the part of the state to listen to (as specific as possible) */
@@ -39,14 +41,25 @@ const database = {
         selector: (state) => state.structures.byId.harvester,
         condition: (slice) => !!slice && slice.runningRate > 0,
         action: () => {
-            store.dispatch(fromGame.recordAuthorization('HARVESTER'));
+            store.dispatch(fromPanels.recordAuthorization('HARVESTER'));
             store.dispatch(fromLog.startLogSequence('harvesterStarted'));
         }
     }),
-    energyAlmostFull: trigger({
+    // The energy-cap wall: the terminal reports the loss and the request lands as a row on the command center card.
+    // Resolving an answer re-arms it (see the decision's `rearm`), and then it waits for surplus actually thrown
+    // away (10e, tripling per answer) before the wall reports and asks again with the remaining remedy, so a
+    // half-answered wall comes back later, not the instant it's answered.
+    energyAtCapacity: trigger({
         selector: (state) => state.resources.byId.energy,
-        condition: (slice) => !!slice && slice.amount >= slice.capacity * 0.9,
-        action: () => store.dispatch(fromLog.startLogSequence('energyAlmostFull'))
+        condition: (slice) => {
+            if (!slice || slice.amount < getCapacity(slice)) return false;
+            const resolved = store.getState().decisions.resolvedCount.energyAtCapacity ?? 0;
+            return resolved === 0 || slice.discarded >= 10 * 3 ** (resolved - 1);
+        },
+        action: () => {
+            store.dispatch(fromLog.startLogSequence('energyAtCapacity'));
+            store.dispatch(fromDecisions.requestDecision('energyAtCapacity'));
+        }
     }),
     // "Exploration begins": fires on the first squad deployment (scouts arrive much later, with Survey Automation)
     startExploringMap: trigger({

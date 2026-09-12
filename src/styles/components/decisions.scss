@@ -1,0 +1,132 @@
+@use '../variables' as *;
+
+// The decision popup (components/decision_popup.jsx): the terminal asking the operator something. Chrome is the
+// shared PopupFrame (popup.scss); it mounts in a .panel-overlay like the special panels (panels.scss) and reads
+// as a message from the same machine as the terminal, so body text is plain and the options are a stacked list.
+
+.decision-popup {
+  width: 30rem;
+  max-width: 92vw;
+  max-height: 84vh;
+  padding: 1.3rem 1.2rem 1rem;
+  // No overflow on the surface: the legend-style title hangs above its top edge and would be clipped (same rule as
+  // .special-panel). A long body scrolls on its own inside the column.
+  display: flex;
+  flex-direction: column;
+
+  // Optional ascii block above the body (schematics, readouts); never wraps, scrolls if too wide
+  .decision-image {
+    margin: 0 0 0.9rem;
+    font-family: inherit;
+    line-height: 1.15;
+    color: $ui-text-dim;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .popup-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+    p {
+      margin: 0 0 0.6rem;
+      &:last-child { margin-bottom: 0; }
+    }
+  }
+
+  .popup-actions {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+
+    button {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      width: 100%;
+      padding: 0.45rem 0.6rem;
+      background: none;
+      border: 1px solid $ui-border;
+      font-family: inherit;
+      font-size: 1em;
+      text-align: left;
+      color: $ui-text;
+      cursor: pointer;
+
+      &:hover:not(:disabled) {
+        border-color: $ui-text-dim;
+      }
+      // Visible but unearned (database/decisions.ts `available`): the player can see the door is there
+      &:disabled {
+        color: $ui-text-dim;
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      // Hotkey chip, same look as the encounter popup's action row (outside.scss)
+      kbd {
+        flex: 0 0 auto;
+        font-family: inherit;
+        font-size: 0.75em;
+        line-height: 1;
+        padding: 1px 3px;
+        border: 1px solid #999;
+        background: #e2e2e2;
+        color: #333;
+      }
+
+      .option-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+      .option-detail {
+        font-size: 0.85em;
+        color: $ui-text-dim;
+      }
+      // What a research option spends, and its research time
+      .option-cost {
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+        font-size: 0.85em;
+        color: $ui-text-dim;
+      }
+    }
+  }
+}
+
+// The request row on a structure card (structures/decision_row.jsx): styled like an upgrade row, amber where
+// upgrades are green. Stays amber until it's answered; the machine's request doesn't fade for having been read.
+$decision-color: #f2c94c;
+
+.decision-row {
+  // Same shape as an upgrade row (ui.scss .progress-button.upgrade): marker column, label column
+  display: grid;
+  grid-template-columns: $row-icon-width 1fr;
+  column-gap: 0.4rem;
+  align-items: center;
+  margin: 0.5rem;
+  color: $decision-color;
+  cursor: pointer;
+
+  &:hover > .label {
+    text-decoration: underline;
+  }
+
+  .decision-marker {
+    justify-self: center;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 1.1em;
+    height: 1.1em;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 0.85em;
+    font-weight: bold;
+    line-height: 1;
+  }
+}

@@ -39,7 +39,8 @@ declare global {
         | import('./redux/modules/abilities').AbilitiesAction
         | import('./redux/modules/planet').PlanetAction
         | import('./redux/modules/star').StarAction
-        | import('./redux/modules/panels').PanelsAction;
+        | import('./redux/modules/panels').PanelsAction
+        | import('./redux/modules/decisions').DecisionsAction;
 
     type GetState = () => RootState;
     type Thunk<R = void> = (dispatch: Dispatch, getState: GetState) => R;

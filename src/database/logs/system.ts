@@ -11,6 +11,7 @@ import * as fromLog from "../../redux/modules/log";
 import * as fromStar from "../../redux/modules/star";
 import {batch} from "react-redux";
 import type {LogRecord} from './index';
+import {INFINITY} from "../../lib/helpers";
 
 export default {
     normalBootup: {
@@ -110,7 +111,7 @@ export default {
             ['Last authorized session:', 100],
             ['  73 years, 266 days ago.', 2500],
             ['', 10],
-            { text: 'AUTH 0001 BOOT-UP: GRANTED', delay: 2000, className: 'receipt' },
+            { text: 'AUTH {number} BOOT-UP: GRANTED', delay: 2000, className: 'receipt' },
             ['', 10],
             ['Resources: Critical', 1000, true],
             ['Sensors:   Offline', 1000, true],
@@ -173,7 +174,7 @@ export default {
             ['Living operator: confirmed.', 1500, true],
             ['Session 4 opened.', 1500, true],
             ['', 10],
-            { text: 'AUTH 0001 BOOT-UP: GRANTED', delay: 2000, className: 'receipt' },
+            { text: 'AUTH {number} BOOT-UP: GRANTED', delay: 2000, className: 'receipt' },
             ['', 10],
             ['Resources: Critical', 1000, true],
             ['Sensors:   Offline', 1000, true],
@@ -235,7 +236,7 @@ export default {
                 dispatch(fromGame.updateSetting('showStructuresList', true));
 
                 dispatch(addTrigger('harvesterStarted'));
-                dispatch(addTrigger('energyAlmostFull'));
+                dispatch(addTrigger('energyAtCapacity'));
             })
         }
     },
@@ -247,14 +248,29 @@ export default {
         ]
     },
 
-    energyAlmostFull: {
+    // The energy-cap wall (trigger and decision both energyAtCapacity): the report,
+    // then the terminal's record of whichever remedy the operator picked.
+    energyAtCapacity: {
         text: [
             ['', 0],
-            ['Energy stores approaching max capacity.', 1000, true],
-        ],
-        onFinish: (dispatch) => {
-            dispatch(fromUpgrades.discover('commandCenter_researchEnergyBay'));
-        }
+            ['Storage at capacity.', 800, true],
+            ['Surplus input discarded.', 1500, true],
+            ['Request pending on console.', 0, true],
+        ]
+    },
+    remedyStorage: {
+        text: [
+            ['', 0],
+            ['Remedy: expand storage.', 800, true],
+            ['Reconstructing: Energy Bay.', 0, true],
+        ]
+    },
+    remedyConsumption: {
+        text: [
+            ['', 0],
+            ['Remedy: expand consumption.', 800, true],
+            ['Reconstructing: Harvester Fab.', 0, true],
+        ]
     },
 
     researchedSolarPower: {
@@ -287,6 +303,16 @@ export default {
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('energyBay'));
+        }
+    },
+    researchedHarvesterFab: {
+        text: [
+            ['', 0],
+            ['New Schematic Developed:', 0, true],
+            ['- Harvester Fabrication', 0, true],
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromStructures.setMaxCount('harvester', INFINITY));
         }
     },
     researchedRefinery: {

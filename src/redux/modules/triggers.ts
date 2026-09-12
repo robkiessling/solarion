@@ -56,6 +56,18 @@ export function addTrigger(id: TriggerId) {
     }
 }
 
+/**
+ * Puts a fired trigger back into the pending set. For walls that ask more than once: a resolved decision re-arms the
+ * trigger that requested it, and the trigger's condition is expected to want more the second time (see the
+ * resolvedCount scaling in database/triggers.ts), or it would fire again at once.
+ */
+export function rearmTrigger(id: TriggerId) {
+    return (dispatch: Dispatch, getState: GetState) => {
+        dispatch({ type: ADD_TRIGGER, payload: { id } });
+        syncTriggers(getState().triggers);
+    }
+}
+
 function isPending(state: TriggersState, id: TriggerId) {
     return state.byId[id] && !state.byId[id].triggered;
 }

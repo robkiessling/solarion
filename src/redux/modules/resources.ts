@@ -150,7 +150,8 @@ function produceReducer(state: ResourcesState, amounts: ResourceAmounts, increme
             const gain = capacity === INFINITY ? amount : (newAmount - oldAmount);
             return {
                 amount: { $set: roundToDecimal(newAmount, 5) },
-                lifetimeTotal: { $apply: function(x: number) { return incrementLifetimeTotal ? roundToDecimal(x + gain, 5) : x; } }
+                lifetimeTotal: { $apply: function(x: number) { return incrementLifetimeTotal ? roundToDecimal(x + gain, 5) : x; } },
+                discarded: { $apply: function(x: number) { return roundToDecimal((x || 0) + Math.max(0, amount - gain), 5); } }
             }
         })
     });

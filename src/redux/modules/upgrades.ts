@@ -123,10 +123,12 @@ export function researchUnsafe(upgrade: Upgrade): UpgradesAction | Thunk {
         }
     }
 }
-export function researchForFree(upgradeId: UpgradeId) {
+// silent: mark it researched without running its onFinish callback (dev skips that set the resulting state directly
+// instead of replaying the intro sequences the callbacks start)
+export function researchForFree(upgradeId: UpgradeId, silent = false) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
-            finishResearch(dispatch, getState, upgradeId)
+            finishResearch(dispatch, getState, upgradeId, silent)
         })
     }
 }
@@ -212,10 +214,12 @@ export function upgradesTickSlow(timeDelta: number) {
     }
 }
 
-function finishResearch(dispatch: Dispatch, getState: GetState, upgradeId: UpgradeId) {
+function finishResearch(dispatch: Dispatch, getState: GetState, upgradeId: UpgradeId, silent = false) {
     dispatch({ type: FINISH, payload: { id: upgradeId } });
 
-    callbacks[upgradeId]?.onFinish?.(dispatch);
+    if (!silent) {
+        callbacks[upgradeId]?.onFinish?.(dispatch);
+    }
 
     // uncomment this if you want to immediately check for new upgrades
     // checkForUpgradeDiscoveries(getState(), dispatch)

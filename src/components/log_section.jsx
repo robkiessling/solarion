@@ -3,7 +3,7 @@ import {batch, connect} from 'react-redux';
 import database from '../database/logs';
 import {endLogSequence, getLogData} from "../redux/modules/log";
 
-const DEBUG = false;
+import {LOG_SPEED} from "../dev/skips";
 
 const DEFAULT_CHAR_DELAY = 30; // ms per character in 'chars' mode
 
@@ -139,8 +139,7 @@ class LogSection extends React.Component {
                 this.props.onUpdate();
 
                 const advance = () => {
-                    let nextDelay = line.delay;
-                    if (DEBUG) { nextDelay /= 10; } // makes the log go 10x faster
+                    let nextDelay = line.delay / LOG_SPEED;
 
                     i++;
                     if (i < len) {
@@ -153,8 +152,7 @@ class LogSection extends React.Component {
 
                 if (typing) {
                     let shown = 0;
-                    let charDelay = line.charDelay || DEFAULT_CHAR_DELAY;
-                    if (DEBUG) { charDelay /= 10; }
+                    let charDelay = (line.charDelay || DEFAULT_CHAR_DELAY) / LOG_SPEED;
 
                     const typeNextChar = () => {
                         shown++;

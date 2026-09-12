@@ -9,19 +9,6 @@
   min-height: 13rem; // guaranteed floor; a content-heavy panel above scrolls internally rather than squashing this
 
   overflow: hidden;
-
-  // Pulses when a new narrative sequence starts (see log.jsx); telemetry lives elsewhere, so any
-  // pulse means the terminal has something worth reading.
-  &.terminal-flash .component-header {
-    animation: terminal-pulse 0.9s ease-in-out 3;
-  }
-}
-
-@keyframes terminal-pulse {
-  50% {
-    background: rgba(62, 192, 218, 0.3);
-    color: white;
-  }
 }
 
 .log {

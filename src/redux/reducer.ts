@@ -13,6 +13,7 @@ import abilities, * as fromAbilities from "./modules/abilities";
 import planet, * as fromPlanet from "./modules/planet";
 import star, {type StarState} from "./modules/star";
 import panels, * as fromPanels from "./modules/panels";
+import decisions, {type DecisionsState} from "./modules/decisions";
 import {mapObject, roundToDecimal, typedEntries} from "../lib/helpers";
 import {getQuantity, getResource, type ResourcesState} from "./modules/resources";
 import {aimMirrors, startEnergyBeam} from "./modules/star";
@@ -51,6 +52,7 @@ export interface RootState {
     planet: PlanetState;
     star: StarState;
     panels: PanelsState;
+    decisions: DecisionsState;
 }
 
 // Actions
@@ -77,7 +79,8 @@ const sliceReducer = combineReducers<RootState>({
         abilities,
         planet,
         star,
-        panels
+        panels,
+        decisions
 });
 
 // The slices run first; then the actions that cut across the whole state (a recalculation reads several slices at once)

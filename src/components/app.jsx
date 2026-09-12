@@ -19,6 +19,7 @@ import {getStructure} from "../redux/modules/structures";
 import CommandCenter from "./structures/command_center";
 import PlanetPanels from "./planet_panels";
 import PanelHost from "./panels/panel_host";
+import DecisionPopup from "./decision_popup";
 
 // Dead equipment glimpsed in the dark before the facility powers up. Both pieces stay permanently,
 // sitting behind the column UI (z-index -1) as background texture; they show wherever the panels
@@ -226,6 +227,7 @@ class App extends React.Component {
                 </div>
                 <div id={"tooltip-container"}></div>
                 <PanelHost/>
+                <DecisionPopup/>
                 <BlockPointerEvents/>
             </div>
         );

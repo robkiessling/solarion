@@ -9,7 +9,6 @@ class Log extends React.Component {
         super(props);
 
         this.logRef = React.createRef();
-        this.state = { flashing: false };
         this.wasAtBottom = true;
     }
 
@@ -29,27 +28,8 @@ class Log extends React.Component {
         }
     }
 
-    componentDidUpdate(prevProps) {
-        // A new sequence starting means the terminal is speaking (narrative only; telemetry has its own feeds).
-        // Pulse the panel so it catches the eye from across the screen. Growth-only check: the initial mount
-        // (restoring a save's whole history) never flashes.
-        if (this.props.visibleSequenceIds.length > prevProps.visibleSequenceIds.length) {
-            this.flash();
-        }
-    }
-
     componentWillUnmount() {
-        clearTimeout(this.flashTimeout);
         this.resizeObserver.disconnect();
-    }
-
-    flash() {
-        clearTimeout(this.flashTimeout);
-        // Drop and re-add the class across a frame so back-to-back sequences restart the CSS animation
-        this.setState({ flashing: false }, () => {
-            requestAnimationFrame(() => this.setState({ flashing: true }));
-        });
-        this.flashTimeout = setTimeout(() => this.setState({ flashing: false }), 3000);
     }
 
     // Called by sections as lines print. Follow the feed only if the player was already at the
@@ -91,7 +71,7 @@ class Log extends React.Component {
 
     render() {
         return (
-            <div className={`log-container ${this.props.visible ? '' : 'invisible'} ${this.state.flashing ? 'terminal-flash' : ''}`}>
+            <div className={`log-container ${this.props.visible ? '' : 'invisible'}`}>
                 <div className="component-header">Terminal</div>
 
                 <OverlayScrollbarsComponent className="log" ref={this.logRef} defer
