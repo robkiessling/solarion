@@ -12,7 +12,6 @@ import * as fromStar from "../../redux/modules/star";
 import {batch} from "react-redux";
 import type {LogRecord} from './index';
 import {progressBar} from './helpers';
-import {INFINITY} from "../../lib/helpers";
 
 export default {
     normalBootup: {
@@ -179,7 +178,7 @@ export default {
             // ['Sensors:       Offline', 1000, true],
             // ['Reactor:       Cold', 1000, true],
             // ['', 10],
-            ['More energy required.', 0, true]
+            ['Energy critically low.', 0, true]
         ],
     },
 
@@ -187,11 +186,10 @@ export default {
         text: [
             ['', 100],
             // progressBar('Systems scan ', 14, 250, 400, '#'),
-            ['Resources: Critical', 1000],
-            ['Sensors:   Offline', 1000],
-            ['Reactor:   Cold', 1000],
+            ['Resources: [!] Reserve', 1000],
+            ['Sensors:   [!] Offline', 1000],
             ['', 10],
-            ['Displaying Resources.', 10, true],
+            ['Toggling Resource Display.', 10, true],
         ],
         onFinish: dispatch => {
             dispatch(fromGame.updateSetting('showResourceBar', true));
@@ -235,7 +233,6 @@ export default {
             ['System:    Ready', 1000],
             ['', 100],
             ['Harvester: idle.', 500, true],
-            ['Awaiting authorization.', 0, true],
         ],
         onFinish: (dispatch) => {
             batch(() => {
@@ -244,6 +241,7 @@ export default {
                 dispatch(fromGame.updateSetting('showStructuresList', true));
 
                 dispatch(addTrigger('harvesterStarted'));
+                dispatch(addTrigger('manualChargeInsufficient'));
                 dispatch(addTrigger('energyAtCapacity'));
             })
         }
@@ -256,29 +254,33 @@ export default {
         ]
     },
 
-    // The energy-cap wall (trigger and decision both energyAtCapacity): the report,
-    // then the terminal's record of whichever remedy the operator picked.
+    // The hand-crank wall (trigger manualChargeInsufficient): the terminal names manual charge as unsustainable
+    // and the corpus offers solar. {energy} is the lifetime energy figure at the moment it fires.
+    manualChargeInsufficient: {
+        text: [
+            ['', 0],
+            ['Operator input logged: {energy}e.', 800, true],
+            ['Manual charge: not sustainable.', 1500, true],
+            ['Corpus search: power generation.', 1000, true],
+            ['1 entry recoverable.', 0, true],
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromUpgrades.discover('commandCenter_researchSolar'));
+        }
+    },
+
+    // The energy-cap wall (trigger energyAtCapacity): the report, then the corpus offers storage
     energyAtCapacity: {
         text: [
             ['', 0],
             ['Storage at capacity.', 800, true],
             ['Surplus input discarded.', 1500, true],
-            ['Request pending on console.', 0, true],
-        ]
-    },
-    remedyStorage: {
-        text: [
-            ['', 0],
-            ['Remedy: expand storage.', 800, true],
-            ['Reconstructing: Energy Bay.', 0, true],
-        ]
-    },
-    remedyConsumption: {
-        text: [
-            ['', 0],
-            ['Remedy: expand consumption.', 800, true],
-            ['Reconstructing: Harvester Fab.', 0, true],
-        ]
+            ['Corpus search: energy storage.', 1000, true],
+            ['1 entry recoverable.', 0, true],
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromUpgrades.discover('commandCenter_researchEnergyBay'));
+        }
     },
 
     researchedSolarPower: {
@@ -288,7 +290,34 @@ export default {
             ['- Solar Panels', 0, true],
         ],
         onFinish: (dispatch) => {
-            dispatch(fromStructures.learn('solarPanel'));
+            batch(() => {
+                dispatch(fromStructures.learn('solarPanel'));
+                dispatch(addTrigger('firstNight'));
+                dispatch(addTrigger('secondNight'));
+            });
+        }
+    },
+
+    // The nights after the solar farm goes up (triggers firstNight / secondNight): the panels go dark, the terminal
+    // watches one night through, and on the second names it recurring and offers the remedy.
+    firstNight: {
+        text: [
+            ['', 0],
+            ['Solar input: 0%.', 800, true],
+            ['Night duration: 10 hours.', 1500, true],
+            ['Monitoring.', 0, true],
+        ]
+    },
+    secondNight: {
+        text: [
+            ['', 0],
+            ['Solar input: 0%.', 800, true],
+            ['Recurring.', 1500, true],
+            ['Corpus search: power generation.', 1000, true],
+            ['1 further entry recoverable.', 0, true],
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromUpgrades.discover('commandCenter_researchWind'));
         }
     },
 
@@ -311,16 +340,6 @@ export default {
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('energyBay'));
-        }
-    },
-    researchedHarvesterFab: {
-        text: [
-            ['', 0],
-            ['New Schematic Developed:', 0, true],
-            ['- Harvester Fabrication', 0, true],
-        ],
-        onFinish: (dispatch) => {
-            dispatch(fromStructures.setMaxCount('harvester', INFINITY));
         }
     },
     researchedRefinery: {

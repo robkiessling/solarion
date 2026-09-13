@@ -22,7 +22,7 @@ const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE: string = SKIP_START; /* Controls overall game mode */
+const GAME_MODE: string = NORMAL_BOOTUP; /* Controls overall game mode */
 
 // Energy per manual charge click, overriding the ability's normal value (0 = no override; the real value is 1 plus
 // coil upgrades). 20 lands on the Boot-Up card in one click. Read by the charge ability's calculator, at call time,
@@ -78,6 +78,7 @@ function skipStart(dispatch: Dispatch) {
     dispatch(fromStructures.buildForFree('harvester', 1));
 
     dispatch(addTrigger('harvesterStarted'));
+    dispatch(addTrigger('manualChargeInsufficient'));
     dispatch(addTrigger('energyAtCapacity'));
 }
 
@@ -100,7 +101,6 @@ function skipToGlobe(dispatch: Dispatch) {
     dispatch(fromStructures.learn('commandCenter'));
     dispatch(fromStructures.buildForFree('commandCenter', 1));
     dispatch(fromAbilities.learn('commandCenter_charge'));
-    dispatch(fromUpgrades.researchForFree('commandCenter_researchHarvesterFab'));
 
     dispatch(fromStructures.learn('harvester'));
     dispatch(fromStructures.learn('solarPanel'));
@@ -187,7 +187,6 @@ function skipToStar(dispatch: Dispatch) {
     dispatch(fromStructures.learn('commandCenter'));
     dispatch(fromStructures.buildForFree('commandCenter', 1));
     dispatch(fromAbilities.learn('commandCenter_charge'));
-    dispatch(fromUpgrades.researchForFree('commandCenter_researchHarvesterFab'));
 
     dispatch(fromStructures.learn('harvester'));
     dispatch(fromStructures.learn('solarPanel'));

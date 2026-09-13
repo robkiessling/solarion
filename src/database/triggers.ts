@@ -1,16 +1,20 @@
 import * as fromLog from "../redux/modules/log";
 import * as fromUpgrades from "../redux/modules/upgrades";
 import * as fromPanels from "../redux/modules/panels";
-import * as fromDecisions from "../redux/modules/decisions";
 import store from "../redux/store";
 import {probeCapacity} from "../lib/star";
 import {getCapacity} from "../redux/modules/resources";
+import {daylightPercent} from "../redux/modules/clock";
+import {hasLifetimeQuantities} from "../redux/modules/resources";
+import {formatInteger} from "../lib/helpers";
 
 export interface TriggerRecord<S = any> {
     /** the part of the state to listen to (as specific as possible) */
     selector: (state: RootState) => S;
     condition: (slice: S) => boolean;
     action: () => void;
+    /** fire on the nth distinct time the condition holds (default 1); e.g. the second night, not the first */
+    fireAfter?: number;
 }
 
 /**
@@ -36,6 +40,7 @@ function trigger<S>(record: TriggerRecord<S>): TriggerRecord<S> {
  *                  Note: `slice` is the piece of the state specified by `selector`.
  * @param action    Function to call when triggered.
  */
+
 const database = {
     harvesterStarted: trigger({
         selector: (state) => state.structures.byId.harvester,
@@ -45,21 +50,32 @@ const database = {
             store.dispatch(fromLog.startLogSequence('harvesterStarted'));
         }
     }),
-    // The energy-cap wall: the terminal reports the loss and the request lands as a row on the command center card.
-    // Resolving an answer re-arms it (see the decision's `rearm`), and then it waits for surplus actually thrown
-    // away (10e, tripling per answer) before the wall reports and asks again with the remaining remedy, so a
-    // half-answered wall comes back later, not the instant it's answered.
+    manualChargeInsufficient: trigger({
+        selector: (state) => state.resources.byId.energy?.lifetimeTotal,
+        condition: () => hasLifetimeQuantities(store.getState().resources, { energy: 115, ore: 15 }),
+        action: () => {
+            const energy = formatInteger(store.getState().resources.byId.energy?.lifetimeTotal ?? 0, true);
+            store.dispatch(fromLog.startLogSequence('manualChargeInsufficient', { energy }));
+        }
+    }),
+    // The energy-cap wall: once the store is full and some surplus (10e) has actually been thrown away, the terminal
+    // reports the loss and the corpus offers storage (the log sequence discovers the Energy Bay research). A moment
+    // of being full isn't a wall yet.
     energyAtCapacity: trigger({
         selector: (state) => state.resources.byId.energy,
-        condition: (slice) => {
-            if (!slice || slice.amount < getCapacity(slice)) return false;
-            const resolved = store.getState().decisions.resolvedCount.energyAtCapacity ?? 0;
-            return resolved === 0 || slice.discarded >= 10 * 3 ** (resolved - 1);
-        },
-        action: () => {
-            store.dispatch(fromLog.startLogSequence('energyAtCapacity'));
-            store.dispatch(fromDecisions.requestDecision('energyAtCapacity'));
-        }
+        condition: (slice) => !!slice && slice.amount >= getCapacity(slice) && slice.discarded >= 10,
+        action: () => store.dispatch(fromLog.startLogSequence('energyAtCapacity'))
+    }),
+    firstNight: trigger({
+        selector: (state) => daylightPercent(state.clock),
+        condition: (daylight) => daylight === 0 && solarFarmStanding(),
+        action: () => store.dispatch(fromLog.startLogSequence('firstNight'))
+    }),
+    secondNight: trigger({
+        selector: (state) => daylightPercent(state.clock),
+        condition: (daylight) => daylight === 0 && solarFarmStanding(),
+        fireAfter: 2,
+        action: () => store.dispatch(fromLog.startLogSequence('secondNight'))
     }),
     // "Exploration begins": fires on the first squad deployment (scouts arrive much later, with Survey Automation)
     startExploringMap: trigger({
@@ -110,6 +126,11 @@ const database = {
 
 
 } satisfies Record<string, TriggerRecord>;
+
+function solarFarmStanding() {
+    const solar = store.getState().structures.byId.solarPanel;
+    return !!solar && solar.count.total >= 1;
+}
 
 export type TriggerId = keyof typeof database;
 export default database;

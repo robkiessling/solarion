@@ -25,7 +25,6 @@ export const PROGRESS = 'structures/PROGRESS' as const;
 export const ASSIGN_DROID = 'structures/ASSIGN_DROID' as const;
 export const REMOVE_DROID = 'structures/REMOVE_DROID' as const;
 export const DISABLE = 'structures/DISABLE' as const;
-export const SET_MAX_COUNT = 'structures/SET_MAX_COUNT' as const;
 
 export type StructuresAction =
     | { type: typeof LEARN; payload: { id: StructureId } }
@@ -36,8 +35,7 @@ export type StructuresAction =
     | { type: typeof PROGRESS; payload: { timeDelta: number } }
     | { type: typeof ASSIGN_DROID; payload: { id: StructureId; amount: number } }
     | { type: typeof REMOVE_DROID; payload: { id: StructureId; amount: number } }
-    | { type: typeof DISABLE; payload: { id: StructureId } }
-    | { type: typeof SET_MAX_COUNT; payload: { id: StructureId; max: number } };
+    | { type: typeof DISABLE; payload: { id: StructureId } };
 
 // Initial State
 const initialState: StructuresState = {
@@ -78,14 +76,6 @@ export default function reducer(state: StructuresState = initialState, action: G
                     [action.payload.id]: {
                         runningRate: { $set: 0 },
                         disabled: { $set: true }
-                    }
-                }
-            });
-        case SET_MAX_COUNT:
-            return update(state, {
-                byId: {
-                    [action.payload.id]: {
-                        count: { max: { $set: action.payload.max } }
                     }
                 }
             });
@@ -185,12 +175,6 @@ export function setRunningRate(id: StructureId, amount: number) {
 
 export function disable(id: StructureId) {
     return withRecalculation({ type: DISABLE, payload: { id } });
-}
-
-// Raises (or lowers) how many of a structure may be built; a structure whose record starts at max 1 is buildable
-// only after the research that reconstructs its fabrication line lifts the cap (e.g. harvesters).
-export function setMaxCount(id: StructureId, max: number) {
-    return withRecalculation({ type: SET_MAX_COUNT, payload: { id, max } });
 }
 
 // Unlike other action creators, we are passing the dispatch as a parameter because we don't always end up dispatching

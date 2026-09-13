@@ -10,7 +10,13 @@ import upgradesDatabase from '../../database/upgrades';
 import type {TriggerId} from '../../database/triggers';
 
 // Ids in the state are plain strings (DecisionId in practice): typing them would make the decisions and triggers
-// tables circular, since triggers read this state to scale their re-ask thresholds.
+// tables circular for any trigger that reads this state (e.g. to scale a re-ask threshold by resolvedCount).
+
+// The table is looked up through this so an empty table (DecisionId = never) still types; the ids come from the
+// table's own keys, so a miss can't happen.
+function getRecord(id: DecisionId): DecisionRecord {
+    return (database as Record<string, DecisionRecord>)[id];
+}
 export interface DecisionsState {
     /** the decision showing in the popup */
     openId: string | null;
@@ -72,7 +78,7 @@ export function requestDecision(id: DecisionId) {
     return (dispatch: Dispatch, getState: GetState) => {
         const state = getState();
         if (state.decisions.pending.some(entry => entry.id === id)) return;
-        if (visibleOptions(state, database[id]).length === 0) return;
+        if (visibleOptions(state, getRecord(id)).length === 0) return;
         dispatch({ type: REQUEST_DECISION, payload: { id } });
     }
 }
@@ -93,7 +99,7 @@ export function chooseOption(index: number) {
         const state = getState();
         const id = state.decisions.openId as DecisionId | null;
         if (!id) return;
-        const record = database[id];
+        const record = getRecord(id);
         const option = visibleOptions(state, record)[index];
         if (!option || !isAvailable(state, option)) return;
 
@@ -151,5 +157,5 @@ export function bodyLines(state: RootState, record: DecisionRecord): string[] {
 }
 /** The pending requests whose row belongs on this structure's card */
 export function pendingForStructure(state: DecisionsState, structureId: StructureId) {
-    return state.pending.filter(entry => database[entry.id as DecisionId].structure === structureId);
+    return state.pending.filter(entry => getRecord(entry.id as DecisionId).structure === structureId);
 }

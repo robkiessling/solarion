@@ -4,14 +4,17 @@ import database, {type TriggerId, type TriggerRecord} from '../../database/trigg
 import {typedKeys} from '../../lib/helpers';
 
 export interface TriggersState {
-    byId: Partial<Record<TriggerId, { id: TriggerId; triggered: boolean }>>;
+    /** hits: distinct times the condition has held while pending (see fireAfter in database/triggers.ts) */
+    byId: Partial<Record<TriggerId, { id: TriggerId; triggered: boolean; hits?: number }>>;
 }
 
 export const ADD_TRIGGER = 'triggers/ADD_TRIGGER' as const;
+export const HIT_TRIGGER = 'triggers/HIT_TRIGGER' as const;
 export const REMOVE_TRIGGER = 'triggers/REMOVE_TRIGGER' as const;
 
 export type TriggersAction =
     | { type: typeof ADD_TRIGGER; payload: { id: TriggerId } }
+    | { type: typeof HIT_TRIGGER; payload: { id: TriggerId } }
     | { type: typeof REMOVE_TRIGGER; payload: { id: TriggerId } };
 
 const initialState: TriggersState = {
@@ -26,8 +29,17 @@ export default function reducer(state: TriggersState = initialState, action: Gam
                     [action.payload.id]: {
                         $set: {
                             id: action.payload.id,
-                            triggered: false
+                            triggered: false,
+                            hits: 0
                         }
+                    }
+                }
+            });
+        case HIT_TRIGGER:
+            return update(state, {
+                byId: {
+                    [action.payload.id]: {
+                        hits: { $set: (state.byId[action.payload.id]?.hits ?? 0) + 1 }
                     }
                 }
             });
@@ -82,13 +94,18 @@ export function syncTriggers(state: TriggersState) {
         if (isPending(state, id) && !activeTriggers[id]) {
             const dbRecord: TriggerRecord = database[id]; // any-sliced: the entries' slice types differ (see trigger() in the table)
 
-            activeTriggers[id] = observeStore(store, dbRecord.selector, (state, unsubscribe) => {
-                if (dbRecord.condition(state)) {
-                    dbRecord.action();
-                    unsubscribe();
-                    delete activeTriggers[id]
-                    store.dispatch({ type: REMOVE_TRIGGER, payload: { id } })
-                }
+            activeTriggers[id] = observeStore(store, dbRecord.selector, (slice, unsubscribe) => {
+                if (!dbRecord.condition(slice)) return;
+
+                // Each distinct time the condition holds is a hit; the trigger fires on the fireAfter-th (default
+                // the first). Hits live in the state so a reload mid-count picks up where it left off.
+                store.dispatch({ type: HIT_TRIGGER, payload: { id } });
+                if ((store.getState().triggers.byId[id]?.hits ?? 0) < (dbRecord.fireAfter ?? 1)) return;
+
+                dbRecord.action();
+                unsubscribe();
+                delete activeTriggers[id]
+                store.dispatch({ type: REMOVE_TRIGGER, payload: { id } })
             });
         }
     }

@@ -286,12 +286,7 @@ const database = {
         name: "Research: Solar Power",
         structure: 'commandCenter',
         description: "Manual energy production is insufficient for sustained harvesting. Need to find an alternative energy source.",
-        discoverWhen: {
-            resources: {
-                energy: 115,
-                ore: 15
-            }
-        },
+        // Offered by the manualChargeInsufficient trigger (database/triggers.ts), not by a threshold
         researchTime: 30,
         cost: {
             energy: 30,
@@ -302,13 +297,7 @@ const database = {
         name: "Research: Wind Power",
         structure: 'commandCenter',
         description: "Energy production is very limited at night. Need to find an alternative energy source.",
-        discoverWhen: {
-            upgrades: ['commandCenter_researchSolar'],
-            resources: {
-                energy: 700,
-                ore: 100
-            }
-        },
+        // Offered by the secondNight trigger (database/triggers.ts), not by a threshold
         researchTime: 60,
         cost: {
             energy: 50,
@@ -323,17 +312,6 @@ const database = {
         cost: {
             energy: 50,
             ore: 50
-        }
-    }),
-    // The energy-cap wall's second remedy (database/decisions.ts): spend more instead of storing more
-    commandCenter_researchHarvesterFab: upgrade({
-        name: "Research: Harvester Fabrication",
-        structure: 'commandCenter',
-        description: "Reconstructs the fabrication line for additional harvesters. More drills, more draw on the battery.",
-        researchTime: 30,
-        cost: {
-            energy: 40,
-            ore: 40
         }
     }),
     commandCenter_researchRefinery: upgrade({
@@ -1307,11 +1285,6 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     commandCenter_researchEnergyBay: {
         onFinish: (dispatch) => {
             dispatch(fromLog.startLogSequence('researchedEnergyBay'))
-        }
-    },
-    commandCenter_researchHarvesterFab: {
-        onFinish: (dispatch) => {
-            dispatch(fromLog.startLogSequence('researchedHarvesterFab'))
         }
     },
     commandCenter_researchRefinery: {

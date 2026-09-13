@@ -52,44 +52,14 @@ export interface DecisionRecord {
     rearm?: string;
 }
 
-function decision(record: DecisionRecord): DecisionRecord {
+/** Builds a table entry (typed so the record's contents are checked in place) */
+export function decision(record: DecisionRecord): DecisionRecord {
     return record;
 }
 
+// No decisions yet. The panel is reserved for true either/or choices (picking one forfeits the other); anything the
+// player can eventually have both of is an upgrade on a card, not a decision.
 const database = {
-    // The energy-cap wall. Two remedies: store more (Energy Bay) or spend more (build more harvesters). Whichever
-    // the player skips is offered again the next time the wall comes back; both taken, the wall stops asking.
-    energyAtCapacity: decision({
-        structure: 'commandCenter',
-        label: 'Storage at capacity',
-        title: 'AUTHORIZATION REQUIRED',
-        body: (state) => {
-            const energy = state.resources.byId.energy;
-            const discarded = Math.floor(energy?.discarded ?? 0);
-            const again = (state.decisions.resolvedCount.energyAtCapacity ?? 0) > 0;
-            return [
-                `Energy storage is at capacity${again ? ' again' : ''}. Surplus input is being discarded: ${discarded}e so far.`,
-                'The recovered corpus holds a remedy. Reconstruction requires operator authorization.'
-            ];
-        },
-        options: [
-            {
-                label: 'Expand storage',
-                detail: 'Reconstruct: Energy Bay schematic.',
-                research: 'commandCenter_researchEnergyBay',
-                receipt: 'ENERGY BAY',
-                log: 'remedyStorage'
-            },
-            {
-                label: 'Expand consumption',
-                detail: 'Reconstruct: harvester fabrication line.',
-                research: 'commandCenter_researchHarvesterFab',
-                receipt: 'HARVESTER FAB',
-                log: 'remedyConsumption'
-            }
-        ],
-        rearm: 'energyAtCapacity'
-    })
 } satisfies Record<string, DecisionRecord>;
 
 export type DecisionId = keyof typeof database;
