@@ -149,9 +149,9 @@ export default {
             // ['', 3000],
             // ['FATAL ERROR OCCURRED', 2000, true],
             // progressBar('Recovering ', 8, 150, 400, '.'),
-
-            progressBar('', 20, 250, 400, '▒'),
-            ['', 0],
+            // ['Initializing...', 2000, true],
+            // progressBar('', 20, 350, 1000, '▒'),
+            ['', 1000],
             ['#################################', 10],
             ['Safe boot', 10],
             ['***', 10],
@@ -161,7 +161,7 @@ export default {
             ['', 10],
             ['Solarion CORE', 10],
             ['SITE 1 / PILOT FACILITY', 10],
-            ['#################################', 5000],
+            ['#################################', 6000],
             ['', 10],
             // ['Last authorized session:', 100],
             // ['  73 years, 266 days ago.', 2500],
@@ -186,18 +186,23 @@ export default {
     showResourceBar: {
         text: [
             ['', 100],
-            progressBar('System status  ', 8, 250, 400, '#'),
-            ['Resources:     Critical', 1000, true],
-            ['Sensors:       Offline', 1000, true],
-            ['Reactor:       Cold', 1000, true],
+            // progressBar('Systems scan ', 14, 250, 400, '#'),
+            ['Resources: Critical', 1000],
+            ['Sensors:   Offline', 1000],
+            ['Reactor:   Cold', 1000],
             ['', 10],
-        ]
+            ['Displaying Resources.', 10, true],
+        ],
+        onFinish: dispatch => {
+            dispatch(fromGame.updateSetting('showResourceBar', true));
+        }
     },
 
     showPlanetStatus: {
         text: [
             ['', 100],
-            ['Activating sensors...', 3000, true],
+            // ['Activating sensors...', 3000, true],
+            progressBar('Activating sensors ', 3, 750, 250, '√'),
             ['', 100],
             ['Sensors are operational.', 100, true],
         ],

@@ -27,8 +27,8 @@ const replaceArrays = (defaultValue: unknown, savedValue: unknown) => {
  * 1. The save is deep-merged over the current default state, filling in any fields added since the save.
  * 2. Learned structure/resource/upgrade/ability records are re-merged over their current database
  *    definitions (these records are snapshotted at LEARN time, so old saves lack newer record fields).
- * 3. Saved trigger and log entries whose ids no longer exist in the database are dropped (renamed or
- *    removed content would otherwise crash trigger syncing at boot, or log rendering).
+ * 3. Saved triggers and queued log sequences whose ids no longer exist in the database are dropped (renamed or
+ *    removed content would otherwise crash trigger syncing at boot, or the terminal player).
  *
  * @param savedState The parsed save (may be undefined if there is no save)
  * @param defaultState The current initial state (from running the root reducer with an init action)
@@ -98,12 +98,9 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
         state.triggers.byId = _.pickBy(state.triggers.byId, (trigger, id) => id in triggersDatabase);
     }
 
-    if (state.log && state.log.bySequenceId) {
-        // Inline entries carry their own text and have no database id; only database-backed entries are pruned
-        state.log.bySequenceId = _.pickBy(state.log.bySequenceId,
-            (entry) => entry && (entry.entryType === 'inline' || (entry.id !== null && entry.id in logsDatabase)));
-        state.log.visibleSequenceIds = (state.log.visibleSequenceIds || [])
-            .filter(sequenceId => state.log.bySequenceId[sequenceId]);
+    if (state.log && state.log.queue) {
+        // Printed lines are stored as text and need nothing; only queued sequences reference database ids
+        state.log.queue = state.log.queue.filter(entry => entry && ('text' in entry || entry.sequence in logsDatabase));
     }
 
     return state;

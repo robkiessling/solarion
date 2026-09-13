@@ -1,21 +1,54 @@
 import React from 'react';
-import { connect } from 'react-redux';
-import LogSection from "./log_section";
+import {batch, connect} from 'react-redux';
+import database from '../database/logs';
+import {finishHead, printLine} from "../redux/modules/log";
 import 'overlayscrollbars/styles/overlayscrollbars.css';
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 
+import {LOG_SPEED} from "../dev/skips";
+
+const DEFAULT_CHAR_DELAY = 30; // ms per character in 'chars' mode
+const DEFAULT_FRAME_DELAY = 200; // ms per frame in 'frames' mode
+
+// Database lines come in two shapes: the legacy tuple [text, delayAfterMs, flash] and an options
+// object { text, delay, flash, className, style, mode: 'chars' | 'frames', charDelay, frames, frameDelay }.
+function normalizeLine(line) {
+    return Array.isArray(line) ? { text: line[0], delay: line[1], flash: line[2] } : line;
+}
+
+// Fills {placeholders} from the vars queued with the sequence. Unknown placeholders are left as-is so a
+// typo is visible rather than silently blank.
+function interpolate(text, vars) {
+    if (!vars) { return text; }
+    return text.replace(/\{(\w+)\}/g, (match, key) => (key in vars ? String(vars[key]) : match));
+}
+
+// The terminal. Renders the printed lines from the store and plays the queue (see redux/modules/log.ts):
+// the head entry's lines are committed to the store one by one as they land, paced by the database delays.
+// A line that animates in (typing, progress frames) is committed with its full text up front and drawn with
+// a local partial override until it lands, so the store never holds half a line and a mid-line reload just
+// shows the whole line.
+//
+// Line colouring is CSS-only (log.scss): a line committed this session gets .landed when it lands, which
+// runs the white-then-grey settle animation (and the flash, if the line asked for one). Restored history has
+// no .landed and sits at the scrollback grey.
 class Log extends React.Component {
     constructor(props) {
         super(props);
 
         this.logRef = React.createRef();
         this.wasAtBottom = true;
+        this.pendingTimeouts = new Set();
 
-        // Entries already in the log when the terminal mounts are history (a reload); anything added later is
-        // new and gets the white-then-fade treatment. A running sequence can tell from its status, but inline
-        // entries and logMessage entries are stored as 'completed' from the start, so this snapshot is what
-        // distinguishes new from restored for them.
-        this.initialSequenceIds = new Set(props.visibleSequenceIds);
+        // Lines with an id below this were restored from the save, not printed this session
+        this.sessionStartId = props.nextId;
+        // Queue entry ids: the one being played, and the last one finished (props can lag a finish by a tick)
+        this.playingId = null;
+        this.finishedId = null;
+
+        this.state = {
+            partial: null // { id, text } while a line is animating in; overrides the stored text
+        };
     }
 
     componentDidMount() {
@@ -32,26 +65,144 @@ class Log extends React.Component {
         if (this.logRef.current) {
             this.resizeObserver.observe(this.logRef.current.getElement());
         }
+
+        this.playHead();
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if (prevProps.lines !== this.props.lines || prevState.partial !== this.state.partial) {
+            // Follow the feed only if the player was already at the bottom; reading scrollback shouldn't be interrupted
+            if (this.wasAtBottom) {
+                this.scrollToBottom();
+            }
+        }
+        this.playHead();
     }
 
     componentWillUnmount() {
         this.resizeObserver.disconnect();
+        // Cancel any in-flight sequence timers. Without this, a sequence still printing when the app swaps to
+        // the game-over or error screen keeps dispatching into the dead game. The head entry stays queued
+        // with its progress, so a remount resumes it.
+        this.pendingTimeouts.forEach(id => clearTimeout(id));
+        this.pendingTimeouts.clear();
     }
 
-    // Called by sections as lines print. Follow the feed only if the player was already at the
-    // bottom -- same rule as the resize path; reading scrollback shouldn't be interrupted.
-    onSectionUpdate() {
-        if (this.wasAtBottom) {
-            this.scrollToBottom();
+    // All timers must go through this helper so componentWillUnmount can cancel them
+    scheduleTimeout(fn, delay) {
+        const id = setTimeout(() => {
+            this.pendingTimeouts.delete(id);
+            fn();
+        }, delay);
+        this.pendingTimeouts.add(id);
+    }
+
+    // Starts playing the head of the queue, unless it is already playing or was just finished (store
+    // notifications are debounced, so props can still show a finished head for a tick).
+    playHead() {
+        const head = this.props.queue[0];
+        if (!head || head.id === this.playingId || head.id === this.finishedId) { return; }
+        this.playingId = head.id;
+
+        if ('text' in head) {
+            this.playText(head);
         }
+        else {
+            this.playSequence(head);
+        }
+    }
+
+    finish(head, onFinish) {
+        batch(() => {
+            if (onFinish) { onFinish(this.props.dispatch); }
+            this.props.dispatch(finishHead(head.id));
+        });
+        this.finishedId = head.id;
+        this.playingId = null;
+    }
+
+    // One-off text (logInline): lands at once. log-inline spaces it a blank line's worth from what precedes it
+    // (scripted sequences handle their own spacing with leading blank lines).
+    playText(head) {
+        const className = ['log-inline', head.className].filter(Boolean).join(' ');
+        batch(() => {
+            this.props.dispatch(printLine(head.text, { className, style: head.style }));
+            this.finish(head, null);
+        });
+    }
+
+    playSequence(head) {
+        const record = database[head.sequence];
+        const dispatch = this.props.dispatch;
+        const lines = record.text.map(normalizeLine);
+        let i = head.progress; // resumes where a reload left off
+
+        const printNextLine = () => {
+            if (i >= lines.length) {
+                this.finish(head, record.onFinish);
+                return;
+            }
+
+            const line = lines[i];
+            const content = interpolate(line.text, head.vars);
+            const typing = line.mode === 'chars' && content;
+            const frames = line.mode === 'frames' && line.frames && line.frames.length ? line.frames : null;
+
+            // Committed in full now; the animation below only changes what is drawn until the line lands
+            const lineId = dispatch(printLine(content, {
+                className: line.className, style: line.style, flash: !!(line.flash && content)
+            }));
+            i++;
+
+            const land = () => {
+                this.setState({ partial: null });
+                this.scheduleTimeout(printNextLine, (line.delay || 0) / LOG_SPEED);
+            };
+
+            if (typing) {
+                const charDelay = (line.charDelay || DEFAULT_CHAR_DELAY) / LOG_SPEED;
+                let shown = 0;
+                const typeNextChar = () => {
+                    shown++;
+                    if (shown < content.length) {
+                        this.setState({ partial: { id: lineId, text: content.slice(0, shown) } });
+                        this.scheduleTimeout(typeNextChar, charDelay);
+                    }
+                    else {
+                        land();
+                    }
+                };
+                this.setState({ partial: { id: lineId, text: '' } });
+                typeNextChar();
+            }
+            else if (frames) {
+                const frameDelay = (line.frameDelay || DEFAULT_FRAME_DELAY) / LOG_SPEED;
+                let shown = 0;
+                const showNextFrame = () => {
+                    if (shown < frames.length) {
+                        this.setState({ partial: { id: lineId, text: interpolate(frames[shown], head.vars) } });
+                        shown++;
+                        this.scheduleTimeout(showNextFrame, frameDelay);
+                    }
+                    else {
+                        land();
+                    }
+                };
+                showNextFrame();
+            }
+            else {
+                land();
+            }
+        };
+
+        printNextLine();
     }
 
     scrollToBottom() {
         this.jumpToBottom();
 
-        // Lines are appended to the DOM directly (see log_section.jsx), so OverlayScrollbars may not have
-        // observed the mutation yet when this runs -- a stale scrollHeight leaves the newest line just below
-        // the fold. Jump again on the next frame, after its size recalculation.
+        // OverlayScrollbars may not have observed the new content yet when this runs; a stale scrollHeight
+        // leaves the newest line just below the fold. Jump again on the next frame, after its size recalculation.
         requestAnimationFrame(() => this.jumpToBottom());
     }
 
@@ -75,6 +226,28 @@ class Log extends React.Component {
         this.wasAtBottom = distanceFromBottom <= 4; // small tolerance; scrollTop can be fractional
     }
 
+    renderLine(line) {
+        const partial = this.state.partial;
+        const animating = partial && partial.id === line.id;
+        const text = animating ? partial.text : line.text;
+
+        const classes = [line.className];
+        if (line.id >= this.sessionStartId) {
+            classes.push(animating ? 'arriving' : 'landed');
+            if (line.flash) { classes.push('flash'); }
+        }
+
+        // An explicit colour (terrain notes in their zone's map colour) replaces both ends of the settle
+        // animation rather than being overridden by it
+        let style = line.style || undefined;
+        if (style && style.color) {
+            const { color, ...rest } = style;
+            style = { ...rest, '--fresh': color, '--rest': color };
+        }
+
+        return <p key={line.id} className={classes.filter(Boolean).join(' ') || undefined} style={style}>{text}</p>;
+    }
+
     render() {
         return (
             <div className={`log-container ${this.props.visible ? '' : 'invisible'}`}>
@@ -82,19 +255,10 @@ class Log extends React.Component {
 
                 <OverlayScrollbarsComponent className="log" ref={this.logRef} defer
                                             events={{ scroll: (instance) => this.trackScrollPosition(instance) }}>
-                    {
-                        this.props.visibleSequenceIds.map((sequenceId) => {
-                            return <LogSection sequenceId={sequenceId}
-                                               key={sequenceId}
-                                               onUpdate={() => this.onSectionUpdate()}
-                                               fresh={!this.initialSequenceIds.has(sequenceId)}
-                            />;
-                        })
-                    }
+                    {this.props.lines.map(line => this.renderLine(line))}
                 </OverlayScrollbarsComponent>
                 <div className="log-gradient"/>
             </div>
-
         );
     }
 }
@@ -102,12 +266,13 @@ class Log extends React.Component {
 const mapStateToProps = state => {
     return {
         visible: state.game.showTerminal,
-        visibleSequenceIds: state.log.visibleSequenceIds
+        lines: state.log.lines,
+        queue: state.log.queue,
+        nextId: state.log.nextId // only read at mount, to tell restored lines from this session's
     }
-
 };
 
 export default connect(
     mapStateToProps,
-    null
+    null // Intentionally null so `dispatch` is passed as a prop for the sequence callbacks
 )(Log);

@@ -34,21 +34,20 @@ export interface LogRecord {
     onFinish?: (dispatch: Dispatch) => void;
 }
 
-// Merged log database. Entries are keyed by id; ids are stored in saves, so renaming or removing one
-// is a save migration concern (see lib/save_migration.ts, which drops orphaned ids).
+// Merged log database. Entries are keyed by id. Printed lines are saved as text, so renaming an entry only
+// affects saves with that sequence still queued (lib/save_migration.ts drops orphaned queue entries).
 //
-// Line format (see log_section.jsx for rendering): each entry's `text` is an array of lines, where a
+// Line format (see components/log.jsx for playback): each entry's `text` is an array of lines, where a
 // line is either the legacy tuple [text, delayAfterMs, flash] or an options object:
 //   { text, delay, flash, className, style, mode: 'chars', charDelay }
 // `mode: 'chars'` types the line out character by character. `mode: 'frames'` shows each string in `frames`
-// in turn (frameDelay ms apart), then replaces the line with `text`; backfill and skips show `text` only.
-// progressBar() in helpers.ts builds a frames line for a simple [XXXX  ] fill. Text may contain {placeholders} filled
-// from the vars passed to startLogSequence(id, vars); vars are stored on the log entry at dispatch
-// time so backfilled history re-renders exactly what was originally printed.
+// in turn (frameDelay ms apart), then replaces the line with `text`; history shows `text` only.
+// progressBar() in helpers.ts builds a frames line for a simple [XXXX  ] fill. Text may contain {placeholders}
+// filled from the vars passed to startLogSequence(id, vars) as each line prints.
 //
 // onFinish side effects run once, when the last line lands. Keep side effects at sequence end only:
-// a sequence interrupted by a reload replays from scratch, and end-only effects are what makes that
-// replay safe (nothing half-applied).
+// a sequence interrupted by a reload resumes from the line it reached, and end-only effects are what
+// makes that safe (nothing half-applied).
 const database = {
     ...system,
     ...story,

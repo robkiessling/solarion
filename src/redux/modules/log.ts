@@ -1,80 +1,98 @@
 import update from 'immutability-helper';
-import { v4 } from 'uuid';
 import type {LogId} from '../../database/logs';
 
-export interface LogEntry {
-    /** database id, or null for inline entries */
-    id: LogId | null;
-    sequence: string;
-    status: 'in_progress' | 'completed';
-    vars?: { [placeholder: string]: string | number } | null;
-    entryType?: 'inline';
-    text?: string;
+// The terminal keeps a flat list of printed lines plus a queue of what is still to print. Lines are stored as
+// resolved text (placeholders filled, database id forgotten): terminal history is a record of what was shown,
+// and a flat list is what lets old lines be dropped past MAX_LINES without breaking anything.
+//
+// The queue is played by the Log component (components/log.jsx), one entry at a time in order, so a trigger
+// firing mid-boot prints after the boot rather than interleaved with it. The head entry is the one playing;
+// `progress` counts its lines already printed, so a reload resumes it from there without reprinting (its
+// onFinish side effect still runs exactly once, at the end). One-off text entries print instantly.
+
+/** how many printed lines are kept, on screen and in the save; the oldest are dropped past this */
+export const MAX_LINES = 400;
+
+export interface PrintedLine {
+    /** unique, increasing; React keys and "newer than" comparisons rely on it */
+    id: number;
+    text: string;
     className?: string;
-    style?: { [property: string]: string | number } | null;
+    style?: LineStyle | null;
+    /** landed with a background flash (a landing effect; restored history never replays it) */
+    flash?: boolean;
 }
 
+export type LineStyle = { [property: string]: string | number };
+export type LogVars = { [placeholder: string]: string | number } | null;
+
+export type QueueEntry =
+    | { id: number; sequence: LogId; vars?: LogVars; progress: number }
+    | { id: number; text: string; className?: string; style?: LineStyle | null };
+
 export interface LogState {
-    bySequenceId: { [sequenceId: string]: LogEntry };
-    visibleSequenceIds: string[];
+    lines: PrintedLine[];
+    queue: QueueEntry[];
+    /** next id for a line or queue entry */
+    nextId: number;
+    /** set once anything has been queued; the app uses it to tell a new game from a restored one */
+    started: boolean;
 }
 
 // Actions
-export const LOG = 'log/LOG' as const;
-export const START_LOG_SEQUENCE = 'log/START_LOG_SEQUENCE' as const;
-export const END_LOG_SEQUENCE = 'log/END_LOG_SEQUENCE' as const;
+export const PRINT_LINE = 'log/PRINT_LINE' as const;
+export const ENQUEUE = 'log/ENQUEUE' as const;
+export const FINISH_HEAD = 'log/FINISH_HEAD' as const;
 
 export type LogAction =
-    | { type: typeof LOG; payload: { sequence: string; id: LogId | null; vars?: LogEntry['vars']; entryType?: 'inline';
-        text?: string; className?: string; style?: LogEntry['style'] } }
-    | { type: typeof START_LOG_SEQUENCE; payload: { sequence: string; id: LogId; vars: LogEntry['vars'] } }
-    | { type: typeof END_LOG_SEQUENCE; payload: { sequence: string } };
+    | { type: typeof PRINT_LINE; payload: { text: string; className?: string; style?: LineStyle | null; flash?: boolean } }
+    | { type: typeof ENQUEUE; payload: { sequence: LogId; vars?: LogVars } | { text: string; className?: string; style?: LineStyle | null } }
+    | { type: typeof FINISH_HEAD; payload: { id: number } };
 
 // Initial State
 const initialState: LogState = {
-    bySequenceId: {},
-    visibleSequenceIds: []
+    lines: [],
+    queue: [],
+    nextId: 0,
+    started: false
 }
 
 // Reducers
 export default function reducer(state: LogState = initialState, action: GameAction): LogState {
     switch (action.type) {
-        case LOG:
+        case PRINT_LINE: {
+            const line: PrintedLine = { id: state.nextId, text: action.payload.text };
+            if (action.payload.className) { line.className = action.payload.className; }
+            if (action.payload.style) { line.style = action.payload.style; }
+            if (action.payload.flash) { line.flash = true; }
+
+            const lines = state.lines.length >= MAX_LINES
+                ? [...state.lines.slice(state.lines.length - MAX_LINES + 1), line]
+                : [...state.lines, line];
+
+            const head = state.queue[0];
+            const queue = head && 'sequence' in head
+                ? [{ ...head, progress: head.progress + 1 }, ...state.queue.slice(1)]
+                : state.queue;
+
+            return { ...state, lines, queue, nextId: state.nextId + 1 };
+        }
+        case ENQUEUE: {
+            const entry: QueueEntry = 'sequence' in action.payload
+                ? { id: state.nextId, sequence: action.payload.sequence, vars: action.payload.vars, progress: 0 }
+                : { id: state.nextId, ...action.payload };
             return update(state, {
-                bySequenceId: {
-                    [action.payload.sequence]: {
-                        $set: {
-                            id: action.payload.id,
-                            sequence: action.payload.sequence,
-                            status: 'completed',
-                            vars: action.payload.vars,
-                            // Inline entries (see logInline) carry their own text instead of a database id
-                            entryType: action.payload.entryType,
-                            text: action.payload.text,
-                            className: action.payload.className,
-                            style: action.payload.style
-                        }
-                    }
-                },
-                visibleSequenceIds: { $push: [action.payload.sequence] }
+                queue: { $push: [entry] },
+                nextId: { $set: state.nextId + 1 },
+                started: { $set: true }
             });
-        case START_LOG_SEQUENCE:
-            return update(state, {
-                bySequenceId: {
-                    [action.payload.sequence]: {
-                        $set: { id: action.payload.id, sequence: action.payload.sequence, vars: action.payload.vars, status: 'in_progress' }
-                    }
-                },
-                visibleSequenceIds: { $push: [action.payload.sequence] }
-            });
-        case END_LOG_SEQUENCE:
-            return update(state, {
-                bySequenceId: {
-                    [action.payload.sequence]: {
-                        $apply: function(x) { return update(x, { status: { $set: 'completed' } }); }
-                    }
-                }
-            });
+        }
+        case FINISH_HEAD: {
+            // Guarded by id so a stale finish (a timer outliving its entry) can't drop the wrong entry
+            const head = state.queue[0];
+            if (!head || head.id !== action.payload.id) { return state; }
+            return update(state, { queue: { $splice: [[0, 1]] } });
+        }
         default:
             return state;
     }
@@ -82,37 +100,32 @@ export default function reducer(state: LogState = initialState, action: GameActi
 
 // Action Creators
 
-// Logs a message in the 'completed' state (instantly rendering it)
-// sequence is a random uuid, just has to be unique: https://egghead.io/lessons/javascript-redux-persisting-the-state-to-the-local-storage
-// vars: optional {placeholder: value} map for {placeholders} in the database text. Values are captured
-// here at dispatch time and stored on the entry, so backfilled history re-renders the original text.
-export function logMessage(id: LogId, vars: LogEntry['vars'] = null): LogAction {
-    return { type: LOG, payload: { id: id, vars: vars, sequence: v4() } };
+// Queues a database sequence: its lines print over time, then its onFinish runs.
+// vars: optional {placeholder: value} map for {placeholders} in the sequence's text, filled as each line prints.
+export function startLogSequence(sequence: LogId, vars: LogVars = null): LogAction {
+    return { type: ENQUEUE, payload: { sequence, vars } };
 }
 
-// Logs a one-off line of dynamic text. Unlike logMessage, the text lives on the entry itself rather than in
-// the logs database, so it can contain runtime values. The text is stored in the save -- terminal history is
-// a record, so old lines keeping their old copy is correct. (Used for ambient expedition telemetry: cargo
-// banked, sealed sites, disband summaries, squad wipes.)
-// style: optional inline CSS properties for the entry (e.g. a colour taken from the map palette)
-export function logInline(text: string, className = '', style: { [property: string]: string | number } | null = null): LogAction {
-    return { type: LOG, payload: { id: null, entryType: 'inline', text, className, style, sequence: v4() } };
+// Queues a one-off line of dynamic text (expedition telemetry, dev skips): printed instantly once whatever is
+// ahead of it has finished. style: optional inline CSS (e.g. a colour taken from the map palette).
+export function logInline(text: string, className = '', style: LineStyle | null = null): LogAction {
+    return { type: ENQUEUE, payload: { text, className, style } };
 }
 
-// Starts a log sequence (outputs the text over time). vars: see logMessage.
-export function startLogSequence(id: LogId, vars: LogEntry['vars'] = null): LogAction {
-    return { type: START_LOG_SEQUENCE, payload: { id: id, vars: vars, sequence: v4() } };
+// Used by the player only: commits a line to history (and counts it towards the head sequence's progress).
+// Returns the new line's id, read back from the store so it is right even before the component's props catch up.
+export function printLine(text: string, options: { className?: string; style?: LineStyle | null; flash?: boolean } = {}): Thunk<number> {
+    return (dispatch, getState) => {
+        dispatch({ type: PRINT_LINE, payload: { text, ...options } });
+        return getState().log.nextId - 1;
+    };
 }
-export function endLogSequence(sequence: string): LogAction {
-    return { type: END_LOG_SEQUENCE, payload: { sequence } };
+export function finishHead(id: number): LogAction {
+    return { type: FINISH_HEAD, payload: { id } };
 }
 
 
 // Standard Functions
-export function getLogData(state: LogState, sequenceId: string) {
-    return state.bySequenceId[sequenceId];
-}
-
 export function hasStartedGame(state: LogState) {
-    return state && state.visibleSequenceIds && state.visibleSequenceIds.length;
+    return !!(state && state.started);
 }

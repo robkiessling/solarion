@@ -1268,8 +1268,8 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     },
     commandCenter_showResourceBar: {
         onFinish: (dispatch) => {
-            dispatch(fromGame.updateSetting('showResourceBar', true));
-            dispatch(fromPanels.recordAuthorization('MONITOR 2'));
+            // dispatch(fromGame.updateSetting('showResourceBar', true));
+            // dispatch(fromPanels.recordAuthorization('MONITOR 2'));
             dispatch(fromLog.startLogSequence('showResourceBar'));
         }
     },
@@ -1281,7 +1281,7 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     },
     commandCenter_showPlanetStatus: {
         onFinish: (dispatch) => {
-            dispatch(fromPanels.recordAuthorization('SENSORS'));
+            // dispatch(fromPanels.recordAuthorization('SENSORS'));
             dispatch(fromLog.startLogSequence('showPlanetStatus'));
         }
     },

@@ -1,5 +1,8 @@
 @use '../variables' as *;
 
+$log-settle-hold: 15s; // how long a landed line stays at its fresh colour before fading
+$log-settle-fade: 2.5s; // how long the fade to the scrollback colour takes
+
 .log-container {
   padding: $component-padding;
   // Fills the leftover column height below the status panels (Command Center or Exploration/Replication).
@@ -17,15 +20,9 @@
   overflow-x: hidden;
   overflow-y: auto;
 
-  .log-section {
-    // The left column's ascii decor sits behind the terminal; a translucent band over the text
-    // knocks it back further there while leaving it at full (dim) strength in the empty space below.
-    background: $ui-bg-veil;
-  }
-
   // Inline entries (expedition reports): each is its own paragraph, spaced a blank line's worth from whatever
   // precedes it. (Scripted sequences handle their own spacing via leading blank lines in the database text.)
-  // Padding rather than margin, so the sections' dimming band stays continuous across the gap.
+  // Padding rather than margin, so the lines' dimming band stays continuous across the gap.
   .log-inline {
     padding-top: 1.2em;
   }
@@ -39,37 +36,50 @@
   p {
     margin: 0;
     white-space: pre-wrap;
+    // The left column's ascii decor sits behind the terminal; a translucent band over the text
+    // knocks it back further there while leaving it at full (dim) strength in the empty space below.
+    background: $ui-bg-veil;
 
-    // Lines land white and settle into scrollback grey a few seconds later (log_section.jsx toggles .fresh).
-    // Restored history never gets .fresh, so it starts grey. The report/receipt colours below override both.
-    color: #999;
-    transition: color 1.5s;
-    &.fresh {
-      color: #fff;
+    // Line colour has two ends: --fresh when it lands, --rest once it has settled into scrollback. A line printed
+    // this session gets .arriving while it animates in and .landed once it is fully on screen; .landed runs the
+    // settle animation (hold, then fade). Restored history has neither and sits at --rest from the start.
+    // Lines with an explicit colour (terrain notes) set both ends inline, so they simply keep it.
+    --fresh: #fff;
+    --rest: #999;
+    color: var(--rest);
+
+    &.arriving { color: var(--fresh); }
+    // Fill mode `both`: the from-colour holds through the delay and the to-colour sticks after
+    &.landed { animation: log-settle $log-settle-fade $log-settle-hold both; }
+
+    // Lines that asked for a flash: a bright band on landing, fading out. Only ever on .landed, so a restored
+    // flashed line stays quiet.
+    &.landed.flash {
+      animation: log-settle $log-settle-fade $log-settle-hold both, log-flash 1.25s;
     }
 
     &:empty:before {
       content: "\200b"; // unicode zero width space character
     }
 
-    &.flash {
-      background: rgba(255,255,255,0.5);
-    }
-    &.fade-flash {
-      // The shorthand replaces the whole transition list, so restate the colour fade or flashed lines snap to grey
-      transition: color 1.5s, background 1s;
-      background: transparent;
-    }
-
-    // Expedition report lines (log.logInline entries); colors override the fresh/scrollback greys above
-    &.report-success { color: #9be29b; }
-    &.report-failure { color: #ff6b6b; }
+    // Expedition report lines (log.logInline entries)
+    &.report-success { --fresh: #9be29b; --rest: #9be29b; }
+    &.report-failure { --fresh: #ff6b6b; --rest: #ff6b6b; }
 
     // Ledger receipts (AUTH 0004 BLAST SHIELD: GRANTED): the interface stamping the operator's signature, not the
     // machine talking, so they take the UI blue. Same land-then-fade rhythm as other lines, in tint.
-    &.receipt { color: rgba($blue, 0.55); }
-    &.receipt.fresh { color: $blue; }
+    &.receipt { --fresh: #{$blue}; --rest: #{rgba($blue, 0.55)}; }
   }
+}
+
+@keyframes log-settle {
+  from { color: var(--fresh); }
+  to { color: var(--rest); }
+}
+
+@keyframes log-flash {
+  0%, 20% { background: rgba(255, 255, 255, 0.5); }
+  100% { background: $ui-bg-veil; } // ends on the line's own band, so there is no jump when the animation is over
 }
 
 //.log-gradient {

@@ -30,7 +30,7 @@ const GAME_MODE: string = NORMAL_BOOTUP; /* Controls overall game mode */
 export const CLICK_ENERGY_OVERRIDE = 20;
 
 // Terminal sequence speed: line delays and typing are divided by this (1 = real pacing, 10 = ten times faster).
-// Read by log_section.jsx.
+// Read by components/log.jsx.
 export const LOG_SPEED = 1;
 
 export function runGameMode(dispatch: Dispatch) {

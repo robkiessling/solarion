@@ -139,7 +139,7 @@ export function recordAuthorization(label: string | null) {
         dispatch({ type: RECORD_AUTHORIZATION });
         const number = getState().panels.authorizationCount;
         if (label !== null) {
-            dispatch(fromLog.logMessage('authReceipt', { number: formatAuthNumber(number), label }));
+            dispatch(fromLog.startLogSequence('authReceipt', { number: formatAuthNumber(number), label }));
         }
         return number;
     }
