@@ -8,7 +8,18 @@ import {typedKeys} from "../../lib/helpers";
 export interface AbilitiesState {
     byId: Partial<Record<AbilityId, Ability>>;
     visibleIds: AbilityId[];
+    /** charge clicks within the last MANUAL_RATE_WINDOW, each with its energy and how long ago it landed (ms) */
+    manualClicks: { age: number; energy: number }[];
 }
+
+/**
+ * Whether the operator's clicks count toward the displayed energy rate (getNetResourceRates). Off, the rate is only
+ * what the structures sustain on their own, so it stays negative while the harvester outruns the generators no
+ * matter how fast the operator clicks.
+ */
+export const INCLUDE_MANUAL_RATE = true;
+/** seconds of clicks the manual rate averages over; a click drops out of the rate entirely once it's this old */
+export const MANUAL_RATE_WINDOW = 2;
 
 export { calculators }
 
@@ -33,7 +44,8 @@ export type AbilitiesAction =
 // Initial State
 const initialState: AbilitiesState = {
     byId: {},
-    visibleIds: []
+    visibleIds: [],
+    manualClicks: []
 }
 
 // Reducers
@@ -60,10 +72,15 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
                     }
                 }
             });
-        case PROGRESS:
+        case PROGRESS: {
+            // Recent clicks age every tick and drop out of the window, whether or not anything is casting
+            const manualClicks = state.manualClicks.length === 0 ? state.manualClicks : state.manualClicks
+                .map(click => ({ age: click.age + action.payload.timeDelta, energy: click.energy }))
+                .filter(click => click.age < MANUAL_RATE_WINDOW * 1000);
+
             // If none are casting/cooldown, short circuit
             if (!Object.values(state.byId).some(ability => ability.state === 'casting' || ability.state === 'cooldown')) {
-                return state;
+                return manualClicks === state.manualClicks ? state : Object.assign({}, state, { manualClicks });
             }
 
             const newState: Record<string, Ability> = {};
@@ -82,7 +99,8 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
                     newState[key] = value;
                 }
             }
-            return Object.assign({}, state, { byId: newState });
+            return Object.assign({}, state, { byId: newState, manualClicks });
+        }
         case END_CAST:
             if ((state.byId[action.payload.ability.id]?.cooldown ?? 0) > 0) {
                 return update(state, {
@@ -120,11 +138,20 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
                     commandCenter_charge: {
                         animations: action.payload.animations
                     }
-                }
+                },
+                manualClicks: { $push: [{ age: 0, energy: action.payload.resources.energy ?? 0 }] }
             })
         default:
             return state;
     }
+}
+
+// Selectors
+
+/** Energy per second from the operator's clicks over the last MANUAL_RATE_WINDOW; zero once the window is empty */
+export function getManualRate(state: AbilitiesState): number {
+    if (state.manualClicks.length === 0) return 0;
+    return state.manualClicks.reduce((sum, click) => sum + click.energy, 0) / MANUAL_RATE_WINDOW;
 }
 
 // Action Creators

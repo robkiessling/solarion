@@ -140,6 +140,18 @@ export function formatNumber(num: number, decimalDigits = 1, dropZeros = false) 
     return str;
 }
 
+/**
+ * Formats a per-second rate. One decimal from 0.1 up, so the decimal point stays put across the resource bar; two
+ * decimals below that so slow trickles still read; and a floor under 0.01 rather than a third decimal.
+ */
+export function formatRate(num: number) {
+    const magnitude = Math.abs(num);
+    if (magnitude === 0) return '0';
+    if (magnitude < 0.01) return num > 0 ? '<0.01' : '>-0.01';
+    if (magnitude < 0.1) return formatNumber(num, 2);
+    return formatNumber(num, 1);
+}
+
 export function formatInteger(num: number, dropZeros = false) {
     // Only show decimal place when number is greater than 1000 (i.e. it starts showing a symbol like "k" or "M")
     // return (Math.abs(num) < 1e3) ? formatNumber(num, 0) : formatNumber(num, 1);

@@ -1,5 +1,5 @@
 import React from 'react';
-import {compareNumbers, formatInteger, formatNumber, INFINITY, roundToDecimal} from "../../lib/helpers";
+import {compareNumbers, formatInteger, formatRate, INFINITY, roundToDecimal} from "../../lib/helpers";
 import {isObject} from "lodash";
 
 /**
@@ -27,8 +27,6 @@ export default function ResourceAmount(props) {
     if (props.invert) {
         amount *= -1;
     }
-    let magnitude = Math.abs(amount);
-
     let amountFormatted = formatInteger(amount);
     let capacityFormatted = capacity ? formatInteger(capacity) : null;
 
@@ -37,6 +35,7 @@ export default function ResourceAmount(props) {
     const hiddenClass = props.hideZeroValues && compareNumbers(amount, '===', 0) ? 'hidden' : '';
 
     if (props.asRate) {
+        amountFormatted = formatRate(amount);
         if (amount > 0) {
             if (props.colorRate) { colorClass = 'text-green'; }
             amountFormatted = `+${amountFormatted}`;
@@ -45,15 +44,8 @@ export default function ResourceAmount(props) {
             if (props.colorRate) { colorClass = 'text-red'; }
         }
 
-        /* If rate is less than 1, show it as 1/x seconds? like 1ore/33s */
-        let period = 's';
-        if (magnitude > 0 && magnitude < 1) {
-            period = `${formatNumber(1 / magnitude, 1)}s`;
-            amountFormatted = amount > 0 ? 1 : -1;
-        }
-
         return <span className={`resource-rate ${colorClass} ${hiddenClass}`}>
-            {amountFormatted}{props.icon && <span className={props.icon}/>}/{period}
+            {amountFormatted}{props.icon && <span className={props.icon}/>}/s
         </span>;
     }
     else {

@@ -545,6 +545,9 @@ export function getNetResourceRates(state: RootState) {
             }
         }
     });
+    if (fromAbilities.INCLUDE_MANUAL_RATE) {
+        result.energy += fromAbilities.getManualRate(state.abilities);
+    }
     return result;
 }
 
