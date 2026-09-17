@@ -5,6 +5,7 @@ import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {hasLifetimeQuantities} from "./resources";
 import {getNumBuilt, getStructure} from "./structures";
+import {play as playSfx} from "../../singletons/audio";
 
 export interface UpgradesState {
     byId: Partial<Record<UpgradeId, Upgrade>>;
@@ -112,13 +113,15 @@ export function discover(id: UpgradeId) {
 
 export function researchUnsafe(upgrade: Upgrade): UpgradesAction | Thunk {
     if (upgrade.researchTime) {
+        // Timed research gets a start sound; the finish sound plays when the tick completes it
+        if (upgrade.researchStartSound) { playSfx(upgrade.researchStartSound); }
         return { type: RESEARCH, payload: { upgrade } };
     }
     else {
         return function(dispatch: Dispatch, getState: GetState) {
             batch(() => {
                 dispatch({ type: RESEARCH, payload: { upgrade } }); // Still need to dispatch RESEARCH to trigger research cost
-                finishResearch(dispatch, getState, upgrade.id); // Then immediately finish research
+                finishResearch(dispatch, getState, upgrade.id); // Then immediately finish research (plays only the finish sound)
             });
         }
     }
@@ -218,6 +221,8 @@ function finishResearch(dispatch: Dispatch, getState: GetState, upgradeId: Upgra
     dispatch({ type: FINISH, payload: { id: upgradeId } });
 
     if (!silent) {
+        const finishSound = database[upgradeId].researchFinishSound;
+        if (finishSound) { playSfx(finishSound); }
         callbacks[upgradeId]?.onFinish?.(dispatch);
     }
 

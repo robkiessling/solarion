@@ -1,6 +1,7 @@
 import system from './system';
 import story from './story';
 import cutscenes from './cutscenes';
+import type {SfxName} from '../../singletons/audio';
 
 /** [text, delayAfterMs, flash?] */
 export type LogLineTuple = [string, number, boolean?];
@@ -10,8 +11,13 @@ export interface LogLineOptions {
     text: string;
     /** ms to pause after this line finishes, before the next line prints */
     delay?: number;
-    /** briefly highlight the line when it lands */
+    /** briefly highlight the line when it lands; a flashed line also plays the logFlash sound unless `sound` says otherwise */
     flash?: boolean;
+    /**
+     * A clip from the sound table (singletons/audio.ts) played when the line lands. Defaults to logFlash for a
+     * flashed line and nothing otherwise; false makes a flashed line silent.
+     */
+    sound?: SfxName | false;
     /** CSS class for the line's <p> */
     className?: string;
     /** inline CSS properties for the line's <p> */
@@ -39,7 +45,7 @@ export interface LogRecord {
 //
 // Line format (see components/log.jsx for playback): each entry's `text` is an array of lines, where a
 // line is either the legacy tuple [text, delayAfterMs, flash] or an options object:
-//   { text, delay, flash, className, style, mode: 'chars', charDelay }
+//   { text, delay, flash, sound, className, style, mode: 'chars', charDelay }
 // `mode: 'chars'` types the line out character by character. `mode: 'frames'` shows each string in `frames`
 // in turn (frameDelay ms apart), then replaces the line with `text`; history shows `text` only.
 // progressBar() in helpers.ts builds a frames line for a simple [XXXX  ] fill. Text may contain {placeholders}

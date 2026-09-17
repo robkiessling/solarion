@@ -10,6 +10,7 @@ import {getCapacity, getIconSpan, getQuantity, getResource} from "../redux/modul
 import _ from "lodash";
 import {getAbility, isCasting} from "../redux/modules/abilities";
 import {formatInteger, INFINITY, redText, type DeepPartial} from "../lib/helpers";
+import type {SfxName} from "../singletons/audio";
 import {upgradesAffectingStructure, type UpgradeId} from "./upgrades";
 import {abilitiesAffectingStructure} from "./abilities";
 import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations, type Variables} from "../lib/effect";
@@ -48,6 +49,8 @@ export interface StructureRecord {
     produces: ResourceAmounts;
     type: StructureType;
     droidData: DroidData;
+    /** clip from the sound table (singletons/audio.ts) played when the player builds one; override per structure */
+    buildSound: SfxName;
 }
 
 /** A learned structure in state. Calculated fields are written by the calculators on every recalculation. */
@@ -86,6 +89,7 @@ const base: StructureRecord = {
     consumes: {},
     produces: {},
     type: 'generator',
+    buildSound: 'build',
 
     droidData: {
         usesDroids: true,

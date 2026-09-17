@@ -20,7 +20,7 @@ class CommandCenter extends React.Component {
     this.energyButton = new EnergyButton(
       this.energyButtonContainer.current,
       this.energyButtonCanvas.current,
-      () => this.props.castAbility('commandCenter_charge')
+      () => this.props.castAbility('commandCenter_charge') // the click sound is the ability's castFinishSound
     );
   }
 

@@ -1,6 +1,5 @@
 import * as fromLog from "../redux/modules/log";
 import * as fromUpgrades from "../redux/modules/upgrades";
-import * as fromPanels from "../redux/modules/panels";
 import store from "../redux/store";
 import {probeCapacity} from "../lib/star";
 import {getCapacity} from "../redux/modules/resources";
@@ -46,13 +45,12 @@ const database = {
         selector: (state) => state.structures.byId.harvester,
         condition: (slice) => !!slice && slice.runningRate > 0,
         action: () => {
-            store.dispatch(fromPanels.recordAuthorization('HARVESTER'));
             store.dispatch(fromLog.startLogSequence('harvesterStarted'));
         }
     }),
     manualChargeInsufficient: trigger({
         selector: (state) => state.resources.byId.energy?.lifetimeTotal,
-        condition: () => hasLifetimeQuantities(store.getState().resources, { energy: 115, ore: 15 }),
+        condition: () => hasLifetimeQuantities(store.getState().resources, { energy: 150, ore: 25 }),
         action: () => {
             const energy = formatInteger(store.getState().resources.byId.energy?.lifetimeTotal ?? 0, true);
             store.dispatch(fromLog.startLogSequence('manualChargeInsufficient', { energy }));

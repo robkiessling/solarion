@@ -10,6 +10,7 @@ import {STANDARD_COST_EXP} from "./structures";
 import {countAllStructuresBuilt} from "../redux/modules/structures";
 import {typedKeys, type DeepPartial} from "../lib/helpers";
 import {CLICK_ENERGY_OVERRIDE} from "../dev/skips";
+import type {SfxName} from "../singletons/audio";
 
 /** An ability's cast lifecycle (cooldown starts after the cast finishes) */
 export type AbilityState = 'ready' | 'casting' | 'cooldown';
@@ -32,6 +33,13 @@ export interface AbilityRecord {
     structure?: StructureId;
     /** animation counters (commandCenter_charge) */
     animations?: { [key: string]: number };
+    /**
+     * Sounds (clip names from singletons/audio.ts, or false for none). A timed cast (castTime > 0) plays
+     * castStartSound when the player casts and castFinishSound when the tick completes it. An instant cast has no
+     * start moment: the click is the completion, so it plays castFinishSound and ignores castStartSound.
+     */
+    castStartSound: SfxName | false;
+    castFinishSound: SfxName | false;
 }
 
 export interface Ability extends AbilityRecord {
@@ -57,7 +65,10 @@ const base: AbilityRecord = {
     },
     hidden: '', // if true, will not show an ability button even after the ability is learned
 
-    cooldown: 0 // Note: cooldown starts after cast FINISHES (not at start of cast)
+    cooldown: 0, // Note: cooldown starts after cast FINISHES (not at start of cast)
+
+    castStartSound: 'castStart',
+    castFinishSound: 'castFinish',
 }
 
 /** A table entry: the overrides merged over `base` (deep, so a nested field can be overridden on its own) */
@@ -73,6 +84,7 @@ const database = {
         castTime: 0,
         cost: {},
         hidden: true,
+        castFinishSound: 'click', // instant: the click is the completion
 
         animations: {
             numClicks: 0,

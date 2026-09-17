@@ -55,6 +55,29 @@ class Settings extends React.Component {
                     </div>
                 </div>
                 <div>
+                    <div className={'component-header'}>Sound</div>
+                    <div className={'br'}>
+                        <label className={'on-off-switch text-center'}>
+                            Sound effects:
+                            <ReactSwitch checked={this.props.soundEnabled}
+                                         onChange={(checked) => this.props.updateSetting('soundEnabled', checked)}
+                                         checkedIcon={false} uncheckedIcon={false} height={12} width={24}
+                            />
+                            { this.props.soundEnabled ? 'Enabled' : 'Disabled' }
+                        </label>
+                    </div>
+                    <div className={'br'}>
+                        <label className={'on-off-switch text-center'}>
+                            Typing / progress ticks:
+                            <ReactSwitch checked={this.props.typingSoundEnabled}
+                                         onChange={(checked) => this.props.updateSetting('typingSoundEnabled', checked)}
+                                         checkedIcon={false} uncheckedIcon={false} height={12} width={24}
+                            />
+                            { this.props.typingSoundEnabled ? 'Enabled' : 'Disabled' }
+                        </label>
+                    </div>
+                </div>
+                <div>
                     <div className={'component-header'}>Src</div>
                     <p>
                         This app was made using <a target={"_blank"} href={'https://react-redux.js.org/'}>React-Redux</a>.
@@ -87,7 +110,9 @@ const mapStateToProps = state => {
         settingsModalOpen: state.game.settingsModalOpen,
         lastSavedAt: formattedLastSavedAt(state.game),
         gameSpeed: state.game.gameSpeed,
-        autoSaveEnabled: state.game.autoSaveEnabled
+        autoSaveEnabled: state.game.autoSaveEnabled,
+        soundEnabled: state.game.soundEnabled,
+        typingSoundEnabled: state.game.typingSoundEnabled
     }
 };
 

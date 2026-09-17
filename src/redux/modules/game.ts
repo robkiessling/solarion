@@ -8,6 +8,9 @@ export interface GameState {
     lastSavedAt: number | null;
     settingsModalOpen: boolean;
     autoSaveEnabled: boolean;
+    soundEnabled: boolean;
+    /** the terminal's per-character typing tick (a separate switch: it is the most divisive sound) */
+    typingSoundEnabled: boolean;
     visibleNavTabs: NavTab[];
     currentNavTab: NavTab;
     showStructureTabs: boolean;
@@ -53,6 +56,8 @@ const initialState: GameState = {
     lastSavedAt: null,
     settingsModalOpen: false,
     autoSaveEnabled: false,
+    soundEnabled: true,
+    typingSoundEnabled: true,
 
     visibleNavTabs: [],
     currentNavTab: 'outside',

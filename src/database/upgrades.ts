@@ -13,6 +13,7 @@ import * as fromStar from "../redux/modules/star";
 import type {Effect, EffectAffects} from "../lib/effect";
 import type {DeepPartial} from "../lib/helpers";
 import type {AbilityId} from "./abilities";
+import type {SfxName} from "../singletons/audio";
 
 /** An upgrade's research lifecycle, in order */
 export type UpgradeState = 'hidden' | 'discovered' | 'researching' | 'paused' | 'researched';
@@ -41,6 +42,13 @@ export interface UpgradeRecord {
     /** expedition-only upgrade, offered in the Expedition panel's Outfitting section */
     squad?: boolean;
     standalone?: boolean;
+    /**
+     * Sounds (clip names from singletons/audio.ts, or false for none). Timed research (researchTime > 0) plays
+     * researchStartSound when the player commits and researchFinishSound when the tick completes it. Instant
+     * research has no start moment: it plays researchFinishSound on the click and ignores researchStartSound.
+     */
+    researchStartSound: SfxName | false;
+    researchFinishSound: SfxName | false;
 }
 
 export interface Upgrade extends UpgradeRecord {
@@ -66,7 +74,10 @@ const base: UpgradeRecord = {
     affects: {
         type: 'structure'
         // No default id necessary; if blank it is assumed to be the upgrade's structure
-    }
+    },
+
+    researchStartSound: 'researchStart',
+    researchFinishSound: 'researchFinish',
 }
 
 // TODO don't hardcode values into description, e.g. "Increase energy production by {{ multiplier * 100 }}% ..."
@@ -88,7 +99,8 @@ const database = {
         },
         cost: {
             energy: 20
-        }
+        },
+        // researchFinishSound: false
     }),
     commandCenter_showResourceBar: upgrade({
         name: "Turn On 2nd Monitor",
@@ -102,7 +114,8 @@ const database = {
         },
         cost: {
             energy: 30
-        }
+        },
+        // researchFinishSound: false
     }),
     commandCenter_showPlanetStatus: upgrade({
         name: "Activate Weather Sensors",
@@ -116,7 +129,8 @@ const database = {
         },
         cost: {
             energy: 30
-        }
+        },
+        researchFinishSound: false
     }),
     commandCenter_openShutters: upgrade({
         name: "Lower Blast Shield",
@@ -130,7 +144,8 @@ const database = {
         },
         cost: {
             energy: 50
-        }
+        },
+        researchFinishSound: false
     }),
     commandCenter_showResourceRates: upgrade({
         name: "Turn on Advanced Stats",
@@ -144,7 +159,8 @@ const database = {
         },
         cost: {
             energy: 25
-        }
+        },
+        researchFinishSound: false
     }),
 
     commandCenter_improvedCharge: upgrade({

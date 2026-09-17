@@ -6,12 +6,14 @@ import 'overlayscrollbars/styles/overlayscrollbars.css';
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 
 import {LOG_SPEED} from "../dev/skips";
+import {play as playSfx} from "../singletons/audio";
 
 const DEFAULT_CHAR_DELAY = 30; // ms per character in 'chars' mode
 const DEFAULT_FRAME_DELAY = 200; // ms per frame in 'frames' mode
+const MIN_TICK_CHAR_DELAY = 15; // no typing tick below this ms per character (a sped-up run would just buzz)
 
 // Database lines come in two shapes: the legacy tuple [text, delayAfterMs, flash] and an options
-// object { text, delay, flash, className, style, mode: 'chars' | 'frames', charDelay, frames, frameDelay }.
+// object { text, delay, flash, sound, className, style, mode: 'chars' | 'frames', charDelay, frames, frameDelay }.
 function normalizeLine(line) {
     return Array.isArray(line) ? { text: line[0], delay: line[1], flash: line[2] } : line;
 }
@@ -156,14 +158,22 @@ class Log extends React.Component {
 
             const land = () => {
                 this.setState({ partial: null });
+                // Sound lands with the flash: a flashed line plays logFlash by default; `sound` names another clip
+                // for any line, or false to flash silently
+                const sound = line.sound !== undefined ? line.sound : (line.flash && content ? 'logFlash' : false);
+                if (sound) { playSfx(sound); }
                 this.scheduleTimeout(printNextLine, (line.delay || 0) / LOG_SPEED);
             };
 
             if (typing) {
                 const charDelay = (line.charDelay || DEFAULT_CHAR_DELAY) / LOG_SPEED;
+                const tick = charDelay >= MIN_TICK_CHAR_DELAY;
                 let shown = 0;
                 const typeNextChar = () => {
                     shown++;
+                    // One tick per visible character (spaces are silent); the setting is read live so a toggle
+                    // mid-line takes effect at once
+                    if (tick && this.props.typingSoundEnabled && content[shown - 1] !== ' ') { playSfx('logTypingTick'); }
                     if (shown < content.length) {
                         this.setState({ partial: { id: lineId, text: content.slice(0, shown) } });
                         this.scheduleTimeout(typeNextChar, charDelay);
@@ -179,6 +189,9 @@ class Log extends React.Component {
                 const frameDelay = (line.frameDelay || DEFAULT_FRAME_DELAY) / LOG_SPEED;
                 let shown = 0;
                 const showNextFrame = () => {
+                    // One tick per advance (the first frame is the starting state, the final text is the last
+                    // advance); shares the typing-sound switch, both are "the machine working"
+                    if (shown > 0 && this.props.typingSoundEnabled) { playSfx('logProgressTick'); }
                     if (shown < frames.length) {
                         this.setState({ partial: { id: lineId, text: interpolate(frames[shown], head.vars) } });
                         shown++;
@@ -268,7 +281,8 @@ const mapStateToProps = state => {
         visible: state.game.showTerminal,
         lines: state.log.lines,
         queue: state.log.queue,
-        nextId: state.log.nextId // only read at mount, to tell restored lines from this session's
+        nextId: state.log.nextId, // only read at mount, to tell restored lines from this session's
+        typingSoundEnabled: state.game.typingSoundEnabled
     }
 };
 

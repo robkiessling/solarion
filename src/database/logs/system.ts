@@ -133,7 +133,7 @@ export default {
     // Alternate boot for comparison
     turnOnComputer2: {
         text: [
-            // progressBar('Restoring session ', 8, 150, 400, '.'),
+            // progressBar('Restoring session ', 10, 500, 400, '.'),
             // ['', 3000],
             // ['> Harvester rate: 0.25', 2000],
             // ['> Energy: depleted', 2000],
@@ -150,7 +150,7 @@ export default {
             // progressBar('Recovering ', 8, 150, 400, '.'),
             // ['Initializing...', 2000, true],
             // progressBar('', 20, 350, 1000, '▒'),
-            ['', 1000],
+            ['', 500],
             ['#################################', 10],
             ['Safe boot', 10],
             ['***', 10],
@@ -165,7 +165,7 @@ export default {
             // ['Last authorized session:', 100],
             // ['  73 years, 266 days ago.', 2500],
             // ['', 10],
-            progressBar('Biometric scan ', 8, 1000, 400, '%'),
+            progressBar('Biometric scan ', 6, 700, 400, '*'),
             // ['Biometric scan: confirmed.', 1500, true],
             // ['Session 4 opened.', 1500, true],
             // ['', 10],
@@ -224,15 +224,15 @@ export default {
     missionStart: {
         text: [
             ['', 0],
-            ['********************************', 0, true],
-            ['* Central Interface: Active    *', 0, true],
-            ['********************************', 3000, true],
+            { text: '********************************', delay: 0, flash: true, sound: false },
+            { text: '* Central Interface: Active    *', delay: 0, flash: true, sound: false },
+            { text: '********************************', delay: 3000, flash: true },
             ['', 100],
-            ['Mining:    Online (1 harvester)', 2000, true],
+            ['Mining:    Online (1 harvester)', 2000],
             // ['Battery: 20e', 2000, true],
             ['System:    Ready', 1000],
             ['', 100],
-            ['Harvester: idle.', 500, true],
+            ['Harvester: idle.', 500],
         ],
         onFinish: (dispatch) => {
             batch(() => {
@@ -259,9 +259,9 @@ export default {
     manualChargeInsufficient: {
         text: [
             ['', 0],
-            ['Operator input logged: {energy}e.', 800, true],
-            ['Manual charge: not sustainable.', 1500, true],
-            ['Corpus search: power generation.', 1000, true],
+            ['Manually charged: {energy} energy', 1500, true],
+            ['Verdict: not sustainable.', 1500],
+            progressBar('Scanning archives ', 6, 700, 400, '*'),
             ['1 entry recoverable.', 0, true],
         ],
         onFinish: (dispatch) => {

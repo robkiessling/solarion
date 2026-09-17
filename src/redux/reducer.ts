@@ -32,6 +32,7 @@ import type {LogState} from "./modules/log";
 import type {PanelsState} from "./modules/panels";
 import type {PlanetState} from "./modules/planet";
 import type {UpgradesState} from "./modules/upgrades";
+import {play as playSfx} from "../singletons/audio";
 
 export type Calculator<R> = (state: RootState, record: R, variables: Variables) => any;
 
@@ -307,6 +308,9 @@ export function castAbility(abilityId: AbilityId) {
         const ability = fromAbilities.getAbility(getState().abilities, abilityId);
         if (ability && canCastAbility(getState(), ability)) {
             dispatch(fromAbilities.startCastUnsafe(ability));
+            // Timed casts announce their start; an instant cast has already finished inside startCastUnsafe
+            // (and played its finish sound there)
+            if (ability.castTime > 0 && ability.castStartSound) { playSfx(ability.castStartSound); }
         }
     }
 }
@@ -320,6 +324,7 @@ export function buildStructure(id: StructureId, amount: number) {
         const structure = fromStructures.getStructure(getState().structures, id);
         if (structure && canBuildStructure(getState(), structure)) {
             dispatch(fromStructures.buildUnsafe(structure, amount));
+            playSfx(structure.buildSound);
         }
     }
 }

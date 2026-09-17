@@ -2,6 +2,7 @@ import update, {Spec} from 'immutability-helper';
 import database, {callbacks, calculators, type Ability, type AbilityId} from "../../database/abilities";
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
+import {play as playSfx} from "../../singletons/audio";
 import _ from "lodash";
 import {typedKeys} from "../../lib/helpers";
 
@@ -200,6 +201,7 @@ export function chargeRNG(dispatch: Dispatch, getState: GetState) {
         resources.refinedMinerals += charge.variables.mineralBonus
         animations.numMineralBonusProcs = { $apply: (x: number) => x + 1 }
         animations.mineralBonus = { $set: charge.variables.mineralBonus }
+        playSfx('chargeMineralProc'); // layered over the click's own castFinishSound
     }
 
     dispatch({ type: CHARGE_RNG, payload: { resources, animations } })
@@ -224,6 +226,7 @@ export function abilitiesTick(timeDelta: number) {
 
 function endCast(dispatch: Dispatch, getState: GetState, ability: Ability) {
     dispatch({ type: END_CAST, payload: { ability } });
+    if (ability.castFinishSound) { playSfx(ability.castFinishSound); }
 
     const callback = callbacks[ability.id];
     if (callback && callback.onFinish) {

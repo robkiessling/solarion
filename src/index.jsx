@@ -11,10 +11,15 @@ import './styles/app.scss';
 
 // Note: Singleton imports are necessary despite not being used in this file; they initialize the singletons
 import gameClock from "./singletons/game_clock"
+import {preload as preloadSfx, setEnabled as setSfxEnabled} from "./singletons/audio";
 
 import {hasStartedGame} from "./redux/modules/log";
 import {syncTriggers} from "./redux/modules/triggers";
 import {runGameMode} from "./dev/skips";
+
+preloadSfx();
+setSfxEnabled(store.getState().game.soundEnabled);
+store.subscribe(() => setSfxEnabled(store.getState().game.soundEnabled));
 
 
 if (hasStartedGame(store.getState().log)) {
