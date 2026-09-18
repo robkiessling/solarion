@@ -255,7 +255,7 @@ export const calculators: Partial<Record<StructureId, CalculatorSet<Structure>>>
             return variables;
         },
         cost: (state, structure) => ({
-            ore: 200 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
+            ore: 220 * (STANDARD_COST_EXP)**(getNumBuilt(structure))
         }),
         consumes: (state, structure, variables) => ({
             energy: variables.energy

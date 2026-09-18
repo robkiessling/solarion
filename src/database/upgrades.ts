@@ -158,9 +158,8 @@ const database = {
             }
         },
         cost: {
-            energy: 25
+            energy: 50
         },
-        researchFinishSound: false
     }),
 
     commandCenter_improvedCharge: upgrade({
@@ -173,7 +172,7 @@ const database = {
             }
         },
         cost: {
-            ore: 75
+            ore: 150
         },
         affects: {
             type: 'ability',
@@ -190,11 +189,11 @@ const database = {
         discoverWhen: {
             upgrades: ['commandCenter_improvedCharge'],
             resources: {
-                ore: 300
+                ore: 400
             }
         },
         cost: {
-            ore: 300,
+            ore: 350,
             energy: 100
         },
         affects: {
@@ -208,29 +207,30 @@ const database = {
     commandCenter_improvedCharge3: upgrade({
         name: "Gold Wiring",
         structure: 'commandCenter',
-        description: "Increases energy per click to 30.",
+        description: "Increases energy per click to 20.",
         discoverWhen: {
             upgrades: ['commandCenter_improvedCharge2'],
             resources: {
-                ore: 1000
+                ore: 300,
+                refinedMinerals: 10,
             }
         },
         cost: {
-            ore: 500,
-            refinedMinerals: 25
+            ore: 750,
+            refinedMinerals: 20
         },
         affects: {
             type: 'ability',
             id: 'commandCenter_charge'
         },
         effect: {
-            energy: { add: 25 }
+            energy: { add: 15 }
         }
     }),
     commandCenter_improvedCharge4: upgrade({
         name: "Platinum Wiring",
         structure: 'commandCenter',
-        description: "Increases energy per click to 100.",
+        description: "Increases energy per click to 50.",
         discoverWhen: {
             upgrades: ['commandCenter_improvedCharge3'],
             resources: {
@@ -238,21 +238,21 @@ const database = {
             }
         },
         cost: {
-            ore: 1200,
-            refinedMinerals: 125
+            ore: 1700,
+            refinedMinerals: 50
         },
         affects: {
             type: 'ability',
             id: 'commandCenter_charge'
         },
         effect: {
-            energy: { add: 70 }
+            energy: { add: 30 }
         }
     }),
     commandCenter_improvedCharge5: upgrade({
         name: "Quantum Induction",
         structure: 'commandCenter',
-        description: "Increases energy per click to 1000.",
+        description: "Increases energy per click to 500.",
         discoverWhen: {
             upgrades: ['commandCenter_improvedCharge4'],
             resources: {
@@ -267,7 +267,7 @@ const database = {
             id: 'commandCenter_charge'
         },
         effect: {
-            energy: { add: 900 }
+            energy: { add: 450 }
         }
     }),
 
@@ -283,7 +283,7 @@ const database = {
             }
         },
         cost: {
-            ore: 200,
+            ore: 500,
             energy: 200,
             refinedMinerals: 20
         },
@@ -305,8 +305,8 @@ const database = {
         // Offered by the manualChargeInsufficient trigger (database/triggers.ts), not by a threshold
         researchTime: 30,
         cost: {
-            energy: 30,
-            ore: 30
+            energy: 50,
+            ore: 100
         }
     }),
     commandCenter_researchWind: upgrade({
@@ -317,7 +317,7 @@ const database = {
         researchTime: 60,
         cost: {
             energy: 50,
-            ore: 75
+            ore: 100
         }
     }),
     commandCenter_researchEnergyBay: upgrade({
@@ -327,7 +327,7 @@ const database = {
         researchTime: 30,
         cost: {
             energy: 50,
-            ore: 50
+            ore: 100
         }
     }),
     commandCenter_researchRefinery: upgrade({
@@ -352,11 +352,11 @@ const database = {
         researchTime: 90,
         discoverWhen: {
             resources: {
-                refinedMinerals: 120
+                refinedMinerals: 150
             }
         },
         cost: {
-            energy: 2500,
+            energy: 2400,
             refinedMinerals: 100
         }
     }),
@@ -383,7 +383,7 @@ const database = {
         description: "Increases harvester ore production by 20%.",
         discoverWhen: {
             resources: {
-                ore: 300
+                ore: 500
             }
         },
         cost: {
@@ -399,7 +399,7 @@ const database = {
         description: "Increases harvester ore production by 30%.",
         discoverWhen: {
             resources: {
-                ore: 500
+                ore: 1000
             },
             upgrades: ['harvester_ore1']
         },
@@ -459,7 +459,7 @@ const database = {
             },
         },
         cost: {
-            ore: 1200,
+            ore: 850,
             refinedMinerals: 10
         },
         effect: {
@@ -491,8 +491,8 @@ const database = {
     harvester_overclock: upgrade({
         name: "Research: Overclock",
         structure: 'harvester',
-        description: "Learn the <span class='underline'>Overclock</span> ability, allowing you to briefly run the " +
-            "Harvester at a higher rate.",
+        description: "Learn the <span class='underline'>Overclock</span> ability, allowing you to briefly run " +
+            "harvesters at a higher rate.",
         discoverWhen: {
             // resources: {
             //     refinedMinerals: 500
@@ -802,7 +802,7 @@ const database = {
             }
         },
         cost: {
-            ore: 1500
+            ore: 1200
         },
         effect: {
             ratedPower: { multiply: 1.25 }
@@ -819,7 +819,7 @@ const database = {
             }
         },
         cost: {
-            ore: 1000,
+            ore: 700,
             refinedMinerals: 25
         },
         effect: {
@@ -837,7 +837,7 @@ const database = {
             }
         },
         cost: {
-            ore: 1000,
+            ore: 700,
             refinedMinerals: 25
         },
         effect: {
@@ -851,13 +851,13 @@ const database = {
         discoverWhen: {
             upgrades: ['windTurbine_largerBlades', 'windTurbine_reduceCutIn', 'windTurbine_increaseCutOut'],
             resources: {
-                // ore: 1500,
-                refinedMinerals: 50
+                ore: 3000,
+                refinedMinerals: 150
             }
         },
         cost: {
             ore: 3500,
-            refinedMinerals: 100
+            refinedMinerals: 150
         },
         effect: {
             ratedPower: { multiply: 1.3 }
@@ -871,12 +871,12 @@ const database = {
             upgrades: ['windTurbine_yawDrive'],
             resources: {
                 // ore: 1500,
-                refinedMinerals: 850
+                refinedMinerals: 2000
             }
         },
         cost: {
             ore: 18000,
-            refinedMinerals: 1200
+            refinedMinerals: 1500
         },
         effect: {
             ratedPower: { multiply: 2 }
@@ -1063,8 +1063,8 @@ const database = {
             }
         },
         cost: {
-            ore: 500,
-            energy: 500
+            ore: 1500,
+            energy: 1500
         },
         affects: {
             type: 'ability',

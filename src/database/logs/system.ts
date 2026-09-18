@@ -242,7 +242,7 @@ export default {
 
                 dispatch(addTrigger('harvesterStarted'));
                 dispatch(addTrigger('manualChargeInsufficient'));
-                dispatch(addTrigger('energyAtCapacity'));
+                dispatch(addTrigger('storageFullHarvesterIdle'));
             })
         }
     },
@@ -254,15 +254,24 @@ export default {
         ]
     },
 
+    // A full store with no generator yet (trigger storageFullHarvesterIdle): the harvester is the only thing that
+    // spends energy, so the terminal names it and nothing else
+    storageFullHarvesterIdle: {
+        text: [
+            ['', 0],
+            ['Storage full.', 800, true],
+            ['Harvester: idle.', 0, true],
+        ]
+    },
+
     // The hand-crank wall (trigger manualChargeInsufficient): the terminal names manual charge as unsustainable
     // and the corpus offers solar. {energy} is the lifetime energy figure at the moment it fires.
     manualChargeInsufficient: {
         text: [
             ['', 0],
-            ['Manually charged: {energy} energy', 1500, true],
-            ['Verdict: not sustainable.', 1500],
+            ['Manual charging insufficient for large scale operations.', 1500, true],
             progressBar('Scanning archives ', 6, 700, 400, '*'),
-            ['1 entry recoverable.', 0, true],
+            ['1 entry recoverable.', 0],
         ],
         onFinish: (dispatch) => {
             dispatch(fromUpgrades.discover('commandCenter_researchSolar'));
@@ -273,10 +282,9 @@ export default {
     energyAtCapacity: {
         text: [
             ['', 0],
-            ['Storage at capacity.', 800, true],
-            ['Surplus input discarded.', 1500, true],
-            ['Corpus search: energy storage.', 1000, true],
-            ['1 entry recoverable.', 0, true],
+            ['Storage at capacity.', 1500, true],
+            progressBar('Scanning archives ', 6, 700, 400, '*'),
+            ['1 entry recoverable.', 0],
         ],
         onFinish: (dispatch) => {
             dispatch(fromUpgrades.discover('commandCenter_researchEnergyBay'));
@@ -286,12 +294,14 @@ export default {
     researchedSolarPower: {
         text: [
             ['', 0],
-            ['New Schematic Developed:', 0, true],
-            ['- Solar Panels', 0, true],
+            ['Schematic recovered: SOLAR FARM', 0, true],
+            ['Design: T. Lindqvist, rev. 7', 0],
+            ['Fabrication: enabled', 0],
         ],
         onFinish: (dispatch) => {
             batch(() => {
                 dispatch(fromStructures.learn('solarPanel'));
+                dispatch(addTrigger('energyAtCapacity'));
                 dispatch(addTrigger('firstNight'));
                 dispatch(addTrigger('secondNight'));
             });
@@ -303,17 +313,16 @@ export default {
     firstNight: {
         text: [
             ['', 0],
-            ['Solar input: 0%.', 800, true],
-            ['Night duration: 10 hours.', 1500, true],
+            ['Night solar input: 0%.', 800, true],
+            ['Expected duration: 10 hours.', 1500, true],
             ['Monitoring.', 0, true],
         ]
     },
     secondNight: {
         text: [
             ['', 0],
-            ['Solar input: 0%.', 800, true],
-            ['Recurring.', 1500, true],
-            ['Corpus search: power generation.', 1000, true],
+            ['Need nighttime energy source.', 800, true],
+            progressBar('Scanning archives ', 6, 700, 400, '*'),
             ['1 further entry recoverable.', 0, true],
         ],
         onFinish: (dispatch) => {
@@ -324,8 +333,10 @@ export default {
     researchedWindPower: {
         text: [
             ['', 0],
-            ['New Schematic Developed:', 0, true],
-            ['- Wind Turbines', 0, true],
+            ['Schematic recovered: WIND TURBINE', 0, true],
+            ['Design: M. Achterberg, rev. 3', 0],
+            ['Survey: ridge placement recommended', 0],
+            ['Fabrication: enabled', 0],
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('windTurbine'));
@@ -335,8 +346,9 @@ export default {
     researchedEnergyBay: {
         text: [
             ['', 0],
-            ['New Schematic Developed:', 0, true],
-            ['- Energy Bay', 0, true],
+            ['Schematic recovered: ENERGY BAY', 0, true],
+            ['Design: R. Okafor, rev. 12', 0],
+            ['Fabrication: enabled', 0],
         ],
         onFinish: (dispatch) => {
             dispatch(fromStructures.learn('energyBay'));
@@ -345,8 +357,10 @@ export default {
     researchedRefinery: {
         text: [
             ['', 0],
-            ['New Schematic Developed:', 0, true],
-            ['- Refinery', 0, true],
+            ['Schematic recovered: REFINERY', 0, true],
+            ['Design: Y. Sato, rev. 5', 0],
+            ['New material class: Minerals', 0],
+            ['Fabrication: enabled', 0],
         ],
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showStructureTabs', true))
@@ -358,8 +372,9 @@ export default {
     researchedDroidFactory: {
         text: [
             ['', 0],
-            ['New Schematic Developed:', 0, true],
-            ['- Droid Factory', 0, true],
+            ['Schematic recovered: FACTORY', 0, true],
+            ['Design: M. Sheev, rev. 2', 0],
+            ['Fabrication: enabled', 0],
         ],
         onFinish: (dispatch) => {
             dispatch(fromResources.learn('standardDroids'));
@@ -373,9 +388,9 @@ export default {
     globeUnlocked: {
         text: [
             ['', 0],
-            ['********************************', 0, true],
-            ['Planetary Map', 0, true],
-            ['********************************', 500, true],
+            { text: '********************************', delay: 0, flash: true, sound: false },
+            { text: 'Planetary Map', delay: 0, flash: true, sound: false },
+            { text: '********************************', delay: 500, flash: true, sound: false },
             ['', 0],
             ['Initializing planetary map ...', 3000, true],
             ['', 0],
@@ -410,9 +425,9 @@ export default {
     researchedProbeFactory: {
         text: [
             ['', 0],
-            ['********************************', 0, true],
-            ['Primary Mission: Solarion', 0, true],
-            ['********************************', 500, true],
+            { text: '********************************', delay: 0, flash: true, sound: false },
+            { text: 'Primary Mission: Solarion', delay: 0, flash: true, sound: false },
+            { text: '********************************', delay: 500, flash: true, sound: false },
             ['', 0],
             ['View Added: [[ Solarion ]]', 1000, true],
             ['Orbital Trajectories: Finalized', 1000, true],

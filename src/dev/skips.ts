@@ -22,7 +22,7 @@ const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE: string = NORMAL_BOOTUP; /* Controls overall game mode */
+const GAME_MODE: string = SKIP_START; /* Controls overall game mode */
 
 // Energy per manual charge click, overriding the ability's normal value (0 = no override; the real value is 1 plus
 // coil upgrades). 20 lands on the Boot-Up card in one click. Read by the charge ability's calculator, at call time,
@@ -53,7 +53,7 @@ export function runGameMode(dispatch: Dispatch) {
 
 // The state the intro cards leave behind, set directly (the cards are marked researched silently, so none of the
 // boot / shutter / mission-start sequences play): terminal and bars on, shutters open, one harvester, ore known,
-// and the harvester-start and energy-cap triggers armed as mission start would arm them.
+// and the harvester-start and idle-harvester triggers armed as mission start would arm them.
 function skipStart(dispatch: Dispatch) {
     dispatch(fromLog.logInline('Skipping start'));
 
@@ -63,23 +63,27 @@ function skipStart(dispatch: Dispatch) {
     dispatch(fromStructures.buildForFree('commandCenter', 1));
     dispatch(fromAbilities.learn('commandCenter_charge'));
 
-    for (const id of ['commandCenter_showTerminal', 'commandCenter_showResourceBar', 'commandCenter_showPlanetStatus',
-                      'commandCenter_showResourceRates', 'commandCenter_openShutters'] as const) {
+    for (const id of [
+        'commandCenter_showTerminal', 'commandCenter_showResourceBar', 'commandCenter_showPlanetStatus',
+        'commandCenter_openShutters'
+    ] as const) {
         dispatch(fromUpgrades.researchForFree(id, true));
     }
     dispatch(fromGame.updateSetting('showTerminal', true));
     dispatch(fromGame.updateSetting('showResourceBar', true));
     dispatch(fromGame.updateSetting('showPlanetStatus', true));
-    dispatch(fromGame.updateSetting('showResourceRates', true));
     dispatch(fromGame.updateSetting('shuttersOpen', true));
     dispatch(fromGame.updateSetting('showStructuresList', true));
+
+    dispatch(fromUpgrades.researchForFree('commandCenter_showResourceRates', true));
+    dispatch(fromGame.updateSetting('showResourceRates', true));
 
     dispatch(fromStructures.learn('harvester'));
     dispatch(fromStructures.buildForFree('harvester', 1));
 
     dispatch(addTrigger('harvesterStarted'));
     dispatch(addTrigger('manualChargeInsufficient'));
-    dispatch(addTrigger('energyAtCapacity'));
+    dispatch(addTrigger('storageFullHarvesterIdle'));
 }
 
 function skipToGlobe(dispatch: Dispatch) {

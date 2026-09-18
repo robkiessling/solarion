@@ -50,18 +50,21 @@ const database = {
     }),
     manualChargeInsufficient: trigger({
         selector: (state) => state.resources.byId.energy?.lifetimeTotal,
-        condition: () => hasLifetimeQuantities(store.getState().resources, { energy: 150, ore: 25 }),
+        condition: () => hasLifetimeQuantities(store.getState().resources, { energy: 200, ore: 50 }),
         action: () => {
             const energy = formatInteger(store.getState().resources.byId.energy?.lifetimeTotal ?? 0, true);
             store.dispatch(fromLog.startLogSequence('manualChargeInsufficient', { energy }));
         }
     }),
-    // The energy-cap wall: once the store is full and some surplus (10e) has actually been thrown away, the terminal
-    // reports the loss and the corpus offers storage (the log sequence discovers the Energy Bay research). A moment
-    // of being full isn't a wall yet.
+    storageFullHarvesterIdle: trigger({
+        selector: (state) => state.resources.byId.energy,
+        condition: (slice) => !!slice && slice.amount >= getCapacity(slice) && !solarFarmStanding()
+            && !(store.getState().structures.byId.harvester?.runningRate),
+        action: () => store.dispatch(fromLog.startLogSequence('storageFullHarvesterIdle'))
+    }),
     energyAtCapacity: trigger({
         selector: (state) => state.resources.byId.energy,
-        condition: (slice) => !!slice && slice.amount >= getCapacity(slice) && slice.discarded >= 10,
+        condition: (slice) => !!slice && slice.amount >= getCapacity(slice) && solarFarmStanding(),
         action: () => store.dispatch(fromLog.startLogSequence('energyAtCapacity'))
     }),
     firstNight: trigger({
