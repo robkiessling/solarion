@@ -18,11 +18,12 @@ import type {UpgradeId} from '../database/upgrades';
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard campaign start
 const SKIP_START = 'skipStart';
+const SKIP_TO_ROBOTICS = 'skipToRobotics';
 const SKIP_TO_GLOBE = 'skipToGlobe';
 const SKIP_TO_STAR = 'skipToStar';
 const SKIP_TO_DOOMSDAY = 'skipToDoomsday';
 
-const GAME_MODE: string = SKIP_START; /* Controls overall game mode */
+const GAME_MODE: string = SKIP_TO_GLOBE; /* Controls overall game mode */
 
 // Energy per manual charge click, overriding the ability's normal value (0 = no override; the real value is 1 plus
 // coil upgrades). 20 lands on the Boot-Up card in one click. Read by the charge ability's calculator, at call time,
@@ -40,6 +41,9 @@ export function runGameMode(dispatch: Dispatch) {
             break;
         case SKIP_START:
             skipStart(dispatch);
+            break;
+        case SKIP_TO_ROBOTICS:
+            skipToRobotics(dispatch);
             break;
         case SKIP_TO_GLOBE:
             skipToGlobe(dispatch);
@@ -86,8 +90,11 @@ function skipStart(dispatch: Dispatch) {
     dispatch(addTrigger('storageFullHarvesterIdle'));
 }
 
-function skipToGlobe(dispatch: Dispatch) {
-    dispatch(fromLog.logInline('Skipping to globe'));
+// The moment the Robotics research lands (day 17 of a real run): every field structure recovered and upgraded
+// through the ore/minerals tiers, the factory schematic just recovered but not yet built, no droids. Resources and
+// counts are from that run at that moment. The startExploringMap trigger is armed as researchedDroidFactory arms it.
+function skipToRobotics(dispatch: Dispatch) {
+    dispatch(fromLog.logInline('Skipping to robotics'));
 
     dispatch(fromGame.updateSetting('shuttersOpen', true));
     dispatch(fromGame.updateSetting('showPlanetStatus', true));
@@ -95,7 +102,7 @@ function skipToGlobe(dispatch: Dispatch) {
     dispatch(fromGame.updateSetting('showResourceRates', true));
     dispatch(fromGame.updateSetting('showTerminal', true));
     dispatch(fromGame.updateSetting('showStructuresList', true));
-    dispatch(fromGame.updateSetting('showStructureTabs', true))
+    dispatch(fromGame.updateSetting('showStructureTabs', true));
 
     dispatch(fromResources.learn('energy'));
     dispatch(fromResources.learn('ore'));
@@ -114,61 +121,115 @@ function skipToGlobe(dispatch: Dispatch) {
     dispatch(fromStructures.learn('droidFactory'));
     dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
 
-    dispatch(fromStructures.buildForFree('harvester', 7));
-    dispatch(fromStructures.buildForFree('solarPanel', 10));
-    dispatch(fromStructures.buildForFree('windTurbine', 10));
-    dispatch(fromStructures.buildForFree('energyBay', 13));
+    dispatch(fromStructures.buildForFree('harvester', 8));
+    dispatch(fromStructures.buildForFree('solarPanel', 7));
+    dispatch(fromStructures.buildForFree('windTurbine', 5));
+    dispatch(fromStructures.buildForFree('energyBay', 8));
     dispatch(fromStructures.buildForFree('refinery', 2));
-    dispatch(fromStructures.buildForFree('droidFactory', 1));
+    dispatch(fromStructures.setRunningRate('harvester', 0.5));
+    dispatch(fromStructures.setRunningRate('refinery', 0.5));
 
-    dispatch(fromUpgrades.skipResearch('commandCenter_showTerminal'));
-    dispatch(fromUpgrades.skipResearch('commandCenter_showResourceBar'));
-    dispatch(fromUpgrades.skipResearch('commandCenter_showPlanetStatus'));
-    dispatch(fromUpgrades.skipResearch('commandCenter_showResourceRates'));
-    dispatch(fromUpgrades.skipResearch('commandCenter_openShutters'));
-    dispatch(fromUpgrades.skipResearch('commandCenter_researchSolar'));
-    dispatch(fromUpgrades.skipResearch('commandCenter_researchWind'));
-    dispatch(fromUpgrades.skipResearch('commandCenter_researchEnergyBay'));
-    dispatch(fromUpgrades.skipResearch('commandCenter_researchRefinery'));
-    dispatch(fromUpgrades.skipResearch('commandCenter_researchDroidFactory'));
+    ([
+        'commandCenter_showTerminal', 'commandCenter_showResourceBar', 'commandCenter_showPlanetStatus',
+        'commandCenter_showResourceRates', 'commandCenter_openShutters',
+        'commandCenter_researchSolar', 'commandCenter_researchWind', 'commandCenter_researchEnergyBay',
+        'commandCenter_researchRefinery', 'commandCenter_researchDroidFactory'
+    ] satisfies UpgradeId[]).forEach(upgrade => dispatch(fromUpgrades.skipResearch(upgrade)));
 
-    dispatch(fromUpgrades.researchForFree('commandCenter_improvedCharge'));
-    dispatch(fromUpgrades.researchForFree('commandCenter_improvedCharge2'));
-    dispatch(fromUpgrades.researchForFree('commandCenter_improvedCharge3'));
-    dispatch(fromUpgrades.researchForFree('commandCenter_improvedCharge4'));
-    dispatch(fromUpgrades.researchForFree('commandCenter_chargeMineral1'));
-
-    dispatch(fromUpgrades.researchForFree('harvester_ore1'));
-    dispatch(fromUpgrades.researchForFree('harvester_ore2'));
-    dispatch(fromUpgrades.researchForFree('harvester_eff1'));
-    dispatch(fromUpgrades.researchForFree('harvester_overclock'));
-    dispatch(fromUpgrades.researchForFree('solarPanel_production1'));
-    dispatch(fromUpgrades.researchForFree('solarPanel_ambientLight'));
-    dispatch(fromUpgrades.researchForFree('solarPanel_production2'));
-    dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity'));
-    dispatch(fromUpgrades.researchForFree('energyBay_largerCapacity2'));
-    dispatch(fromUpgrades.researchForFree('energyBay_production1'));
-    dispatch(fromUpgrades.researchForFree('energyBay_production2'));
-    dispatch(fromUpgrades.researchForFree('windTurbine_largerBlades'));
-    dispatch(fromUpgrades.researchForFree('windTurbine_reduceCutIn'));
-    dispatch(fromUpgrades.researchForFree('windTurbine_increaseCutOut'));
-    dispatch(fromUpgrades.researchForFree('windTurbine_yawDrive'));
-    dispatch(fromUpgrades.researchForFree('refinery_improveProduction'));
-    dispatch(fromUpgrades.researchForFree('refinery_cooling'));
-    dispatch(fromUpgrades.researchForFree('droidFactory_fasterBuild'));
-    dispatch(fromUpgrades.researchForFree('droidFactory_longerComm'));
-
-    dispatch(fromGame.updateSetting('currentNavTab', 'planet'))
+    // Everything below the pending tier on each card: Nanocarbon Threading, Even Larger Panels, Lithium Ions,
+    // Power Linking (II), Yaw Drive, Surface Cooling and Hyper-Alloy Synthesizer were still on offer
+    ([
+        'commandCenter_improvedCharge', 'commandCenter_improvedCharge2', 'commandCenter_improvedCharge3',
+        'commandCenter_improvedCharge4', 'commandCenter_chargeMineral1',
+        'harvester_ore1', 'harvester_ore2', 'harvester_ore3', 'harvester_eff1', 'harvester_overclock',
+        'solarPanel_production1', 'solarPanel_ambientLight',
+        'energyBay_largerCapacity', 'energyBay_production1',
+        'windTurbine_largerBlades', 'windTurbine_reduceCutIn', 'windTurbine_increaseCutOut',
+        'refinery_improveProduction'
+    ] satisfies UpgradeId[]).forEach(upgrade => dispatch(fromUpgrades.researchForFree(upgrade)));
 
     dispatch(fromResources.produce({
-        energy: 9999999,
-        ore: 999999999,
-        refinedMinerals: 999999999,
-        // refinedMinerals: 1000,
-        standardDroids: 10
+        energy: 2500,
+        ore: 1300,
+        refinedMinerals: 142
     }));
 
-    dispatch(addTrigger('startExploringMap'))
+    dispatch(addTrigger('startExploringMap'));
+}
+
+// Shortly after the planetary map came online (day 11 of a real run): Long-range Communication just researched,
+// ten droids built and all deployed to structures (none scouting yet), the map generated but unexplored.
+// Counts, upgrades and resources are from that run at that moment; the next tier (Feedback Loop, Kinetic Engines,
+// Perovskite Solar Cells, Ultra-Dense Matrices, Hyper-Alloy Synthesizer, Plasma Drill) was still on offer.
+function skipToGlobe(dispatch: Dispatch) {
+    dispatch(fromLog.logInline('Skipping to globe'));
+
+    dispatch(fromGame.updateSetting('shuttersOpen', true));
+    dispatch(fromGame.updateSetting('showPlanetStatus', true));
+    dispatch(fromGame.updateSetting('showResourceBar', true));
+    dispatch(fromGame.updateSetting('showResourceRates', true));
+    dispatch(fromGame.updateSetting('showTerminal', true));
+    dispatch(fromGame.updateSetting('showStructuresList', true));
+    dispatch(fromGame.updateSetting('showStructureTabs', true));
+
+    dispatch(fromResources.learn('energy'));
+    dispatch(fromResources.learn('ore'));
+    dispatch(fromResources.learn('refinedMinerals'));
+    dispatch(fromResources.learn('standardDroids'));
+
+    dispatch(fromStructures.learn('commandCenter'));
+    dispatch(fromStructures.buildForFree('commandCenter', 1));
+    dispatch(fromAbilities.learn('commandCenter_charge'));
+
+    dispatch(fromStructures.learn('harvester'));
+    dispatch(fromStructures.learn('solarPanel'));
+    dispatch(fromStructures.learn('windTurbine'));
+    dispatch(fromStructures.learn('energyBay'));
+    dispatch(fromStructures.learn('refinery'));
+    dispatch(fromStructures.learn('droidFactory'));
+    dispatch(fromAbilities.learn('droidFactory_buildStandardDroid'));
+
+    dispatch(fromStructures.buildForFree('harvester', 9));
+    dispatch(fromStructures.buildForFree('solarPanel', 11));
+    dispatch(fromStructures.buildForFree('windTurbine', 8));
+    dispatch(fromStructures.buildForFree('energyBay', 11));
+    dispatch(fromStructures.buildForFree('refinery', 5));
+    dispatch(fromStructures.buildForFree('droidFactory', 1));
+    dispatch(fromStructures.setRunningRate('harvester', 1));
+    dispatch(fromStructures.setRunningRate('refinery', 1));
+
+    ([
+        'commandCenter_showTerminal', 'commandCenter_showResourceBar', 'commandCenter_showPlanetStatus',
+        'commandCenter_showResourceRates', 'commandCenter_openShutters',
+        'commandCenter_researchSolar', 'commandCenter_researchWind', 'commandCenter_researchEnergyBay',
+        'commandCenter_researchRefinery', 'commandCenter_researchDroidFactory'
+    ] satisfies UpgradeId[]).forEach(upgrade => dispatch(fromUpgrades.skipResearch(upgrade)));
+
+    // droidFactory_longerComm goes last: its onFinish generates the map, adds the Planet tab, learns the replicate
+    // ability and plays the globeUnlocked terminal sequence
+    ([
+        'commandCenter_improvedCharge', 'commandCenter_improvedCharge2', 'commandCenter_improvedCharge3',
+        'commandCenter_improvedCharge4', 'commandCenter_chargeMineral1',
+        'harvester_ore1', 'harvester_ore2', 'harvester_ore3', 'harvester_eff1', 'harvester_eff2', 'harvester_overclock',
+        'solarPanel_production1', 'solarPanel_ambientLight', 'solarPanel_production2',
+        'energyBay_largerCapacity', 'energyBay_largerCapacity2', 'energyBay_production1', 'energyBay_production2',
+        'windTurbine_largerBlades', 'windTurbine_reduceCutIn', 'windTurbine_increaseCutOut', 'windTurbine_yawDrive',
+        'windTurbine_zephyr',
+        'refinery_improveProduction', 'refinery_cooling',
+        'droidFactory_fasterBuild', 'droidFactory_improvedMaintenance', 'droidFactory_longerComm'
+    ] satisfies UpgradeId[]).forEach(upgrade => dispatch(fromUpgrades.researchForFree(upgrade)));
+
+    // Ten droids built; assigning debits the idle pool, so all ten end up deployed (10 / 10)
+    dispatch(fromResources.produce({
+        energy: 13275,
+        ore: 31700,
+        refinedMinerals: 3560,
+        standardDroids: 10
+    }));
+    dispatch(fromStructures.assignDroidUnsafe('harvester', 3));
+    dispatch(fromStructures.assignDroidUnsafe('refinery', 7));
+
+    dispatch(addTrigger('startExploringMap'));
 }
 
 function skipToStar(dispatch: Dispatch) {

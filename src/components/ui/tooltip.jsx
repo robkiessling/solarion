@@ -30,6 +30,21 @@ export default function Tooltip(props) {
         alignmentClass = 'align-right-column';
     }
 
+    // ReactTooltip only flips placement when the tooltip overflows horizontally; a left/right tooltip near the
+    // top or bottom of the viewport is simply drawn off screen. Clamp the position it computed so the whole
+    // tooltip stays inside the window with a small margin. Coordinates are viewport-relative (position: fixed).
+    const clampToViewport = (position, currentEvent, currentTarget, node) => {
+        const margin = 8;
+        const width = node.offsetWidth;
+        const height = node.offsetHeight;
+        const maxLeft = window.innerWidth - width - margin;
+        const maxTop = window.innerHeight - height - margin;
+        return {
+            left: Math.max(margin, Math.min(position.left, maxLeft)),
+            top: Math.max(margin, Math.min(position.top, maxTop))
+        };
+    };
+
     // Need to use createPortal to attach tooltip to an outer element (near <body>) otherwise the
     // tooltip might get clipped by overflow:hidden containers
     // https://github.com/ReactTooltip/react-tooltip/issues/358#issuecomment-1000442259
@@ -37,6 +52,7 @@ export default function Tooltip(props) {
         <ReactTooltip id={props.id} className={`game-tooltip ${alignmentClass}`}
                       place={place}
                       delayShow={props.delayShow}
+                      overridePosition={clampToViewport}
                       border effect={'solid'}
                       backgroundColor={'#151d1a'} textColor={'#f0e7e7'} borderColor={'#f0e7e7'}
         >
