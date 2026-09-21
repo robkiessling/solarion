@@ -8,7 +8,6 @@ import abilitiesDatabase from '../database/abilities';
 import triggersDatabase from '../database/triggers';
 import logsDatabase from '../database/logs';
 import {DROID_BASE_STATS, fullDroidHp} from './battle';
-import {migrateLegacyNest} from './expeditions';
 import {SAVE_FORMAT_VERSION} from './save_version';
 import type {EncounterPrompt} from '../redux/modules/planet';
 import type {Squad} from './squad';
@@ -57,7 +56,7 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
 
     // Squad shape repairs: the prompt moved off the squad onto the planet slice, equipment was added, and
     // the precomputed-outcome fight state was replaced by the live battle sim (an old mid-fight save can't
-    // be resumed as a battle, so the fight is simply dropped; the nest is still there to re-engage).
+    // be resumed as a battle, so the fight is simply dropped; the settlement is still there to re-engage).
     if (state.planet && state.planet.squad) {
         // Older saves carried fields the squad no longer has; widen the type so the cleanup below can name them
         const squad = state.planet.squad as Squad & { pouch?: unknown; prompt?: EncounterPrompt };
@@ -70,16 +69,13 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
         if (!Array.isArray(squad.droidHp) || squad.droidHp.length !== squad.squadSize) {
             squad.droidHp = fullDroidHp(squad.squadSize, squad.droidStats.hp); // pre-persistence saves: deploy healthy
         }
-        // A mid-fight battle from an older sim shape can't resume; drop the fight, the nest remains
+        // A mid-fight battle from an older sim shape can't resume; drop the fight, the settlement remains
         if (squad.fighting && (!squad.fighting.battle || !squad.fighting.battle.stats)) squad.fighting = null;
         if (squad.prompt !== undefined) {
             if (!state.planet.prompt) state.planet.prompt = squad.prompt;
             delete squad.prompt;
         }
     }
-
-    // Nests from before multi-level sites carried their one fight in the POI's own fields
-    if (state.planet && state.planet.pois) Object.values(state.planet.pois).forEach(migrateLegacyNest);
 
     resyncWithDatabase(state.structures, structuresDatabase);
     resyncWithDatabase(state.resources, resourcesDatabase);

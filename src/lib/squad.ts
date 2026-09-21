@@ -7,9 +7,9 @@ import {EQUIPMENT_DEFS, type EquipmentCharges} from "../database/equipment";
 import type {DroidStats} from "../database/battle";
 import type {Poi} from "./expeditions";
 
-/** The ground a squad stands on as the driver feels it (see squadZone): hive territory, the powered
+/** The ground a squad stands on as the driver feels it (see squadZone): settlement territory, the powered
  * grid, or the bare terrain. Keys the terrain notes and the map frame's tint. */
-export type SquadZone = TerrainKey | 'infested' | 'grid';
+export type SquadZone = TerrainKey | 'held' | 'grid';
 
 /** What advanceSquad reports back to the caller; resolved by resolveSquadEvent in redux/modules/planet.ts */
 export type SquadEvent =
@@ -24,7 +24,7 @@ export interface SquadFighting {
     battle: Battle;
     fromCoord?: Coord;
     contactMs?: number;
-    /** which of the nest's levels this fight is (0 = surface; absent on saves that predate levels) */
+    /** which of the settlement's levels this fight is (0 = surface; absent on saves that predate levels) */
     level?: number;
 }
 
@@ -57,8 +57,8 @@ export interface Squad {
  * handling lives in the planet component and redux thunks. The battle itself (per-unit combat) is lib/battle.ts.
  *
  * Contact model: every uncleared POI is walkable and resolves on entry -- caches and story sites raise their
- * prompt, a nest starts the fight. Only capability-gated sites are impassable, bumping like a wall until the
- * tool is researched. Assaulting a nest is therefore a real step onto its tile: win and the squad is already
+ * prompt, a settlement starts the fight. Only capability-gated sites are impassable, bumping like a wall until the
+ * tool is researched. Assaulting a settlement is therefore a real step onto its tile: win and the squad is already
  * through, standing on cleared ground; retreat and it walks back to the tile it came from (fromCoord, carried
  * on the contact event and held in `fighting` for the duration).
  */
@@ -76,7 +76,7 @@ export const SQUAD_SPEED_FACTOR = 0.8;
 // the stakes).
 // Drain scales with the assigned droids (not the replicated units, so growing the multiplier never shrinks
 // range): a bigger team is a shorter-legged team, which is what makes force sizing a real decision.
-// The contact beat between stepping onto a nest and the fight being shown: the squad shrinks into the hive
+// The contact beat between stepping onto a settlement and the fight being shown: the squad shrinks into the settlement
 // (planet.jsx draws it), the battle sim holds its opening frame, and the encounter popup waits. Doubles as
 // the climb-back-out duration when the fight ends.
 export const CONTACT_MS = 400;
@@ -89,12 +89,12 @@ export const RESERVE_HP_PER_TILE = 1;     // hull every unit burns per tile on r
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
 export {isOnGrid} from "./planet_map";
 
-// The kind of ground a coord is, as far as the driver feels it: hive territory first (it overrides the
+// The kind of ground a coord is, as far as the driver feels it: settlement territory first (it overrides the
 // terrain), then powered grid, then the terrain itself. Zone changes drive the terminal's terrain notes and
 // the map frame's tint.
 export function squadZone(map: PlanetMap, coord: Coord): SquadZone {
     const sector = map[coord[0]][coord[1]];
-    if (sector.infestedBy) return 'infested';
+    if (sector.heldBy) return 'held';
     if (isOnGrid(map, coord)) return 'grid';
     return getTerrain(sector.terrain).key;
 }
@@ -153,7 +153,7 @@ export function createSquad(homeCoord: Coord, assignedDroids = 1, multiplier = 1
 
 // Disband settlement: surviving units round back to whole droids, to the nearest (losing less than half a
 // multiplier's worth of units costs nothing: partial stacks re-replicate at home, the same fiction as
-// heals-at-home; unexploitable because nests reset fully between engagements).
+// heals-at-home; unexploitable because settlements reset fully between engagements).
 export function droidsRecovered(squad: Squad): number {
     return Math.min(squad.assignedDroids || squad.squadSize,
         Math.round(squad.squadSize / (squad.multiplier || 1)));
@@ -176,11 +176,11 @@ export function squadCrossMs(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
  * see less, revealing only their 4 orthogonal neighbors, because a crewed squad has better eyes), battery
  * drain off-grid / snap-to-full on-grid, and contact events. Pure; returns the next squad, the coords newly
  * revealed this tick (still-unknown tiles only), and events for the caller to resolve:
- *   { type: 'battleOver', poiId, result, survivors, bugsRemaining, battle, fromCoord }  (live fight ended;
+ *   { type: 'battleOver', poiId, result, survivors, hostilesRemaining, battle, fromCoord }  (live fight ended;
  *       `battle` is the final field state, kept so the result popup can hold the last frame, see
  *       lib/battle.ts; `fromCoord` is where a retreat falls back to)
  *   { type: 'enteredPoi', poiId, fromCoord } (stepped onto an available POI: resolve it. fromCoord is the
- *       tile just left, which a nest assault holds onto so a retreat can walk back out)
+ *       tile just left, which a settlement assault holds onto so a retreat can walk back out)
  *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)
  *   { type: 'fieldWiped', unitsLost, multiplier, cargoLost } (reserve-power hull burn killed the last
  *       unit; the returned squad is null and the caller settles the loss)
@@ -191,7 +191,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
 
     if (squad.fighting) {
         // The descent. For CONTACT_MS after stepping in, the battle is held at its opening frame while the
-        // map plays the squad dropping into the hive and the popup stays shut, so the player sees the cause
+        // map plays the squad dropping into the settlement and the popup stays shut, so the player sees the cause
         // before the consequence. A save written before this existed has no counter: treat it as landed.
         const contactMs = squad.fighting.contactMs === undefined ? CONTACT_MS :
             Math.min(squad.fighting.contactMs + moveAmountMs, CONTACT_MS);

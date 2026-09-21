@@ -11,7 +11,7 @@ import {planetDevelopmentProgress, showDroidsUI, surveyAutomationUnlocked} from 
 /**
  * The Planet tab's left-slot status card, the counterpart of the Base tab's Command Center: how much of the
  * world is known and how far replication has spread. Rows appear as their systems unlock (sites once one is
- * found, land and replication once a nest is cleared, beacon and scouts with Survey Automation) rather than
+ * found, land and replication once a settlement is cleared, beacon and scouts with Survey Automation) rather than
  * sitting under empty section headers.
  */
 class PlanetCard extends React.Component {

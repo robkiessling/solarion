@@ -5,7 +5,7 @@ import {
     actionLabelFor,
     CAPABILITY_LABELS,
     formatResourceList,
-    nestLevels,
+    poiLevels,
     POI_COLOR_KEYS,
     POI_GLYPHS,
     promptTextFor,
@@ -38,14 +38,14 @@ const HUD_CLEARANCE_REM = 6.5;
 
 class EncounterPopup extends React.Component {
     // Force fractions, alive/starting (escapees count as alive: off the field, not dead). Mirrored:
-    // labels sit at the outer edges. The bug denominator is the swarm's high-water mark (bugsPeak),
+    // labels sit at the outer edges. The hostile denominator is the swarm's high-water mark (hostilesPeak),
     // so spawner reinforcements raise the ceiling instead of overflowing it, and spawner fights add
-    // a Hives fraction -- kill the sources or the swarm never drains. Shared between the live fight
+    // a shelters fraction -- kill the sources or the swarm never drains. Shared between the live fight
     // and the result phase's frozen final frame, so the header doesn't jump when the battle ends.
     renderBattleHeader(battle) {
         const droids = countUnits(battle, 'droid') + battle.escaped;
         const spawners = countSpawners(battle);
-        const bugs = countUnits(battle, 'bug') - spawners;
+        const hostiles = countUnits(battle, 'hostile') - spawners;
         return (
             <div className="battle-header">
                 <span className="battle-side">
@@ -54,10 +54,10 @@ class EncounterPopup extends React.Component {
                 <span className={`battle-vs${battle.buffs.overchargeMs > 0 ? ' overcharged' : ''}`}>
                     {battle.buffs.overchargeMs > 0 ? 'OVERCHARGE' : 'vs'}
                 </span>
-                <span className="battle-side bugs">
+                <span className="battle-side hostiles">
                     {battle.startingSpawners > 0 &&
-                        <span className="battle-count hives">{spawners}/{battle.startingSpawners} Hives</span>}
-                    <span className="battle-count bugs">{bugs}/{battle.bugsPeak} Bugs</span>
+                        <span className="battle-count shelters">{spawners}/{battle.startingSpawners} Hives</span>}
+                    <span className="battle-count hostiles">{hostiles}/{battle.hostilesPeak} Bugs</span>
                 </span>
             </div>
         );
@@ -164,14 +164,14 @@ class EncounterPopup extends React.Component {
         // hotkeys in the planet component's input layer
         const slots = EQUIPMENT_ORDER.filter(id => equipment[id] !== undefined);
         const withdrawing = battle.phase === 'withdrawing';
-        const nestLevel = nestLevels(poi)[fighting.level || 0];
+        const poiLevel = poiLevels(poi)[fighting.level || 0];
 
         return (
             <React.Fragment>
                 {this.renderBattleHeader(battle)}
                 <BattleCanvas battle={battle}/>
                 <div className="battle-footer">
-                    <div className="popup-body battle-blurb">{nestLevel.blurb || battleBlurb(battle, nestLevel.formation)}</div>
+                    <div className="popup-body battle-blurb">{poiLevel.blurb || battleBlurb(battle, poiLevel.formation)}</div>
                     <div className="popup-actions">
                         {slots.map((id, i) => (
                             <React.Fragment key={id}>
@@ -196,7 +196,7 @@ class EncounterPopup extends React.Component {
     }
 
     render() {
-        // Held shut through the contact beat: the squad is still visibly dropping into the hive on the map,
+        // Held shut through the contact beat: the squad is still visibly dropping into the settlement on the map,
         // and the battle behind this hasn't started ticking yet (see advanceSquad's descent).
         const descending = this.props.squad && this.props.squad.fighting &&
             this.props.squad.fighting.contactMs !== undefined &&
@@ -236,13 +236,13 @@ class EncounterPopup extends React.Component {
             }
         }
 
-        // Which level of a multi-level nest this is. An announced site counts from the start ("LEVEL 1 OF 3");
+        // Which level of a multi-level settlement this is. An announced site counts from the start ("LEVEL 1 OF 3");
         // an unannounced one says nothing on the surface (that would give away that there is more) and
         // only numbers the levels once the squad is below it.
         let levelLabel = '';
         const level = fighting ? fighting.level : prompt && prompt.result && prompt.result.level;
-        if (poi.type === 'nest' && level != null && nestLevels(poi).length > 1) {
-            if (poi.levelsShown) levelLabel = ` · LEVEL ${level + 1} OF ${nestLevels(poi).length}`;
+        if (poi.type === 'settlement' && level != null && poiLevels(poi).length > 1) {
+            if (poi.levelsShown) levelLabel = ` · LEVEL ${level + 1} OF ${poiLevels(poi).length}`;
             else if (level > 0) levelLabel = ` · LEVEL ${level + 1}`;
         }
 

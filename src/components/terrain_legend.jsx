@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {INFESTED_GLYPH, STATUSES, TERRAINS} from "../lib/planet_map";
+import {HELD_GLYPH, STATUSES, TERRAINS} from "../lib/planet_map";
 import {PLANET_COLORS} from "../lib/planet_render";
 import {getAbility} from "../redux/modules/abilities";
 
@@ -16,7 +16,7 @@ class TerrainLegend extends React.Component {
             entries.push(TERRAINS.developed);
         }
         if (this.props.anyPoiVisible) {
-            entries.push({ key: 'infested', display: INFESTED_GLYPH, label: 'Infested' });
+            entries.push({ key: 'held', display: HELD_GLYPH, label: 'Infested' });
         }
 
         return (
@@ -35,7 +35,7 @@ class TerrainLegend extends React.Component {
 const mapStateToProps = (state) => {
     return {
         replicationKnown: !!getAbility(state.abilities, 'replicate'),
-        // The infested entry only appears once relevant (any POI discovered), same rule as the map's marker key
+        // The held entry only appears once relevant (any POI discovered), same rule as the map's marker key
         anyPoiVisible: Object.values(state.planet.pois || {}).some(poi => poi.status !== 'hidden')
     };
 };

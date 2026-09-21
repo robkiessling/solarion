@@ -22,14 +22,14 @@ export const PLANET_COLORS = {
     ice: '#ffffff',
     acid: '#9acd32',     // the mid-world belt
     water: '#2f6b8f',    // open sea: deep steel blue, cooler and bluer than the fog so unexplored ground never reads as coast
-    infested: '#a06bc9', // hive-tainted ground around a nest; retracts when the nest is cleared
+    held: '#a06bc9', // held ground around a settlement; retracts when the settlement is cleared
     droid: '#ffe14d',
     droidReturning: '#9a9a9a', // recalled scouts walking home ("off duty")
     laserBeam: '#ffff00',
 
     // Expedition overlays (POI markers, squad, skirmish effect)
     poiCache: '#ffd700',
-    poiNest: '#ff4d4d',
+    poiSettlement: '#ff4d4d',
     poiStory: '#c58fff',
     poiGate: '#e0c060',
     poiHighlight: '#ffffff',
@@ -39,7 +39,7 @@ export const PLANET_COLORS = {
     beacon: '#6fd3b0'    // growth beacon; matches developed land, which grows toward it
 } satisfies Record<string, string>;;
 
-// The map colour of a squad zone (lib/squad.ts squadZone: a terrain key, 'infested', or 'grid' for powered
+// The map colour of a squad zone (lib/squad.ts squadZone: a terrain key, 'held', or 'grid' for powered
 // ground). DOM chrome that echoes the ground the squad is on (terminal terrain notes, the HUD, the frame rim)
 // reads this instead of restating the hex in scss, so the palette has one home.
 export function zoneColor(zone: SquadZone) {
@@ -307,7 +307,7 @@ export function drawPlanetImage(canvasManager: AsciiCanvas, image: DisplayCell[]
     // rectangular hole in the terrain around itself. It is opaque regardless of day/night (an object
     // occludes just as much at night), but still fades with the limb so it can't hole-punch the soft edge.
     floats.forEach(({ x, top, char, color, alpha, maskAlpha, scale }) => {
-        if (scale <= 0) { return; } // fully shrunk away (a squad down inside a hive)
+        if (scale <= 0) { return; } // fully shrunk away (a squad down inside a settlement)
         const baseline = top + baselineOffset;
 
         // Shrinking happens about the cell's center, and wraps the footprint too so the occlusion shrinks

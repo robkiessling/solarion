@@ -300,7 +300,7 @@ function skipToStar(dispatch: Dispatch) {
     ] satisfies UpgradeId[]).forEach(upgrade => dispatch(fromUpgrades.researchForFree(upgrade)));
 
     dispatch(fromPlanet.startExploringMap());
-    // Normally learned once the first nest is cleared (the replicationOnline sequence)
+    // Normally learned once the first settlement is cleared (the replicationOnline sequence)
     dispatch(fromAbilities.learn('replicate'));
     dispatch(fromResources.produce({
         developedLand: 1000

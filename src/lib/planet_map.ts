@@ -64,8 +64,8 @@ export interface Sector {
     zone?: string;
     /** authored tunnel system digit */
     tunnel?: string;
-    /** poiId of the nest whose infestation covers this tile */
-    infestedBy?: string | null;
+    /** poiId of the settlement whose territory covers this tile */
+    heldBy?: string | null;
     sectorDividerLeft?: boolean;
     sectorDividerRight?: boolean;
     sectorDividerBottom?: boolean;
@@ -200,7 +200,7 @@ const MOUNTAIN_WIDEN_CHANCE = 0.6; // per step, chance of a second mountain besi
 const SHOW_DEBUG_MERIDIANS = false;
 const NUM_DEBUG_MERIDIANS = 8;
 const ADD_MOUNTAINS = true;
-const EXPLORE_EVERYTHING = false;
+const EXPLORE_EVERYTHING = true;
 const MARK_SECTORS = false;
 const LOG_MAP = false;
 
@@ -230,11 +230,11 @@ export const TERRAINS: Record<TerrainKey, TerrainDef> = {
     water: { key: 'water', display: '~', variants: ['≈'], variantShare: 0.2, label: 'Sea', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'seafaring' },
 }
 
-// Hive-tainted flatland (sector.infestedBy) gets its own glyph, not just a tint (a tint alone is impossible
-// to tell on the night side): a carpet of little omegas spreading out from the nest's big 'Ω', the nest's
-// territory. Only flatland is ever stamped infested (see generatePois), so no other terrain loses its glyph
+// Held flatland (sector.heldBy) gets its own glyph, not just a tint (a tint alone is impossible
+// to tell on the night side): a carpet of little omegas spreading out from the settlement's big 'Ω', the settlement's
+// territory. Only flatland is ever stamped held (see generatePois), so no other terrain loses its glyph
 // to this.
-export const INFESTED_GLYPH = 'ω';
+export const HELD_GLYPH = 'ω';
 // City lights: the powered grid is lit at night the way a city looks from orbit. The command center is the
 // hub: full running-lights brightness (planet_render's SELF_LIT_ALPHA) plus the same lantern pool as the
 // squad. Replicated land is a field of warm points that never spill onto the ground around them and vary
@@ -938,13 +938,13 @@ export function getVisibleCoords(map: PlanetMap, coord: Coord, hops: number = VI
     return result;
 }
 
-// Scout passability: beyond raw terrain, infested ground (sector.infestedBy, stamped around nests) and
+// Scout passability: beyond raw terrain, held ground (sector.heldBy, stamped around settlements) and
 // unopened gate tiles (sector.gated) stop the dumb remotes. The player-driven squad ignores both -- it can
-// cross infestation freely and opens gates through the POI flow.
+// cross territory freely and opens gates through the POI flow.
 export function isScoutPassable(map: PlanetMap, coord: Coord | null, unlocks: Unlocks = {}): boolean {
     if (coord === null || !isPassable(map, coord, unlocks)) { return false; }
     const sector = map[coord[0]][coord[1]];
-    return !sector.infestedBy && !sector.gated;
+    return !sector.heldBy && !sector.gated;
 }
 
 function cacheDistancesToHome(map: PlanetMap, homeCoord: Coord) {
@@ -967,11 +967,11 @@ export function getNextDevelopmentArea(map: PlanetMap, size: number, anchorCoord
     const distanceTo = (coord: Coord) => anchorCoord ?
         getApproxDistance(anchorCoord, coord) : map[coord[0]][coord[1]].distanceHome;
 
-    // Infested ground isn't developable until its nest is cleared; an unopened gate tile isn't either.
+    // Held ground isn't developable until its settlement is cleared; an unopened gate tile isn't either.
     const isCandidate = ([row, col]: Coord) =>
         map[row][col].terrain === TERRAINS.flatland.key &&
         map[row][col].status === STATUSES.explored.key &&
-        !map[row][col].infestedBy && !map[row][col].gated;
+        !map[row][col].heldBy && !map[row][col].gated;
 
     const seen = new Set<string>(); // candidate or chosen already (never re-added)
     const candidates: Coord[] = [];
@@ -1219,8 +1219,8 @@ function getGridNight(map: PlanetMap) {
 }
 
 // Living ground: the whole known map moves a little, always (deployed or not), so the planet reads as a
-// place rather than a chart. One entry per kind of ground that moves, keyed by terrain key ('infested' is
-// the override for hive-tainted tiles); each holds its own tuning and an animate(timeMs, row, col, hash,
+// place rather than a chart. One entry per kind of ground that moves, keyed by terrain key ('held' is
+// the override for held tiles); each holds its own tuning and an animate(timeMs, row, col, hash,
 // daylight) returning { char?, alpha? } for this frame, or null for "at rest"; `enabled: false` parks an
 // entry. Only ever applied to bare ground (no
 // marker on the tile), never to unknown tiles. Set the table to {} to switch it all off. New glyphs must
@@ -1239,9 +1239,10 @@ function living<S extends object>(settings: S,
     return { ...settings, animate };
 }
 const GROUND_LIFE = {
-    // Hive tissue breathes: a slow brightness swell, tiles nearly in phase (one organism) with a little
-    // per-tile drift; and once in a while a tile twitches, a tendril whipping up and pulling back.
-    infested: living({
+    // Held ground breathes (PLACEHOLDER look from the old hive fiction): a slow brightness swell, tiles
+    // nearly in phase (one organism) with a little per-tile drift; and once in a while a tile twitches, a
+    // tendril whipping up and pulling back.
+    held: living({
         breathPeriodMs: 2600,
         breathDepth: 0.4,     // how far a full exhale dims a tile
         breathDrift: 0.3,     // max per-tile phase offset (fraction of a breath)
@@ -1286,11 +1287,11 @@ const GROUND_LIFE = {
         const crest = (Math.floor(timeMs / this.stepMs) + row + col) % this.wavelength === 0;
         return crest ? { char: this.crestGlyph } : null;
     })
-} satisfies Partial<Record<TerrainKey | 'infested', GroundLife>>;
-const GROUND_LIFE_BY_KEY: Partial<Record<TerrainKey | 'infested', GroundLife>> = GROUND_LIFE;
+} satisfies Partial<Record<TerrainKey | 'held', GroundLife>>;
+const GROUND_LIFE_BY_KEY: Partial<Record<TerrainKey | 'held', GroundLife>> = GROUND_LIFE;
 function groundLife(sector: Sector, timeMs: number | undefined, daylight: number) {
     if (timeMs === undefined || sector.status === STATUSES.unknown.key) return null;
-    const life = GROUND_LIFE_BY_KEY[sector.infestedBy ? 'infested' : TERRAINS[sector.terrain].key];
+    const life = GROUND_LIFE_BY_KEY[sector.heldBy ? 'held' : TERRAINS[sector.terrain].key];
     if (!life || life.enabled === false) return null;
     const [row, col] = sector.coord;
     return life.animate(timeMs, row, col, tileHash(row, col, 777), daylight);
@@ -1357,8 +1358,8 @@ export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: n
             else {
                 char = terrainGlyph(sector.terrain, sector.coord[0], sector.coord[1]);
                 colorKey = TERRAINS[sector.terrain].key;
-                // Infested ground: its own glyph in the sick tint; both retract when the nest is cleared
-                if (sector.infestedBy) { char = INFESTED_GLYPH; colorKey = 'infested'; }
+                // Held ground: its own glyph in the sick tint; both retract when the settlement is cleared
+                if (sector.heldBy) { char = HELD_GLYPH; colorKey = 'held'; }
                 // City lights (see DEVELOPED_NIGHT_LIGHT_MIN)
                 if (sector.terrain === TERRAINS.home.key) { selfLit = true; }
                 else if (sector.terrain === TERRAINS.developed.key) {

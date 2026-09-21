@@ -1,5 +1,5 @@
 import React from 'react';
-import {ARENA_H, ARENA_W, BUG_TYPES, FX_TTL_MS, TERRAIN_CELL_H, TERRAIN_CELL_W} from "../lib/battle";
+import {ARENA_H, ARENA_W, HOSTILE_TYPES, FX_TTL_MS, TERRAIN_CELL_H, TERRAIN_CELL_W} from "../lib/battle";
 import {TERRAIN_PIECES} from "../database/battle_terrain";
 import {PLANET_COLORS} from "../lib/planet_render";
 
@@ -13,13 +13,13 @@ import {PLANET_COLORS} from "../lib/planet_render";
  */
 
 const DROID_COLOR = PLANET_COLORS.squad;   // friendly cyan, same as the map glyph
-const BUG_COLOR = PLANET_COLORS.battle;    // hostile orange, same as the map's fight effect
+const HOSTILE_COLOR = PLANET_COLORS.battle;    // hostile orange, same as the map's fight effect
 
 // Rank-and-file units and fx marks draw as pre-rendered shape sprites (see sprite()): droids are cyan
-// diamonds, bugs orange dots. TYPE_GLYPHS opts a type back into text rendering -- for the handful of
+// diamonds, hostiles orange dots. TYPE_GLYPHS opts a type back into text rendering -- for the handful of
 // units worth a bespoke look (fixtures, and eventually bosses, which can grow into multi-char ASCII
 // art) where per-frame fillText cost doesn't matter.
-const TYPE_GLYPHS = { hive: '◉' };
+const TYPE_GLYPHS = { shelter: '◉' };
 const SPAWNER_SCALE = 1.7; // spawners draw this much larger: the hole reads as a fixture, not a trooper
 
 // Terrain obstacles: weathered stone, deliberately neutral next to the two sides' colors
@@ -104,8 +104,8 @@ export default class BattleCanvas extends React.Component {
             g.moveTo(mid, mid - r); g.lineTo(mid + r, mid); g.lineTo(mid, mid + r); g.lineTo(mid - r, mid);
             g.fill();
         }
-        else if (kind === 'bug') {
-            g.fillStyle = BUG_COLOR;
+        else if (kind === 'hostile') {
+            g.fillStyle = HOSTILE_COLOR;
             g.beginPath();
             g.arc(mid, mid, size * 0.34, 0, 2 * Math.PI);
             g.fill();
@@ -128,7 +128,7 @@ export default class BattleCanvas extends React.Component {
             g.moveTo(mid, mid - r); g.lineTo(mid, mid + r);
             g.stroke();
         }
-        else if (kind === 'spawn') { // hatching ring around the fresh bug
+        else if (kind === 'spawn') { // hatching ring around the fresh hostile
             g.strokeStyle = 'rgba(255, 170, 60, 0.8)';
             g.lineWidth = Math.max(1, size * 0.08);
             g.beginPath();
@@ -230,7 +230,7 @@ export default class BattleCanvas extends React.Component {
         // with a thin hp sliver above it. The bar carries the health information, so the marks stay
         // full-strength colors.
         const barH = Math.max(2, Math.round(HP_BAR_PX * dpr));
-        const bigFight = battle.startingDroids + battle.startingBugs > HP_BAR_FORCE_LIMIT;
+        const bigFight = battle.startingDroids + battle.startingHostiles > HP_BAR_FORCE_LIMIT;
         battle.units.forEach(unit => {
             const droid = unit.side === 'droid';
             const spawner = !!battle.stats[unit.type].spawnEveryMs;
@@ -245,22 +245,22 @@ export default class BattleCanvas extends React.Component {
             }
             const glyph = TYPE_GLYPHS[unit.type];
             if (glyph) {
-                ctx.fillStyle = droid ? DROID_COLOR : BUG_COLOR;
+                ctx.fillStyle = droid ? DROID_COLOR : HOSTILE_COLOR;
                 if (spawner) ctx.font = `${fontSize * SPAWNER_SCALE}px monospace`;
                 ctx.fillText(glyph, px(x), py(y));
                 if (spawner) ctx.font = `${fontSize}px monospace`;
             }
             else {
                 // Overcharged droids swap to the glow sprite (halo baked in: shadowBlur per unit is slow)
-                const mark = this.sprite(droid ? (overcharged ? 'droid-glow' : 'droid') : 'bug', markPx);
+                const mark = this.sprite(droid ? (overcharged ? 'droid-glow' : 'droid') : 'hostile', markPx);
                 ctx.drawImage(mark, px(x) - mark.width / 2, py(y) - mark.height / 2);
             }
 
-            // Rank-and-file bugs get no bar: they can't be targeted, so per-bug hp isn't actionable
+            // Rank-and-file hostiles get no bar: they can't be targeted, so per-hostile hp isn't actionable
             // (the header's fraction tracks the swarm), and hiding them halves the clutter that makes bar
-            // ownership ambiguous. Hostiles tougher than a standard bug (elites and bosses) do earn one,
+            // ownership ambiguous. Hostiles tougher than a standard defender (elites and bosses) do earn one,
             // at any scale; friendlies show theirs only in small fights (see HP_BAR_FORCE_LIMIT).
-            const elite = !droid && unit.maxHp > BUG_TYPES.bug.hp;
+            const elite = !droid && unit.maxHp > HOSTILE_TYPES.defender.hp;
             if (elite || (droid && !bigFight)) {
                 const fraction = unit.hp / unit.maxHp;
                 // A spawner's bar matches its oversized glyph (wider, lifted clear of the bigger sprite)

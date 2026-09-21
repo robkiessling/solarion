@@ -89,7 +89,7 @@ class Planet extends React.Component {
         this.heldKeys = [];      // pressed movement keys in press order; last one is the active direction
         this.bufferedDir = null; // a tap mid-slide queues one turn, executed on arrival
         this.bump = null;        // rejected-step feedback: { dx, dy, target, at }
-        this.emergedAt = null;   // elapsedTime the squad climbed back out of a hive; drives the grow-back
+        this.emergedAt = null;   // elapsedTime the squad climbed back out of a settlement; drives the grow-back
 
         // Drag-to-pan state: set on mousedown, becomes a pan once the pointer moves DRAG_THRESHOLD_PX.
         // { startX, panning, baseRotation, baseX }; didPan suppresses the click that fires after a pan's mouseup.
@@ -147,17 +147,17 @@ class Planet extends React.Component {
     }
 
     componentDidUpdate(prevProps, prevState) {
-        // The squad just left a hive alive: start the climb back out (a wipe leaves no squad, so nothing
-        // emerges). Between a nest's levels it is still down there, so the climb waits for the withdrawal.
-        if (this.insideHive(prevProps) && this.props.squad && !this.insideHive(this.props)) {
+        // The squad just left a settlement alive: start the climb back out (a wipe leaves no squad, so nothing
+        // emerges). Between a settlement's levels it is still down there, so the climb waits for the withdrawal.
+        if (this.insideSettlement(prevProps) && this.props.squad && !this.insideSettlement(this.props)) {
             this.emergedAt = this.props.elapsedTime;
         }
         this.maybeContinueMovement(prevProps);
         this.drawPlanet();
     }
 
-    // Fighting, or paused between a nest's levels on the descend-or-withdraw choice
-    insideHive(props) {
+    // Fighting, or paused between a settlement's levels on the descend-or-withdraw choice
+    insideSettlement(props) {
         const prompt = props.prompt;
         return !!(props.squad && (props.squad.fighting ||
             (prompt && prompt.phase === 'result' && prompt.result && prompt.result.nextLevel != null)));
@@ -179,7 +179,7 @@ class Planet extends React.Component {
         // Handled before the squad guard: a wipe's result popup has no squad left, but still needs dismissing.
         const prompt = this.props.prompt;
         if (prompt) {
-            // Between a nest's levels the result is a choice: Enter/Space descends, Esc withdraws. '1' is
+            // Between a settlement's levels the result is a choice: Enter/Space descends, Esc withdraws. '1' is
             // swallowed there: it fires equipment mid-fight, so a press landing just after the last kill
             // must not start the next battle.
             const descent = prompt.phase === 'result' && prompt.result && prompt.result.nextLevel != null;
@@ -524,12 +524,12 @@ class Planet extends React.Component {
     }
 
     // The squad: the team glyph sliding smoothly between tiles (sub-cell offset from moveProgress),
-    // skirmish effect on the nest while fighting, and bump/wall-flash feedback.
+    // skirmish effect on the settlement while fighting, and bump/wall-flash feedback.
     addSquadOverlays(overlays) {
         const squad = this.props.squad;
         if (!squad) return;
 
-        // Skirmish animation: effect chars churn on the nest tile the squad is standing on, so once it has
+        // Skirmish animation: effect chars churn on the settlement tile the squad is standing on, so once it has
         // shrunk out of sight the tile shows the fight going on underneath it
         if (squad.fighting) {
             const poi = this.props.pois[squad.fighting.poiId];
@@ -560,14 +560,14 @@ class Planet extends React.Component {
             }
         }
 
-        // Descending into the hive: the squad shrinks away into the tile it just stepped onto while the
-        // contact beat runs, and climbs back out when the fight ends -- on the nest tile if it won (it is
+        // Descending into the settlement: the squad shrinks away into the tile it just stepped onto while the
+        // contact beat runs, and climbs back out when the fight ends -- on the settlement tile if it won (it is
         // already through), then walking back to fromCoord if it fell back. A wipe never climbs out.
         let scale = 1;
         if (squad.fighting) {
             scale = 1 - Math.min((squad.fighting.contactMs || 0) / CONTACT_MS, 1);
         }
-        else if (this.insideHive(this.props)) {
+        else if (this.insideSettlement(this.props)) {
             scale = 0;
         }
         else if (this.emergedAt !== null) {
@@ -643,7 +643,7 @@ class Planet extends React.Component {
         // POI legend entries only appear once relevant (any POI discovered)
         const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== 'hidden');
         if (anyPoiVisible) {
-            ['cache', 'nest', 'storySite', 'gate'].forEach(type => {
+            ['cache', 'settlement', 'storySite', 'gate'].forEach(type => {
                 markerLegend.push({ key: POI_COLOR_KEYS[type], display: POI_GLYPHS[type], label: POI_LABELS[type] });
             });
         }

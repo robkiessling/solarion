@@ -1,18 +1,18 @@
 import {getRandomFromArray, getRandomIntInclusive, mapObject} from "./helpers";
 import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, type PlanetMap, type Sector} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {GATE_DEFS, LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Band, type Capability, type NestLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
-import type {BugType} from "../database/battle";
-import type {NestFormation, TerrainLayoutId} from "./battle";
+import {GATE_DEFS, LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Band, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
+import type {HostileType} from "../database/battle";
+import type {HostileFormation, TerrainLayoutId} from "./battle";
 
-/** One fight of a placed nest (see NestLevelDef in database/pois.ts), rewards rolled. `timesCleared` counts
+/** One fight of a placed settlement (see PoiLevelDef in database/pois.ts), rewards rolled. `timesCleared` counts
  * wins on this level across assaults: it indexes the site's reloot schedule. */
-export interface NestLevel {
+export interface PoiLevel {
     difficulty: number;
-    formation?: NestFormation;
+    formation?: HostileFormation;
     terrain?: TerrainLayoutId;
     blurb?: string;
-    bugs?: Partial<Record<BugType, number>>;
+    garrison?: Partial<Record<HostileType, number>>;
     reward: PoiReward;
     timesCleared: number;
 }
@@ -28,13 +28,13 @@ export interface Poi {
     requires: Capability | null;
     difficultyKnown: boolean;
     reward: PoiReward;
-    infestRadius?: number;
+    territoryRadius?: number;
     storyId?: StoryId;
     promptText?: string;
     actionLabel?: string;
     resultBehavior?: ResultBehavior;
-    /** nests: the site's fights, surface first (one or more) */
-    levels?: NestLevel[];
+    /** settlements: the site's fights, surface first (one or more) */
+    levels?: PoiLevel[];
     levelsShown?: boolean;
     reloot?: number[];
     discardedKg?: number;
@@ -52,8 +52,8 @@ export {CAPABILITY_LABELS, FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_L
 
 /**
  * The region/stamp placement pass: the POI_DEFS content manifest scattered per placement band, gate POIs on
- * the stamped gate tiles, and an infestation stamp around every nest (sector.infestedBy: scout-impassable,
- * not developable, squad-crossable; retracts when the nest is cleared). MUTATES the map (generation-time
+ * the stamped gate tiles, and an territory stamp around every settlement (sector.heldBy: scout-impassable,
+ * not developable, squad-crossable; retracts when the settlement is cleared). MUTATES the map (generation-time
  * only).
  */
 export function generatePois(map: PlanetMap): Record<string, Poi> {
@@ -84,7 +84,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     const pick = (band: Band): Sector | null => {
         const pool = candidates.filter(sector =>
             bandOf(sector) === band &&
-            !sector.infestedBy && // never place on (or roll a nest whose center is inside) existing infestation
+            !sector.heldBy && // never place on (or roll a settlement whose center is inside) existing territory
             !usedKeys.has(`${sector.coord[0]},${sector.coord[1]}`)
         );
         if (pool.length === 0) return null; // rare degenerate roll; the harness watches placement counts
@@ -112,24 +112,24 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         return pois[id];
     };
 
-    // A nest additionally stamps its infestation radius (flatland only; mountains/acid are barriers already).
+    // A settlement additionally stamps its territory radius (flatland only; mountains/acid are barriers already).
     // Placement requires clean ground out to radius+1, so stamps never overlap (retraction assumes one owner).
-    const addNest = (def: PoiDef) => {
+    const addSettlement = (def: PoiDef) => {
         for (let attempt = 0; attempt < 20; attempt++) {
             const sector = pick(def.band);
             if (!sector) return;
-            const infestRadius = def.infestRadius ?? 0;
-            const area = [sector.coord, ...getCoordsWithinHops(sector.coord, infestRadius + 1)];
-            const clean = area.every(([r, c]) => !map[r][c].infestedBy && !map[r][c].gated &&
+            const territoryRadius = def.territoryRadius ?? 0;
+            const area = [sector.coord, ...getCoordsWithinHops(sector.coord, territoryRadius + 1)];
+            const clean = area.every(([r, c]) => !map[r][c].heldBy && !map[r][c].gated &&
                 map[r][c].terrain !== TERRAINS.home.key);
             if (!clean) continue; // pick() already marked it used; just try another tile
 
-            const poi = add('nest', sector, { infestRadius, levels: (def.levels || []).map(rollNestLevel),
+            const poi = add('settlement', sector, { territoryRadius, levels: (def.levels || []).map(rollLevel),
                 levelsShown: def.levelsShown, reloot: def.reloot });
             if (def.discardedKg) poi.discardedKg = getRandomIntInclusive(def.discardedKg[0] / 10, def.discardedKg[1] / 10) * 10;
-            [sector.coord, ...getCoordsWithinHops(sector.coord, infestRadius)].forEach(([r, c]) => {
+            [sector.coord, ...getCoordsWithinHops(sector.coord, territoryRadius)].forEach(([r, c]) => {
                 if (map[r][c].terrain === TERRAINS.flatland.key && !map[r][c].gated) {
-                    map[r][c].infestedBy = poi.id;
+                    map[r][c].heldBy = poi.id;
                 }
             });
             return;
@@ -147,8 +147,8 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
 
     // The content manifest: each definition placed in its band, rewards rolled from their declared ranges
     POI_DEFS.forEach(def => {
-        if (def.type === 'nest') {
-            addNest(def);
+        if (def.type === 'settlement') {
+            addSettlement(def);
             return;
         }
         const extras: Partial<Poi> = {};
@@ -165,38 +165,21 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     return pois;
 }
 
-function rollNestLevel(def: NestLevelDef): NestLevel {
+function rollLevel(def: PoiLevelDef): PoiLevel {
     return { difficulty: def.difficulty, formation: def.formation, terrain: def.terrain,
-        blurb: def.blurb, bugs: def.bugs, reward: def.reward ? rollPoiReward(def.reward) : {}, timesCleared: 0 };
+        blurb: def.blurb, garrison: def.garrison, reward: def.reward ? rollPoiReward(def.reward) : {}, timesCleared: 0 };
 }
 
-// A nest's fights, surface first (empty for other POI types)
-export function nestLevels(poi: Poi): NestLevel[] {
+// A settlement's fights, surface first (empty for other POI types)
+export function poiLevels(poi: Poi): PoiLevel[] {
     return poi.levels || [];
-}
-
-/** A nest as saves stored it before levels existed: its one fight in the POI's own fields */
-type LegacyNest = Poi & { difficulty?: number | null } & Pick<NestLevel, 'formation' | 'terrain' | 'blurb' | 'bugs'>;
-
-// Save repair: folds a pre-levels nest's own fight fields into a single level (mutates; see save_migration.ts).
-// A nest already cleared keeps its one level marked as fallen.
-export function migrateLegacyNest(poi: Poi) {
-    if (poi.type !== 'nest' || poi.levels) return;
-    const legacy = poi as LegacyNest;
-    poi.levels = [{ difficulty: legacy.difficulty || 0, formation: legacy.formation, terrain: legacy.terrain,
-        blurb: legacy.blurb, bugs: legacy.bugs, reward: {}, timesCleared: poi.status === 'cleared' ? 1 : 0 }];
-    delete legacy.difficulty;
-    delete legacy.formation;
-    delete legacy.terrain;
-    delete legacy.blurb;
-    delete legacy.bugs;
 }
 
 // What winning a level pays on THIS clear: its rolled resources scaled by the site's reloot schedule (indexed by
 // how often the level has fallen before; past the end it pays nothing). Salvage is first-clear only.
-export function nestLevelPayout(poi: Poi, levelIndex: number): PoiReward {
-    const level = nestLevels(poi)[levelIndex];
-    const schedule = poi.reloot || POI_TYPE_DEFAULTS.nest.reloot || [1];
+export function levelPayout(poi: Poi, levelIndex: number): PoiReward {
+    const level = poiLevels(poi)[levelIndex];
+    const schedule = poi.reloot || POI_TYPE_DEFAULTS.settlement.reloot || [1];
     const fraction = schedule[level.timesCleared] ?? 0;
     const reward: PoiReward = {};
     if (level.reward.resources && fraction > 0) {

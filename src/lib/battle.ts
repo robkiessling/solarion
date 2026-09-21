@@ -1,18 +1,18 @@
 import {EQUIPMENT_DEFS, type EquipmentId} from "../database/equipment";
 import {typedEntries} from "./helpers";
 import {TERRAIN_PIECES, type TerrainPieceId} from "../database/battle_terrain";
-import {BUG_TYPES, DROID_BASE_STATS, GROUND_BLURBS, SWARM_BLURBS, type BugType, type DroidStats, type UnitStats, type UnitType} from "../database/battle";
+import {HOSTILE_TYPES, DROID_BASE_STATS, GROUND_BLURBS, HOSTILE_BLURBS, type HostileType, type DroidStats, type UnitStats, type UnitType} from "../database/battle";
 
 /** Spawn layouts: the keys of FORMATIONS */
 export type FormationId = keyof typeof FORMATIONS;
 
-/** The formations a nest may declare; squadron and center are droid-side layouts the engine picks itself */
-export type NestFormation = Exclude<FormationId, 'squadron' | 'center'>;
+/** The formations a settlement may declare; squadron and center are droid-side layouts the engine picks itself */
+export type HostileFormation = Exclude<FormationId, 'squadron' | 'center'>;
 
 /** Arena obstacle layouts: the keys of TERRAIN_LAYOUTS */
 export type TerrainLayoutId = keyof typeof TERRAIN_LAYOUTS;
 
-export type BattleSide = 'droid' | 'bug';
+export type BattleSide = 'droid' | 'hostile';
 
 export interface BattleUnit {
     id: string;
@@ -46,9 +46,9 @@ export interface Battle {
     arenaW: number;
     arenaH: number;
     startingDroids: number;
-    startingBugs: number;
+    startingHostiles: number;
     startingSpawners: number;
-    bugsPeak: number;
+    hostilesPeak: number;
     spawnCounter: number;
     escaped: number;
     escapedHp: number[];
@@ -64,7 +64,7 @@ export interface BattleOverEvent {
     result: 'won' | 'wiped' | 'retreated';
     /** droids still standing (plus escapees on a retreat) */
     survivors: number;
-    bugsRemaining: number;
+    hostilesRemaining: number;
     /** the survivors' hulls */
     droidHp: number[];
 }
@@ -72,18 +72,18 @@ export interface BattleOverEvent {
 export type BattleEvent = BattleOverEvent;
 
 // Content records (stats, scene text) live in database/battle.ts; this module is the engine.
-export {BUG_TYPES, DROID_BASE_STATS} from "../database/battle";
+export {HOSTILE_TYPES, DROID_BASE_STATS} from "../database/battle";
 
 /**
  * Real-time per-unit battle sim: the skirmish that plays out in the encounter popup when the squad attacks
- * a nest. Pure module in the squad.ts mold: redux owns the battle object (inside squad.fighting) and calls
+ * a settlement. Pure module in the squad.ts mold: redux owns the battle object (inside squad.fighting) and calls
  * advanceBattle from the planet tick; the popup's canvas just draws unit positions.
  *
- * Model: every droid and bug is an agent with position, hp, and an attack cooldown. Units seek the nearest
+ * Model: every droid and hostile is an agent with position, hp, and an attack cooldown. Units seek the nearest
  * enemy and trade fixed damage in melee range; bodies collide (both sides), so frontage is physical and
- * rear ranks queue. Spawn arrangements are data-driven (FORMATIONS: nests declare poi.formation, droids
- * deploy in squadron blocks unless the bug formation dictates a counter-layout). Spawner-type bugs
- * (BUG_TYPES rows with spawnEveryMs) sit immobile and feed fresh bugs into the fight on a fixed clock
+ * rear ranks queue. Spawn arrangements are data-driven (FORMATIONS: settlements declare poi.formation, droids
+ * deploy in squadron blocks unless the hostile formation dictates a counter-layout). Spawner-type hostiles
+ * (HOSTILE_TYPES rows with spawnEveryMs) sit immobile and feed fresh hostiles into the fight on a fixed clock
  * until killed. The outcome emerges from counts, per-unit stats, the opening geometry, and
  * whatever equipment the player fires mid-fight. Deliberately no RNG anywhere: motion "wobble" is a deterministic
  * per-unit sine drift, so a replayed tick stream (save reload, background-tab catch-up) reproduces the same
@@ -92,7 +92,7 @@ export {BUG_TYPES, DROID_BASE_STATS} from "../database/battle";
  * as armies scale. Neighbor queries go through a spatial hash grid, so endgame armies (hundreds per side)
  * and their catch-up replays stay cheap.
  *
- * Terrain: nests may declare an obstacle layout (poi.terrain -> TERRAIN_LAYOUTS), which stamps ASCII
+ * Terrain: settlements may declare an obstacle layout (poi.terrain -> TERRAIN_LAYOUTS), which stamps ASCII
  * pieces (database/battle_terrain.ts) onto a coarse cell grid at battle creation. Blocked cells are
  * impassable to both sides: bodies collide with them, target acquisition demands line of sight, the
  * flow field and the withdrawal route path around them, and spawn positions that land inside are
@@ -102,7 +102,7 @@ export {BUG_TYPES, DROID_BASE_STATS} from "../database/battle";
  * lives on battle.terrain, everything else is derived.
  */
 
-// Baseline arena coordinate space. Droids enter from the left, bugs from the right. Battles above
+// Baseline arena coordinate space. Droids enter from the left, hostiles from the right. Battles above
 // ARENA_BASELINE_UNITS total combatants scale both dimensions up (see createBattle); battle.arenaW/arenaH
 // are the authoritative dimensions, these constants are the floor (and the fallback for pre-scaling saves).
 type XY = { x: number, y: number };
@@ -120,13 +120,13 @@ const ARENA_BASELINE_UNITS = 320;  // a 160v160 fills the baseline arena at desi
 const FRONT_GAP = 44;              // spawn distance between the two front lines, at any arena size
 
 // --- Tuning ---
-// The unit stat blocks (DROID_BASE_STATS, BUG_TYPES) are content records in database/battle.ts; the
+// The unit stat blocks (DROID_BASE_STATS, HOSTILE_TYPES) are content records in database/battle.ts; the
 // dials below are engine mechanics.
 const ATTACK_RANGE = 3;
 const UNIT_RADIUS = 1.2;        // hard collision radius, both sides: pairs closer than 2R get pushed apart,
                                 // so frontage is physical (only the units that fit can engage; ranks queue)
 const WOBBLE = 3;               // units/sec of deterministic lateral drift (organic motion without RNG)
-const WITHDRAW_SPEED = 13;      // faster than bugs, so disengaging works once contact is broken
+const WITHDRAW_SPEED = 13;      // faster than hostiles, so disengaging works once contact is broken
 const ESCAPE_X = 1.5;           // a withdrawing droid past this x has left the field
 const SUBSTEP_MS = 50;          // integration cap; callers may pass any dt (catch-up replays big ones)
 export const FX_TTL_MS = 600;   // hit/death/bomb markers linger this long for the renderer
@@ -152,7 +152,7 @@ const R2_A1 = 0.7548776662466927, R2_A2 = 0.5698402909980532;
 /**
  * Spawn layouts: pure functions (count, arenaW, arenaH, side) -> [{x, y}], deterministic, all spaced at
  * least SPAWN_SPACING apart (just above the collision contact distance, so nobody spawns overlapped).
- * `column` is the historical default; nests declare theirs via poi.formation, and the droid side always
+ * `column` is the historical default; settlements declare theirs via poi.formation, and the droid side always
  * deploys in `squadron` (a small team degrades to a single block). Layouts only shape the opening --
  * targeting takes over after contact -- but the opening decides the geometry: wrap, split, or wall.
  */
@@ -200,7 +200,7 @@ function squadronLayout(count: number, arenaW: number, arenaH: number, side: Bat
     });
 }
 
-// Concentric rings around a center: the dense nest circle. Ring m holds as many units as fit at spacing;
+// Concentric rings around a center: the dense settlement circle. Ring m holds as many units as fit at spacing;
 // per-ring angular offsets stop the radial spokes lining up.
 function ringPositions(count: number, cx: number, cy: number, startIndex = 0): XY[] {
     const positions: { x: number, y: number }[] = [];
@@ -282,7 +282,7 @@ function packCenters(k: number, boxW: number, boxH: number, minSep: number, salt
 
 // Dense mini-rings at the given centers, dealing the count round-robin-ish (remainder to the first
 // pockets). Position order leads with one pocket CENTER per group (slot k = pocket k's center), so a
-// garrison's leading composition entries -- hives -- distribute one per pocket instead of stacking in
+// garrison's leading composition entries -- shelters -- distribute one per pocket instead of stacking in
 // the first one; the escort fill follows, pocket by pocket.
 function pocketPositions(centers: [number, number][], count: number): XY[] {
     const groups = centers.map(([cx, cy], c) => ringPositions(
@@ -318,7 +318,7 @@ function scatterLayout(count: number, arenaW: number, arenaH: number, side: Batt
 }
 
 // Ambush: the garrison opens in corner pockets (same dense mini-rings as clusters, but spread over the
-// WHOLE arena, not the bug half) with the field's middle left empty for the prey. Paired with its
+// WHOLE arena, not the hostile half) with the field's middle left empty for the prey. Paired with its
 // `center` counter-layout below, first contact comes from every direction at once. Four corners when
 // they fit with clear water, backing off to a diagonal pincer, then to the plain ring for fights too
 // big for their field to encircle anything.
@@ -343,8 +343,8 @@ function centerLayout(count: number, arenaW: number, arenaH: number, side: Battl
     return positions.map(p => ({ x: p.x + arenaW / 2 - meanX, y: p.y }));
 }
 
-// The layout registry (nests declare theirs via poi.formation). Roster slot 0 -- where a garrison's
-// leading composition entry, e.g. a hive, ends up -- noted per layout.
+// The layout registry (settlements declare theirs via poi.formation). Roster slot 0 -- where a garrison's
+// leading composition entry, e.g. a shelter, ends up -- noted per layout.
 export const FORMATIONS = {
     column: columnLayout,       // deep battle-line of columns at the front; slot 0: top of the front column
     squadron: squadronLayout,   // rectangular blocks with lanes (the droid default); slot 0: first block's corner
@@ -355,9 +355,9 @@ export const FORMATIONS = {
     center: centerLayout        // squadron blocks re-anchored mid-field (surround's droid counter-layout)
 } satisfies Record<string, Layout>;
 
-// A bug formation can dictate the droid side's deployment (createBattle consults this): a surround
+// A hostile formation can dictate the droid side's deployment (createBattle consults this): a surround
 // opening only reads as an ambush if the droids actually start encircled in the middle.
-const COUNTER_FORMATIONS: Partial<Record<NestFormation, FormationId>> = { surround: 'center' };
+const COUNTER_FORMATIONS: Partial<Record<HostileFormation, FormationId>> = { surround: 'center' };
 
 /**
  * Terrain: impassable obstacle cells stamped from ASCII pieces (database/battle_terrain.ts; the art is
@@ -449,7 +449,7 @@ function collideTerrain(grid: TerrainGrid | null, unit: BattleUnit) {
                 unit.y += (dy / d) * (UNIT_RADIUS - d);
             }
             else {
-                // Center inside the cell (bomb knock-in, fresh hive spawn): eject through the nearest face
+                // Center inside the cell (bomb knock-in, fresh shelter spawn): eject through the nearest face
                 const pens = [unit.x - x0, x0 + TERRAIN_CELL_W - unit.x, unit.y - y0, y0 + TERRAIN_CELL_H - unit.y];
                 const m = Math.min(...pens);
                 if (m === pens[0]) unit.x = x0 - UNIT_RADIUS;
@@ -513,7 +513,7 @@ function freePosition(grid: TerrainGrid, x: number, y: number, salt: number): XY
 
 /**
  * Terrain layout generators: (arenaW, arenaH, salt) -> [{ art, col, row }], deterministic in the salt.
- * Nests declare theirs via poi.terrain with a coord-stable salt, so a given nest always fights on the
+ * Settlements declare theirs via poi.terrain with a coord-stable salt, so a given settlement always fights on the
  * same ground and players can learn it. Coverage scales by COUNT (piece budget follows arena area, and
  * the canyon tiles wall segments into longer runs), never by inflating the pieces themselves.
  */
@@ -613,7 +613,7 @@ function canyonTerrain(arenaW: number, arenaH: number, salt: number): BattleTerr
     return placer.pieces;
 }
 
-// The layout registry (nests declare theirs via poi.terrain; unset = open ground).
+// The layout registry (settlements declare theirs via poi.terrain; unset = open ground).
 export const TERRAIN_LAYOUTS = {
     rocks: rocksTerrain,     // boulder field over the mid-field strip
     ruins: ruinsTerrain,     // broken structures over the whole field
@@ -623,10 +623,10 @@ export const TERRAIN_LAYOUTS = {
 // One-line scene description for the battle footer: ground clause + the garrison's opening (text records
 // in database/battle.ts), matching what the arena actually shows. Pure presentation (derived at render
 // time, nothing reads it back), so existing mid-fight saves get it too.
-export function battleBlurb(battle: Battle, formation?: NestFormation): string {
+export function battleBlurb(battle: Battle, formation?: HostileFormation): string {
     const ground = GROUND_BLURBS[battle.terrain ? battle.terrain.id : 'open'] || GROUND_BLURBS.open;
-    let swarm = (formation && SWARM_BLURBS[formation]) || SWARM_BLURBS.column;
-    // The ring's center slot is where a garrison's leading hive stands (see createBattle); name the
+    let swarm = (formation && HOSTILE_BLURBS[formation]) || HOSTILE_BLURBS.column;
+    // The ring's center slot is where a garrison's leading shelter stands (see createBattle); name the
     // objective when it's really there
     if (formation === 'ring' && battle.startingSpawners > 0) {
         swarm = `bugs circle tight around their ${battle.startingSpawners > 1 ? 'hives' : 'hive'}`;
@@ -636,7 +636,7 @@ export function battleBlurb(battle: Battle, formation?: NestFormation): string {
 
 // One combat-ready unit. `base` selects the unit's deterministic hash streams (opening swing delay,
 // wobble phase/period, collision tie-break angle) and must be unique across every unit the battle will
-// ever hold, including bugs a spawner adds mid-fight.
+// ever hold, including hostiles a spawner adds mid-fight.
 function makeUnit(id: string, side: BattleSide, type: UnitType, stats: UnitStats, base: number, x: number, y: number, arenaW: number, arenaH: number, hp?: number): BattleUnit {
     const unit: BattleUnit = {
         id, side, type,
@@ -670,39 +670,39 @@ function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number }[],
 /**
  * `droids` is a per-droid hp list (wounds persist between fights in the field, so the droid that got
  * mauled last time really is the fragile one now); a plain count means a fresh squad at full health.
- * `bugs` is a composition { bugType: count } (a plain count means standard bugs). Bugs always spawn at
- * full strength: nests reset completely between engagements (each side heals at home), so every assault
+ * `hostiles` is a composition { hostileType: count } (a plain count means standard defenders). Hostiles always spawn at
+ * full strength: settlements reset completely between engagements (each side heals at home), so every assault
  * faces the full garrison and must be decisive.
  * `droidStats` is the squad's effective stat block (base + researched upgrades), snapshotted onto the
  * battle so a mid-fight save replays with the stats the fight started with.
- * `bugFormation` is the nest's spawn layout (poi.formation; see FORMATIONS), defaulting to the column
- * front. Droids deploy in squadron blocks unless the bug formation dictates a counter-layout
+ * `hostileFormation` is the settlement's spawn layout (poi.formation; see FORMATIONS), defaulting to the column
+ * front. Droids deploy in squadron blocks unless the hostile formation dictates a counter-layout
  * (COUNTER_FORMATIONS: a surround opening re-anchors the squadrons to the middle of the field).
  * Composition entry order maps to formation slots (the first roster unit takes layout index 0), so a
- * ring-formation garrison declared { hive: 1, bug: N } puts the hive at the ring's center, and the
- * pocket layouts (clusters, surround) lead with one slot per pocket center, distributing leading hives
+ * ring-formation garrison declared { shelter: 1, hostile: N } puts the shelter at the ring's center, and the
+ * pocket layouts (clusters, surround) lead with one slot per pocket center, distributing leading shelters
  * one per pocket.
  * `terrainId` picks an obstacle layout (poi.terrain; see TERRAIN_LAYOUTS), generated deterministically
- * from `terrainSalt`. Callers pass a salt derived from the nest's map position, so the same nest always
+ * from `terrainSalt`. Callers pass a salt derived from the settlement's map position, so the same settlement always
  * fights on the same ground; unset = open field.
  */
-export function createBattle(droids: number | number[], bugs: number | Partial<Record<BugType, number>>,
-                             droidStats: DroidStats = DROID_BASE_STATS, bugFormation: NestFormation = 'column',
+export function createBattle(droids: number | number[], hostiles: number | Partial<Record<HostileType, number>>,
+                             droidStats: DroidStats = DROID_BASE_STATS, hostileFormation: HostileFormation = 'column',
                              terrainId: TerrainLayoutId | null = null, terrainSalt = 0): Battle {
     const droidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
-    const composition: Partial<Record<BugType, number>> = typeof bugs === 'number' ? { bug: bugs } : bugs;
+    const composition: Partial<Record<HostileType, number>> = typeof hostiles === 'number' ? { defender: hostiles } : hostiles;
 
-    const stats: Record<UnitType, UnitStats> = { droid: droidStats, ...BUG_TYPES };
-    const bugRoster: { type: BugType, hp?: number }[] = [];
+    const stats: Record<UnitType, UnitStats> = { droid: droidStats, ...HOSTILE_TYPES };
+    const hostileRoster: { type: HostileType, hp?: number }[] = [];
     typedEntries(composition).forEach(([type, n]) => {
-        for (let i = 0; i < n; i++) bugRoster.push({ type });
+        for (let i = 0; i < n; i++) hostileRoster.push({ type });
     });
 
-    const startingSpawners = bugRoster.reduce((n, e) => n + (BUG_TYPES[e.type].spawnEveryMs ? 1 : 0), 0);
+    const startingSpawners = hostileRoster.reduce((n, e) => n + (HOSTILE_TYPES[e.type].spawnEveryMs ? 1 : 0), 0);
 
     // Constant-density field: area grows with headcount, so linear dimensions scale with its square root.
     // Small fights stay on the baseline arena (never shrink below it).
-    const arenaScale = Math.max(1, Math.sqrt((droidHp.length + bugRoster.length) / ARENA_BASELINE_UNITS));
+    const arenaScale = Math.max(1, Math.sqrt((droidHp.length + hostileRoster.length) / ARENA_BASELINE_UNITS));
     const arenaW = Math.round(ARENA_W * arenaScale);
     const arenaH = Math.round(ARENA_H * arenaScale);
 
@@ -719,12 +719,12 @@ export function createBattle(droids: number | number[], bugs: number | Partial<R
         arenaW,                         // field dimensions for this engagement (renderer + clamps)
         arenaH,
         startingDroids: droidHp.length, // initial force sizes; the header fractions read against these
-        startingBugs: bugRoster.length,
+        startingHostiles: hostileRoster.length,
         startingSpawners,
-        // High-water mark of the swarm (spawners excluded): the header's bug-fraction denominator, so a
+        // High-water mark of the swarm (spawners excluded): the header's hostile-fraction denominator, so a
         // spawner-fed swarm reads against its true peak instead of overflowing its starting total
-        bugsPeak: bugRoster.length - startingSpawners,
-        spawnCounter: 0,                // bugs spawned mid-fight so far: unique ids/hash streams for late arrivals
+        hostilesPeak: hostileRoster.length - startingSpawners,
+        spawnCounter: 0,                // hostiles spawned mid-fight so far: unique ids/hash streams for late arrivals
         escaped: 0,                     // withdrawing droids that reached the edge (they count as survivors)
         escapedHp: [],                  // ...and the hp each of them left with (persists onto the squad)
         buffs: { overchargeMs: 0 },
@@ -732,8 +732,8 @@ export function createBattle(droids: number | number[], bugs: number | Partial<R
         fx: [],                         // { type: 'hit'|'death'|'heal'|'bomb', x, y, t } markers for the renderer
         units: [
             ...spawnUnits('droid', droidHp.map(hp => ({ type: 'droid', hp })), stats, arenaW, arenaH,
-                COUNTER_FORMATIONS[bugFormation] || 'squadron', terrainGrid),
-            ...spawnUnits('bug', bugRoster, stats, arenaW, arenaH, bugFormation, terrainGrid)
+                COUNTER_FORMATIONS[hostileFormation] || 'squadron', terrainGrid),
+            ...spawnUnits('hostile', hostileRoster, stats, arenaW, arenaH, hostileFormation, terrainGrid)
         ]
     };
 }
@@ -742,7 +742,7 @@ export function countUnits(battle: Battle, side: BattleSide): number {
     return battle.units.reduce((n, u) => n + (u.side === side ? 1 : 0), 0);
 }
 
-// Living spawners afield: the header's "Hives x/y" fraction reads these against startingSpawners.
+// Living spawners afield: the header's spawner fraction reads these against startingSpawners.
 export function countSpawners(battle: Battle): number {
     return battle.units.reduce((n, u) => n + (battle.stats[u.type].spawnEveryMs ? 1 : 0), 0);
 }
@@ -904,12 +904,12 @@ const CATCHUP_BUDGET_MS = 30;
 /**
  * Advances the battle, substepping internally for stability. Pure: returns { battle, events } and never
  * mutates the input. Terminal event (at most one, and the loop stops on it):
- *   { type: 'battleOver', result: 'won'|'wiped'|'retreated', survivors, bugsRemaining, droidHp }
- * 'won'      = no bugs left; survivors = droids standing plus any that fled earlier.
- * 'wiped'    = no droids left and none escaped (covers mutual annihilation; bugsRemaining may be 0).
+ *   { type: 'battleOver', result: 'won'|'wiped'|'retreated', survivors, hostilesRemaining, droidHp }
+ * 'won'      = no hostiles left; survivors = droids standing plus any that fled earlier.
+ * 'wiped'    = no droids left and none escaped (covers mutual annihilation; hostilesRemaining may be 0).
  * 'retreated'= withdrawal finished with escapees.
  * droidHp is the survivors' per-droid hp (arena standers + escapees); the squad carries these wounds
- * until the powered grid repairs them. bugsRemaining is informational only: nests reset fully.
+ * until the powered grid repairs them. hostilesRemaining is informational only: settlements reset fully.
  */
 export function advanceBattle(battle: Battle, dtMs: number): { battle: Battle, events: BattleEvent[] } {
     const events: BattleEvent[] = [];
@@ -937,8 +937,8 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
 
     // Movement: withdrawing droids run for the left edge; everyone else seeks their nearest enemy and
     // holds position once in melee range. Wobble is applied perpendicular to the seek direction.
-    // Two passes, matching the units array's droids-then-bugs order: droids target the bugs' pre-move
-    // positions, then bugs target the droids' post-move positions.
+    // Two passes, matching the units array's droids-then-hostiles order: droids target the hostiles' pre-move
+    // positions, then hostiles target the droids' post-move positions.
     const tGrid = getTerrainGrid(battle);
     const seek = (unit: BattleUnit, t: { tx: number, ty: number, stop: number } | null) => {
         if (!t) return;
@@ -991,21 +991,21 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
         }
         unit.x -= WITHDRAW_SPEED * dtSec;
     };
-    const bugGrid = buildGrid(units, 'bug', TARGET_CELL);
-    const bugFlow = buildFlowField(units, 'bug', tGrid, arenaW, arenaH);
+    const hostileGrid = buildGrid(units, 'hostile', TARGET_CELL);
+    const hostileFlow = buildFlowField(units, 'hostile', tGrid, arenaW, arenaH);
     for (const unit of units) {
         if (unit.side !== 'droid') continue;
         if (withdrawing) {
             withdrawStep(unit);
             continue;
         }
-        seek(unit, acquire(unit, bugGrid, bugFlow));
+        seek(unit, acquire(unit, hostileGrid, hostileFlow));
     }
     const droidGrid = buildGrid(units, 'droid', TARGET_CELL);
     const droidFlow = buildFlowField(units, 'droid', tGrid, arenaW, arenaH);
     for (const unit of units) {
         // speed-0 units (spawners) don't seek at all: even the wobble term would send the hole wandering
-        if (unit.side === 'bug' && battle.stats[unit.type].speed > 0) {
+        if (unit.side === 'hostile' && battle.stats[unit.type].speed > 0) {
             seek(unit, acquire(unit, droidGrid, droidFlow));
         }
     }
@@ -1075,8 +1075,8 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
     const overchargeActive = overchargeMs > 0;
     const rateMultiplier = EQUIPMENT_DEFS.overchargeCell.effect.rateMultiplier;
     const targetGrids = {
-        droid: buildGrid(units, 'bug', TARGET_CELL),
-        bug: buildGrid(units, 'droid', TARGET_CELL)
+        droid: buildGrid(units, 'hostile', TARGET_CELL),
+        hostile: buildGrid(units, 'droid', TARGET_CELL)
     };
     for (const unit of units) {
         unit.cooldownMs = Math.max(0, unit.cooldownMs - dtMs);
@@ -1112,60 +1112,60 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
         alive.push(unit);
     }
 
-    // Spawners: each living hive runs its own deterministic clock (same countdown convention as attack
-    // cooldowns, so replays land identically) and on firing disgorges a batch of fresh bugs at its rim;
+    // Spawners: each living shelter runs its own deterministic clock (same countdown convention as attack
+    // cooldowns, so replays land identically) and on firing disgorges a batch of fresh hostiles at its rim;
     // they join targeting/collision on the next substep. battle.spawnCounter hands late arrivals ids and
-    // hash streams the opening roster can never collide with. A hive holds fire while spawnCap
-    // non-spawner bugs are already afield, so a stalled assault meets a saturated field, not an
+    // hash streams the opening roster can never collide with. A shelter holds fire while spawnCap
+    // non-spawner hostiles are already afield, so a stalled assault meets a saturated field, not an
     // ever-denser death spiral.
     let spawnCounter = battle.spawnCounter || 0;
-    let fieldBugs = 0;
-    for (const u of alive) if (u.side === 'bug' && !battle.stats[u.type].spawnEveryMs) fieldBugs++;
+    let fieldHostiles = 0;
+    for (const u of alive) if (u.side === 'hostile' && !battle.stats[u.type].spawnEveryMs) fieldHostiles++;
     const spawned: BattleUnit[] = [];
     for (const unit of alive) {
         const stats = battle.stats[unit.type];
-        if (unit.side !== 'bug' || !stats.spawnEveryMs) continue;
+        if (unit.side !== 'hostile' || !stats.spawnEveryMs) continue;
         unit.spawnMs = Math.max(0, (unit.spawnMs ?? 0) - dtMs); // a spawner from an older save has no clock: spawn now
         if (unit.spawnMs > 0) continue;
         unit.spawnMs = stats.spawnEveryMs;
         const spawnType = stats.spawns;
         if (!spawnType) continue;
         const spawnStats = battle.stats[spawnType];
-        for (let k = 0; k < (stats.spawnBatch ?? 1) && fieldBugs < (stats.spawnCap ?? Infinity); k++) {
+        for (let k = 0; k < (stats.spawnBatch ?? 1) && fieldHostiles < (stats.spawnCap ?? Infinity); k++) {
             const base = 1000003 + spawnCounter * 2 + 1; // far above any opening roster's i*2+1 streams
             const angle = hash01(base + 400009) * 2 * Math.PI;
             const sx = unit.x + Math.cos(angle) * (2 * UNIT_RADIUS + 0.6);
             const sy = unit.y + Math.sin(angle) * (2 * UNIT_RADIUS + 0.6);
-            spawned.push(makeUnit(`s${spawnCounter}`, 'bug', spawnType, spawnStats, base,
+            spawned.push(makeUnit(`s${spawnCounter}`, 'hostile', spawnType, spawnStats, base,
                 sx, sy, arenaW, arenaH));
             fx.push({ type: 'spawn', x: sx, y: sy, t: elapsedMs });
             spawnCounter++;
-            fieldBugs++;
+            fieldHostiles++;
         }
     }
     alive.push(...spawned);
-    const bugsPeak = Math.max(battle.bugsPeak || 0, fieldBugs); // swarm high-water mark (header denominator)
+    const hostilesPeak = Math.max(battle.hostilesPeak || 0, fieldHostiles); // swarm high-water mark (header denominator)
 
     const droidsLeft = alive.reduce((n, u) => n + (u.side === 'droid' ? 1 : 0), 0);
-    const bugsLeft = alive.length - droidsLeft;
+    const hostilesLeft = alive.length - droidsLeft;
     if (droidsLeft === 0) {
         events.push(escaped > 0
-            ? { type: 'battleOver', result: 'retreated', survivors: escaped, bugsRemaining: bugsLeft, droidHp: escapedHp }
-            : { type: 'battleOver', result: 'wiped', survivors: 0, bugsRemaining: bugsLeft, droidHp: [] });
+            ? { type: 'battleOver', result: 'retreated', survivors: escaped, hostilesRemaining: hostilesLeft, droidHp: escapedHp }
+            : { type: 'battleOver', result: 'wiped', survivors: 0, hostilesRemaining: hostilesLeft, droidHp: [] });
     }
-    else if (bugsLeft === 0) {
+    else if (hostilesLeft === 0) {
         const standerHp = alive.filter(u => u.side === 'droid').map(u => u.hp);
         events.push({ type: 'battleOver', result: 'won', survivors: droidsLeft + escaped,
-            bugsRemaining: 0, droidHp: [...standerHp, ...escapedHp] });
+            hostilesRemaining: 0, droidHp: [...standerHp, ...escapedHp] });
     }
 
-    return { ...battle, elapsedMs, escaped, escapedHp, spawnCounter, bugsPeak, buffs: { overchargeMs }, fx, units: alive };
+    return { ...battle, elapsedMs, escaped, escapedHp, spawnCounter, hostilesPeak, buffs: { overchargeMs }, fx, units: alive };
 }
 
 /**
  * Applies an equipment piece's effect (EQUIPMENT_DEFS[itemId].effect) to the battle. Pure; charge
  * accounting is the caller's job. All effects are instant and untargeted for now (aiming is a later
- * positional upgrade): the demo charge self-targets the densest bug clump and never harms droids.
+ * positional upgrade): the demo charge self-targets the densest hostile clump and never harms droids.
  */
 export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
     const def = EQUIPMENT_DEFS[itemId];
@@ -1173,13 +1173,13 @@ export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
     const effect = def.effect;
 
     if (effect.kind === 'aoe') {
-        const bugs = battle.units.filter(u => u.side === 'bug');
-        if (bugs.length === 0) return battle;
+        const hostiles = battle.units.filter(u => u.side === 'hostile');
+        if (hostiles.length === 0) return battle;
         const r2 = effect.radius * effect.radius;
-        let center = bugs[0], most = -1;
-        for (const candidate of bugs) {
+        let center = hostiles[0], most = -1;
+        for (const candidate of hostiles) {
             let neighbors = 0;
-            for (const other of bugs) {
+            for (const other of hostiles) {
                 const dx = other.x - candidate.x, dy = other.y - candidate.y;
                 if (dx * dx + dy * dy <= r2) neighbors++;
             }
@@ -1189,7 +1189,7 @@ export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
         const units: BattleUnit[] = [];
         for (const u of battle.units) {
             const dx = u.x - center.x, dy = u.y - center.y;
-            if (u.side === 'bug' && dx * dx + dy * dy <= r2) {
+            if (u.side === 'hostile' && dx * dx + dy * dy <= r2) {
                 const hp = u.hp - effect.damage;
                 fx.push({ type: hp <= 0 ? 'death' : 'hit', x: u.x, y: u.y, t: battle.elapsedMs });
                 if (hp > 0) units.push({ ...u, hp });
@@ -1216,7 +1216,7 @@ export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
     return battle;
 }
 
-// Orders the withdrawal; droids stop fighting and run for the edge while bugs keep swinging at whoever is
+// Orders the withdrawal; droids stop fighting and run for the edge while hostiles keep swinging at whoever is
 // in reach, so the cost of retreating scales with how engaged you were. No-op if already withdrawing.
 export function startWithdrawal(battle: Battle): Battle {
     return battle.phase === 'withdrawing' ? battle : { ...battle, phase: 'withdrawing' };

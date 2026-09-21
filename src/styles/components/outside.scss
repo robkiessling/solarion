@@ -125,7 +125,7 @@ $hud-clearance: 6.5rem;
       animation: hud-label-in 0.2s ease-out 0.4s both;
 
       .hud-terrain-effect { color: white; }
-      // .hud-terrain-warn takes the infested map color inline (PLANET_COLORS.infested)
+      // .hud-terrain-warn takes the held map color inline (PLANET_COLORS.held)
     }
 
     // Reserve-power health burn: the health meter flashes red per tile paid in health (remounted per burn)
@@ -163,7 +163,7 @@ $hud-clearance: 6.5rem;
   height: 100%;
 
   // Sense of place: while a squad is fielded the frame wears a rim in the color of the ground under it (a
-  // thin inner ring plus a short inset glow in the terrain's map color; hive territory overrides its
+  // thin inner ring plus a short inset glow in the terrain's map color; held territory overrides its
   // terrain). Kept tight so it reads as a status ring around the viewport, not a wash over the map.
   // The colour arrives as --zone-ring/--zone-glow (a PLANET_COLORS hex, set inline by planet.jsx, with the
   // ring and glow alphas appended as hex-alpha bytes). Powered grid and home carry no tint, so returning reads as
@@ -332,15 +332,15 @@ $hud-clearance: 6.5rem;
         gap: 0.6rem;
         margin-bottom: 0.5rem;
 
-        // Alive/starting fraction per side, labels at the outer edges (the bug side right-aligns);
-        // spawner fights add a Hives fraction inboard of the Bugs one
+        // Alive/starting fraction per side, labels at the outer edges (the hostile side right-aligns);
+        // spawner fights add a shelters fraction inboard of the hostiles one
         .battle-side {
           flex: 1;
           display: flex;
           align-items: center;
           gap: 1rem;
 
-          &.bugs { justify-content: flex-end; }
+          &.hostiles { justify-content: flex-end; }
         }
 
         .battle-count {
@@ -349,8 +349,8 @@ $hud-clearance: 6.5rem;
           white-space: nowrap;
 
           &.droids { color: #20d9ff; }              // friendly cyan (matches the squad glyph + arena droids)
-          &.bugs { color: #ff6b35; }                // hostile orange (matches the arena bugs)
-          &.hives { color: rgba(255, 107, 53, 0.75); } // the objective, dimmed so the live swarm reads first
+          &.hostiles { color: #ff6b35; }                // hostile orange (matches the arena hostiles)
+          &.shelters { color: rgba(255, 107, 53, 0.75); } // the objective, dimmed so the live swarm reads first
         }
 
         .battle-vs {

@@ -1078,7 +1078,7 @@ const database = {
     // outfits every future squad with the piece; its charges spend in battle and reload on the grid.
     // Story salvage can grant these later by researchForFree-ing the same ids.
     // No discoverWhen on the first tier: each is discovered by the planet-tab trigger that matches the moment the
-    // player first wants it (battery half spent, nest sighted, first fight over; see database/triggers.ts).
+    // player first wants it (battery half spent, settlement sighted, first fight over; see database/triggers.ts).
     // `squad: true` (here and on the combat/battery upgrades below) instead of a `structure`: these only
     // affect expeditions, so they're offered in the Expedition panel's Outfitting section, not on any
     // structure's card. (Ids keep the droidFactory_ prefix; saves and equipment.ts reference them.)

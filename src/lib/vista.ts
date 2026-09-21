@@ -26,8 +26,8 @@ export const SKY_ROWS = VISTA_DEPTH;
 export interface VistaSegment { text: string; colorKey: PlanetColorKey }
 
 // Ground line per terrain key (BAND_WIDTH chars). Unknown ground is the dark past the headlights.
-/** What the ground row can show: a terrain, hive ground, the dark past the headlights, or nothing past the poles */
-type VistaGround = TerrainKey | 'infested' | 'unknown' | 'void';
+/** What the ground row can show: a terrain, settlement ground, the dark past the headlights, or nothing past the poles */
+type VistaGround = TerrainKey | 'held' | 'unknown' | 'void';
 
 const GROUND: Record<VistaGround, string> = {
     home: '#####',
@@ -38,7 +38,7 @@ const GROUND: Record<VistaGround, string> = {
     ice: '=====',
     acid: '~~~~~',
     water: '~~~~~',
-    infested: '%%%%%',
+    held: '%%%%%',
     unknown: '·····',
     void: '     ' // past the pole rows: nothing there
 };
@@ -68,7 +68,7 @@ function tileAt(map: PlanetMap, coord: Coord, facing: [number, number], ahead: n
 function groundKey(sector: Sector | null): VistaGround {
     if (!sector) return 'void';
     if (sector.status === STATUSES.unknown.key) return 'unknown';
-    if (sector.infestedBy) return 'infested';
+    if (sector.heldBy) return 'held';
     return getTerrain(sector.terrain).key;
 }
 

@@ -92,10 +92,10 @@ const database = {
         condition: (battery) => battery != null && battery <= (store.getState().planet.squad?.batteryCapacity ?? 0) / 2,
         action: () => store.dispatch(fromUpgrades.discover('droidFactory_extendedCells'))
     }),
-    // Offense: a nest is on the map, so there is something to aim a launcher at.
-    nestSighted: trigger({
+    // Offense: a settlement is on the map, so there is something to aim a launcher at.
+    settlementSighted: trigger({
         selector: (state) => state.planet.pois,
-        condition: (pois) => Object.values(pois).some(poi => poi.type === 'nest' && poi.status !== 'hidden'),
+        condition: (pois) => Object.values(pois).some(poi => poi.type === 'settlement' && poi.status !== 'hidden'),
         action: () => {
             store.dispatch(fromUpgrades.discover('droidFactory_demoLauncher'));
             store.dispatch(fromUpgrades.discover('droidFactory_overchargeCell'));
@@ -108,12 +108,12 @@ const database = {
         condition: (fought) => fought >= 1,
         action: () => store.dispatch(fromLog.startLogSequence('firstBattleOver'))
     }),
-    // Replication: a nest is dead and the squad is home (or gone). Waiting for the squad keeps this beat apart
+    // Replication: a settlement is dead and the squad is home (or gone). Waiting for the squad keeps this beat apart
     // from the battle's own, and Replicate is held while a squad is fielded anyway.
-    firstNestReclaimed: trigger({
+    firstSettlementReclaimed: trigger({
         selector: (state) => state.planet.squad,
         condition: (squad) => !squad && Object.values(store.getState().planet.pois)
-            .some(poi => poi.type === 'nest' && poi.status === 'cleared'),
+            .some(poi => poi.type === 'settlement' && poi.status === 'cleared'),
         action: () => store.dispatch(fromLog.startLogSequence('replicationOnline'))
     }),
     windTurbine_global: trigger({

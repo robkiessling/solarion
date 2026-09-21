@@ -88,19 +88,19 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             // The squad touched the powered grid: cargo banks (lost on a wipe, so this is the payoff moment)
             return produceReducer(state, action.payload.cargo)
         case fromPlanet.GENERATE_MAP: {
-            // Starting land: the already-explored flatland around home. Infested flatland never counts until
-            // its nest is cleared (see SQUAD_FIGHT_WON below).
+            // Starting land: the already-explored flatland around home. Held flatland never counts until
+            // its settlement is cleared (see SQUAD_FIGHT_WON below).
             let startingLand = 0;
             action.payload.map.forEach(row => row.forEach(sector => {
                 if (sector.status === STATUSES.explored.key &&
-                    sector.terrain === TERRAINS.flatland.key && !sector.infestedBy) {
+                    sector.terrain === TERRAINS.flatland.key && !sector.heldBy) {
                     startingLand++;
                 }
             }));
             return produceReducer(state, { buildableLand: startingLand });
         }
         case fromPlanet.SQUAD_FIGHT_WON:
-            // A cleared nest retracts its infestation; the revealed flatland under it credits as one chunk
+            // A cleared settlement retracts its territory; the revealed flatland under it credits as one chunk
             return action.payload.landCredit > 0
                 ? produceReducer(state, { buildableLand: action.payload.landCredit })
                 : state;

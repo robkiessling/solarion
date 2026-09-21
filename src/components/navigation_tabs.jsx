@@ -85,7 +85,7 @@ class NavigationTabs extends React.Component {
     }
 
     // The ground underfoot, as one line under the meters: terrain name in its map color, then the effects
-    // the driver should notice (a speed divisor when the ground slows the squad; the hive warning). Kept
+    // the driver should notice (a speed divisor when the ground slows the squad; the settlement warning). Kept
     // to one line of fixed height so the strip holds still as conditions come and go.
     renderTerrainLine() {
         const { sector, onGrid, unlockedTerrains } = this.props;
@@ -102,7 +102,7 @@ class NavigationTabs extends React.Component {
             <div className="hud-terrain">
                 <span style={{ color: PLANET_COLORS[terrain.key] }}>{terrain.display} {terrain.label}</span>
                 {slow && <span className="hud-terrain-effect">· speed ÷{formatStat(slowdown)}</span>}
-                {sector.infestedBy && <span className="hud-terrain-warn" style={{ color: PLANET_COLORS.infested }}>· ⚠ Hive territory</span>}
+                {sector.heldBy && <span className="hud-terrain-warn" style={{ color: PLANET_COLORS.held }}>· ⚠ Hive territory</span>}
             </div>
         );
     }

@@ -1,5 +1,5 @@
 // One-line terminal notes as the squad crosses into new ground, keyed by squadZone (lib/squad.ts): the
-// terrain underfoot, or 'infested' inside hive territory, or 'grid' back on powered ground. Printed once per
+// terrain underfoot, or 'held' inside settlement territory, or 'grid' back on powered ground. Printed once per
 // zone change, in the zone's map color, so the terminal carries the sense of place the ASCII map can't.
 // PLACEHOLDER copy until the content pass.
 // Zones without an entry (replicating land) print nothing.
@@ -10,6 +10,6 @@ export const TERRAIN_BLURBS: Partial<Record<SquadZone, string>> = {
     acid: 'Acid flats. The ground hisses under the treads.',
     water: 'The shore. Dead water to the horizon; the treads stop here.',
     ice: 'Ice sheet. Wind, glare, and nothing else.',
-    infested: 'Hive territory. The ground is warm, and something in it is breathing.'
+    held: 'Hive territory. The ground is warm, and something in it is breathing.'
 };
 import type {SquadZone} from '../lib/squad';

@@ -20,7 +20,7 @@ const chargeDots = (itemId, charges) =>
 
 /**
  * Squad sidebar. The one player-driven squad: staff it (droids are assigned like a structure's), equip and
- * deploy it here, drive it on the map with arrows/WASD. Fights start by stepping into a nest on the map and play out in the encounter popup;
+ * deploy it here, drive it on the map with arrows/WASD. Fights start by stepping into a settlement on the map and play out in the encounter popup;
  * site intel lives on the map itself (glyphs), not in a directory here.
  */
 class Expedition extends React.Component {

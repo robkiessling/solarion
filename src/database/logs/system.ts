@@ -400,9 +400,9 @@ export default {
         onFinish: (dispatch) => {
             // The rest of the planet tab is revealed by play (see these triggers in database/triggers.ts)
             dispatch(addTrigger('squadBatteryHalf'));
-            dispatch(addTrigger('nestSighted'));
+            dispatch(addTrigger('settlementSighted'));
             dispatch(addTrigger('firstBattleOver'));
-            dispatch(addTrigger('firstNestReclaimed'));
+            dispatch(addTrigger('firstSettlementReclaimed'));
         }
     },
 
