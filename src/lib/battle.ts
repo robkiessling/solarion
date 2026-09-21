@@ -306,7 +306,7 @@ function clustersLayout(count: number, arenaW: number, arenaH: number, side: Bat
     return ringLayout(count, arenaW, arenaH, side);
 }
 
-// Disturbed swarm: low-discrepancy spread over the side's half. R2 keeps points evenly spaced (no RNG,
+// Disturbed garrison: low-discrepancy spread over the side's half. R2 keeps points evenly spaced (no RNG,
 // no clumps); collision tidies any near-contact pairs on the first substeps.
 function scatterLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
     const left = side === 'droid' ? 4 : arenaW / 2 + 4;
@@ -625,13 +625,13 @@ export const TERRAIN_LAYOUTS = {
 // time, nothing reads it back), so existing mid-fight saves get it too.
 export function battleBlurb(battle: Battle, formation?: HostileFormation): string {
     const ground = GROUND_BLURBS[battle.terrain ? battle.terrain.id : 'open'] || GROUND_BLURBS.open;
-    let swarm = (formation && HOSTILE_BLURBS[formation]) || HOSTILE_BLURBS.column;
+    let hostiles = (formation && HOSTILE_BLURBS[formation]) || HOSTILE_BLURBS.column;
     // The ring's center slot is where a garrison's leading shelter stands (see createBattle); name the
     // objective when it's really there
     if (formation === 'ring' && battle.startingSpawners > 0) {
-        swarm = `bugs circle tight around their ${battle.startingSpawners > 1 ? 'hives' : 'hive'}`;
+        hostiles = `bugs circle tight around their ${battle.startingSpawners > 1 ? 'hives' : 'hive'}`;
     }
-    return `${ground}; ${swarm}.`;
+    return `${ground}; ${hostiles}.`;
 }
 
 // One combat-ready unit. `base` selects the unit's deterministic hash streams (opening swing delay,
@@ -721,8 +721,8 @@ export function createBattle(droids: number | number[], hostiles: number | Parti
         startingDroids: droidHp.length, // initial force sizes; the header fractions read against these
         startingHostiles: hostileRoster.length,
         startingSpawners,
-        // High-water mark of the swarm (spawners excluded): the header's hostile-fraction denominator, so a
-        // spawner-fed swarm reads against its true peak instead of overflowing its starting total
+        // High-water mark of the field (spawners excluded): the header's hostile-fraction denominator, so a
+        // spawner-fed garrison reads against its true peak instead of overflowing its starting total
         hostilesPeak: hostileRoster.length - startingSpawners,
         spawnCounter: 0,                // hostiles spawned mid-fight so far: unique ids/hash streams for late arrivals
         escaped: 0,                     // withdrawing droids that reached the edge (they count as survivors)
@@ -1113,7 +1113,7 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
     }
 
     // Spawners: each living shelter runs its own deterministic clock (same countdown convention as attack
-    // cooldowns, so replays land identically) and on firing disgorges a batch of fresh hostiles at its rim;
+    // cooldowns, so replays land identically) and on firing sends out a batch of fresh hostiles at its rim;
     // they join targeting/collision on the next substep. battle.spawnCounter hands late arrivals ids and
     // hash streams the opening roster can never collide with. A shelter holds fire while spawnCap
     // non-spawner hostiles are already afield, so a stalled assault meets a saturated field, not an
@@ -1144,7 +1144,7 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
         }
     }
     alive.push(...spawned);
-    const hostilesPeak = Math.max(battle.hostilesPeak || 0, fieldHostiles); // swarm high-water mark (header denominator)
+    const hostilesPeak = Math.max(battle.hostilesPeak || 0, fieldHostiles); // field high-water mark (header denominator)
 
     const droidsLeft = alive.reduce((n, u) => n + (u.side === 'droid' ? 1 : 0), 0);
     const hostilesLeft = alive.length - droidsLeft;

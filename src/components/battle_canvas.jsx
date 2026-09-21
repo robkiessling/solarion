@@ -128,7 +128,7 @@ export default class BattleCanvas extends React.Component {
             g.moveTo(mid, mid - r); g.lineTo(mid, mid + r);
             g.stroke();
         }
-        else if (kind === 'spawn') { // hatching ring around the fresh hostile
+        else if (kind === 'spawn') { // arrival ring around the fresh hostile
             g.strokeStyle = 'rgba(255, 170, 60, 0.8)';
             g.lineWidth = Math.max(1, size * 0.08);
             g.beginPath();
@@ -202,7 +202,7 @@ export default class BattleCanvas extends React.Component {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Transient fx underneath the units: bomb blast rings, deaths, hits, heals, hatchings. Sprites
+        // Transient fx underneath the units: bomb blast rings, deaths, hits, heals, arrivals. Sprites
         // stamped with globalAlpha fading them out by age (base intensity per kind is baked into the
         // sprite's colors); the bomb ring stays vector since it grows and there's at most one or two.
         const overcharged = battle.buffs.overchargeMs > 0;
@@ -257,7 +257,7 @@ export default class BattleCanvas extends React.Component {
             }
 
             // Rank-and-file hostiles get no bar: they can't be targeted, so per-hostile hp isn't actionable
-            // (the header's fraction tracks the swarm), and hiding them halves the clutter that makes bar
+            // (the header's fraction tracks them), and hiding them halves the clutter that makes bar
             // ownership ambiguous. Hostiles tougher than a standard defender (elites and bosses) do earn one,
             // at any scale; friendlies show theirs only in small fights (see HP_BAR_FORCE_LIMIT).
             const elite = !droid && unit.maxHp > HOSTILE_TYPES.defender.hp;

@@ -38,9 +38,9 @@ const HUD_CLEARANCE_REM = 6.5;
 
 class EncounterPopup extends React.Component {
     // Force fractions, alive/starting (escapees count as alive: off the field, not dead). Mirrored:
-    // labels sit at the outer edges. The hostile denominator is the swarm's high-water mark (hostilesPeak),
+    // labels sit at the outer edges. The hostile denominator is the field's high-water mark (hostilesPeak),
     // so spawner reinforcements raise the ceiling instead of overflowing it, and spawner fights add
-    // a shelters fraction -- kill the sources or the swarm never drains. Shared between the live fight
+    // a shelters fraction -- kill the sources or the field never drains. Shared between the live fight
     // and the result phase's frozen final frame, so the header doesn't jump when the battle ends.
     renderBattleHeader(battle) {
         const droids = countUnits(battle, 'droid') + battle.escaped;

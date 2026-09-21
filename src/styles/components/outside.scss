@@ -350,7 +350,7 @@ $hud-clearance: 6.5rem;
 
           &.droids { color: #20d9ff; }              // friendly cyan (matches the squad glyph + arena droids)
           &.hostiles { color: #ff6b35; }                // hostile orange (matches the arena hostiles)
-          &.shelters { color: rgba(255, 107, 53, 0.75); } // the objective, dimmed so the live swarm reads first
+          &.shelters { color: rgba(255, 107, 53, 0.75); } // the objective, dimmed so the live hostiles read first
         }
 
         .battle-vs {
@@ -391,7 +391,7 @@ $hud-clearance: 6.5rem;
 
           &.wiped {
             border-color: rgba(255, 107, 53, 0.55);
-            color: #ff6b35; // hostile orange: the swarm holds the field
+            color: #ff6b35; // hostile orange: the hostiles hold the field
           }
         }
       }

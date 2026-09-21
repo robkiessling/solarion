@@ -42,17 +42,17 @@ export interface UnitStats extends DroidStats {
 export const DROID_BASE_STATS: DroidStats = { hp: 9, damage: 1, attackMs: 1500, speed: 9 };
 export const HOSTILE_TYPES: Record<HostileType, UnitStats> = {
     defender: { hp: 6, damage: 1, attackMs: 1300, speed: 11 },
-    // Spawner: the shelter mouth itself. Stationary and harmless (speed/damage 0 route it around the whole
+    // Spawner: a shelter the defenders come out of. Stationary and harmless (speed/damage 0 route it around the whole
     // combat loop; droids still path to it and kill it as the nearest enemy once the escorts are dead)
-    // but it disgorges spawnBatch fresh `spawns`-type hostiles every spawnEveryMs until killed, holding fire
-    // while spawnCap non-spawner hostiles are already afield (saturation, not an unbounded swarm). Winning
+    // but it sends out spawnBatch fresh `spawns`-type hostiles every spawnEveryMs until killed, holding fire
+    // while spawnCap non-spawner hostiles are already afield (saturation, not an unbounded flood). Winning
     // stays emergent: 'won' fires when the hostile side is empty and the shelter is on the hostile side, so "kill
     // the source or it never ends" needs no special case.
     shelter: { hp: 40, damage: 0, attackMs: 0, speed: 0, spawns: 'defender', spawnEveryMs: 4000, spawnBatch: 2, spawnCap: 24 }
 };
 
 // One-line scene descriptions for the battle footer, assembled by battleBlurb (lib/battle.ts): a ground
-// clause keyed by the arena terrain layout (open = no layout) plus a swarm clause keyed by the garrison's
+// clause keyed by the arena terrain layout (open = no layout) plus a hostile clause keyed by the garrison's
 // formation. PLACEHOLDER copy until the content pass.
 export const GROUND_BLURBS: Record<TerrainLayoutId | 'open', string> = {
     rocks: 'The squad drops into a boulder field',
