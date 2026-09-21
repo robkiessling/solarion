@@ -26,7 +26,9 @@ import {
     setRotationMode,
     squadFace,
     squadInteract,
+    squadDescend,
     squadLeavePrompt,
+    squadWithdraw,
     squadStepInto,
     useEquipment
 } from "../redux/modules/planet";
@@ -145,13 +147,20 @@ class Planet extends React.Component {
     }
 
     componentDidUpdate(prevProps, prevState) {
-        // A fight just ended with a squad still alive: start the climb back out of the hive (a wipe leaves
-        // no squad, so nothing emerges)
-        if (prevProps.squad && prevProps.squad.fighting && this.props.squad && !this.props.squad.fighting) {
+        // The squad just left a hive alive: start the climb back out (a wipe leaves no squad, so nothing
+        // emerges). Between a nest's levels it is still down there, so the climb waits for the withdrawal.
+        if (this.insideHive(prevProps) && this.props.squad && !this.insideHive(this.props)) {
             this.emergedAt = this.props.elapsedTime;
         }
         this.maybeContinueMovement(prevProps);
         this.drawPlanet();
+    }
+
+    // Fighting, or paused between a nest's levels on the descend-or-withdraw choice
+    insideHive(props) {
+        const prompt = props.prompt;
+        return !!(props.squad && (props.squad.fighting ||
+            (prompt && prompt.phase === 'result' && prompt.result && prompt.result.nextLevel != null)));
     }
 
     /**
@@ -170,17 +179,25 @@ class Planet extends React.Component {
         // Handled before the squad guard: a wipe's result popup has no squad left, but still needs dismissing.
         const prompt = this.props.prompt;
         if (prompt) {
+            // Between a nest's levels the result is a choice: Enter/Space descends, Esc withdraws. '1' is
+            // swallowed there: it fires equipment mid-fight, so a press landing just after the last kill
+            // must not start the next battle.
+            const descent = prompt.phase === 'result' && prompt.result && prompt.result.nextLevel != null;
             if (event.key === 'Enter' || event.key === ' ' || event.key === '1') {
                 event.preventDefault();
                 if (!event.repeat) {
-                    if (prompt.phase === 'result') this.props.squadLeavePrompt();
+                    if (descent) { if (event.key !== '1') this.props.squadDescend(); }
+                    else if (prompt.phase === 'result') this.props.squadLeavePrompt();
                     else this.props.squadInteract();
                 }
                 return;
             }
             if (event.key === 'Escape') {
                 event.preventDefault();
-                if (!event.repeat) this.props.squadLeavePrompt();
+                if (!event.repeat) {
+                    if (descent) this.props.squadWithdraw();
+                    else this.props.squadLeavePrompt();
+                }
                 return;
             }
             const dir = KEY_DIRS[event.key];
@@ -550,6 +567,9 @@ class Planet extends React.Component {
         if (squad.fighting) {
             scale = 1 - Math.min((squad.fighting.contactMs || 0) / CONTACT_MS, 1);
         }
+        else if (this.insideHive(this.props)) {
+            scale = 0;
+        }
         else if (this.emergedAt !== null) {
             scale = Math.min((this.props.elapsedTime - this.emergedAt) / CONTACT_MS, 1);
             if (scale >= 1) this.emergedAt = null;
@@ -681,6 +701,6 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadStepInto, squadFace, squadInteract, squadLeavePrompt, useEquipment, retreatFromFight,
+    { squadStepInto, squadFace, squadInteract, squadLeavePrompt, squadDescend, squadWithdraw, useEquipment, retreatFromFight,
       setBeaconAt, setRotation, setRotationMode }
 )(Planet);

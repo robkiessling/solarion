@@ -1,9 +1,21 @@
-import {getRandomFromArray} from "./helpers";
+import {getRandomFromArray, getRandomIntInclusive, mapObject} from "./helpers";
 import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, type PlanetMap, type Sector} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {GATE_DEFS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Band, type Capability, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
+import {GATE_DEFS, LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Band, type Capability, type NestLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
 import type {BugType} from "../database/battle";
 import type {NestFormation, TerrainLayoutId} from "./battle";
+
+/** One fight of a placed nest (see NestLevelDef in database/pois.ts), rewards rolled. `timesCleared` counts
+ * wins on this level across assaults: it indexes the site's reloot schedule. */
+export interface NestLevel {
+    difficulty: number;
+    formation?: NestFormation;
+    terrain?: TerrainLayoutId;
+    blurb?: string;
+    bugs?: Partial<Record<BugType, number>>;
+    reward: PoiReward;
+    timesCleared: number;
+}
 
 /** A placed POI in planet.pois */
 export interface Poi {
@@ -14,18 +26,18 @@ export interface Poi {
     status: PoiStatus;
     distance: number;
     requires: Capability | null;
-    difficulty: number | null;
     difficultyKnown: boolean;
     reward: PoiReward;
     infestRadius?: number;
-    formation?: NestFormation;
-    terrain?: TerrainLayoutId;
-    blurb?: string;
-    bugs?: Partial<Record<BugType, number>>;
     storyId?: StoryId;
     promptText?: string;
     actionLabel?: string;
     resultBehavior?: ResultBehavior;
+    /** nests: the site's fights, surface first (one or more) */
+    levels?: NestLevel[];
+    levelsShown?: boolean;
+    reloot?: number[];
+    discardedKg?: number;
 }
 
 /**
@@ -93,7 +105,6 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             status: sector.status === STATUSES.explored.key ? 'available' : 'hidden',
             distance: sector.graphDistanceHome, // cached for display/sorting (static once the map is generated)
             requires: null,
-            difficulty: null,
             difficultyKnown: false,
             reward: {},
             ...extras
@@ -113,8 +124,9 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
                 map[r][c].terrain !== TERRAINS.home.key);
             if (!clean) continue; // pick() already marked it used; just try another tile
 
-            const poi = add('nest', sector, { difficulty: def.difficulty, infestRadius,
-                formation: def.formation, bugs: def.bugs, terrain: def.terrain, blurb: def.blurb });
+            const poi = add('nest', sector, { infestRadius, levels: (def.levels || []).map(rollNestLevel),
+                levelsShown: def.levelsShown, reloot: def.reloot });
+            if (def.discardedKg) poi.discardedKg = getRandomIntInclusive(def.discardedKg[0] / 10, def.discardedKg[1] / 10) * 10;
             [sector.coord, ...getCoordsWithinHops(sector.coord, infestRadius)].forEach(([r, c]) => {
                 if (map[r][c].terrain === TERRAINS.flatland.key && !map[r][c].gated) {
                     map[r][c].infestedBy = poi.id;
@@ -153,6 +165,47 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     return pois;
 }
 
+function rollNestLevel(def: NestLevelDef): NestLevel {
+    return { difficulty: def.difficulty, formation: def.formation, terrain: def.terrain,
+        blurb: def.blurb, bugs: def.bugs, reward: def.reward ? rollPoiReward(def.reward) : {}, timesCleared: 0 };
+}
+
+// A nest's fights, surface first (empty for other POI types)
+export function nestLevels(poi: Poi): NestLevel[] {
+    return poi.levels || [];
+}
+
+/** A nest as saves stored it before levels existed: its one fight in the POI's own fields */
+type LegacyNest = Poi & { difficulty?: number | null } & Pick<NestLevel, 'formation' | 'terrain' | 'blurb' | 'bugs'>;
+
+// Save repair: folds a pre-levels nest's own fight fields into a single level (mutates; see save_migration.ts).
+// A nest already cleared keeps its one level marked as fallen.
+export function migrateLegacyNest(poi: Poi) {
+    if (poi.type !== 'nest' || poi.levels) return;
+    const legacy = poi as LegacyNest;
+    poi.levels = [{ difficulty: legacy.difficulty || 0, formation: legacy.formation, terrain: legacy.terrain,
+        blurb: legacy.blurb, bugs: legacy.bugs, reward: {}, timesCleared: poi.status === 'cleared' ? 1 : 0 }];
+    delete legacy.difficulty;
+    delete legacy.formation;
+    delete legacy.terrain;
+    delete legacy.blurb;
+    delete legacy.bugs;
+}
+
+// What winning a level pays on THIS clear: its rolled resources scaled by the site's reloot schedule (indexed by
+// how often the level has fallen before; past the end it pays nothing). Salvage is first-clear only.
+export function nestLevelPayout(poi: Poi, levelIndex: number): PoiReward {
+    const level = nestLevels(poi)[levelIndex];
+    const schedule = poi.reloot || POI_TYPE_DEFAULTS.nest.reloot || [1];
+    const fraction = schedule[level.timesCleared] ?? 0;
+    const reward: PoiReward = {};
+    if (level.reward.resources && fraction > 0) {
+        reward.resources = mapObject(level.reward.resources, (resource, amount) => Math.floor(amount * fraction));
+    }
+    if (level.reward.capability && level.timesCleared === 0) reward.capability = level.reward.capability;
+    return reward;
+}
+
 // Every tile a fully-tooled squad can reach from home: BFS over terrain crossable with all capabilities,
 // through gate tiles (they're flatland; the gate POI is the openable barrier). Keys are "row,col".
 function squadReachableSet(map: PlanetMap): Set<string> {
@@ -180,7 +233,8 @@ function squadReachableSet(map: PlanetMap): Set<string> {
 // "500 ore, 200 energy" (empty string when there's nothing)
 export function formatResourceList(resources: ResourceAmounts): string {
     if (!resources) return '';
-    return Object.entries(resources).map(([resource, amount]) => `${amount} ${resource}`).join(', ');
+    return Object.entries(resources)
+        .map(([resource, amount]) => `${amount} ${LOOT_LABELS[resource as ResourceId] || resource}`).join(', ');
 }
 
 /**

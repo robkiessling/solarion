@@ -13,7 +13,7 @@ export type SquadZone = TerrainKey | 'infested' | 'grid';
 
 /** What advanceSquad reports back to the caller; resolved by resolveSquadEvent in redux/modules/planet.ts */
 export type SquadEvent =
-    | (BattleOverEvent & { poiId: string; battle: Battle; fromCoord?: Coord })
+    | (BattleOverEvent & { poiId: string; battle: Battle; fromCoord?: Coord; level: number })
     | { type: 'enteredPoi'; poiId: string; fromCoord: Coord }
     | { type: 'enteredZone'; zone: SquadZone }
     | { type: 'onGrid' }
@@ -24,6 +24,8 @@ export interface SquadFighting {
     battle: Battle;
     fromCoord?: Coord;
     contactMs?: number;
+    /** which of the nest's levels this fight is (0 = surface; absent on saves that predate levels) */
+    level?: number;
 }
 
 /** The player-driven squad (see createSquad in lib/squad.js) */
@@ -202,7 +204,8 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
         if (!over) {
             return { squad: {...squad, fighting: {...squad.fighting, battle, contactMs}}, reveals: [], events };
         }
-        events.push({ ...over, poiId: squad.fighting.poiId, battle, fromCoord: squad.fighting.fromCoord });
+        events.push({ ...over, poiId: squad.fighting.poiId, battle, fromCoord: squad.fighting.fromCoord,
+            level: squad.fighting.level || 0 });
         return { squad: {...squad, fighting: null}, reveals: [], events };
     }
 

@@ -29,17 +29,28 @@ export interface PoiReward {
     capability?: Capability;
 }
 
+/** One fight of a nest, as authored: the garrison, its battlefield, and what falls out of it. [lo, hi] ranges
+ * roll at map generation. */
+export interface NestLevelDef {
+    difficulty: number;
+    formation?: NestFormation;
+    terrain?: TerrainLayoutId;
+    blurb?: string;
+    bugs?: Partial<Record<BugType, number>>;
+    reward?: { resources?: Partial<Record<ResourceId, [number, number]>>; capability?: Capability };
+}
+
 /** A POI_DEFS entry: resource rewards are [lo, hi] ranges until rolled at map generation */
 export interface PoiDef {
     type: PoiType;
     band: Band;
     name?: string;
-    difficulty?: number;
     infestRadius?: number;
-    formation?: NestFormation;
-    terrain?: TerrainLayoutId;
-    blurb?: string;
-    bugs?: Partial<Record<BugType, number>>;
+    /** nests: the site's fights, surface first (one or more) */
+    levels?: NestLevelDef[];
+    levelsShown?: boolean;
+    reloot?: number[];
+    discardedKg?: [number, number];
     requires?: Capability;
     storyId?: StoryId;
     promptText?: string;
@@ -69,12 +80,21 @@ export interface GateDef {
 // phase (story text, salvage, losses) until the player continues or drives away. `promptText` is the offer
 // line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.ts); gates carry theirs
 // per gate kind (GATE_DEFS), nests never prompt (the fight starts on entry).
-export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: ResultBehavior, promptText?: string }> = {
+//
+// `reloot` is a nest's payout schedule: the fraction of a level's rolled resources it pays by how many times
+// that level has been cleared before (a site that is left resets, so its upper levels can be fought again;
+// they have less each time). Past the end of the list a level pays nothing: [1] is pay-once, a long run of
+// 1s is fully farmable. Capability salvage only ever happens on a level's first clear.
+export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: ResultBehavior, promptText?: string,
+    reloot?: number[] }> = {
     cache: { actionLabel: 'Take', result: 'auto', promptText: 'Supply cache found{loot}. Take it?' },
     storySite: { actionLabel: 'Explore', result: 'narrate', promptText: 'Structure of unknown origin. Investigate?' },
     gate: { actionLabel: 'Open', result: 'auto' },
-    nest: { result: 'narrate' }
+    nest: { result: 'narrate', reloot: [1, 0.5, 0.25] }
 }
+
+// Loot list wording where the resource id predates its display name
+export const LOOT_LABELS: Partial<Record<ResourceId, string>> = { refinedMinerals: 'minerals' };
 
 // Map display vocabulary (colorKeys index into PLANET_COLORS in planet_render.ts; FIGHT_EFFECT_CHARS
 // animate over a nest tile while a battle runs there).
@@ -107,22 +127,56 @@ export const STORY_TEXTS = {
 }
 
 // Resource reward amounts are [lo, hi] ranges, rolled to a multiple of 100 at map generation (rollPoiReward).
+//
+// Nests: `levels` lists the site's fights, surface first; most have one. Each level is a full battle of its own:
+//   `difficulty`  standard bugs fielded, and the displayed threat estimate
+//   `bugs`        a typed garrison ({ type: count }, see BUG_TYPES in database/battle.ts) fielded instead of
+//                 `difficulty` standard bugs; entry order maps to formation slots, so a hive listed first
+//                 takes a ring's center
+//   `formation`   the spawn layout (FORMATIONS in lib/battle.ts); unset = column front. `surround` is the
+//                 ambush opening: the garrison starts in all four corners with the squad encircled
+//   `terrain`     impassable obstacles scattered over the arena (TERRAIN_LAYOUTS in lib/battle.ts); unset =
+//                 open ground. The battlefield is stable per level (seeded from the map coord), so it can
+//                 be learned
+//   `blurb`       a bespoke scene line for the battle footer; unset = generated from terrain + formation
+//                 (GROUND_BLURBS/SWARM_BLURBS in database/battle.ts)
+//   `reward`      what falls out of it
+//
+// Winning a level with more beneath it pauses on a descend-or-withdraw choice; the squad's hull damage and
+// spent charges carry down, loot rides in cargo (kept on a withdrawal, lost on a wipe). The site only falls
+// (land reclaimed, tile cleared) with its LAST level, and a site that is left re-mans itself from the top, so a
+// multi-level site is one run, outfitted for in advance. `levelsShown` announces the level count up front;
+// unset keeps it unknown until the bottom is reached. `discardedKg` is material the classifier weighs and
+// throws away once the site has fallen: one terminal line, no value, no effect.
+//
+// Loot is what scavengers hold and what they are sitting on: worked metal on top (it classifies as minerals),
+// power cells further in, the old facility's stores at the core. Never ore; nothing out here mines.
+// Garrisons, loot, and level counts are PLACEHOLDER tuning.
 export const POI_DEFS: PoiDef[] = [
     // R1, the bowl (tutorial): one easy nest, two caches, the dead-droid story site
-    { type: 'nest', band: 'r1', difficulty: 3, infestRadius: 1 },
+    { type: 'nest', band: 'r1', infestRadius: 1, levels: [
+        { difficulty: 3, reward: { resources: { refinedMinerals: [100, 200] } } },
+        { difficulty: 3, reward: { resources: { refinedMinerals: [100, 200] } } },
+    ] },
     { type: 'cache', band: 'r1', reward: { resources: { ore: [500, 1000] } } },
     { type: 'cache', band: 'r1', reward: { resources: { refinedMinerals: [200, 400] } } },
     { type: 'storySite', band: 'r1', storyId: 'r1_deadDroid' },
 
     // R2 near (before the acid): the Sealed Chassis salvage lives HERE so the belt is crossable.
-    // `formation` is the nest's battle spawn layout (FORMATIONS in lib/battle.ts); unset = column front.
-    // `terrain` scatters impassable obstacles over the arena (TERRAIN_LAYOUTS in lib/battle.ts); unset =
-    // open ground. The battlefield is stable per nest (seeded from its map coord), so it can be learned.
-    // A nest may also declare `blurb`, a bespoke scene line for the battle footer; unset = generated from
-    // its terrain + formation (GROUND_BLURBS/SWARM_BLURBS in database/battle.ts).
-    { type: 'nest', band: 'r2near', difficulty: 6, infestRadius: 2, terrain: 'rocks' },
-    { type: 'nest', band: 'r2near', difficulty: 10, infestRadius: 2, formation: 'scatter', terrain: 'rocks' },
-    { type: 'nest', band: 'r2near', difficulty: 14, infestRadius: 2, formation: 'clusters', terrain: 'ruins' },
+    { type: 'nest', band: 'r2near', infestRadius: 2, levels: [
+        { difficulty: 6, terrain: 'rocks', reward: { resources: { refinedMinerals: [300, 600] } } }
+    ] },
+    // The first two-level site, count announced: it teaches the descend-or-withdraw rule
+    { type: 'nest', band: 'r2near', infestRadius: 2, levelsShown: true, discardedKg: [80, 160], levels: [
+        { difficulty: 10, formation: 'scatter', terrain: 'rocks',
+            reward: { resources: { refinedMinerals: [400, 800] } } },
+        { difficulty: 7, formation: 'clusters', terrain: 'ruins',
+            reward: { resources: { refinedMinerals: [600, 1000], energy: [1000, 2000] } } }
+    ] },
+    { type: 'nest', band: 'r2near', infestRadius: 2, levels: [
+        { difficulty: 14, formation: 'clusters', terrain: 'ruins',
+            reward: { resources: { refinedMinerals: [800, 1400] } } }
+    ] },
     { type: 'cache', band: 'r2near', reward: { resources: { ore: [2000, 4000] } } },
     {
         type: 'cache', band: 'r2near',
@@ -133,22 +187,42 @@ export const POI_DEFS: PoiDef[] = [
     { type: 'storySite', band: 'r2near', storyId: 'r2_chassisCache', reward: { capability: 'sealedChassis' } },
 
     // R2 far (beyond the acid): the Override Module salvage; the red-herring wreckage.
-    // `surround` is the ambush opening: the garrison starts in all four corners with the squad encircled.
-    // `bugs` declares a typed garrison ({ type: count }, see BUG_TYPES in lib/battle.ts) instead of
-    // `difficulty` standard bugs; entry order maps to formation slots, so the hive leads to take the
-    // ring's center. `difficulty` remains the displayed threat estimate either way.
-    { type: 'nest', band: 'r2far', difficulty: 18, infestRadius: 2, formation: 'surround' },
-    { type: 'nest', band: 'r2far', difficulty: 24, infestRadius: 2, formation: 'ring',
-        bugs: { hive: 1, bug: 18 }, terrain: 'canyon' },
+    { type: 'nest', band: 'r2far', infestRadius: 2, discardedKg: [150, 300], levels: [
+        { difficulty: 18, formation: 'surround',
+            reward: { resources: { refinedMinerals: [1200, 2000] } } },
+        { difficulty: 12, terrain: 'canyon',
+            reward: { resources: { refinedMinerals: [1500, 2500], energy: [3000, 5000] } } }
+    ] },
+    { type: 'nest', band: 'r2far', infestRadius: 2, levelsShown: true, discardedKg: [200, 400], levels: [
+        { difficulty: 24, formation: 'ring', bugs: { hive: 1, bug: 18 }, terrain: 'canyon',
+            reward: { resources: { refinedMinerals: [1500, 2500] } } },
+        { difficulty: 16, formation: 'clusters', terrain: 'ruins',
+            reward: { resources: { energy: [4000, 7000] } } },
+        { difficulty: 14, formation: 'surround',
+            reward: { resources: { refinedMinerals: [3000, 5000] } } }
+    ] },
     { type: 'cache', band: 'r2far', reward: { resources: { ore: [5000, 9000] } } },
     { type: 'cache', band: 'r2far', reward: { resources: { refinedMinerals: [2000, 4000] } } },
     { type: 'storySite', band: 'r2far', storyId: 'r2_wreckage' },
     { type: 'storySite', band: 'r2far', storyId: 'r2_overrideVault', reward: { capability: 'overrideModule' } },
 
     // R3, the antipode (finale): two hard nests, one cache, the command ruin + hive heart
-    { type: 'nest', band: 'r3', difficulty: 30, infestRadius: 2, formation: 'scatter', terrain: 'ruins' },
-    { type: 'nest', band: 'r3', difficulty: 40, infestRadius: 2, formation: 'ring',
-        bugs: { hive: 2, bug: 32 }, terrain: 'canyon' },
+    // The first runs three levels unannounced, and its bottom is barely defended: the largest haul on the
+    // planet behind the weakest garrison, and the largest discard.
+    { type: 'nest', band: 'r3', infestRadius: 2, discardedKg: [2300, 3500], levels: [
+        { difficulty: 30, formation: 'scatter', terrain: 'ruins',
+            reward: { resources: { refinedMinerals: [2000, 3500] } } },
+        { difficulty: 22, formation: 'surround', terrain: 'ruins',
+            reward: { resources: { refinedMinerals: [2500, 4000], energy: [6000, 10000] } } },
+        { difficulty: 4, formation: 'clusters',
+            reward: { resources: { refinedMinerals: [8000, 12000] } } }
+    ] },
+    { type: 'nest', band: 'r3', infestRadius: 2, levelsShown: true, discardedKg: [400, 700], levels: [
+        { difficulty: 40, formation: 'ring', bugs: { hive: 2, bug: 32 }, terrain: 'canyon',
+            reward: { resources: { refinedMinerals: [3000, 5000] } } },
+        { difficulty: 28, formation: 'surround', terrain: 'canyon',
+            reward: { resources: { refinedMinerals: [5000, 8000], energy: [10000, 15000] } } }
+    ] },
     { type: 'cache', band: 'r3', reward: { resources: { refinedMinerals: [5000, 8000] } } },
     { type: 'storySite', band: 'r3', storyId: 'r3_commandRuin' },
     { type: 'storySite', band: 'r3', storyId: 'r3_hiveHeart' }

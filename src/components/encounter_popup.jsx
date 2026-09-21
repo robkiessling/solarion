@@ -1,10 +1,11 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {retreatFromFight, squadInteract, squadLeavePrompt, useEquipment} from "../redux/modules/planet";
+import {retreatFromFight, squadDescend, squadInteract, squadLeavePrompt, squadWithdraw, useEquipment} from "../redux/modules/planet";
 import {
     actionLabelFor,
     CAPABILITY_LABELS,
     formatResourceList,
+    nestLevels,
     POI_COLOR_KEYS,
     POI_GLYPHS,
     promptTextFor,
@@ -84,6 +85,8 @@ class EncounterPopup extends React.Component {
         // over it, so the fight's ending stays on screen instead of snapping down to the small prompt;
         // the outcome text and Continue share the fixed-height footer the action row occupied.
         const finalBattle = result.finalBattle;
+        // A level of a deeper site fell: the result doubles as the descend-or-withdraw choice
+        const descent = result.nextLevel != null;
         const body = (
             <div className="popup-body">
                 {story && <span className="story-text">"{story}"</span>}
@@ -97,7 +100,7 @@ class EncounterPopup extends React.Component {
                     </span>}
                 {result.losses != null &&
                     <span className="result-line">
-                        Nest cleared — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
+                        {descent ? `Level ${result.level + 1} cleared` : 'Nest cleared'} — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
                     </span>}
                 {result.landCredit > 0 &&
                     <span className="outcome-line">Reclaimed {result.landCredit} land.</span>}
@@ -107,9 +110,27 @@ class EncounterPopup extends React.Component {
                     </span>}
                 {result.loaded &&
                     <span className="outcome-line">Loaded {formatResourceList(result.loaded)}.</span>}
+                {descent &&
+                    <span className="result-line">
+                        {result.levelsTotal ?
+                            `Level ${result.nextLevel + 1} of ${result.levelsTotal} lies below.` :
+                            'Signatures below.'}
+                        {' '}Descend?
+                    </span>}
             </div>
         );
-        const actions = (
+        // The descent is never on a number key: those fire equipment mid-fight, and a press landing just
+        // after the last kill must not commit the squad to another battle.
+        const actions = descent ? (
+            <div className="popup-actions">
+                <button onClick={() => this.props.squadDescend()}>
+                    <kbd>Enter</kbd>Descend
+                </button>
+                <button onClick={() => this.props.squadWithdraw()}>
+                    <kbd>Esc</kbd>Withdraw
+                </button>
+            </div>
+        ) : (
             <div className="popup-actions">
                 <button onClick={() => this.props.squadLeavePrompt()}>
                     <kbd>1</kbd>Continue
@@ -125,7 +146,7 @@ class EncounterPopup extends React.Component {
                 <div className="battle-final">
                     <BattleCanvas battle={finalBattle}/>
                     <div className={`battle-verdict${result.wiped ? ' wiped' : ''}`}>
-                        {result.wiped ? 'CONTACT LOST' : 'NEST CLEARED'}
+                        {result.wiped ? 'CONTACT LOST' : descent ? 'LEVEL CLEARED' : 'NEST CLEARED'}
                     </div>
                 </div>
                 <div className="battle-footer">
@@ -143,13 +164,14 @@ class EncounterPopup extends React.Component {
         // hotkeys in the planet component's input layer
         const slots = EQUIPMENT_ORDER.filter(id => equipment[id] !== undefined);
         const withdrawing = battle.phase === 'withdrawing';
+        const nestLevel = nestLevels(poi)[fighting.level || 0];
 
         return (
             <React.Fragment>
                 {this.renderBattleHeader(battle)}
                 <BattleCanvas battle={battle}/>
                 <div className="battle-footer">
-                    <div className="popup-body battle-blurb">{poi.blurb || battleBlurb(battle, poi.formation)}</div>
+                    <div className="popup-body battle-blurb">{nestLevel.blurb || battleBlurb(battle, nestLevel.formation)}</div>
                     <div className="popup-actions">
                         {slots.map((id, i) => (
                             <React.Fragment key={id}>
@@ -214,11 +236,21 @@ class EncounterPopup extends React.Component {
             }
         }
 
+        // Which level of a multi-level nest this is. An announced site counts from the start ("LEVEL 1 OF 3");
+        // an unannounced one says nothing on the surface (that would give away that there is more) and
+        // only numbers the levels once the squad is below it.
+        let levelLabel = '';
+        const level = fighting ? fighting.level : prompt && prompt.result && prompt.result.level;
+        if (poi.type === 'nest' && level != null && nestLevels(poi).length > 1) {
+            if (poi.levelsShown) levelLabel = ` · LEVEL ${level + 1} OF ${nestLevels(poi).length}`;
+            else if (level > 0) levelLabel = ` · LEVEL ${level + 1}`;
+        }
+
         // Site name with the POI glyph in its map color, embedded in the border
         const title = (
             <React.Fragment>
                 <span style={{color: PLANET_COLORS[POI_COLOR_KEYS[poi.type]]}}>{POI_GLYPHS[poi.type]}</span>
-                {' '}{poi.name.toUpperCase()}
+                {' '}{poi.name.toUpperCase()}{levelLabel}
             </React.Fragment>
         );
         return (
@@ -240,5 +272,5 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadInteract, squadLeavePrompt, useEquipment, retreatFromFight }
+    { squadInteract, squadLeavePrompt, squadDescend, squadWithdraw, useEquipment, retreatFromFight }
 )(EncounterPopup);

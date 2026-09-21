@@ -8,6 +8,7 @@ import abilitiesDatabase from '../database/abilities';
 import triggersDatabase from '../database/triggers';
 import logsDatabase from '../database/logs';
 import {DROID_BASE_STATS, fullDroidHp} from './battle';
+import {migrateLegacyNest} from './expeditions';
 import {SAVE_FORMAT_VERSION} from './save_version';
 import type {EncounterPrompt} from '../redux/modules/planet';
 import type {Squad} from './squad';
@@ -76,6 +77,9 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
             delete squad.prompt;
         }
     }
+
+    // Nests from before multi-level sites carried their one fight in the POI's own fields
+    if (state.planet && state.planet.pois) Object.values(state.planet.pois).forEach(migrateLegacyNest);
 
     resyncWithDatabase(state.structures, structuresDatabase);
     resyncWithDatabase(state.resources, resourcesDatabase);

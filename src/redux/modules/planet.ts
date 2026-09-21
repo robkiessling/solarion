@@ -32,11 +32,13 @@ import {
     CAPABILITY_LABELS,
     formatResourceList,
     generatePois,
+    nestLevelPayout,
+    nestLevels,
     resultBehaviorFor,
     type Poi,
 } from "../../lib/expeditions";
 import {applyEquipment, createBattle, startWithdrawal, type Battle} from "../../lib/battle";
-import {advanceSquad, createSquad, droidsRecovered, isOnGrid, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
+import {advanceSquad, CONTACT_MS, createSquad, droidsRecovered, isOnGrid, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
 import {logInline} from "./log";
 import {zoneColor} from "../../lib/planet_render";
 import {TERRAIN_BLURBS} from "../../database/terrain_blurbs";
@@ -74,12 +76,20 @@ export interface EncounterResult {
     storyId?: StoryId | null;
     capability?: Capability | null;
     loaded?: ResourceAmounts | null;
+    /** fights in a multi-level nest: the level just won (0 = surface), and the site's level count when it is known
+     * (announced up front, or learned by reaching the bottom) */
+    level?: number;
+    levelsTotal?: number | null;
+    /** set while the site has more beneath: the result phase becomes the descend-or-withdraw choice */
+    nextLevel?: number;
 }
 
 export interface EncounterPrompt {
     poiId: string;
     phase: 'offer' | 'result';
     result?: EncounterResult | null;
+    /** between a nest's levels: the tile the squad entered from, where a withdrawal walks back to */
+    fromCoord?: Coord;
 }
 
 /** planet.overallStatus: the state of scout exploration of the map */
@@ -146,6 +156,7 @@ export const SQUAD_FACE = 'planet/SQUAD_FACE' as const;
 export const ADVANCE_SQUAD = 'planet/ADVANCE_SQUAD' as const;
 export const SQUAD_START_FIGHT = 'planet/SQUAD_START_FIGHT' as const;
 export const SQUAD_FIGHT_WON = 'planet/SQUAD_FIGHT_WON' as const;
+export const SQUAD_LEVEL_WON = 'planet/SQUAD_LEVEL_WON' as const;
 export const SQUAD_WIPED = 'planet/SQUAD_WIPED' as const;
 export const SQUAD_RETREATED = 'planet/SQUAD_RETREATED' as const;
 export const SQUAD_RETREAT_ORDERED = 'planet/SQUAD_RETREAT_ORDERED' as const;
@@ -182,9 +193,12 @@ export type PlanetAction =
     | { type: typeof SQUAD_SET_PATH; payload: { path: Coord[] } }
     | { type: typeof SQUAD_FACE; payload: { facing: [number, number] } }
     | { type: typeof ADVANCE_SQUAD; payload: { squad: Squad | null; reveals: Coord[]; revealedFlatland: number } }
-    | { type: typeof SQUAD_START_FIGHT; payload: { poiId: string; fromCoord: Coord; battle: Battle } }
+    | { type: typeof SQUAD_START_FIGHT; payload: { poiId: string; fromCoord: Coord; battle: Battle; level: number } }
     | { type: typeof SQUAD_FIGHT_WON; payload: { poiId: string; survivors: number; droidHp: number[]; reward: PoiReward;
         landCredit: number; result: EncounterResult } }
+    /** a level of a multi-level nest fell with more beneath it: the site stands, the popup offers the descent */
+    | { type: typeof SQUAD_LEVEL_WON; payload: { poiId: string; level: number; survivors: number; droidHp: number[];
+        reward: PoiReward; fromCoord?: Coord; result: EncounterResult } }
     | { type: typeof SQUAD_WIPED; payload: { poiId: string; result: EncounterResult } }
     | { type: typeof SQUAD_RETREATED; payload: { poiId: string; survivors: number; droidHp: number[] } }
     | { type: typeof SQUAD_RETREAT_ORDERED }
@@ -409,8 +423,11 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                 squad: {
                     path: { $set: [] },
                     moveProgress: { $set: 0 },
+                    // The contact beat (the squad dropping into the hive on the map) only plays for the surface
+                    // fight; a descent starts its battle at once, the squad is already inside.
                     fighting: { $set: { poiId: action.payload.poiId, battle: action.payload.battle,
-                        fromCoord: action.payload.fromCoord, contactMs: 0 } }
+                        fromCoord: action.payload.fromCoord, level: action.payload.level,
+                        contactMs: action.payload.level > 0 ? CONTACT_MS : 0 } }
                 },
                 pois: { [action.payload.poiId]: { difficultyKnown: { $set: true } } },
                 prompt: { $set: null }
@@ -456,6 +473,23 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             }
 
             return update(state, updates);
+        }
+        case SQUAD_LEVEL_WON: {
+            // A level fell but the site has more beneath it: loot loads, wounds carry, and the popup holds on
+            // the descend-or-withdraw choice. The nest stays 'available' (it only falls with its last level);
+            // the win is counted against the level so a later assault finds it poorer (see nestLevelPayout).
+            const { poiId, level } = action.payload;
+            return update(state, {
+                pois: { [poiId]: { levels: { [level]: { timesCleared: { $apply: (times: number) => times + 1 } } } } },
+                squad: {
+                    squadSize: { $set: action.payload.survivors },
+                    droidHp: { $set: action.payload.droidHp },
+                    cargo: { $apply: (cargo: ResourceAmounts) => mergeCargo(cargo, action.payload.reward) }
+                },
+                prompt: { $set: { poiId, phase: 'result', result: action.payload.result,
+                    fromCoord: action.payload.fromCoord } },
+                battlesFought: { $set: state.battlesFought + 1 }
+            });
         }
         case SQUAD_WIPED:
             // Failed assault: squad and cargo are gone. The ending narrates in the popup
@@ -958,8 +992,9 @@ export function squadLeavePrompt(): PlanetAction {
 
 // Walking onto an uncleared nest starts the fight: a live per-unit battle (lib/battle.ts) against the nest's
 // current garrison, played out in the encounter popup. `fromCoord` is the tile the squad stepped in from,
-// held for the duration so a retreat can walk back out the way it came.
-export function squadAttack(poiId: string, fromCoord: Coord) {
+// held for the duration so a retreat can walk back out the way it came. `level` picks which of the nest's
+// fights this is: 0 on entry, deeper via squadDescend.
+export function squadAttack(poiId: string, fromCoord: Coord, level = 0) {
     return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
         const squad = planet.squad;
@@ -974,19 +1009,50 @@ export function squadAttack(poiId: string, fromCoord: Coord) {
         // Must be standing ON it -- this fires from the arrival event, not from an adjacent tile
         if (squad.coord[0] !== poi.coord[0] || squad.coord[1] !== poi.coord[1]) return false;
 
-        // Garrison composition: POI defs may declare a bug-type mix (poi.bugs), a spawn formation
-        // (poi.formation), and an obstacle layout (poi.terrain); plain nests field `difficulty` standard
-        // bugs in a column front on open ground. The squad fights with its deploy-time stat snapshot.
-        // The terrain salt derives from the nest's map coord, so every assault on this nest fights on
-        // the same ground.
+        const nestLevel = nestLevels(poi)[level];
+        if (!nestLevel) return false;
+
+        // Garrison composition: a level may declare a bug-type mix (bugs), a spawn formation, and an
+        // obstacle layout (terrain); plain levels field `difficulty` standard bugs in a column front on open
+        // ground. The squad fights with its deploy-time stat snapshot. The terrain salt derives from the
+        // nest's map coord and the level, so every assault on this level fights on the same ground.
         dispatch({ type: SQUAD_START_FIGHT,
-            payload: { poiId, fromCoord, battle: createBattle(
+            payload: { poiId, fromCoord, level, battle: createBattle(
                 squad.droidHp || squad.squadSize,
-                poi.bugs || poi.difficulty || 0,
+                nestLevel.bugs || nestLevel.difficulty || 0,
                 squad.droidStats || undefined,
-                poi.formation || undefined,
-                poi.terrain || undefined,
-                poi.coord[0] * 337 + poi.coord[1]) } });
+                nestLevel.formation || undefined,
+                nestLevel.terrain || undefined,
+                poi.coord[0] * 337 + poi.coord[1] + level * 7919) } });
+        return true;
+    }
+}
+
+// Between a nest's levels (the result phase offering the descent): go down. The next fight starts on the spot
+// with whatever hull and charges the last one left.
+export function squadDescend() {
+    return function(dispatch: Dispatch, getState: GetState) {
+        const prompt = getState().planet.prompt;
+        if (!prompt || prompt.phase !== 'result' || !prompt.result || prompt.result.nextLevel == null) return false;
+        const squad = getState().planet.squad;
+        if (!squad) return false;
+
+        return dispatch(squadAttack(prompt.poiId, prompt.fromCoord || squad.coord, prompt.result.nextLevel));
+    }
+}
+
+// Between a nest's levels: take what was won and go. Unlike a retreat nobody is shooting, so it costs nothing
+// but the step back out; the site re-mans itself from the top behind the squad.
+export function squadWithdraw() {
+    return function(dispatch: Dispatch, getState: GetState) {
+        const planet = getState().planet;
+        const prompt = planet.prompt;
+        if (!prompt || prompt.phase !== 'result' || !prompt.result || prompt.result.nextLevel == null) return false;
+
+        const poi = planet.pois[prompt.poiId];
+        dispatch({ type: SQUAD_LEAVE_PROMPT });
+        if (poi) dispatch(logInline(`Team withdrew from ${poi.name} with level ${prompt.result.nextLevel} cleared.`));
+        if (prompt.fromCoord) dispatch(squadStep(prompt.fromCoord));
         return true;
     }
 }
@@ -1025,8 +1091,31 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
             if (!squad) break; // a fight can only end with the squad still fielded (see advanceSquad)
             const poi = pois[event.poiId];
 
-            if (event.result === 'won') {
-                const reward = poi.reward;
+            const levels = nestLevels(poi);
+            if (event.result === 'won' && event.level < levels.length - 1) {
+                // More beneath: the site stands. Loot loads and the popup turns into the descend-or-withdraw
+                // choice (see SQUAD_LEVEL_WON); the level count stays unknown unless the site announces it.
+                const reward = nestLevelPayout(poi, event.level);
+                dispatch({ type: SQUAD_LEVEL_WON, payload: { poiId: event.poiId, level: event.level,
+                    survivors: event.survivors, droidHp: event.droidHp, reward,
+                    fromCoord: event.fromCoord,
+                    result: {
+                        losses: squad.squadSize - event.survivors,
+                        squadSize: squad.squadSize,
+                        multiplier: squad.multiplier || 1,
+                        capability: reward.capability || null,
+                        loaded: reward.resources || null,
+                        level: event.level,
+                        levelsTotal: poi.levelsShown ? levels.length : null,
+                        nextLevel: event.level + 1,
+                        finalBattle: event.battle
+                    } } });
+                if (reward.capability) {
+                    dispatch(unlockTerrain(reward.capability));
+                }
+            }
+            else if (event.result === 'won') {
+                const reward = nestLevelPayout(poi, event.level);
 
                 // Reclaimed land: the stamp's already-revealed flatland credits NOW (counted before the reducer
                 // retracts the flags); still-unknown stamp tiles credit later through the normal reveal path.
@@ -1055,8 +1144,14 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                         landCredit,
                         capability: (reward && reward.capability) || null,
                         loaded: (reward && reward.resources) || null,
+                        level: event.level,
+                        levelsTotal: levels.length, // the bottom is reached: the count is known now
                         finalBattle: event.battle
                     } } });
+                // The site has fallen: the classifier's one line on what else was in there
+                if (poi.discardedKg) {
+                    dispatch(logInline(`ORGANIC MATERIAL: ${poi.discardedKg.toLocaleString()} kg. NO VALUE. DISCARDED.`));
+                }
                 if (reward && reward.capability) {
                     dispatch(unlockTerrain(reward.capability));
                 }
