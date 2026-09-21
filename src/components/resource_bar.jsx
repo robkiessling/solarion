@@ -13,8 +13,10 @@ const DISPLAY_ORDER = ['energy', 'ore', 'refinedMinerals', 'standardDroids', 'pr
 /**
  * Full-width HUD bar along the top of the app. Each resource is a two-line cell: amount on top, rate dimmed
  * underneath. Droids are a special cell showing the total census with the idle count in the rate slot, plus
- * the recall button (every assigned droid back to idle, for reassigning from scratch). It sits here because
+ * the unassign link (every assigned droid back to idle, for reassigning from scratch). It sits here because
  * this cell is the droid tally on every tab, and it arrives with the structures' bulk ++ / -- buttons.
+ * The resource name is a native title on the icon only (the glyph is the part that needs naming); on the whole
+ * cell it would pop up over the unassign link's own tooltip.
  */
 class ResourceBar extends React.Component {
     orderedIds() {
@@ -27,26 +29,29 @@ class ResourceBar extends React.Component {
     renderDroidCell(resource) {
         const { total, idle } = this.props.droidCounts;
 
-        return <div className="resource-cell" key={resource.id} title={resource.name}>
+        return <div className="resource-cell droid-cell" key={resource.id}>
             <div className="cell-amount">
                 <span className="resource-amount">{total}</span>
                 <div className="cell-rate">
                     {/* A quiet link, not a button: the bar is a readout, and a white button outweighs the numbers.
-                        Gone when there is nothing to recall. */}
+                        Gone when there is nothing to unassign. */}
                     {this.props.showRecall && this.props.numRecallable > 0 &&
                         <a className="recall-droids" onClick={() => this.props.recallAllDroids()}
-                           data-tip data-for="recall-droids-tip">recall</a>}
+                           data-tip data-for="recall-droids-tip">unassign</a>}
                     {idle} idle
                 </div>
-                {this.props.showRecall &&
+                {/* Same condition as the link: ReactTooltip binds its hover listeners once, on mount, so the two
+                    must mount together or a link that shows up later never gets a tooltip. The field team line
+                    waits for the Planet tab so it does not give away expeditions early. */}
+                {this.props.showRecall && this.props.numRecallable > 0 &&
                     <Tooltip id="recall-droids-tip" place="bottom">
-                        <p className="tooltip-header">Recall All Droids</p>
+                        <p className="tooltip-header">Unassign All Droids</p>
                         <p>Unassigns every droid at base. Structures lose their droid boost until
                             droids are reassigned.</p>
-                        <p>A team in the field is not recalled.</p>
+                        {this.props.expeditionsAvailable && <p>A team in the field is not affected.</p>}
                     </Tooltip>}
             </div>
-            <span className={`cell-icon ${resource.icon}`}/>
+            <span className={`cell-icon ${resource.icon}`} title={resource.name}/>
         </div>;
     }
 
@@ -63,7 +68,7 @@ class ResourceBar extends React.Component {
             showRate = false;
         }
 
-        return <div className="resource-cell" key={id} title={resource.name}>
+        return <div className="resource-cell" key={id}>
             <div className="cell-amount">
                 <ResourceAmount amount={quantity} capacity={capacity}/>
                 {
@@ -73,7 +78,7 @@ class ResourceBar extends React.Component {
                     </div>
                 }
             </div>
-            <span className={`cell-icon ${resource.icon}`}/>
+            <span className={`cell-icon ${resource.icon}`} title={resource.name}/>
         </div>;
     }
 
@@ -95,6 +100,7 @@ const mapStateToProps = state => {
         netResourceRates: getNetResourceRates(state),
         droidCounts: getDroidCounts(state),
         numRecallable: numRecallableDroids(state),
+        expeditionsAvailable: state.game.visibleNavTabs.includes('planet'), // the Expedition card arrives with the tab
         showRecall: getLifetimeQuantity(state.resources.byId.standardDroids) >= 10, // as DroidCount's bulk buttons
         mirroringToPlanet: isTargetingPlanet(state.star)
     }

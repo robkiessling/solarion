@@ -54,7 +54,7 @@ class DroidCount extends React.Component {
                     <span>-</span>
                 </button>
                 <Tooltip id={tipIdRemove} {...this.props.tooltipProps}>
-                    <p><span className="tooltip-header">Remove Droid</span></p>
+                    <p><span className="tooltip-header">Unassign Droid</span></p>
                     <p>Return the droid to the factory.</p>
                 </Tooltip>
                 {
@@ -68,7 +68,7 @@ class DroidCount extends React.Component {
                 {
                     this.props.showBulkButtons &&
                     <Tooltip id={tipIdRemoveAll} {...this.props.tooltipProps}>
-                        <p><span className="tooltip-header">Remove All Droids</span></p>
+                        <p><span className="tooltip-header">Unassign All Droids</span></p>
                         <p>Return all droids from here to the factory.</p>
                     </Tooltip>
                 }

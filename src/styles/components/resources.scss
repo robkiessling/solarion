@@ -25,6 +25,13 @@
       padding-left: 0;
     }
 
+    // The droid cell's second line carries the unassign link as well as the idle count, so it needs more room
+    // than a rate does. Still a fixed width, so the link coming and going never shifts the cells after it.
+    &.droid-cell {
+      flex-basis: 13rem;
+      width: 13rem;
+    }
+
     .cell-icon {
       font-size: 1.5rem;
       flex: 0 0 auto;
@@ -45,8 +52,9 @@
       color: $ui-text-dim;
       min-height: 1.2em; // keep cell height stable when a resource has no rate to show
       text-align: right;
+      white-space: nowrap; // a wrapped rate line makes the whole bar taller
 
-      // Recall-all: a link in the rate line's own dim voice, lit on hover
+      // Unassign-all: a link in the rate line's own dim voice, lit on hover
       .recall-droids {
         margin-right: 0.6rem;
         cursor: pointer;

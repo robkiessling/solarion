@@ -35,7 +35,7 @@ const CLIPS = {
     researchFinish: { file: 'kenney/interface/maximize_006.ogg', volume: 0.3 },
     build: { file: 'kenney/impact/impactMining_000.ogg', volume: 0.5 },
     castStart: { file: 'kenney/interface/click_002.ogg', volume: 0.3 }, // ability defaults; a record can name its own
-    castFinish: { file: 'kenney/interface/confirmation_004.ogg', volume: 0.3 },
+    castFinish: { file: 'kenney/interface/confirmation_004.ogg', volume: 0.2 },
     chargeMineralProc: { file: 'kenney/interface/confirmation_003.ogg', volume: 0.4 }, // charge click that also finds a mineral
     logFlash: { file: 'kenney/interface/select_007.ogg', volume: 0.3 },
     // logTypingTick: { file: 'kenney/interface/click_003.ogg', volume: 0.15, rateJitter: 0.2 },

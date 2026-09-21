@@ -1,0 +1,35 @@
+@use './variables' as *;
+
+// Button tiers. Filled (the ability / Deploy look below) is for a panel's one main action, so it has to stay
+// rare to keep its weight. Everything that repeats on every card (droid steppers, Build) is outlined: a quiet
+// frame that lights on hover, never a white slab brighter than the numbers beside it. Minor or reversible
+// actions are text links. Corners are square throughout, like the rest of the terminal.
+@mixin outline-button {
+  background: none;
+  border: 1px solid $ui-border;
+  border-radius: 0;
+  font-family: inherit;
+  color: $ui-text-dim;
+
+  &:hover:not(:disabled) {
+    color: $ui-text;
+    border-color: $ui-text-dim;
+  }
+  &:active:not(:disabled) {
+    background: $ui-border;
+  }
+  &:disabled {
+    background: none;
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+// A filled button's label reads as a terminal command: [ OVERCLOCK ]
+@mixin bracketed-label {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+
+  //&::before { content: '[ '; }
+  //&::after { content: ' ]'; }
+}

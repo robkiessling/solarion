@@ -1,4 +1,5 @@
 @use '../variables' as *;
+@use '../mixins' as *;
 
 $shutter-transition: 12s;
 $top-bar-float-padding: 0.875rem;
@@ -606,9 +607,11 @@ $hud-clearance: 6.5rem;
       min-height: 1.75rem;
 
       button {
+        @include bracketed-label;
         padding: 0.5rem 1rem;
         border: 1px solid $progress-button-border;
-        border-radius: 0.3rem;
+        font-family: inherit;
+        font-size: 0.9em;
         color: $progress-button-text;
         text-align: center;
         cursor: pointer;
@@ -619,7 +622,7 @@ $hud-clearance: 6.5rem;
         &.disband { background: $progress-button-bg; }
 
         &:hover:not(:disabled) {
-          text-decoration: underline;
+          filter: brightness(1.15);
         }
 
         &:disabled {

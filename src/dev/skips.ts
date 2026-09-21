@@ -56,13 +56,15 @@ export function runGameMode(dispatch: Dispatch) {
     }
 }
 
-// Advances the planet clock from a fresh start (day 1, 06:00) to 06:00 on the given day. Only valid on a fresh game:
-// the clock has no setter, so this ticks it forward by the difference. Goes through clockTick so daylight and wind
-// are recalculated for the new time.
-function skipClockToDay(day: number) {
+// Advances the planet clock to the given day and hour (0 to 24, fractions allowed; defaults to 06:00, the hour a
+// fresh game starts at). The clock has no setter, so this ticks it forward by the difference from its current
+// reading; a target in the past is ignored. Goes through clockTick so daylight and wind are recalculated.
+function skipClockToDay(day: number, hour = 6) {
     return (dispatch: Dispatch, getState: GetState) => {
-        const dayLengthMs = fromClock.dayLength(getState().clock) * 1000;
-        dispatch(fromClock.clockTick((day - 1) * dayLengthMs));
+        const clock = getState().clock;
+        const daysToAdvance = (day + hour / 24) - fromClock.dayNumber(clock, true);
+        if (daysToAdvance <= 0) return;
+        dispatch(fromClock.clockTick(daysToAdvance * fromClock.dayLength(clock) * 1000));
     };
 }
 
@@ -176,7 +178,7 @@ function skipToRobotics(dispatch: Dispatch) {
 // Perovskite Solar Cells, Ultra-Dense Matrices, Hyper-Alloy Synthesizer, Plasma Drill) was still on offer.
 function skipToGlobe(dispatch: Dispatch) {
     dispatch(fromLog.logInline('Skipping to globe'));
-    dispatch(skipClockToDay(28));
+    dispatch(skipClockToDay(28, 22));
 
     dispatch(fromGame.updateSetting('shuttersOpen', true));
     dispatch(fromGame.updateSetting('showPlanetStatus', true));
