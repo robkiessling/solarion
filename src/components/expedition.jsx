@@ -7,11 +7,10 @@ import {formatResourceList} from "../lib/expeditions";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import {isOnGrid, SQUAD_DRAIN_PER_DROID} from "../lib/squad";
 import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, getSquadUpgradeIds, ownedEquipment} from "../redux/reducer";
+import DroidCount from "./structures/droid_count";
 import Upgrade from "./structures/upgrade";
 import Tooltip from "./ui/tooltip";
 import Vista from "./vista";
-
-const DEFAULT_TEAM_SIZE = 5;
 
 const formatStat = (n) => Number.isInteger(n) ? n : n.toFixed(1);
 
@@ -20,22 +19,11 @@ const chargeDots = (itemId, charges) =>
     '●'.repeat(charges) + '○'.repeat(Math.max(0, EQUIPMENT_DEFS[itemId].charges - charges));
 
 /**
- * Squad sidebar. The one player-driven squad: assemble, equip, and deploy it here, drive it on the map
- * with arrows/WASD. Fights start by stepping into a nest on the map and play out in the encounter popup;
+ * Squad sidebar. The one player-driven squad: staff it (droids are assigned like a structure's), equip and
+ * deploy it here, drive it on the map with arrows/WASD. Fights start by stepping into a nest on the map and play out in the encounter popup;
  * site intel lives on the map itself (glyphs), not in a directory here.
  */
 class Expedition extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            teamSize: DEFAULT_TEAM_SIZE // staged size; droids only leave the pool at Deploy
-        };
-    }
-
-    teamSize() {
-        return Math.max(1, Math.min(this.state.teamSize, this.props.idleDroids));
-    }
-
     // The squad's gear: owned pieces (one-time factory upgrades / story salvage) ride along automatically.
     // At base: names only (a fresh squad always leaves fully loaded). Fielded: charge dots per piece.
     renderEquipment(carried) {
@@ -62,26 +50,17 @@ class Expedition extends React.Component {
         const { squad, idleDroids, onGrid } = this.props;
 
         if (!squad) {
-            const size = this.teamSize();
+            const size = this.props.squadDroidData.numDroidsAssigned; // the team standing by at base
             const multiplier = this.props.multiplier;
             return (
                 <div className="squad-card">
-                    <div className="team-line">
-                        <span className="key-value-pair">
-                            <span>Droids:</span>
-                            <span className="team-stepper">
-                                <button className="stepper" disabled={size <= 1}
-                                        onClick={() => this.setState({ teamSize: size - 1 })}>-</button>
-                                <span className="staged-size">{size}</span>
-                                <button className="stepper" disabled={size >= idleDroids}
-                                        onClick={() => this.setState({ teamSize: size + 1 })}>+</button>
-                                {multiplier > 1 &&
-                                    <span className="fielded-units">
-                                        <span className="replication-x">(×{multiplier})</span> = {size * multiplier}
-                                    </span>}
-                            </span>
-                        </span>
-                    </div>
+                    <DroidCount droidData={this.props.squadDroidData}
+                                assignTooltip="Assigned droids stand by at base until the team deploys."/>
+                    {multiplier > 1 &&
+                        <span className="spec-line key-value-pair">
+                            <span>Fielded:</span>
+                            <span><span className="replication-x">(×{multiplier})</span> = {size * multiplier} units</span>
+                        </span>}
                     <span className="spec-line key-value-pair" data-tip data-for="staging-health-tip">
                         <span>Squad Health:</span>
                         <span>{formatStat(size * multiplier * this.props.droidStats.hp)}</span>
@@ -102,7 +81,7 @@ class Expedition extends React.Component {
                         <p>At zero the squad runs on reserve power: every droid loses health each tile.</p>
                     </Tooltip>
                     {this.renderRange(
-                        Math.floor(this.props.batteryCapacity / (SQUAD_DRAIN_PER_DROID * size)),
+                        size > 0 ? Math.floor(this.props.batteryCapacity / (SQUAD_DRAIN_PER_DROID * size)) : null,
                         'force-projection-tip',
                         <React.Fragment>
                             <p className="tooltip-header">Deployment</p>
@@ -114,18 +93,21 @@ class Expedition extends React.Component {
                                 each tile.</p>
                         </React.Fragment>)}
                     {this.renderEquipment(this.props.ownedEquipment)}
+                    {size < 1 &&
+                        <span className="cargo-line">{idleDroids < 1 ?
+                            'No idle droids. Unassign some on the Base tab.' :
+                            'Assign droids to the team to deploy.'}</span>}
                     <div className="squad-actions">
                         <span data-tip data-for="deploy-tip">
                             {/* hide() dismisses the visible tooltip at click AND resets hover tracking,
                                 so the swapped-in Disband button's tooltip waits for a fresh hover */}
-                            <button className="deploy" disabled={idleDroids < 1}
-                                    onClick={() => { ReactTooltip.hide(); this.props.deploySquad(size); }}>
+                            <button className="deploy" disabled={size < 1}
+                                    onClick={() => { ReactTooltip.hide(); this.props.deploySquad(); }}>
                                 Deploy</button>
                         </span>
                         <Tooltip id="deploy-tip">
                             <p className="tooltip-header">Deploy</p>
-                            <p>Fields the team on the planet — drive it with arrows or WASD. Assigned
-                                droids leave the pool until the squad disbands.</p>
+                            <p>Fields the team on the planet — drive it with arrows or WASD.</p>
                         </Tooltip>
                     </div>
                 </div>
@@ -160,8 +142,8 @@ class Expedition extends React.Component {
                     </span>
                     <Tooltip id="disband-tip">
                         <p className="tooltip-header">Disband</p>
-                        <p>Settles the expedition: surviving units return to the droid pool as whole
-                            droids.</p>
+                        <p>Settles the expedition: surviving units stand down as whole droids, still
+                            assigned to the team.</p>
                         {!onGrid && <p>Return to powered ground to disband.</p>}
                     </Tooltip>
                 </div>
@@ -175,7 +157,7 @@ class Expedition extends React.Component {
             <React.Fragment>
                 <span className="spec-line key-value-pair" data-tip data-for={tipId}>
                     <span>Range:</span>
-                    <span>~{rangeTiles} tiles</span>
+                    <span>{rangeTiles === null ? '—' : `~${rangeTiles} tiles`}</span>
                 </span>
                 <Tooltip id={tipId}>{tooltip}</Tooltip>
             </React.Fragment>
@@ -233,6 +215,7 @@ const mapStateToProps = (state, ownProps) => {
         batteryCapacity: getBatteryCapacity(state), // staging range preview; fielded squads use their snapshot
         ownedEquipment: ownedEquipment(state),
         squadUpgradeIds: getSquadUpgradeIds(state),
+        squadDroidData: state.planet.squadDroidData,
         multiplier: getReplicationMultiplier(state)
     };
 };

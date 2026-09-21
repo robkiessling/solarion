@@ -45,6 +45,18 @@
       color: $ui-text-dim;
       min-height: 1.2em; // keep cell height stable when a resource has no rate to show
       text-align: right;
+
+      // Recall-all: a link in the rate line's own dim voice, lit on hover
+      .recall-droids {
+        margin-right: 0.6rem;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+
+        &:hover {
+          color: $ui-text;
+        }
+      }
     }
   }
 }

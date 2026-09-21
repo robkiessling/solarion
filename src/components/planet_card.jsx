@@ -10,8 +10,9 @@ import {planetDevelopmentProgress, showDroidsUI, surveyAutomationUnlocked} from 
 
 /**
  * The Planet tab's left-slot status card, the counterpart of the Base tab's Command Center: how much of the
- * world is known and how far replication has spread. Rows appear as their systems unlock (beacon and scouts
- * arrive with Survey Automation) rather than sitting under empty section headers.
+ * world is known and how far replication has spread. Rows appear as their systems unlock (sites once one is
+ * found, land and replication once a nest is cleared, beacon and scouts with Survey Automation) rather than
+ * sitting under empty section headers.
  */
 class PlanetCard extends React.Component {
     render() {
@@ -23,21 +24,30 @@ class PlanetCard extends React.Component {
                     <span>Explored:</span>
                     <span>{roundToDecimal(this.props.percentExplored, 2).toFixed(2)}%</span>
                 </span>
-                <span className="key-value-pair">
-                    <span>Sites found:</span>
-                    <span>{this.props.sitesFound}</span>
-                </span>
-                <span className="key-value-pair">
-                    <span>Available Land:</span>
-                    <span>
-                        {this.props.buildableLand}
-                        <span className={this.props.buildableLandIcon}></span>
+                {
+                    this.props.sitesFound > 0 &&
+                    <span className="key-value-pair">
+                        <span>Sites found:</span>
+                        <span>{this.props.sitesFound}</span>
                     </span>
-                </span>
-                <span className="key-value-pair">
-                    <span>Replication:</span>
-                    <span className="replication-x">×{this.props.developedLand}</span>
-                </span>
+                }
+                {
+                    // Land is only ever spent on replication, so the pair arrives with the ability
+                    this.props.replicateAbility &&
+                    <React.Fragment>
+                        <span className="key-value-pair">
+                            <span>Available Land:</span>
+                            <span>
+                                {this.props.buildableLand}
+                                <span className={this.props.buildableLandIcon}></span>
+                            </span>
+                        </span>
+                        <span className="key-value-pair">
+                            <span>Replication:</span>
+                            <span className="replication-x">×{this.props.developedLand}</span>
+                        </span>
+                    </React.Fragment>
+                }
                 {
                     // The growth beacon (ships with Survey Automation): replication grows toward it
                     this.props.surveyUnlocked &&

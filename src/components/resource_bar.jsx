@@ -1,9 +1,10 @@
 import React from 'react';
 import { connect } from 'react-redux';
 
-import {getDroidCounts, getNetResourceRates} from "../redux/reducer";
-import {getCapacity, getQuantity} from "../redux/modules/resources";
+import {getDroidCounts, getNetResourceRates, numRecallableDroids, recallAllDroids} from "../redux/reducer";
+import {getCapacity, getLifetimeQuantity, getQuantity} from "../redux/modules/resources";
 import ResourceAmount from "./ui/resource_amount";
+import Tooltip from "./ui/tooltip";
 import {isTargetingPlanet} from "../redux/modules/star";
 
 // Bar cells render in this fixed order regardless of learn order (unknown ids get appended in learn order)
@@ -11,7 +12,9 @@ const DISPLAY_ORDER = ['energy', 'ore', 'refinedMinerals', 'standardDroids', 'pr
 
 /**
  * Full-width HUD bar along the top of the app. Each resource is a two-line cell: amount on top, rate dimmed
- * underneath. Droids are a special cell showing the total census with the idle count in the rate slot.
+ * underneath. Droids are a special cell showing the total census with the idle count in the rate slot, plus
+ * the recall button (every assigned droid back to idle, for reassigning from scratch). It sits here because
+ * this cell is the droid tally on every tab, and it arrives with the structures' bulk ++ / -- buttons.
  */
 class ResourceBar extends React.Component {
     orderedIds() {
@@ -27,7 +30,21 @@ class ResourceBar extends React.Component {
         return <div className="resource-cell" key={resource.id} title={resource.name}>
             <div className="cell-amount">
                 <span className="resource-amount">{total}</span>
-                <div className="cell-rate">{idle} idle</div>
+                <div className="cell-rate">
+                    {/* A quiet link, not a button: the bar is a readout, and a white button outweighs the numbers.
+                        Gone when there is nothing to recall. */}
+                    {this.props.showRecall && this.props.numRecallable > 0 &&
+                        <a className="recall-droids" onClick={() => this.props.recallAllDroids()}
+                           data-tip data-for="recall-droids-tip">recall</a>}
+                    {idle} idle
+                </div>
+                {this.props.showRecall &&
+                    <Tooltip id="recall-droids-tip" place="bottom">
+                        <p className="tooltip-header">Recall All Droids</p>
+                        <p>Unassigns every droid at base. Structures lose their droid boost until
+                            droids are reassigned.</p>
+                        <p>A team in the field is not recalled.</p>
+                    </Tooltip>}
             </div>
             <span className={`cell-icon ${resource.icon}`}/>
         </div>;
@@ -77,11 +94,13 @@ const mapStateToProps = state => {
         resources: state.resources.byId,
         netResourceRates: getNetResourceRates(state),
         droidCounts: getDroidCounts(state),
+        numRecallable: numRecallableDroids(state),
+        showRecall: getLifetimeQuantity(state.resources.byId.standardDroids) >= 10, // as DroidCount's bulk buttons
         mirroringToPlanet: isTargetingPlanet(state.star)
     }
 };
 
 export default connect(
     mapStateToProps,
-    {}
+    { recallAllDroids }
 )(ResourceBar);

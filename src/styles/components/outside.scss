@@ -585,19 +585,11 @@ $hud-clearance: 6.5rem;
         flex: 1;
         align-items: center;
       }
+    }
 
-      // The staging stepper sits in the key-value value slot, so it right-aligns like the deployed readout
-      .team-stepper {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-
-        // Replicated force preview ("×2 = 10 units") trailing the stepper; the deployed readout words
-        // its team the same way
-        .fielded-units {
-          //color: $ui-text-dim;
-        }
-      }
+    // Staging row: the structures' droid assignment row, at the card's own text size
+    .droid-count {
+      font-size: inherit;
     }
 
     // .spec-line (droid combat specs) and .cargo-line rows carry no styling of their own: shared row
@@ -637,15 +629,6 @@ $hud-clearance: 6.5rem;
       }
     }
 
-  }
-
-  .stepper {
-    width: 1.5rem;
-  }
-
-  .staged-size {
-    min-width: 1.5rem;
-    text-align: center;
   }
 
 }

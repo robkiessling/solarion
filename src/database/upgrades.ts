@@ -1077,6 +1077,8 @@ const database = {
     // Squad equipment: one-time acquisitions (see database/equipment.ts). Researching one permanently
     // outfits every future squad with the piece; its charges spend in battle and reload on the grid.
     // Story salvage can grant these later by researchForFree-ing the same ids.
+    // No discoverWhen on the first tier: each is discovered by the planet-tab trigger that matches the moment the
+    // player first wants it (battery half spent, nest sighted, first fight over; see database/triggers.ts).
     // `squad: true` (here and on the combat/battery upgrades below) instead of a `structure`: these only
     // affect expeditions, so they're offered in the Expedition panel's Outfitting section, not on any
     // structure's card. (Ids keep the droidFactory_ prefix; saves and equipment.ts reference them.)
@@ -1085,11 +1087,6 @@ const database = {
         name: "Demo Launcher",
         description: 'Squad equipment: lobs a demolition charge onto the densest knot of hostiles. ' +
             'One shot per grid visit; reloads on powered ground.',
-        discoverWhen: {
-            resources: {
-                standardDroids: 5
-            }
-        },
         cost: {
             ore: 4000,
             refinedMinerals: 800
@@ -1103,11 +1100,6 @@ const database = {
         name: "Repair Rig",
         description: 'Squad equipment: field-patches every damaged droid (does not rebuild the destroyed). ' +
             'One use per grid visit; reloads on powered ground.',
-        discoverWhen: {
-            resources: {
-                standardDroids: 5
-            }
-        },
         cost: {
             ore: 2500,
             refinedMinerals: 500
@@ -1121,11 +1113,6 @@ const database = {
         name: "Overcharge Cell",
         description: 'Squad equipment: overdrives droid weapons for a short burst. ' +
             'One discharge per grid visit; recharges on powered ground.',
-        discoverWhen: {
-            resources: {
-                standardDroids: 5
-            }
-        },
         cost: {
             ore: 3000,
             refinedMinerals: 600
@@ -1142,11 +1129,6 @@ const database = {
         squad: true,
         name: "Reinforced Plating",
         description: 'Thicker hull plating for expedition droids: +3 max health each. Refits apply to the next deployed squad.',
-        discoverWhen: {
-            resources: {
-                standardDroids: 5
-            }
-        },
         cost: {
             ore: 3000,
             refinedMinerals: 600
@@ -1186,11 +1168,6 @@ const database = {
         name: "Extended Cells",
         description: 'Higher-density battery cells for the expedition squad: +50 battery capacity. ' +
             'Refits apply to the next deployed squad.',
-        discoverWhen: {
-            resources: {
-                standardDroids: 5
-            }
-        },
         cost: {
             ore: 5000,
             refinedMinerals: 1000
@@ -1334,8 +1311,6 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
 
             dispatch(fromGame.addNavTab('outside'));
             dispatch(fromGame.addNavTab('planet'));
-
-            dispatch(fromAbilities.learn('replicate'));
 
             dispatch(fromLog.startLogSequence('globeUnlocked'));
         }

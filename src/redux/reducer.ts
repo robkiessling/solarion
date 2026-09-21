@@ -374,6 +374,9 @@ export function canAssignDroid(state: RootState, droidData: DroidAssignment) {
             return true;
         }
     }
+    if (droidData.droidAssignmentType === 'squad' && state.planet.squad) {
+        return false; // the team is in the field; it is staffed at base
+    }
     return fromResources.canConsume(state.resources, { standardDroids: 1 });
 }
 export function canRemoveDroid(state: RootState, droidData: DroidAssignment) {
@@ -389,6 +392,9 @@ export function assignDroid(droidData: DroidAssignment, targetId: StructureId) {
                     break;
                 case 'planet':
                     dispatch(fromPlanet.assignDroidUnsafe());
+                    break;
+                case 'squad':
+                    dispatch(fromPlanet.squadAssignDroidUnsafe());
                     break;
                 default:
                     console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
@@ -417,6 +423,11 @@ export function assignAllDroids(droidData: DroidAssignment, targetId: StructureI
                     dispatch(fromPlanet.assignDroidUnsafe(numDroids));
                 }
                 break;
+            case 'squad':
+                if (numDroids > 0 && !getState().planet.squad) {
+                    dispatch(fromPlanet.squadAssignDroidUnsafe(numDroids));
+                }
+                break;
             default:
                 console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
         }
@@ -432,6 +443,9 @@ export function removeDroid(droidData: DroidAssignment, targetId: StructureId) {
                     break;
                 case 'planet':
                     dispatch(fromPlanet.removeDroidUnsafe());
+                    break;
+                case 'squad':
+                    dispatch(fromPlanet.squadRemoveDroidUnsafe());
                     break;
                 default:
                     console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
@@ -452,10 +466,41 @@ export function removeAllDroids(droidData: DroidAssignment, targetId: StructureI
                 case 'planet':
                     dispatch(fromPlanet.removeDroidUnsafe(numDroids));
                     break;
+                case 'squad':
+                    dispatch(fromPlanet.squadRemoveDroidUnsafe(numDroids));
+                    break;
                 default:
                     console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
             }
         }
+    }
+}
+
+// Droids the recall button would bring back: everything assigned at base (structures, the expedition team standing
+// by, scouts). A fielded squad is not recallable; it comes home by disbanding.
+export function numRecallableDroids(state: RootState): number {
+    let total = state.planet.droidData.numDroidsAssigned + state.planet.squadDroidData.numDroidsAssigned;
+    fromStructures.iterateVisible(state.structures, structure => {
+        total += structure.droidData.numDroidsAssigned;
+    });
+    return total;
+}
+
+// Sends every assigned droid back to the idle pool in one go, for reassigning from scratch. Scouts walk home as
+// they do on a normal recall, so they rejoin the pool on arrival rather than at once.
+export function recallAllDroids() {
+    return function(dispatch: Dispatch, getState: GetState) {
+        batch(() => {
+            const state = getState();
+            fromStructures.iterateVisible(state.structures, structure => {
+                const numDroids = structure.droidData.numDroidsAssigned;
+                if (numDroids > 0) dispatch(fromStructures.removeDroidUnsafe(structure.id, numDroids));
+            });
+            const numScouts = state.planet.droidData.numDroidsAssigned;
+            if (numScouts > 0) dispatch(fromPlanet.removeDroidUnsafe(numScouts));
+            const numStandingBy = state.planet.squadDroidData.numDroidsAssigned;
+            if (numStandingBy > 0) dispatch(fromPlanet.squadRemoveDroidUnsafe(numStandingBy));
+        });
     }
 }
 
@@ -480,6 +525,9 @@ export function numStandardDroids(state: RootState): number {
 
     // Add in recalled scouts still walking home (removed from the assigned count, not yet back in the pool)
     total += state.planet.droids.filter(droid => droid.returning).length;
+
+    // Add in the expedition team standing by at base
+    total += state.planet.squadDroidData.numDroidsAssigned;
 
     // Add in droids away with the squad (the assigned droids, not their replicated units)
     if (state.planet.squad) {
@@ -532,6 +580,7 @@ export function getDroidCounts(state: RootState) {
         if (structure.droidData) { assigned += structure.droidData.numDroidsAssigned; }
     }
     assigned += (state.planet.droids || []).length;
+    assigned += state.planet.squadDroidData.numDroidsAssigned;
     if (state.planet.squad) { assigned += state.planet.squad.assignedDroids || state.planet.squad.squadSize; }
 
     return { total: idle + assigned, idle };

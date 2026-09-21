@@ -36,7 +36,6 @@ import {
     type Poi,
 } from "../../lib/expeditions";
 import {applyEquipment, createBattle, startWithdrawal, type Battle} from "../../lib/battle";
-import {canConsume} from "./resources";
 import {advanceSquad, createSquad, droidsRecovered, isOnGrid, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
 import {logInline} from "./log";
 import {zoneColor} from "../../lib/planet_render";
@@ -99,6 +98,7 @@ export interface PlanetState {
     rotation: number;
     rotationMode: RotationMode;
     droidData: DroidAssignment;
+    squadDroidData: DroidAssignment;
     droids: ScoutDroid[];
     unlockedTerrains: Unlocks;
     haloRadius: number;
@@ -110,6 +110,7 @@ export interface PlanetState {
     pois: { [poiId: string]: Poi };
     squad: Squad | null;
     prompt: EncounterPrompt | null;
+    battlesFought: number;
 }
 
 // Terrain notes: elapsed game time each zone was last noted (session-only; not worth persisting), and the
@@ -136,6 +137,8 @@ export const START_COOK = 'planet/START_COOK' as const;
 export const INCREMENT_COOK = 'planet/INCREMENT_COOK' as const;
 
 // The player-driven squad (see lib/squad.ts)
+export const SQUAD_ASSIGN_DROID = 'planet/SQUAD_ASSIGN_DROID' as const;
+export const SQUAD_REMOVE_DROID = 'planet/SQUAD_REMOVE_DROID' as const;
 export const DEPLOY_SQUAD = 'planet/DEPLOY_SQUAD' as const;
 export const DISBAND_SQUAD = 'planet/DISBAND_SQUAD' as const;
 export const SQUAD_SET_PATH = 'planet/SQUAD_SET_PATH' as const;
@@ -171,6 +174,8 @@ export type PlanetAction =
     | { type: typeof UNLOCK_TERRAIN; payload: { upgrade: string } }
     | { type: typeof START_COOK }
     | { type: typeof INCREMENT_COOK; payload: { timeDelta: number } }
+    | { type: typeof SQUAD_ASSIGN_DROID; payload: { amount: number } }
+    | { type: typeof SQUAD_REMOVE_DROID; payload: { amount: number } }
     | { type: typeof DEPLOY_SQUAD; payload: { assignedDroids: number; multiplier: number; equipment: EquipmentCharges;
         droidStats: DroidStats; batteryCapacity: number } }
     | { type: typeof DISBAND_SQUAD; payload: { droidsReturned: number; cargo: ResourceAmounts } }
@@ -200,6 +205,13 @@ const initialState: PlanetState = {
         numDroidsAssigned: 0,
         droidAssignmentType: 'planet'
     },
+    // The expedition team standing by at base, assigned like a structure's droids (out of the idle pool while
+    // they wait). Deploying moves them onto the squad (this drops to 0 while it is fielded); disbanding puts the
+    // recovered droids back here, so the same team is ready to go again.
+    squadDroidData: {
+        numDroidsAssigned: 0,
+        droidAssignmentType: 'squad'
+    },
     // One entity per assigned droid: { coord: [row,col]|null, path, target, moveProgress, heading, docked?,
     // docking?, returning? }. Kept in lockstep with droidData.numDroidsAssigned. Scouts are grid remotes:
     // they start docked (no coord; "in the grid"), surface on the powered tile nearest their work, and walk
@@ -221,7 +233,8 @@ const initialState: PlanetState = {
                  // assignedDroids, multiplier, squadSize (effective units), cargo, equipment, droidHp, fighting }
     // The encounter popup's state: null | { poiId, phase: 'offer'|'result', result }. Planet-level (not on the
     // squad) so a wipe can still narrate its ending after the squad object is gone.
-    prompt: null
+    prompt: null,
+    battlesFought: 0 // fights that have ended, whatever the outcome (the first one opens the schematic index)
 }
 
 // Reducer
@@ -352,14 +365,24 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                 cookedPct: { $apply: (x: number) => Math.min(x + (action.payload.timeDelta / COOK_TIME), 1) }
             })
 
+        case SQUAD_ASSIGN_DROID:
+            return update(state, {
+                squadDroidData: { numDroidsAssigned: { $apply: (x: number) => x + action.payload.amount } }
+            });
+        case SQUAD_REMOVE_DROID:
+            return update(state, {
+                squadDroidData: { numDroidsAssigned: { $apply: (x: number) => x - action.payload.amount } }
+            });
         case DEPLOY_SQUAD:
             if (!state.homeCoord) return state; // no map generated yet
             return update(state, {
+                squadDroidData: { numDroidsAssigned: { $set: 0 } }, // the team is on the squad now
                 squad: { $set: createSquad(state.homeCoord, action.payload.assignedDroids, action.payload.multiplier,
                     action.payload.equipment, action.payload.droidStats, action.payload.batteryCapacity) }
             });
         case DISBAND_SQUAD:
             return update(state, {
+                squadDroidData: { numDroidsAssigned: { $set: action.payload.droidsReturned } },
                 squad: { $set: null },
                 prompt: { $set: null }
             });
@@ -414,7 +437,8 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                     droidHp: { $set: action.payload.droidHp },
                     cargo: { $apply: (cargo: ResourceAmounts) => mergeCargo(cargo, action.payload.reward) }
                 },
-                prompt: { $set: { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } }
+                prompt: { $set: { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } },
+                battlesFought: { $set: state.battlesFought + 1 }
             };
 
             // The nest is dead: its infestation stamp retracts (the land becomes sweepable and developable
@@ -439,7 +463,8 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             // strength (each side heals at home), so the next assault must be decisive too.
             return update(state, {
                 squad: { $set: null },
-                prompt: { $set: { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } }
+                prompt: { $set: { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } },
+                battlesFought: { $set: state.battlesFought + 1 }
             });
         case SQUAD_RETREATED:
             // Withdrawal complete: the escapees keep driving (no popup to dismiss mid-flight), carrying
@@ -448,7 +473,8 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                 squad: {
                     squadSize: { $set: action.payload.survivors },
                     droidHp: { $set: action.payload.droidHp }
-                }
+                },
+                battlesFought: { $set: state.battlesFought + 1 }
             });
         case SQUAD_RETREAT_ORDERED:
             return update(state, {
@@ -770,16 +796,27 @@ function sealedText(poi: Poi) {
     return `${poi.name} is sealed — requires ${tool}.`;
 }
 
-// Deploying costs only the droids. Replication multiplies them: the fielded roster is
+// Assigning to / removing from the team standing by at base (see squadDroidData). The reducer.ts wrappers check
+// the idle pool and that no squad is fielded.
+export function squadAssignDroidUnsafe(amount = 1): PlanetAction {
+    return { type: SQUAD_ASSIGN_DROID, payload: { amount } };
+}
+export function squadRemoveDroidUnsafe(amount = 1): PlanetAction {
+    return { type: SQUAD_REMOVE_DROID, payload: { amount } };
+}
+
+// Deploying fields the team assigned at base (already out of the idle pool, so deploying itself costs
+// nothing more). Replication multiplies them: the fielded roster is
 // assignedDroids x multiplier effective units, snapshotted at deploy (replicating afterward doesn't grow a
 // fielded squad). The squad automatically carries every owned equipment piece at full charges, and its
 // unit stats (base + researched combat upgrades) are snapshotted here: refit at base.
-export function deploySquad(assignedDroids: number) {
+export function deploySquad() {
     return function(dispatch: Dispatch, getState: GetState) {
         const state = getState();
         const planet = state.planet;
         if (planet.squad || !planet.homeCoord) return;
-        if (assignedDroids < 1 || !canConsume(state.resources, { standardDroids: assignedDroids })) return;
+        const assignedDroids = planet.squadDroidData.numDroidsAssigned;
+        if (assignedDroids < 1) return;
 
         dispatch(withRecalculation({ type: DEPLOY_SQUAD,
             payload: { assignedDroids, multiplier: getReplicationMultiplier(state),
@@ -789,7 +826,8 @@ export function deploySquad(assignedDroids: number) {
     }
 }
 
-// Disbanding requires standing on the powered grid (walk home first); survivors and cargo credit there.
+// Disbanding requires standing on the powered grid (walk home first); cargo credits there and the recovered
+// droids go back to standing by at base (still assigned to the team, not the idle pool).
 // Surviving units settle back into whole droids to the nearest (droidsRecovered): partial losses
 // re-replicate at home.
 export function disbandSquad() {

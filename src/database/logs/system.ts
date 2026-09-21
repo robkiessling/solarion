@@ -397,6 +397,13 @@ export default {
             ['View Added: [[ Planet ]]', 1000, true],
             ['Exploration Progress: 0.08%', 1000, true],
         ],
+        onFinish: (dispatch) => {
+            // The rest of the planet tab is revealed by play (see these triggers in database/triggers.ts)
+            dispatch(addTrigger('squadBatteryHalf'));
+            dispatch(addTrigger('nestSighted'));
+            dispatch(addTrigger('firstBattleOver'));
+            dispatch(addTrigger('firstNestReclaimed'));
+        }
     },
 
     startExploringMap: {
@@ -408,6 +415,30 @@ export default {
             dispatch(addTrigger('windTurbine_global'))
             dispatch(addTrigger('solarPanel_global'))
             dispatch(fromPlanet.startExploringMap());
+        }
+    },
+
+    firstBattleOver: {
+        text: [
+            ['', 0],
+            ['Combat telemetry logged.', 500, true],
+            ['Chassis design corpus indexed: see Droid Factory.', 1000, true],
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromUpgrades.discover('droidFactory_repairRig'));
+            dispatch(fromUpgrades.discover('droidFactory_reinforcedPlating'));
+        }
+    },
+
+    replicationOnline: {
+        text: [
+            ['', 0],
+            ['Infestation cleared. Ground reclaimed.', 500, true],
+            ['Replication: AVAILABLE', 1000, true],
+            ['Surveyed flatland can now carry copies of the base.', 1500, true],
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromAbilities.learn('replicate'));
         }
     },
 

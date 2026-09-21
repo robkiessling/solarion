@@ -26,7 +26,7 @@ export type StructureType = 'generator' | 'consumer';
 export interface DroidData {
     usesDroids: boolean;
     numDroidsAssigned: number;
-    droidAssignmentType: 'structure' | 'planet';
+    droidAssignmentType: 'structure' | 'planet' | 'squad';
     assignTooltipPrefix?: string;
 }
 

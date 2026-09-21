@@ -65,8 +65,10 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             return produceReducer(state, action.payload.resources)
         case fromStructures.ASSIGN_DROID:
         case fromPlanet.ASSIGN_DROID:
+        case fromPlanet.SQUAD_ASSIGN_DROID:
             return consumeReducer(state, { standardDroids: action.payload.amount })
         case fromStructures.REMOVE_DROID:
+        case fromPlanet.SQUAD_REMOVE_DROID:
             // Do not want assigning/removing droids to affect lifetimeTotal
             return produceReducer(state, { standardDroids: action.payload.amount }, false)
         case fromPlanet.REMOVE_DROID:
@@ -75,22 +77,13 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             return action.payload.instantIndices.length > 0
                 ? produceReducer(state, { standardDroids: action.payload.instantIndices.length }, false)
                 : state;
-        case fromPlanet.DEPLOY_SQUAD:
-            return consumeReducer(state, { standardDroids: action.payload.assignedDroids })
-        case fromPlanet.DISBAND_SQUAD: {
-            // Only recovered droids return to the idle pool (surviving units settled back into whole droids
-            // by the disband thunk); combat losses are permanent (never re-credited). Any undelivered cargo
-            // banks here too. Rewards must be already-LEARNed resources (unlearned ids are dropped silently
-            // by produceReducer).
-            let next = state;
-            if (action.payload.droidsReturned > 0) {
-                next = produceReducer(next, { standardDroids: action.payload.droidsReturned }, false);
-            }
-            if (action.payload.cargo && Object.keys(action.payload.cargo).length > 0) {
-                next = produceReducer(next, action.payload.cargo);
-            }
-            return next;
-        }
+        case fromPlanet.DISBAND_SQUAD:
+            // Any undelivered cargo banks here. (Recovered droids stay assigned to the team rather than returning
+            // to the idle pool; see the planet reducer.) Rewards must be already-LEARNed resources (unlearned ids
+            // are dropped silently by produceReducer).
+            return action.payload.cargo && Object.keys(action.payload.cargo).length > 0
+                ? produceReducer(state, action.payload.cargo)
+                : state;
         case fromPlanet.SQUAD_DELIVER_CARGO:
             // The squad touched the powered grid: cargo banks (lost on a wipe, so this is the payoff moment)
             return produceReducer(state, action.payload.cargo)

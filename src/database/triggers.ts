@@ -84,6 +84,38 @@ const database = {
         condition: (slice) => !!slice,
         action: () => store.dispatch(fromLog.startLogSequence('startExploringMap'))
     }),
+    // The planet tab opens with only the map and the staging card; everything else arrives at the moment the player
+    // has just felt the need for it (armed together by the globeUnlocked sequence).
+    // Range: the battery is half gone for the first time.
+    squadBatteryHalf: trigger({
+        selector: (state) => state.planet.squad?.battery,
+        condition: (battery) => battery != null && battery <= (store.getState().planet.squad?.batteryCapacity ?? 0) / 2,
+        action: () => store.dispatch(fromUpgrades.discover('droidFactory_extendedCells'))
+    }),
+    // Offense: a nest is on the map, so there is something to aim a launcher at.
+    nestSighted: trigger({
+        selector: (state) => state.planet.pois,
+        condition: (pois) => Object.values(pois).some(poi => poi.type === 'nest' && poi.status !== 'hidden'),
+        action: () => {
+            store.dispatch(fromUpgrades.discover('droidFactory_demoLauncher'));
+            store.dispatch(fromUpgrades.discover('droidFactory_overchargeCell'));
+        }
+    }),
+    // Survival and the schematic index: the first fight has ended (won, lost or fled), so health, damage and swing
+    // now mean something. The index opener on the factory card keys off the same counter.
+    firstBattleOver: trigger({
+        selector: (state) => state.planet.battlesFought,
+        condition: (fought) => fought >= 1,
+        action: () => store.dispatch(fromLog.startLogSequence('firstBattleOver'))
+    }),
+    // Replication: a nest is dead and the squad is home (or gone). Waiting for the squad keeps this beat apart
+    // from the battle's own, and Replicate is held while a squad is fielded anyway.
+    firstNestReclaimed: trigger({
+        selector: (state) => state.planet.squad,
+        condition: (squad) => !squad && Object.values(store.getState().planet.pois)
+            .some(poi => poi.type === 'nest' && poi.status === 'cleared'),
+        action: () => store.dispatch(fromLog.startLogSequence('replicationOnline'))
+    }),
     windTurbine_global: trigger({
         selector: (state) => state.resources.byId.developedLand,
         condition: (slice) => !!slice && slice.amount >= 100,

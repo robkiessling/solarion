@@ -12,6 +12,7 @@ import * as fromGame from '../redux/modules/game';
 import * as fromPlanet from '../redux/modules/planet';
 import * as fromStar from '../redux/modules/star';
 import * as fromLog from '../redux/modules/log';
+import * as fromClock from '../redux/modules/clock';
 import {addTrigger} from '../redux/modules/triggers';
 import {kickoffDoomsday} from '../redux/reducer';
 import type {UpgradeId} from '../database/upgrades';
@@ -55,6 +56,16 @@ export function runGameMode(dispatch: Dispatch) {
     }
 }
 
+// Advances the planet clock from a fresh start (day 1, 06:00) to 06:00 on the given day. Only valid on a fresh game:
+// the clock has no setter, so this ticks it forward by the difference. Goes through clockTick so daylight and wind
+// are recalculated for the new time.
+function skipClockToDay(day: number) {
+    return (dispatch: Dispatch, getState: GetState) => {
+        const dayLengthMs = fromClock.dayLength(getState().clock) * 1000;
+        dispatch(fromClock.clockTick((day - 1) * dayLengthMs));
+    };
+}
+
 // The state the intro cards leave behind, set directly (the cards are marked researched silently, so none of the
 // boot / shutter / mission-start sequences play): terminal and bars on, shutters open, one harvester, ore known,
 // and the harvester-start and idle-harvester triggers armed as mission start would arm them.
@@ -95,6 +106,7 @@ function skipStart(dispatch: Dispatch) {
 // counts are from that run at that moment. The startExploringMap trigger is armed as researchedDroidFactory arms it.
 function skipToRobotics(dispatch: Dispatch) {
     dispatch(fromLog.logInline('Skipping to robotics'));
+    dispatch(skipClockToDay(17));
 
     dispatch(fromGame.updateSetting('shuttersOpen', true));
     dispatch(fromGame.updateSetting('showPlanetStatus', true));
@@ -157,12 +169,14 @@ function skipToRobotics(dispatch: Dispatch) {
     dispatch(addTrigger('startExploringMap'));
 }
 
-// Shortly after the planetary map came online (day 11 of a real run): Long-range Communication just researched,
-// ten droids built and all deployed to structures (none scouting yet), the map generated but unexplored.
+// Shortly after the planetary map came online (about day 28 of a real run; 11 days past the robotics skip):
+// Long-range Communication just researched, ten droids built and all deployed to structures (none scouting yet),
+// the map generated but unexplored.
 // Counts, upgrades and resources are from that run at that moment; the next tier (Feedback Loop, Kinetic Engines,
 // Perovskite Solar Cells, Ultra-Dense Matrices, Hyper-Alloy Synthesizer, Plasma Drill) was still on offer.
 function skipToGlobe(dispatch: Dispatch) {
     dispatch(fromLog.logInline('Skipping to globe'));
+    dispatch(skipClockToDay(28));
 
     dispatch(fromGame.updateSetting('shuttersOpen', true));
     dispatch(fromGame.updateSetting('showPlanetStatus', true));
@@ -205,8 +219,8 @@ function skipToGlobe(dispatch: Dispatch) {
         'commandCenter_researchRefinery', 'commandCenter_researchDroidFactory'
     ] satisfies UpgradeId[]).forEach(upgrade => dispatch(fromUpgrades.skipResearch(upgrade)));
 
-    // droidFactory_longerComm goes last: its onFinish generates the map, adds the Planet tab, learns the replicate
-    // ability and plays the globeUnlocked terminal sequence
+    // droidFactory_longerComm goes last: its onFinish generates the map, adds the Planet tab and plays the
+    // globeUnlocked terminal sequence (which arms the planet-tab reveal triggers)
     ([
         'commandCenter_improvedCharge', 'commandCenter_improvedCharge2', 'commandCenter_improvedCharge3',
         'commandCenter_improvedCharge4', 'commandCenter_chargeMineral1',
@@ -284,6 +298,8 @@ function skipToStar(dispatch: Dispatch) {
     ] satisfies UpgradeId[]).forEach(upgrade => dispatch(fromUpgrades.researchForFree(upgrade)));
 
     dispatch(fromPlanet.startExploringMap());
+    // Normally learned once the first nest is cleared (the replicationOnline sequence)
+    dispatch(fromAbilities.learn('replicate'));
     dispatch(fromResources.produce({
         developedLand: 1000
     }));

@@ -219,6 +219,13 @@ function logAuthorization(dispatch: Dispatch, getState: GetState, rowId: string)
     dispatch(logInline(`Schematic authorized — ${option.name}. Authorization #${record.authNumber}. Refits apply to the next deployed squad.`));
 }
 
+// Whether the factory card shows the SCHEMATIC INDEX opener at all. Every spec in the index is a combat or range
+// figure, so it stays away until the first fight has ended; before that the numbers have nothing to attach to.
+// (A save that already signed a row keeps its index.)
+export function chassisIndexRevealed(state: RootState) {
+    return state.planet.battlesFought > 0 || Object.keys(state.panels.chassis.authorized).length > 0;
+}
+
 // Whether the SCHEMATIC INDEX opener should draw attention: a row arrived the player hasn't seen
 // yet (even if unaffordable — they should learn the index grew; clears on open), or an unsigned
 // row is actionable right now (unlocked + affordable + factory idle; goes dark when it isn't, so
