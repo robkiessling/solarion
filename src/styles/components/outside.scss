@@ -563,10 +563,20 @@ $hud-clearance: 6.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 
     // The card's two text styles: dim labels, bright values. Key-value rows dim their label cell
-    // structurally; free-form labels (Equipment) opt in via .row-label.
-    .row-label,
+    // structurally.
     .key-value-pair > span:first-child {
       color: $ui-text-dim;
+    }
+
+    // Equipment list: right-aligned like every other value, wrapping between pieces (each piece is
+    // nowrap) so a long loadout stacks under itself on the right instead of spilling under the label
+    .equipment-list {
+      text-align: right;
+      margin-left: 1em;
+
+      .equipment-item {
+        white-space: nowrap;
+      }
     }
 
     // One shared height for every row: each row is a direct child of the card's flex column (which

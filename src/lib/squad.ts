@@ -1,11 +1,21 @@
-import {NUM_PLANET_ROWS, PLANET_COLS, parseCoordKey} from "./planet_geometry";
-import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, STATUSES, type PlanetMap, type TerrainKey, type Unlocks} from "./planet_map";
+import {NUM_PLANET_ROWS, parseCoordKey, PLANET_COLS} from "./planet_geometry";
+import {
+    getCrossTime,
+    getTerrain,
+    getVisibleCoords,
+    isOnGrid,
+    type PlanetMap,
+    STATUSES,
+    type TerrainKey,
+    type Unlocks
+} from "./planet_map";
 import {mapObject, mod, typedEntries} from "./helpers";
 
-import {advanceBattle, DROID_BASE_STATS, fullDroidHp, type Battle, type BattleOverEvent} from "./battle";
+import {advanceBattle, type Battle, type BattleOverEvent, DROID_BASE_STATS, fullDroidHp} from "./battle";
 import {EQUIPMENT_DEFS, type EquipmentCharges} from "../database/equipment";
 import type {DroidStats} from "../database/battle";
 import type {Poi} from "./expeditions";
+import {INFINITE_CHARGE} from "../dev/skips";
 
 /** The ground a squad stands on as the driver feels it (see squadZone): settlement territory, the powered
  * grid, or the bare terrain. Keys the terrain notes and the map frame's tint. */
@@ -83,7 +93,6 @@ export const CONTACT_MS = 400;
 
 export const SQUAD_BATTERY_CAPACITY = 100;
 export const SQUAD_DRAIN_PER_DROID = 0.4; // per assigned droid per tile; the default 5-droid team drains 2
-const INFINITE_CHARGE = true; // testing toggle: the battery never drains off-grid (no reserve power, no field wipes)
 export const RESERVE_HP_PER_TILE = 1;     // hull every unit burns per tile on reserve power
 
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.

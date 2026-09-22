@@ -2,7 +2,6 @@ import React from 'react';
 import ReactTooltip from "react-tooltip";
 import {connect} from "react-redux";
 import {deploySquad, disbandSquad} from "../redux/modules/planet";
-import {getQuantity, getResource} from "../redux/modules/resources";
 import {formatResourceList} from "../lib/expeditions";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
 import {isOnGrid, SQUAD_DRAIN_PER_DROID} from "../lib/squad";
@@ -32,11 +31,18 @@ class Expedition extends React.Component {
 
         return (
             <React.Fragment>
-                <span className="cargo-line" data-tip data-for="equipment-tip">
-                    <span className="row-label">Equipment:</span>{' '}
-                    {ids.map(id => this.props.squad ?
-                        `${EQUIPMENT_DEFS[id].name} ${chargeDots(id, carried[id])}` :
-                        EQUIPMENT_DEFS[id].name).join(', ')}
+                <span className="cargo-line key-value-pair" data-tip data-for="equipment-tip">
+                    <span>Equipment:</span>
+                    {/* Each piece is an unbreakable unit, so a long list wraps between pieces (right-aligned
+                        under the first line), never mid-name or between a name and its charge dots */}
+                    <span className="equipment-list">
+                        {ids.map((id, i) =>
+                            <span key={id} className="equipment-item">{i > 0 && ' '}
+                                {this.props.squad ?
+                                    `${EQUIPMENT_DEFS[id].name} ${chargeDots(id, carried[id])}` :
+                                    EQUIPMENT_DEFS[id].name}{i < ids.length - 1 && ','}
+                            </span>)}
+                    </span>
                 </span>
                 <Tooltip id="equipment-tip">
                     <p className="tooltip-header">Equipment</p>
@@ -47,7 +53,7 @@ class Expedition extends React.Component {
     }
 
     renderTeamCard() {
-        const { squad, idleDroids, onGrid } = this.props;
+        const { squad, onGrid } = this.props;
 
         if (!squad) {
             const size = this.props.squadDroidData.numDroidsAssigned; // the team standing by at base
@@ -93,10 +99,6 @@ class Expedition extends React.Component {
                                 each tile.</p>
                         </React.Fragment>)}
                     {this.renderEquipment(this.props.ownedEquipment)}
-                    {size < 1 &&
-                        <span className="cargo-line">{idleDroids < 1 ?
-                            'No idle droids. Unassign some on the Base tab.' :
-                            'Assign droids to the team to deploy.'}</span>}
                     <div className="squad-actions">
                         <span data-tip data-for="deploy-tip">
                             {/* hide() dismisses the visible tooltip at click AND resets hover tracking,
@@ -210,7 +212,6 @@ const mapStateToProps = (state, ownProps) => {
     return {
         squad,
         onGrid: !!(squad && state.planet.map.length > 0 && isOnGrid(state.planet.map, squad.coord)),
-        idleDroids: Math.floor(getQuantity(getResource(state.resources, 'standardDroids'))),
         droidStats: getDroidStats(state),
         batteryCapacity: getBatteryCapacity(state), // staging range preview; fielded squads use their snapshot
         ownedEquipment: ownedEquipment(state),
