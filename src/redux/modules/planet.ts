@@ -32,6 +32,7 @@ import {
     CAPABILITY_LABELS,
     formatResourceList,
     generatePois,
+    isGarrisoned,
     levelPayout,
     poiLevels,
     resultBehaviorFor,
@@ -62,7 +63,7 @@ export interface ScoutDroid {
 
 /**
  * What the encounter popup narrates in its result phase. Fight outcomes carry the roster numbers and the final
- * battle frame; site outcomes (caches, story sites, gates) carry what was found. Display strings are composed at
+ * battle frame; site outcomes (caches, story sites) carry what was found. Display strings are composed at
  * render time so the stored shape stays serializable.
  */
 export interface EncounterResult {
@@ -121,6 +122,7 @@ export interface PlanetState {
     squad: Squad | null;
     prompt: EncounterPrompt | null;
     battlesFought: number;
+    squadsReturned: number;
 }
 
 // Terrain notes: elapsed game time each zone was last noted (session-only; not worth persisting), and the
@@ -248,7 +250,8 @@ const initialState: PlanetState = {
     // The encounter popup's state: null | { poiId, phase: 'offer'|'result', result }. Planet-level (not on the
     // squad) so a wipe can still narrate its ending after the squad object is gone.
     prompt: null,
-    battlesFought: 0 // fights that have ended, whatever the outcome (the first one opens the schematic index)
+    battlesFought: 0, // fights that have ended, whatever the outcome (the first one opens the schematic index)
+    squadsReturned: 0 // squads disbanded back at base (a wipe is not a return; the replication beat waits for one)
 }
 
 // Reducer
@@ -398,7 +401,8 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             return update(state, {
                 squadDroidData: { numDroidsAssigned: { $set: action.payload.droidsReturned } },
                 squad: { $set: null },
-                prompt: { $set: null }
+                prompt: { $set: null },
+                squadsReturned: { $set: (state.squadsReturned || 0) + 1 }
             });
         case SQUAD_FACE:
             // The way the driver is looking (screen-space [dx, dy]); drives the Expedition panel's vista.
@@ -472,6 +476,14 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                 updates.overallStatus = { $set: 'inProgress' };
             }
 
+            // Its camps go with it: whoever was still out on the held ground scatters (no fight, no loot),
+            // so nothing is left standing on land that is about to be developed
+            Object.values(state.pois).forEach(poi => {
+                if (poi.parentId === action.payload.poiId && poi.status !== 'cleared') {
+                    updates.pois[poi.id] = { status: { $set: 'cleared' } };
+                }
+            });
+
             return update(state, updates);
         }
         case SQUAD_LEVEL_WON: {
@@ -532,17 +544,6 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                 prompt: { $set: action.payload.result ?
                     { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } : null }
             };
-
-            // Opening a gate unblocks its tile (scouts can pass, land can develop through) and may put new
-            // ground in reach, so any 'finished' exploration status is cleared
-            const poi = state.pois[action.payload.poiId];
-            if (poi && poi.type === 'gate') {
-                updates.map = {
-                    [poi.coord[0]]: { [poi.coord[1]]: { gated: { $set: false } } }
-                };
-                updates.overallStatus = { $set: 'inProgress' };
-            }
-
             return update(state, updates);
         }
         case SQUAD_DELIVER_CARGO:
@@ -933,7 +934,7 @@ export function squadStepInto(coord: Coord, tap: boolean) {
         const blockingPoi = Object.values(planet.pois).find(poi =>
             poi.status !== 'cleared' &&
             poi.coord[0] === coord[0] && poi.coord[1] === coord[1] &&
-            (poi.type === 'settlement' || (poi.requires && !planet.unlockedTerrains[poi.requires]))
+            (isGarrisoned(poi) || (poi.requires && !planet.unlockedTerrains[poi.requires]))
         );
 
         if (blockingPoi) {
@@ -948,7 +949,7 @@ export function squadStepInto(coord: Coord, tap: boolean) {
                 if (tap) dispatch(logInline(sealedText(blockingPoi)));
                 return 'blocked';
             }
-            // An available settlement falls through: it is walkable, and arriving on it starts the fight
+            // An available settlement or camp falls through: it is walkable, and arriving on it starts the fight
         }
 
         return dispatch(squadStep(coord)) ? 'moved' : 'blocked';
@@ -1182,7 +1183,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
         }
         case 'enteredPoi': {
             const entered = pois[event.poiId];
-            if (entered && entered.type === 'settlement') {
+            if (entered && isGarrisoned(entered)) {
                 // Walked into the settlement: the fight starts here, on the tile. Win and the squad is already
                 // through; retreat and it walks back to event.fromCoord.
                 dispatch(squadAttack(event.poiId, event.fromCoord));

@@ -38,7 +38,7 @@ const GROUND: Record<VistaGround, string> = {
     ice: '=====',
     acid: '~~~~~',
     water: '~~~~~',
-    held: '%%%%%',
+    held: '░░░░░',
     unknown: '·····',
     void: '     ' // past the pole rows: nothing there
 };

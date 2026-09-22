@@ -61,9 +61,9 @@ export const GROUND_BLURBS: Record<TerrainLayoutId | 'open', string> = {
     open: 'The squad drops onto open ground'
 };
 export const HOSTILE_BLURBS: Record<HostileFormation, string> = {
-    column: 'the swarm advances in a broad column',
-    ring: 'the swarm coils into a tight ring',
-    clusters: 'bugs mass in scattered pockets',
-    scatter: 'startled bugs swarm from every direction',
+    column: 'hostiles advance in a broad column',
+    ring: 'hostiles draw into a tight ring',
+    clusters: 'hostiles mass in scattered pockets',
+    scatter: 'startled hostiles rush in from every direction',
     surround: 'the ambush closes from all sides'
 };

@@ -81,7 +81,7 @@ class PlanetCard extends React.Component {
 const mapStateToProps = (state, ownProps) => {
     return {
         percentExplored: percentExplored(state.planet),
-        sitesFound: Object.values(state.planet.pois).filter(poi => poi.status !== 'hidden').length,
+        sitesFound: Object.values(state.planet.pois).filter(poi => poi.status !== 'hidden' && poi.type !== 'camp').length, // camps are contacts, not sites
         buildableLand: getQuantity(getResource(state.resources, 'buildableLand')),
         buildableLandIcon: getIcon('buildableLand'),
         developedLand: getQuantity(getResource(state.resources, 'developedLand')),

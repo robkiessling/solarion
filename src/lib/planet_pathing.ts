@@ -286,7 +286,7 @@ export function findPathToGrid(map: PlanetMap, fromCoord: Coord, { unlocks = {} 
 const coordKey = ([row, col]: Coord) => `${row},${col}`;
 
 // A droid may travel over a tile if it is revealed (explored) and currently scout-passable (terrain the
-// scout can cross, not held, not an unopened gate).
+// scout can cross, not held).
 function isTraversable(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
     return map[coord[0]][coord[1]].status === EXPLORED && isScoutPassable(map, coord, unlocks);
 }

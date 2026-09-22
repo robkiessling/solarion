@@ -629,7 +629,7 @@ export function battleBlurb(battle: Battle, formation?: HostileFormation): strin
     // The ring's center slot is where a garrison's leading shelter stands (see createBattle); name the
     // objective when it's really there
     if (formation === 'ring' && battle.startingSpawners > 0) {
-        hostiles = `bugs circle tight around their ${battle.startingSpawners > 1 ? 'hives' : 'hive'}`;
+        hostiles = `hostiles circle tight around their ${battle.startingSpawners > 1 ? 'sources' : 'source'}`;
     }
     return `${ground}; ${hostiles}.`;
 }

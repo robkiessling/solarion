@@ -1,7 +1,7 @@
 import {getRandomFromArray, getRandomIntInclusive, mapObject} from "./helpers";
-import {ACID_BAND_DISTANCES, getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, type PlanetMap, type Sector} from "./planet_map";
+import {getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, type PlanetMap, type Sector} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {GATE_DEFS, LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Band, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
+import {LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
 import type {HostileType} from "../database/battle";
 import type {HostileFormation, TerrainLayoutId} from "./battle";
 
@@ -38,6 +38,8 @@ export interface Poi {
     levelsShown?: boolean;
     reloot?: number[];
     discardedKg?: number;
+    /** camps: the settlement whose held ground this sits on */
+    parentId?: string;
 }
 
 /**
@@ -51,43 +53,53 @@ export interface Poi {
 export {CAPABILITY_LABELS, FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, STORY_TEXTS} from "../database/pois";
 
 /**
- * The region/stamp placement pass: the POI_DEFS content manifest scattered per placement band, gate POIs on
- * the stamped gate tiles, and an territory stamp around every settlement (sector.heldBy: scout-impassable,
- * not developable, squad-crossable; retracts when the settlement is cleared). MUTATES the map (generation-time
- * only).
+ * The placement pass: each POI_DEFS entry lands in the zone (a random tile of it) or on the point (one exact
+ * tile) painted for it in the authored map, and a territory stamp around
+ * every settlement (sector.heldBy: scout-impassable, not developable, squad-crossable; retracts when the
+ * settlement is cleared). An entry that cannot be placed is reported on the console rather than dropped
+ * silently: the manifest is the content plan, and a missing entry is a bug in the drawing or the manifest.
+ * MUTATES the map (generation-time only).
  */
 export function generatePois(map: PlanetMap): Record<string, Poi> {
     const pois: Record<string, Poi> = {};
     const usedKeys = new Set();
 
-    const bandOf = (sector: Sector): Band => {
-        if (sector.region === 'bowl') return 'r1';
-        if (sector.region === 'antipode') return 'r3';
-        return sector.graphDistanceHome < ACID_BAND_DISTANCES[0] ? 'r2near' : 'r2far';
-    };
-
-    // Only place POIs where a fully-tooled squad can actually walk (gates treated as open, acid as
-    // crossable). Scenery mountain ranges leave pockets, and a capability salvage inside one would make the
-    // seed unfinishable; the map-gen corridor carve guarantees each region has reachable ground.
+    // Only place POIs where a fully-tooled squad can actually walk (acid crossable, tunnels open). A capability salvage in a pocket walled off by mountains or sea would make the map
+    // unfinishable.
     const reachable = squadReachableSet(map);
 
     const candidates: Sector[] = [];
     map.forEach(row => {
         row.forEach(sector => {
             if (sector.terrain === TERRAINS.flatland.key && sector.graphDistanceHome > 2 &&
-                !sector.gated && reachable.has(`${sector.coord[0]},${sector.coord[1]}`)) {
+                reachable.has(`${sector.coord[0]},${sector.coord[1]}`)) {
                 candidates.push(sector);
             }
         });
     });
 
-    const pick = (band: Band): Sector | null => {
-        const pool = candidates.filter(sector =>
-            bandOf(sector) === band &&
-            !sector.heldBy && // never place on (or roll a settlement whose center is inside) existing territory
-            !usedKeys.has(`${sector.coord[0]},${sector.coord[1]}`)
-        );
-        if (pool.length === 0) return null; // rare degenerate roll; the harness watches placement counts
+    const describe = (def: PoiDef) => `${def.type}${def.point ? ` at point ${def.point}` : ` in zone ${def.zone}`}`;
+
+    // A random free tile of the def's zone, or its point's tile. Territory never overlaps a placed POI
+    // (a settlement rolled inside another's stamp would share ground; a cache under one would be unreachable
+    // to scouts), so held tiles are out of the pool.
+    const pick = (def: PoiDef): Sector | null => {
+        let pool: Sector[];
+        if (def.point) {
+            pool = candidates.filter(sector => sector.point === def.point);
+        }
+        else if (def.zone) {
+            pool = candidates.filter(sector => sector.zone === def.zone);
+        }
+        else {
+            console.warn(`POI_DEFS: ${def.type} names neither a zone nor a point; skipped`);
+            return null;
+        }
+        pool = pool.filter(sector => !sector.heldBy && !usedKeys.has(`${sector.coord[0]},${sector.coord[1]}`));
+        if (pool.length === 0) {
+            console.warn(`POI_DEFS: no free reachable tile for ${describe(def)}; skipped`);
+            return null;
+        }
         const sector = getRandomFromArray(pool);
         usedKeys.add(`${sector.coord[0]},${sector.coord[1]}`);
         return sector;
@@ -116,34 +128,40 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     // Placement requires clean ground out to radius+1, so stamps never overlap (retraction assumes one owner).
     const addSettlement = (def: PoiDef) => {
         for (let attempt = 0; attempt < 20; attempt++) {
-            const sector = pick(def.band);
+            const sector = pick(def);
             if (!sector) return;
             const territoryRadius = def.territoryRadius ?? 0;
             const area = [sector.coord, ...getCoordsWithinHops(sector.coord, territoryRadius + 1)];
-            const clean = area.every(([r, c]) => !map[r][c].heldBy && !map[r][c].gated &&
-                map[r][c].terrain !== TERRAINS.home.key);
-            if (!clean) continue; // pick() already marked it used; just try another tile
+            const clean = area.every(([r, c]) => !map[r][c].heldBy && map[r][c].terrain !== TERRAINS.home.key);
+            if (!clean) { // pick() already marked it used; try another tile
+                if (attempt === 19) console.warn(`POI_DEFS: no clean ground for ${describe(def)}'s territory; skipped`);
+                continue;
+            }
 
             const poi = add('settlement', sector, { territoryRadius, levels: (def.levels || []).map(rollLevel),
                 levelsShown: def.levelsShown, reloot: def.reloot });
             if (def.discardedKg) poi.discardedKg = getRandomIntInclusive(def.discardedKg[0] / 10, def.discardedKg[1] / 10) * 10;
+            const held: Sector[] = [];
             [sector.coord, ...getCoordsWithinHops(sector.coord, territoryRadius)].forEach(([r, c]) => {
-                if (map[r][c].terrain === TERRAINS.flatland.key && !map[r][c].gated) {
+                if (map[r][c].terrain === TERRAINS.flatland.key) {
                     map[r][c].heldBy = poi.id;
+                    if (map[r][c] !== sector) held.push(map[r][c]);
                 }
+            });
+
+            // Camps: one per declared level, each on a random tile of this site's own held ground (the only
+            // POIs that live on held ground; pick() keeps everything else off it). A territory squeezed
+            // small by mountains or coast simply fits fewer.
+            (def.camps || []).forEach(campDef => {
+                const free = held.filter(tile => !usedKeys.has(`${tile.coord[0]},${tile.coord[1]}`));
+                if (free.length === 0) return;
+                const tile = getRandomFromArray(free);
+                usedKeys.add(`${tile.coord[0]},${tile.coord[1]}`);
+                add('camp', tile, { levels: [rollLevel(campDef)], parentId: poi.id });
             });
             return;
         }
     };
-
-    // Gate POIs sit on the tiles the stamp pass marked (sector.gated/gateKind)
-    map.forEach(row => {
-        row.forEach(sector => {
-            if (!sector.gated || !sector.gateKind) return;
-            usedKeys.add(`${sector.coord[0]},${sector.coord[1]}`);
-            add('gate', sector, { ...GATE_DEFS[sector.gateKind] });
-        });
-    });
 
     // The content manifest: each definition placed in its band, rewards rolled from their declared ranges
     POI_DEFS.forEach(def => {
@@ -158,7 +176,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         if (def.promptText) extras.promptText = def.promptText;
         if (def.actionLabel) extras.actionLabel = def.actionLabel;
         if (def.reward) extras.reward = rollPoiReward(def.reward);
-        const sector = pick(def.band);
+        const sector = pick(def);
         if (sector) add(def.type, sector, extras);
     });
 
@@ -170,16 +188,21 @@ function rollLevel(def: PoiLevelDef): PoiLevel {
         blurb: def.blurb, garrison: def.garrison, reward: def.reward ? rollPoiReward(def.reward) : {}, timesCleared: 0 };
 }
 
-// A settlement's fights, surface first (empty for other POI types)
+// A settlement's fights, surface first; a camp's single one (empty for other POI types)
 export function poiLevels(poi: Poi): PoiLevel[] {
     return poi.levels || [];
+}
+
+// POIs that are fought, not prompted: stepping onto one starts its battle
+export function isGarrisoned(poi: Poi): boolean {
+    return poi.type === 'settlement' || poi.type === 'camp';
 }
 
 // What winning a level pays on THIS clear: its rolled resources scaled by the site's reloot schedule (indexed by
 // how often the level has fallen before; past the end it pays nothing). Salvage is first-clear only.
 export function levelPayout(poi: Poi, levelIndex: number): PoiReward {
     const level = poiLevels(poi)[levelIndex];
-    const schedule = poi.reloot || POI_TYPE_DEFAULTS.settlement.reloot || [1];
+    const schedule = poi.reloot || POI_TYPE_DEFAULTS[poi.type].reloot || [1];
     const fraction = schedule[level.timesCleared] ?? 0;
     const reward: PoiReward = {};
     if (level.reward.resources && fraction > 0) {
@@ -189,18 +212,27 @@ export function levelPayout(poi: Poi, levelIndex: number): PoiReward {
     return reward;
 }
 
-// Every tile a fully-tooled squad can reach from home: BFS over terrain crossable with all capabilities,
-// through gate tiles (they're flatland; the gate POI is the openable barrier). Keys are "row,col".
+// Every tile a fully-tooled squad can reach from home: BFS over terrain crossable with all capabilities
+// and through tunnels (the
+// mouths sharing a digit count as adjacent: the drawing's islands are meant to be reached that way, so
+// their zones take content now, ahead of the tunnel mechanics). Keys are "row,col".
 function squadReachableSet(map: PlanetMap): Set<string> {
     const home = getHomeBasePosition(map).coord;
     const allTools = { drill: true, sealedChassis: true, overrideModule: true };
+
+    const mouths: Record<string, Coord[]> = {};
+    map.forEach(row => row.forEach(sector => {
+        if (sector.tunnel) (mouths[sector.tunnel] = mouths[sector.tunnel] || []).push(sector.coord);
+    }));
 
     const reachable = new Set([`${home[0]},${home[1]}`]);
     let frontier = [home];
     while (frontier.length > 0) {
         const next: Coord[] = [];
         frontier.forEach(coord => {
-            getAdjacentCoords(coord).forEach(([r, c]) => {
+            const tunnel = map[coord[0]][coord[1]].tunnel;
+            const neighbours = [...getAdjacentCoords(coord), ...(tunnel ? mouths[tunnel] : [])];
+            neighbours.forEach(([r, c]) => {
                 const key = `${r},${c}`;
                 if (reachable.has(key)) return;
                 if (getCrossTime(map[r][c].terrain, allTools) === Infinity) return;

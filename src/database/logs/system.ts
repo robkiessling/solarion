@@ -433,7 +433,7 @@ export default {
     replicationOnline: {
         text: [
             ['', 0],
-            ['Infestation cleared. Ground reclaimed.', 500, true],
+            ['Nest cleared. Ground reclaimed.', 500, true],
             ['Replication: AVAILABLE', 1000, true],
             ['Surveyed flatland can now carry copies of the base.', 1500, true],
         ],

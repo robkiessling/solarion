@@ -56,8 +56,8 @@ class EncounterPopup extends React.Component {
                 </span>
                 <span className="battle-side hostiles">
                     {battle.startingSpawners > 0 &&
-                        <span className="battle-count shelters">{spawners}/{battle.startingSpawners} Hives</span>}
-                    <span className="battle-count hostiles">{hostiles}/{battle.hostilesPeak} Bugs</span>
+                        <span className="battle-count shelters">{spawners}/{battle.startingSpawners} Sources</span>}
+                    <span className="battle-count hostiles">{hostiles}/{battle.hostilesPeak} Hostiles</span>
                 </span>
             </div>
         );
@@ -79,7 +79,7 @@ class EncounterPopup extends React.Component {
         );
     }
 
-    renderResult(result) {
+    renderResult(poi, result) {
         const story = result.storyId ? STORY_TEXTS[result.storyId] : null;
         // Battle results hold the field's final frame (frozen, nothing ticks it) with a verdict banner
         // over it, so the fight's ending stays on screen instead of snapping down to the small prompt;
@@ -100,7 +100,7 @@ class EncounterPopup extends React.Component {
                     </span>}
                 {result.losses != null &&
                     <span className="result-line">
-                        {descent ? `Level ${result.level + 1} cleared` : 'Nest cleared'} — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
+                        {descent ? `Level ${result.level + 1} cleared` : poi.type === 'camp' ? 'Contact cleared' : 'Nest cleared'} — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
                     </span>}
                 {result.landCredit > 0 &&
                     <span className="outcome-line">Reclaimed {result.landCredit} land.</span>}
@@ -146,7 +146,7 @@ class EncounterPopup extends React.Component {
                 <div className="battle-final">
                     <BattleCanvas battle={finalBattle}/>
                     <div className={`battle-verdict${result.wiped ? ' wiped' : ''}`}>
-                        {result.wiped ? 'CONTACT LOST' : descent ? 'LEVEL CLEARED' : 'NEST CLEARED'}
+                        {result.wiped ? 'CONTACT LOST' : descent ? 'LEVEL CLEARED' : poi.type === 'camp' ? 'CONTACT CLEARED' : 'NEST CLEARED'}
                     </div>
                 </div>
                 <div className="battle-footer">
@@ -256,7 +256,7 @@ class EncounterPopup extends React.Component {
         return (
             <PopupFrame className={`encounter-popup${battleView ? ' battle' : ''}`} style={style} title={title}>
                 {fighting ? this.renderBattle(poi, fighting) :
-                    prompt.phase === 'result' ? this.renderResult(prompt.result) : this.renderOffer(poi)}
+                    prompt.phase === 'result' ? this.renderResult(poi, prompt.result) : this.renderOffer(poi)}
             </PopupFrame>
         );
     }

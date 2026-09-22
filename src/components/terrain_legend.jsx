@@ -16,7 +16,7 @@ class TerrainLegend extends React.Component {
             entries.push(TERRAINS.developed);
         }
         if (this.props.anyPoiVisible) {
-            entries.push({ key: 'held', display: HELD_GLYPH, label: 'Infested' });
+            entries.push({ key: 'held', display: HELD_GLYPH, label: 'Hostile territory' });
         }
 
         return (

@@ -22,7 +22,7 @@ export const PLANET_COLORS = {
     ice: '#ffffff',
     acid: '#9acd32',     // the mid-world belt
     water: '#2f6b8f',    // open sea: deep steel blue, cooler and bluer than the fog so unexplored ground never reads as coast
-    held: '#a06bc9', // held ground around a settlement; retracts when the settlement is cleared
+    held: '#d94f8c', // held ground around a settlement (retracts when it is cleared): rose, kin to the settlement's red and clear of the story sites' purple
     droid: '#ffe14d',
     droidReturning: '#9a9a9a', // recalled scouts walking home ("off duty")
     laserBeam: '#ffff00',
@@ -30,8 +30,8 @@ export const PLANET_COLORS = {
     // Expedition overlays (POI markers, squad, skirmish effect)
     poiCache: '#ffd700',
     poiSettlement: '#ff4d4d',
+    poiCamp: '#ff4d4d', // same red as the settlement it belongs to; the smaller glyph tells them apart
     poiStory: '#c58fff',
-    poiGate: '#e0c060',
     poiHighlight: '#ffffff',
     squad: '#20d9ff',    // friendly cyan like home base; keeps the squad readable next to yellow scouts
     battle: '#ff6b35',
@@ -144,7 +144,7 @@ function glyphInkBox(context: CanvasRenderingContext2D, char: string): InkBox | 
 // see planet_map's daylightAt) interpolates between them. Night is deliberately deep: the squad's lantern
 // (cell.lit) and the markers' self-lit floor carry readability, so the ambient can go dark enough that night
 // is unmistakable next to day and the pool of light around the team means something.
-const NIGHT_ALPHA = 0.1;
+const NIGHT_ALPHA = 0.14;
 // Things with their own light never sink below a floor in the dark. selfLit is that floor (0..1); `true`
 // means the standard running-lights level below (units, the beacon, the command center; replicated land
 // uses a dimmer floor of its own): dimmed enough to still read as night, bright enough to stay findable.

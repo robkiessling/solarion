@@ -10,6 +10,6 @@ export const TERRAIN_BLURBS: Partial<Record<SquadZone, string>> = {
     acid: 'Acid flats. The ground hisses under the treads.',
     water: 'The shore. Dead water to the horizon; the treads stop here.',
     ice: 'Ice sheet. Wind, glare, and nothing else.',
-    held: 'Hive territory. The ground is warm, and something in it is breathing.'
+    held: 'Hostile territory. Thermal signatures: multiple, moving.'
 };
 import type {SquadZone} from '../lib/squad';

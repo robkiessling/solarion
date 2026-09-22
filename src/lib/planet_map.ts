@@ -1,13 +1,10 @@
 import _ from 'lodash';
-import {createArray, getIntermediateColor, getRandomFromArray, getRandomIntInclusive, mod, floor, nTimes} from "./helpers";
-import {MinHeap} from "./min_heap";
+import {createArray, getIntermediateColor, getRandomFromArray, getRandomIntInclusive, mod, floor} from "./helpers";
 import type {PlanetColorKey} from "./planet_render";
 import AUTHORED_MAP_TEXT from "../database/planet_map.txt?raw";
 import {
-    ALL_DIRECTIONS,
     DISPLAY_COLS,
     getAdjacentCoords,
-    stepInCompassDirection,
     getApproxDistance,
     getGraphDistancesFrom,
     NUM_PLANET_ROWS,
@@ -19,12 +16,6 @@ export type TerrainKey = 'home' | 'flatland' | 'developing' | 'developed' | 'mou
 
 /** How much of a tile the player has seen (the keys of STATUSES below) */
 export type SectorStatus = 'unknown' | 'exploring' | 'explored';
-
-/** The barrier a gate tile is: a cave rockfall (opened with the drill) or a sealed door (the override module) */
-export type GateKind = 'cave' | 'door';
-
-/** The three story regions of the map: the home bowl, the mid-world belt, and the far-side antipode */
-export type Region = 'bowl' | 'belt' | 'antipode';
 
 export interface TerrainDef {
     key: TerrainKey;
@@ -57,11 +48,10 @@ export interface Sector {
     distanceHome: number;
     /** BFS hop distance to home (exploration ordering); Infinity until cacheDistancesToHome runs at generation */
     graphDistanceHome: number;
-    region?: Region;
-    gated?: boolean;
-    gateKind?: GateKind;
-    /** authored placement zone letter */
+    /** authored placement zone letter (a-z) */
     zone?: string;
+    /** authored exact-placement point letter (A-Z) */
+    point?: string;
     /** authored tunnel system digit */
     tunnel?: string;
     /** poiId of the settlement whose territory covers this tile */
@@ -178,31 +168,7 @@ function daylightAt(deltaTurns: number) {
 }
 
 
-// Ice cap run-length rows (alternating [ice, gap, ice, gap, ...]), sized for the uniform 120-col rows.
-// The caps wall off the poles (no north/south wrap) and give the viewport mask's polar crop a natural edge.
-const NORTH_ICE_CAP_ROWS = [
-    [120], // row 0: solid wall
-    [14, 2, 20, 1, 26, 2, 18, 1, 36], // row 1: near-solid with a couple of inlets
-    [0, 10, 6, 25, 4, 30, 8, 37] // row 2: scattered floes (leading 0 = starts with a gap)
-]
-const SOUTH_ICE_CAP_ROWS = [
-    [0, 12, 5, 28, 6, 24, 7, 38], // third to last row
-    [10, 3, 24, 2, 30, 1, 22, 2, 26], // second to last row
-    [120] // last row: solid wall
-]
-
-// const HOME_STARTING_ROW_RANGE = [3, 7];
-const HOME_STARTING_ROW_RANGE: [number, number] = [5, 5]; // TODO Leaving dead center otherwise first 3x3 explored area gets stretched poorly
-const NUM_MOUNTAIN_RANGES_RANGE: [number, number] = [50, 62]; // scaled with the uniform grid's larger tile count
-const MOUNTAIN_RANGE_SIZE_RANGE: [number, number] = [1, 20];
-const MOUNTAIN_WIDEN_CHANCE = 0.6; // per step, chance of a second mountain beside the spine (ranges read 2-ish wide)
-
-const SHOW_DEBUG_MERIDIANS = false;
-const NUM_DEBUG_MERIDIANS = 8;
-const ADD_MOUNTAINS = true;
 const EXPLORE_EVERYTHING = true;
-const MARK_SECTORS = false;
-const LOG_MAP = false;
 
 const EXPLORATION_TIME_FACTOR = 0.5; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = true;
@@ -224,17 +190,21 @@ export const TERRAINS: Record<TerrainKey, TerrainDef> = {
     mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
     // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
     ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
-    acid: { key: 'acid', display: '~', variants: ['≈'], label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // The mid-world belt; binary gate (Sealed Chassis or no)
+    acid: { key: 'acid', display: '~', variants: ['≈'], label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // Dead seas; binary (Sealed Chassis or no)
     // Open water: a permanent wall like ice (the crossUpgrade is never granted). The authored map's oceans; the
     // only ways across are the land the map leaves and, later, tunnels.
     water: { key: 'water', display: '~', variants: ['≈'], variantShare: 0.2, label: 'Sea', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'seafaring' },
 }
 
 // Held flatland (sector.heldBy) gets its own glyph, not just a tint (a tint alone is impossible
-// to tell on the night side): a carpet of little omegas spreading out from the settlement's big 'Ω', the settlement's
-// territory. Only flatland is ever stamped held (see generatePois), so no other terrain loses its glyph
-// to this.
-export const HELD_GLYPH = 'ω';
+// to tell on the night side): a shaded zone spreading out from the settlement's 'Ω', the ground its people
+// work and watch. A light block shade fills the cell, so neighbouring tiles join into one marked area the way
+// a denied zone is hatched on a chart (a thin glyph like ':' vanished into the flatland around it). A neutral
+// survey mark on purpose, and it holds still: anything drawn here must be literally true of a settlement's
+// land (the terminal omits, it never shows a falsehood), and marks that move or glow on a tile read as
+// something to walk onto. Only flatland is ever stamped held (see generatePois), so no other terrain loses
+// its glyph to this.
+export const HELD_GLYPH = '░';
 // City lights: the powered grid is lit at night the way a city looks from orbit. The command center is the
 // hub: full running-lights brightness (planet_render's SELF_LIT_ALPHA) plus the same lantern pool as the
 // squad. Replicated land is a field of warm points that never spill onto the ground around them and vary
@@ -274,13 +244,6 @@ export function terrainGlyph(terrainKey: TerrainKey, row: number, col: number) {
     const hash = tileHash(row, col, 12345);
     if (hash >= share) { return attributes.display; }
     return attributes.variants[Math.floor((hash / share) * attributes.variants.length)];
-}
-
-if (SHOW_DEBUG_MERIDIANS) {
-    nTimes(NUM_DEBUG_MERIDIANS, i => {
-        const key = `meridian_${i}`;
-        (TERRAINS as Record<string, TerrainDef>)[key] = { key: key as TerrainKey, display: (i % 16).toString(16).toUpperCase(), crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }
-    })
 }
 
 export const STATUSES: Record<SectorStatus, SectorStatusDef> = {
@@ -326,19 +289,19 @@ const LASER_BEAM_STREAKS: Record<number, number> = { // some beams make a streak
  * The planet is hand-drawn (database/planet_map.txt: NUM_PLANET_ROWS lines of PLANET_COLS chars, an
  * equirectangular grid, so col = (lon + 180) / 3 and row = (90 - lat) / 6). One char per tile:
  *   .      flatland
- *   a-z    flatland in placement zone <letter> (sector.zone; POI placement will target zones)
+ *   a-z    flatland in placement zone <letter> (sector.zone): a POI def naming the zone lands on a random tile of it
+ *   A-Z    flatland marking one exact spot (sector.point): a POI def naming the point lands on that tile; an
+ *          unused point is just flatland
  *   1-9    tunnel mouth; every mouth sharing a digit belongs to one tunnel system (sector.tunnel; mechanics later)
  *   ^      mountain      ~  water (sea)      *  ice
  *   #      home (exactly one; column floor(HOME_FRACTION * PLANET_COLS) keeps the noon/slider math honest)
- *   [  ]   flat gate tiles: cave (opens with the drill) / door (opens with the override module)
  * Walls are permanent (mountain, water, ice), so every pocket of land is reachable only through what the
  * drawing leaves open; the load-time check below counts orphaned land so a bad edit shows up in the console.
- * USE_AUTHORED_MAP = false falls back to the procedural generator (kept as a drafting tool).
+ * Passage between land masses is by tunnel (the digits); there are no gate tiles, a choke is held by whatever
+ * the content pass puts on the point painted there.
  */
-const USE_AUTHORED_MAP = true;
-
 export function generatePlanetMap(): PlanetMap {
-    return USE_AUTHORED_MAP ? generateAuthoredMap() : generateRandomMap();
+    return generateAuthoredMap();
 }
 
 export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coord } {
@@ -363,14 +326,9 @@ export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coo
                     if (homeCoord) throw new Error(`Authored map has two homes: ${homeCoord} and ${[rowIndex, colIndex]}`);
                     homeCoord = [rowIndex, colIndex];
                     return createSector(TERRAINS.home, STATUSES.explored, coord);
-                case '[': case ']': {
-                    const sector = flat();
-                    sector.gated = true;
-                    sector.gateKind = char === '[' ? 'cave' : 'door';
-                    return sector;
-                }
                 default:
                     if (char >= 'a' && char <= 'z') { const sector = flat(); sector.zone = char; return sector; }
+                    if (char >= 'A' && char <= 'Z') { const sector = flat(); sector.point = char; return sector; }
                     if (char >= '1' && char <= '9') { const sector = flat(); sector.tunnel = char; return sector; }
                     throw new Error(`Authored map: unknown char '${char}' at row ${rowIndex} col ${colIndex}`);
             }
@@ -398,85 +356,48 @@ function generateAuthoredMap() {
     return map;
 }
 
-// Dev aid for the drawing: floods from home over everything a fully-tooled squad could ever cross (gates
-// open, tunnels ignored for now) and reports the flat tiles it can never reach, so a range that seals a
-// valley by accident is caught at load instead of by a player.
+// Dev aid for the drawing: floods from home over everything a fully-tooled squad could ever cross (tunnel
+// mouths sharing a digit adjacent) and reports the flat tiles it can never reach, so a range
+// that seals a valley by accident is caught at load instead of by a player. Painted zones and points that
+// are cut off are named: content assigned to them would never appear.
 function warnAboutOrphanedLand(map: PlanetMap, homeCoord: Coord) {
     const walkable = (sector: Sector) => sector.terrain !== TERRAINS.mountain.key &&
         sector.terrain !== TERRAINS.water.key && sector.terrain !== TERRAINS.ice.key;
+    const mouths: Record<string, Coord[]> = {};
+    map.forEach(row => row.forEach(sector => {
+        if (sector.tunnel) (mouths[sector.tunnel] = mouths[sector.tunnel] || []).push(sector.coord);
+    }));
     const seen = new Set([`${homeCoord[0]},${homeCoord[1]}`]);
     let frontier = [homeCoord];
     while (frontier.length > 0) {
         const next: Coord[] = [];
-        frontier.forEach(coord => getAdjacentCoords(coord).forEach(([row, col]) => {
-            const key = `${row},${col}`;
-            if (seen.has(key) || !walkable(map[row][col])) return;
-            seen.add(key);
-            next.push([row, col]);
-        }));
+        frontier.forEach(coord => {
+            const tunnel = map[coord[0]][coord[1]].tunnel;
+            [...getAdjacentCoords(coord), ...(tunnel ? mouths[tunnel] : [])].forEach(([row, col]) => {
+                const key = `${row},${col}`;
+                if (seen.has(key) || !walkable(map[row][col])) return;
+                seen.add(key);
+                next.push([row, col]);
+            });
+        });
         frontier = next;
     }
     let orphaned = 0, total = 0;
+    const cutOff = new Set<string>();
     map.forEach((row, rowIndex) => row.forEach((sector, colIndex) => {
         if (!walkable(sector)) return;
         total++;
-        if (!seen.has(`${rowIndex},${colIndex}`)) orphaned++;
+        if (seen.has(`${rowIndex},${colIndex}`)) return;
+        orphaned++;
+        if (sector.zone) cutOff.add(`zone ${sector.zone}`);
+        if (sector.point) cutOff.add(`point ${sector.point}`);
     }));
     if (orphaned > 0) {
-        console.warn(`Authored map: ${orphaned} of ${total} land tiles are unreachable from home (walled off by mountains/water/ice)`);
+        console.warn(`Authored map: ${orphaned} of ${total} land tiles are unreachable from home (walled off by mountains/water/ice)` +
+            (cutOff.size > 0 ? `, including ${[...cutOff].sort().join(', ')}` : ''));
     }
 }
 
-export function generateRandomMap(): PlanetMap {
-    const map: PlanetMap = [];
-
-    // Start by initializing entire map as flatland
-    nTimes(NUM_PLANET_ROWS, (row) => {
-        map.push(createArray(PLANET_COLS, (col) => createSector(TERRAINS.flatland, STATUSES.unknown, [row, col])));
-    });
-
-    if (ADD_MOUNTAINS) addMountainRanges(map);
-
-    addIceCaps(map);
-
-    if (SHOW_DEBUG_MERIDIANS) generateDebugMeridians(map);
-
-    const homeCoord = addHomeBase(map);
-
-    cacheDistancesToHome(map, homeCoord);
-
-    stampRegions(map, homeCoord);
-
-    if (MARK_SECTORS) markSectors(map);
-
-    cacheCoords(map);
-
-    if (LOG_MAP) logMap(map);
-
-    return map;
-}
-
-function logMap(map: PlanetMap) {
-    let str = '';
-
-    map.forEach((row, rowIndex) => {
-        row.forEach(sector => {
-            str += TERRAINS[sector.terrain].display;
-        });
-        str += '\n'
-    })
-    console.log(str);
-}
-
-function cacheCoords(map: PlanetMap) {
-    map.forEach((row, rowIndex) => {
-        row.forEach((sector, colIndex) => {
-            sector.coord = [rowIndex, colIndex];
-        })
-    })
-}
-
-// A 'sector' is one tile on the map. I.e. the map is a 2d array of sectors
 function createSector(terrain: TerrainDef, status: SectorStatusDef, coord: Coord): Sector {
     return {
         terrain: terrain.key,
@@ -488,315 +409,14 @@ function createSector(terrain: TerrainDef, status: SectorStatusDef, coord: Coord
     }
 }
 
-const NUM_SECTOR_MERIDIANS = 8;
-function markSectors(map: PlanetMap) {
-    // Meridians are straight columns on the uniform grid: divider lines at evenly-spaced columns
-    for (let i = 0; i < NUM_SECTOR_MERIDIANS; i++) {
-        const colIndex = floor(i / NUM_SECTOR_MERIDIANS * PLANET_COLS);
-        const prevCol = mod(colIndex - 1, PLANET_COLS);
-        for (let rowIndex = 0; rowIndex < NUM_PLANET_ROWS; rowIndex++) {
-            map[rowIndex][colIndex].sectorDividerLeft = true;
-            map[rowIndex][prevCol].sectorDividerRight = true;
-        }
-    }
-
-    const firstThird = floor(NUM_PLANET_ROWS / 3) - 1
-    for (let i = 0; i < PLANET_COLS; i++) {
-        map[firstThird][i].sectorDividerBottom = true
-    }
-    const secondThird = floor(NUM_PLANET_ROWS / 3 * 2) - 1
-    for (let i = 0; i < PLANET_COLS; i++) {
-        map[secondThird][i].sectorDividerBottom = true
-    }
-}
-
-// Draws some evenly-spaced meridian columns on the map to help with debugging.
-function generateDebugMeridians(map: PlanetMap) {
-    for (let i = 0; i < NUM_DEBUG_MERIDIANS; i++) {
-        const colIndex = floor(i / NUM_DEBUG_MERIDIANS * PLANET_COLS);
-        for (let rowIndex = 0; rowIndex < NUM_PLANET_ROWS; rowIndex++) {
-            if (!map[rowIndex][colIndex].terrain.startsWith('meridian_')) {
-                map[rowIndex][colIndex] = createSector((TERRAINS as Record<string, TerrainDef>)[`meridian_${i}`], STATUSES.explored, [rowIndex, colIndex]);
-            }
-        }
-    }
-
-    const middleRow = floor(NUM_PLANET_ROWS / 2)
-    for (let i = 0; i < PLANET_COLS; i++) {
-        map[middleRow][i] = createSector((TERRAINS as Record<string, TerrainDef>)[`meridian_${1}`], STATUSES.explored, [middleRow, i]);
-    }
-}
-
-// Adds ice in the top row
-function addIceCaps(map: PlanetMap) {
-    NORTH_ICE_CAP_ROWS.forEach((iceLengths, rowIndex) => {
-        addIceRow(map, rowIndex, iceLengths);
-    })
-
-    SOUTH_ICE_CAP_ROWS.forEach((iceLengths, rowIndex) => {
-        rowIndex += (NUM_PLANET_ROWS - SOUTH_ICE_CAP_ROWS.length);
-        addIceRow(map, rowIndex, iceLengths);
-    });
-}
-
-function addIceRow(map: PlanetMap, rowIndex: number, iceLengths: number[]) {
-    let colIndex = 0;
-
-    iceLengths.forEach((iceLength, i) => {
-        const isGap = i % 2 === 1;
-        nTimes(iceLength, i => {
-            if (colIndex + i < PLANET_COLS) {
-                map[rowIndex][colIndex + i] = createSector(isGap ? TERRAINS.flatland : TERRAINS.ice, STATUSES.unknown, [rowIndex, colIndex + i]);
-            }
-        })
-        colIndex += iceLength;
-    })
-}
-
-function addMountainRanges(map: PlanetMap) {
-    const numMountainRanges = getRandomIntInclusive(...NUM_MOUNTAIN_RANGES_RANGE);
-
-    for (let i = 0; i < numMountainRanges; i++) {
-        const mountainRangeSize = getRandomIntInclusive(...MOUNTAIN_RANGE_SIZE_RANGE);
-        const mountainRangeStartRow = getRandomIntInclusive(0, NUM_PLANET_ROWS - 1);
-        const mountainRangeStartCol = getRandomIntInclusive(0, PLANET_COLS - 1);
-        addMountainRange(map, mountainRangeSize, mountainRangeStartRow, mountainRangeStartCol)
-    }
-}
-
-/**
- * Each mountain range is aimed at a random primary direction. As the range is built, it will have a high
- * chance of heading in the primary direction, a smaller chance of heading in the secondary direction
- * (e.g. if primary is E, secondary directions are NE/SE), and a small chance of heading in a random direction.
- */
-function addMountainRange(map: PlanetMap, size: number, startingRow: number, startingCol: number) {
-    const primaryDirection = getRandomFromArray(ALL_DIRECTIONS);
-    // Neighbors on the compass rose: a diagonal's two cardinals, or a cardinal's two diagonals
-    const secondaryDirections = ALL_DIRECTIONS.filter(dir =>
-        dir !== primaryDirection && (dir.includes(primaryDirection) || primaryDirection.includes(dir)));
-
-    let currentCoord: Coord = [startingRow, startingCol];
-
-    // Mountains never overwrite ice: the home-adjacent range is stamped AFTER the ice caps, and it must not
-    // punch holes in the polar walls.
-    const raise = ([row, col]: Coord) => {
-        if (map[row][col].terrain !== TERRAINS.ice.key) {
-            map[row][col] = createSector(TERRAINS.mountain, STATUSES.unknown, [row, col]);
-        }
-    };
-
-    for (let step = 0; step < size; step++) {
-        raise(currentCoord);
-
-        // Widen the range: sometimes raise a neighboring tile too, so ranges read as 2-cell-thick massifs
-        // instead of 1-cell strings (thin diagonal strings look crossable and read poorly during travel).
-        if (Math.random() < MOUNTAIN_WIDEN_CHANCE) {
-            raise(getRandomFromArray(getAdjacentCoords(currentCoord)));
-        }
-
-        // Choose next direction
-        let direction;
-        const rand = Math.random();
-        if (rand < 0.4) { direction = primaryDirection; }
-        else if (rand < 0.7) { direction = getRandomFromArray(secondaryDirections); }
-        else { direction = getRandomFromArray(ALL_DIRECTIONS); }
-
-        // Move towards the randomly chosen direction (if possible)
-        currentCoord = stepInCompassDirection(currentCoord, direction) || currentCoord;
-    }
-}
-
-function addHomeBase(map: PlanetMap): Coord {
-    const homeRow = getRandomIntInclusive(...HOME_STARTING_ROW_RANGE);
-    const homeCol = floor(HOME_FRACTION * PLANET_COLS);
-
-    if (ADD_MOUNTAINS) {
-        // Create a mountain range near to home (so it somewhat matches the scenery)
-        addMountainRange(map, 5, homeRow, homeCol);
-    }
-
-    // Add home
-    map[homeRow][homeCol] = createSector(TERRAINS.home, STATUSES.explored, [homeRow, homeCol]);
-
-    // Home must never spawn walled in (the squad couldn't leave until mountaineering): if the scenery range
-    // enclosed it, flatten one neighbor as an opening.
-    const neighbors = getAdjacentCoords([homeRow, homeCol]);
-    if (!neighbors.some(([row, col]) => map[row][col].terrain === TERRAINS.flatland.key)) {
-        const opening = getRandomFromArray(neighbors.filter(([row, col]) => map[row][col].terrain !== TERRAINS.ice.key));
-        if (opening) {
-            map[opening[0]][opening[1]] = createSector(TERRAINS.flatland, STATUSES.unknown, opening);
-        }
-    }
-
-    // The starting clearing: exactly what the squad would light up standing on the pad, sight lines and all,
-    // so the opening view reads as ground already scanned rather than an arbitrary patch. A scenery ridge
-    // next to home therefore walls off part of the view from the first frame.
-    if (START_WITH_ADJ_EXPLORED) {
-        getVisibleCoords(map, [homeRow, homeCol]).forEach(([row, col]) => {
-            map[row][col].status = STATUSES.explored.key
-        });
-    }
-
-    if (EXPLORE_EVERYTHING) {
-        map.forEach((row, rowIndex) => {
-            row.forEach((sector, colIndex) => {
-                if (rowIndex !== map.length) {
-                    sector.status = STATUSES.explored.key
-                }
-            });
-        });
-    }
-
-    return [homeRow, homeCol]
-}
-
-/**
- * --- The region stamp pass ---
- * Three concentric regions, defined by hop distance (pure topology, so the boundaries are unbreakable rings):
- *   R1 "the bowl": inside a mountain ring around home, with ONE gate tile (the cave; opens with the drill).
- *   R3 "the antipode": inside a ring around the point opposite home, with one gate tile (the sealed door;
- *      opens with the override module).
- *   R2 "the scarred belt": everything else, cut in half by a band of acid at mid-distance (crossable only
- *      with the sealed chassis). The band converts mountains too: mountains have their own cross upgrade,
- *      and a crossable mountain inside the belt would leak a path around the acid gate.
- * Ice is never overwritten (the polar walls complete every ring), and ring/band tiles that are already
- * mountains just stay mountains.
- *
- * Because neighboring tiles differ by at most 1 in hop distance, making every tile AT the ring distance
- * impassable (except the gate) fully seals the interior; single-tile thickness is enough.
- */
-export const BOWL_RING_DISTANCE = 8;       // ring at this hop distance from home; interior is R1
-export const ANTIPODE_RING_DISTANCE = 7;   // ring around the antipode; interior is R3
-export const ACID_BAND_DISTANCES = [38, 40]; // inclusive hop-distance band of acid (the mid-world gate)
-
-function stampRegions(map: PlanetMap, homeCoord: Coord) {
-    const antipodeCoord: Coord = [
-        NUM_PLANET_ROWS - 1 - homeCoord[0],
-        mod(homeCoord[1] + PLANET_COLS / 2, PLANET_COLS)
-    ];
-    const antipodeDistances = getGraphDistancesFrom(antipodeCoord);
-    const isStampable = (sector: Sector) => // ice (the polar walls) and home are never restamped
-        sector.terrain !== TERRAINS.ice.key && sector.terrain !== TERRAINS.home.key;
-
-    const bowlRing: RingEntry[] = [];
-    const antipodeRing: RingEntry[] = [];
-
+function cacheCoords(map: PlanetMap) {
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
-            const homeDist = sector.graphDistanceHome;
-            const antipodeDist = antipodeDistances[rowIndex][colIndex];
-
-            sector.region = homeDist < BOWL_RING_DISTANCE ? 'bowl' :
-                (antipodeDist < ANTIPODE_RING_DISTANCE ? 'antipode' : 'belt');
-
-            if (!isStampable(sector)) return;
-
-            if (homeDist === BOWL_RING_DISTANCE) {
-                bowlRing.push({ sector, coord: [rowIndex, colIndex] });
-            }
-            else if (antipodeDist === ANTIPODE_RING_DISTANCE) {
-                antipodeRing.push({ sector, coord: [rowIndex, colIndex] });
-            }
-            else if (homeDist >= ACID_BAND_DISTANCES[0] && homeDist <= ACID_BAND_DISTANCES[1]) {
-                sector.terrain = TERRAINS.acid.key; // mutate in place: cached distances/coords must survive
-            }
-        });
-    });
-
-    const caveCoord = stampRingWithGate(map, bowlRing, BOWL_RING_DISTANCE,
-        (r, c) => map[r][c].graphDistanceHome, 'cave');
-    const doorCoord = stampRingWithGate(map, antipodeRing, ANTIPODE_RING_DISTANCE,
-        (r, c) => antipodeDistances[r][c], 'door');
-
-    // Guarantee the critical path. Scenery mountain ranges can otherwise pocket a gate or the antipode
-    // interior, leaving the seed unfinishable. Carve the cheapest corridors (converting only scenery
-    // mountains -- never ice, never ring tiles) so home -> cave -> door -> antipode are always connected
-    // for a fully-tooled squad. Usually carves nothing: existing flat ground costs 0, so open routes win.
-    const isRingTile = ([r, c]: Coord) =>
-        map[r][c].graphDistanceHome === BOWL_RING_DISTANCE || antipodeDistances[r][c] === ANTIPODE_RING_DISTANCE;
-    if (caveCoord && doorCoord) {
-        carveCorridor(map, homeCoord, caveCoord, isRingTile);
-        carveCorridor(map, caveCoord, doorCoord, isRingTile);
-        carveCorridor(map, doorCoord, antipodeCoord, isRingTile);
-    }
+            sector.coord = [rowIndex, colIndex];
+        })
+    })
 }
 
-// Dijkstra from `fromCoord` to `toCoord` where existing squad-walkable ground (with all tools) is free and
-// scenery mountains cost 1; ice and ring tiles (except the endpoints) are walls. Converts the mountains on
-// the winning path to flatland. Generation-time only.
-function carveCorridor(map: PlanetMap, fromCoord: Coord, toCoord: Coord, isRingTile: (coord: Coord) => boolean) {
-    const key = ([r, c]: Coord) => `${r},${c}`;
-    const fromK = key(fromCoord);
-    const toK = key(toCoord);
-
-    const dist = { [fromK]: 0 };
-    const prev: Record<string, Coord> = {};
-    const settled = new Set<string>();
-    const heap = new MinHeap<Coord>();
-    heap.push(0, fromCoord);
-
-    for (let top = heap.pop(); top !== undefined; top = heap.pop()) {
-        const { priority: distance, value: coord } = top;
-        const k = key(coord);
-        if (k === toK) break;
-        if (settled.has(k)) continue;
-        settled.add(k);
-
-        getAdjacentCoords(coord).forEach(neighbor => {
-            const nk = key(neighbor);
-            const sector = map[neighbor[0]][neighbor[1]];
-            if (sector.terrain === TERRAINS.ice.key) return;
-            if (nk !== toK && nk !== fromK && isRingTile(neighbor)) return;
-
-            const stepCost = sector.terrain === TERRAINS.mountain.key ? 1 : 0;
-            const newDist = distance + stepCost;
-            if (newDist < (dist[nk] ?? Infinity)) {
-                dist[nk] = newDist;
-                prev[nk] = coord;
-                heap.push(newDist, neighbor);
-            }
-        });
-    }
-
-    let current = toCoord;
-    while (current !== undefined && key(current) !== fromK) {
-        const sector = map[current[0]][current[1]];
-        if (sector.terrain === TERRAINS.mountain.key) {
-            sector.terrain = TERRAINS.flatland.key;
-        }
-        current = prev[key(current)];
-    }
-}
-
-// Turns a ring's tiles to mountain, keeping exactly one as the flat gate tile (sector.gated blocks scouts
-// and marks where the gate POI goes; the squad opens it through the POI flow, which clears the flag).
-// Prefers a gate whose interior and exterior neighbors are both flat, so scenery mountains can't leave the
-// opened gate facing a wall; falls back to any flat ring tile, then to converting a mountain one.
-type RingEntry = { sector: Sector, coord: Coord };
-function stampRingWithGate(map: PlanetMap, ringEntries: RingEntry[], ringDistance: number, distAt: (r: number, c: number) => number, gateKind: GateKind) {
-    const isFlat = ([r, c]: Coord) => map[r][c].terrain === TERRAINS.flatland.key;
-
-    const openable = ringEntries.filter(({ coord }) =>
-        isFlat(coord) &&
-        getAdjacentCoords(coord).some(([r, c]) => distAt(r, c) < ringDistance && isFlat([r, c])) &&
-        getAdjacentCoords(coord).some(([r, c]) => distAt(r, c) > ringDistance && isFlat([r, c])));
-    const flat = ringEntries.filter(({ coord }) => isFlat(coord));
-    const pool = openable.length > 0 ? openable : (flat.length > 0 ? flat : ringEntries);
-    const gate = getRandomFromArray(pool);
-
-    ringEntries.forEach(({ sector }) => {
-        if (gate && sector === gate.sector) {
-            sector.terrain = TERRAINS.flatland.key;
-            sector.gated = true;
-            sector.gateKind = gateKind;
-        }
-        else {
-            sector.terrain = TERRAINS.mountain.key;
-        }
-    });
-
-    return gate ? gate.coord : null;
-}
 
 export function getHomeBasePosition(map: PlanetMap): { coord: Coord, rotation: number } {
     let coord: Coord | undefined;
@@ -938,13 +558,11 @@ export function getVisibleCoords(map: PlanetMap, coord: Coord, hops: number = VI
     return result;
 }
 
-// Scout passability: beyond raw terrain, held ground (sector.heldBy, stamped around settlements) and
-// unopened gate tiles (sector.gated) stop the dumb remotes. The player-driven squad ignores both -- it can
-// cross territory freely and opens gates through the POI flow.
+// Scout passability: beyond raw terrain, held ground (sector.heldBy, stamped around settlements) stops the
+// dumb remotes. The player-driven squad crosses territory freely.
 export function isScoutPassable(map: PlanetMap, coord: Coord | null, unlocks: Unlocks = {}): boolean {
     if (coord === null || !isPassable(map, coord, unlocks)) { return false; }
-    const sector = map[coord[0]][coord[1]];
-    return !sector.heldBy && !sector.gated;
+    return !map[coord[0]][coord[1]].heldBy;
 }
 
 function cacheDistancesToHome(map: PlanetMap, homeCoord: Coord) {
@@ -967,11 +585,11 @@ export function getNextDevelopmentArea(map: PlanetMap, size: number, anchorCoord
     const distanceTo = (coord: Coord) => anchorCoord ?
         getApproxDistance(anchorCoord, coord) : map[coord[0]][coord[1]].distanceHome;
 
-    // Held ground isn't developable until its settlement is cleared; an unopened gate tile isn't either.
+    // Held ground isn't developable until its settlement is cleared
     const isCandidate = ([row, col]: Coord) =>
         map[row][col].terrain === TERRAINS.flatland.key &&
         map[row][col].status === STATUSES.explored.key &&
-        !map[row][col].heldBy && !map[row][col].gated;
+        !map[row][col].heldBy;
 
     const seen = new Set<string>(); // candidate or chosen already (never re-added)
     const candidates: Coord[] = [];
@@ -1220,7 +838,7 @@ function getGridNight(map: PlanetMap) {
 
 // Living ground: the whole known map moves a little, always (deployed or not), so the planet reads as a
 // place rather than a chart. One entry per kind of ground that moves, keyed by terrain key ('held' is
-// the override for held tiles); each holds its own tuning and an animate(timeMs, row, col, hash,
+// the override key for held tiles, which has no entry: that ground holds still); each holds its own tuning and an animate(timeMs, row, col, hash,
 // daylight) returning { char?, alpha? } for this frame, or null for "at rest"; `enabled: false` parks an
 // entry. Only ever applied to bare ground (no
 // marker on the tile), never to unknown tiles. Set the table to {} to switch it all off. New glyphs must
@@ -1239,26 +857,6 @@ function living<S extends object>(settings: S,
     return { ...settings, animate };
 }
 const GROUND_LIFE = {
-    // Held ground breathes (PLACEHOLDER look from the old hive fiction): a slow brightness swell, tiles
-    // nearly in phase (one organism) with a little per-tile drift; and once in a while a tile twitches, a
-    // tendril whipping up and pulling back.
-    held: living({
-        breathPeriodMs: 2600,
-        breathDepth: 0.4,     // how far a full exhale dims a tile
-        breathDrift: 0.3,     // max per-tile phase offset (fraction of a breath)
-        twitchEveryMs: 5000,  // per-tile cycle length; where in it the twitch falls comes from the hash
-        twitchMs: 320,        // whole twitch, split evenly across the frames
-        twitchFrames: ['ξ', 'ζ'],
-    }, function(timeMs, row, col, hash) {
-        const phase = (timeMs / this.breathPeriodMs + hash * this.breathDrift) % 1;
-        const swell = 0.5 - 0.5 * Math.cos(2 * Math.PI * phase); // 0 (inhaled) .. 1 (exhaled)
-        const twitchAt = (timeMs + hash * this.twitchEveryMs) % this.twitchEveryMs;
-        const twitching = twitchAt < this.twitchMs;
-        return {
-            alpha: 1 - this.breathDepth * swell,
-            char: twitching ? this.twitchFrames[Math.floor(twitchAt / this.twitchMs * this.twitchFrames.length)] : undefined
-        };
-    }),
     // Replication in progress: the batch pulses out of phase (so it crawls) and tiles flicker briefly to
     // a dot, as if still assembling. PARKED (enabled: false): what read as alive here turned out to be the
     // brightness variation, which replicated land now has statically (DEVELOPED_TEXTURE); kept with its tuning
@@ -1358,7 +956,7 @@ export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: n
             else {
                 char = terrainGlyph(sector.terrain, sector.coord[0], sector.coord[1]);
                 colorKey = TERRAINS[sector.terrain].key;
-                // Held ground: its own glyph in the sick tint; both retract when the settlement is cleared
+                // Held ground: its own glyph and tint; both retract when the settlement is cleared
                 if (sector.heldBy) { char = HELD_GLYPH; colorKey = 'held'; }
                 // City lights (see DEVELOPED_NIGHT_LIGHT_MIN)
                 if (sector.terrain === TERRAINS.home.key) { selfLit = true; }

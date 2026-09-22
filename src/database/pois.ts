@@ -1,23 +1,18 @@
 import {getRandomIntInclusive, mapObject} from "../lib/helpers";
 import type {HostileFormation, TerrainLayoutId} from "../lib/battle";
-import type {GateKind} from "../lib/planet_map";
 import type {PlanetColorKey} from "../lib/planet_render";
 import type {HostileType} from "./battle";
 
 export type PoiType =
     | 'cache'      // a supply drop: take it
     | 'settlement' // where survivors live (the terminal only ever says "nest"): stepping on it starts a fight
-    | 'storySite'  // a ruin with a log to read
-    | 'gate';      // a physical barrier (cave rockfall, sealed door): impassable until opened with its capability
+    | 'camp'       // a few of a settlement's people out on its held ground (the terminal says "contact"): a small fight
+    | 'storySite'; // a ruin with a log to read
 
 export type PoiStatus =
     | 'hidden'     // its tile has not been revealed by scouting yet
     | 'available'  // discovered, not yet resolved
     | 'cleared';   // resolved
-
-// Placement bands. R1 is the bowl (tutorial), R3 the antipode (finale). R2 is cut in half by the acid belt;
-// the near/far split keeps e.g. the Sealed Chassis salvage reachable BEFORE the acid it unlocks.
-export type Band = 'r1' | 'r2near' | 'r2far' | 'r3';
 
 export type Capability = 'drill' | 'sealedChassis' | 'overrideModule';
 
@@ -43,7 +38,9 @@ export interface PoiLevelDef {
 /** A POI_DEFS entry: resource rewards are [lo, hi] ranges until rolled at map generation */
 export interface PoiDef {
     type: PoiType;
-    band: Band;
+    /** where it goes, one or the other: a random tile of the painted zone (a-z), or the one painted point (A-Z) */
+    zone?: string;
+    point?: string;
     name?: string;
     territoryRadius?: number;
     /** settlements: the site's fights, surface first (one or more) */
@@ -51,6 +48,8 @@ export interface PoiDef {
     levelsShown?: boolean;
     reloot?: number[];
     discardedKg?: [number, number];
+    /** settlements: the camps seeded on this site's held ground, one single-fight level each */
+    camps?: PoiLevelDef[];
     requires?: Capability;
     storyId?: StoryId;
     promptText?: string;
@@ -58,18 +57,10 @@ export interface PoiDef {
     reward?: { resources?: Partial<Record<ResourceId, [number, number]>>; capability?: Capability };
 }
 
-export interface GateDef {
-    name: string;
-    requires: Capability;
-    promptText: string;
-    actionLabel: string;
-}
-
 /**
- * POI content definitions: WHAT exists on the planet. One POI_DEFS entry per placed POI; gates are defined
- * per gate kind (they sit on the tiles the map-gen stamp pass marked, not in placement bands). The placement
- * pass (generatePois in lib/expeditions.ts) owns the mechanics: band selection, reachability, settlement
- * territory stamping.
+ * POI content definitions: WHAT exists on the planet. One POI_DEFS entry per placed POI, each naming the
+ * painted zone or point of database/planet_map.txt it lands in. The placement pass (generatePois in lib/expeditions.ts) owns the
+ * mechanics: zone/point lookup, reachability, territory stamping.
  *
  * Names, texts, difficulties, and rewards are PLACEHOLDERS until the content pass; this file is what that
  * pass edits.
@@ -78,8 +69,8 @@ export interface GateDef {
 // Per-type encounter popup behavior; individual definitions override. `result` decides what accepting does:
 // 'auto' resolves and closes the popup (the map change is the feedback), 'narrate' holds it open on a result
 // phase (story text, salvage, losses) until the player continues or drives away. `promptText` is the offer
-// line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.ts); gates carry theirs
-// per gate kind (GATE_DEFS), settlements never prompt (the fight starts on entry).
+// line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.ts); settlements and camps
+// never prompt (the fight starts on entry).
 //
 // `reloot` is a settlement's payout schedule: the fraction of a level's rolled resources it pays by how many times
 // that level has been cleared before (a site that is left resets, so its upper levels can be fought again;
@@ -89,8 +80,8 @@ export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: 
     reloot?: number[] }> = {
     cache: { actionLabel: 'Take', result: 'auto', promptText: 'Supply cache found{loot}. Take it?' },
     storySite: { actionLabel: 'Explore', result: 'narrate', promptText: 'Structure of unknown origin. Investigate?' },
-    gate: { actionLabel: 'Open', result: 'auto' },
-    settlement: { result: 'narrate', reloot: [1, 0.5, 0.25] }
+    settlement: { result: 'narrate', reloot: [1, 0.5, 0.25] },
+    camp: { result: 'narrate', reloot: [1] }
 }
 
 // Loot list wording where the resource id predates its display name
@@ -98,9 +89,9 @@ export const LOOT_LABELS: Partial<Record<ResourceId, string>> = { refinedMineral
 
 // Map display vocabulary (colorKeys index into PLANET_COLORS in planet_render.ts; FIGHT_EFFECT_CHARS
 // animate over a settlement tile while a battle runs there).
-export const POI_GLYPHS = { cache: '□', settlement: 'Ω', storySite: '?', gate: '∩' }; // cache: a crate; settlement: Ω (its held ground is 'ω'); gate: a cave mouth
-export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', storySite: 'poiStory', gate: 'poiGate' };
-export const POI_LABELS = { cache: 'Supply Cache', settlement: 'Hive Nest', storySite: 'Ruins', gate: 'Barrier' };
+export const POI_GLYPHS = { cache: '□', settlement: 'Ω', camp: '•', storySite: '?' }; // cache: a crate; settlement: Ω (its held ground is '░'); camp: a contact that stays put
+export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory' };
+export const POI_LABELS = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 
 // The three tools. Stored in planet.unlockedTerrains (the shared capability set: terrain crossUpgrades and
@@ -111,8 +102,6 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
     overrideModule: 'Override Module'
 }
 
-// Placement bands. R1 is the bowl (tutorial), R3 the antipode (finale). R2 is cut in half by the acid belt;
-// the near/far split keeps e.g. the Sealed Chassis salvage reachable BEFORE the acid it unlocks.
 // Story text lives here (not in the log database) because reports are dynamic; POIs store the key only.
 // PLACEHOLDER texts: the real ~12-log mystery is authored in the content pass.
 export type StoryId = keyof typeof STORY_TEXTS;
@@ -149,100 +138,132 @@ export const STORY_TEXTS = {
 // unset keeps it unknown until the bottom is reached. `discardedKg` is material the classifier weighs and
 // throws away once the site has fallen: one terminal line, no value, no effect.
 //
+// `camps` seeds small one-fight POIs on the site's held ground: foragers, herders, a watch. Visible once their
+// tile is known, optional (the squad can path around them), gone for good once beaten, and a taste of the site's
+// strength before committing to it. They never release land (the ground stays held until the settlement falls),
+// and when it does fall whoever is still out there scatters.
+//
 // Loot is what scavengers hold and what they are sitting on: worked metal on top (it classifies as minerals),
 // power cells further in, the old facility's stores at the core. Never ore; nothing out here mines.
 // Garrisons, loot, and level counts are PLACEHOLDER tuning.
 export const POI_DEFS: PoiDef[] = [
-    // R1, the bowl (tutorial): one easy settlement, two caches, the dead-droid story site
-    { type: 'settlement', band: 'r1', territoryRadius: 1, levels: [
-        { difficulty: 3, reward: { resources: { refinedMinerals: [100, 200] } } },
-        { difficulty: 3, reward: { resources: { refinedMinerals: [100, 200] } } },
-    ] },
-    { type: 'cache', band: 'r1', reward: { resources: { ore: [500, 1000] } } },
-    { type: 'cache', band: 'r1', reward: { resources: { refinedMinerals: [200, 400] } } },
-    { type: 'storySite', band: 'r1', storyId: 'r1_deadDroid' },
+    // PLACEHOLDER zone assignment: the old distance bands mapped onto the painted zones (home basin 'a',
+    // the belt around it, the far continents) until the content pass places each entry where it belongs.
+    // Zone letters and their real places: see database/planet_map.txt.
+    // Home basin (tutorial): one easy nest, two caches, the dead-droid story site
+    { type: 'settlement', zone: 'a', territoryRadius: 1,
+        levels: [
+            { difficulty: 3, reward: { resources: { refinedMinerals: [100, 200] } } }
+        ],
+        camps: [
+            { difficulty: 1, reward: { resources: { refinedMinerals: [100, 100] } } }
+        ] },
+    { type: 'cache', zone: 'a', reward: { resources: { ore: [500, 1000] } } },
+    { type: 'cache', zone: 'a', reward: { resources: { refinedMinerals: [200, 400] } } },
+    { type: 'storySite', zone: 'a', storyId: 'r1_deadDroid' },
 
-    // R2 near (before the acid): the Sealed Chassis salvage lives HERE so the belt is crossable.
-    { type: 'settlement', band: 'r2near', territoryRadius: 2, levels: [
-        { difficulty: 6, terrain: 'rocks', reward: { resources: { refinedMinerals: [300, 600] } } }
-    ] },
+    // The near belt: the Sealed Chassis salvage lives here so the acid beyond is crossable.
+    { type: 'settlement', zone: 'b', territoryRadius: 2,
+        levels: [
+            { difficulty: 6, terrain: 'rocks', reward: { resources: { refinedMinerals: [300, 600] } } }
+        ],
+        camps: [
+            { difficulty: 2, reward: { resources: { refinedMinerals: [100, 200] } } }
+        ] },
     // The first two-level site, count announced: it teaches the descend-or-withdraw rule
-    { type: 'settlement', band: 'r2near', territoryRadius: 2, levelsShown: true, discardedKg: [80, 160], levels: [
-        { difficulty: 10, formation: 'scatter', terrain: 'rocks',
-            reward: { resources: { refinedMinerals: [400, 800] } } },
-        { difficulty: 7, formation: 'clusters', terrain: 'ruins',
-            reward: { resources: { refinedMinerals: [600, 1000], energy: [1000, 2000] } } }
-    ] },
-    { type: 'settlement', band: 'r2near', territoryRadius: 2, levels: [
-        { difficulty: 14, formation: 'clusters', terrain: 'ruins',
-            reward: { resources: { refinedMinerals: [800, 1400] } } }
-    ] },
-    { type: 'cache', band: 'r2near', reward: { resources: { ore: [2000, 4000] } } },
+    { type: 'settlement', zone: 'd', territoryRadius: 2, levelsShown: true, discardedKg: [80, 160],
+        levels: [
+            { difficulty: 10, formation: 'scatter', terrain: 'rocks',
+                reward: { resources: { refinedMinerals: [400, 800] } } },
+            { difficulty: 7, formation: 'clusters', terrain: 'ruins',
+                reward: { resources: { refinedMinerals: [600, 1000], energy: [1000, 2000] } } }
+        ],
+        camps: [
+            { difficulty: 3, reward: { resources: { refinedMinerals: [100, 300] } } },
+            { difficulty: 3, terrain: 'rocks', reward: { resources: { refinedMinerals: [100, 300] } } }
+        ] },
+    { type: 'settlement', zone: 'e', territoryRadius: 2,
+        levels: [
+            { difficulty: 14, formation: 'clusters', terrain: 'ruins',
+                reward: { resources: { refinedMinerals: [800, 1400] } } }
+        ],
+        camps: [
+            { difficulty: 4, reward: { resources: { refinedMinerals: [200, 400] } } },
+            { difficulty: 4, formation: 'scatter', reward: { resources: { refinedMinerals: [200, 400] } } }
+        ] },
+    { type: 'cache', zone: 'c', reward: { resources: { ore: [2000, 4000] } } },
     {
-        type: 'cache', band: 'r2near',
+        type: 'cache', zone: 'd',
         requires: 'sealedChassis', // teased before the unlock: visible, sealed, backtrack target
         reward: { resources: { refinedMinerals: [1000, 2000] } }
     },
-    { type: 'storySite', band: 'r2near', storyId: 'r2_scorchedCore' },
-    { type: 'storySite', band: 'r2near', storyId: 'r2_chassisCache', reward: { capability: 'sealedChassis' } },
+    { type: 'storySite', zone: 'b', storyId: 'r2_scorchedCore' },
+    { type: 'storySite', zone: 'e', storyId: 'r2_chassisCache', reward: { capability: 'sealedChassis' } },
 
-    // R2 far (beyond the acid): the Override Module salvage; the red-herring wreckage.
-    { type: 'settlement', band: 'r2far', territoryRadius: 2, discardedKg: [150, 300], levels: [
-        { difficulty: 18, formation: 'surround',
-            reward: { resources: { refinedMinerals: [1200, 2000] } } },
-        { difficulty: 12, terrain: 'canyon',
-            reward: { resources: { refinedMinerals: [1500, 2500], energy: [3000, 5000] } } }
-    ] },
-    { type: 'settlement', band: 'r2far', territoryRadius: 2, levelsShown: true, discardedKg: [200, 400], levels: [
-        { difficulty: 24, formation: 'ring', garrison: { shelter: 1, defender: 18 }, terrain: 'canyon',
-            reward: { resources: { refinedMinerals: [1500, 2500] } } },
-        { difficulty: 16, formation: 'clusters', terrain: 'ruins',
-            reward: { resources: { energy: [4000, 7000] } } },
-        { difficulty: 14, formation: 'surround',
-            reward: { resources: { refinedMinerals: [3000, 5000] } } }
-    ] },
-    { type: 'cache', band: 'r2far', reward: { resources: { ore: [5000, 9000] } } },
-    { type: 'cache', band: 'r2far', reward: { resources: { refinedMinerals: [2000, 4000] } } },
-    { type: 'storySite', band: 'r2far', storyId: 'r2_wreckage' },
-    { type: 'storySite', band: 'r2far', storyId: 'r2_overrideVault', reward: { capability: 'overrideModule' } },
+    // The far belt: the Override Module salvage; the red-herring wreckage.
+    { type: 'settlement', zone: 'g', territoryRadius: 2, discardedKg: [150, 300],
+        levels: [
+            { difficulty: 18, formation: 'surround',
+                reward: { resources: { refinedMinerals: [1200, 2000] } } },
+            { difficulty: 12, terrain: 'canyon',
+                reward: { resources: { refinedMinerals: [1500, 2500], energy: [3000, 5000] } } }
+        ],
+        camps: [
+            { difficulty: 5, reward: { resources: { refinedMinerals: [300, 600] } } },
+            { difficulty: 5, formation: 'surround', reward: { resources: { refinedMinerals: [300, 600] } } }
+        ] },
+    { type: 'settlement', zone: 'h', territoryRadius: 2, levelsShown: true, discardedKg: [200, 400],
+        levels: [
+            { difficulty: 24, formation: 'ring', garrison: { shelter: 1, defender: 18 }, terrain: 'canyon',
+                reward: { resources: { refinedMinerals: [1500, 2500] } } },
+            { difficulty: 16, formation: 'clusters', terrain: 'ruins',
+                reward: { resources: { energy: [4000, 7000] } } },
+            { difficulty: 14, formation: 'surround',
+                reward: { resources: { refinedMinerals: [3000, 5000] } } }
+        ],
+        camps: [
+            { difficulty: 6, reward: { resources: { refinedMinerals: [400, 800] } } },
+            { difficulty: 6, terrain: 'rocks', reward: { resources: { refinedMinerals: [400, 800] } } },
+            { difficulty: 6, formation: 'clusters', reward: { resources: { refinedMinerals: [400, 800] } } }
+        ] },
+    { type: 'cache', zone: 'k', reward: { resources: { ore: [5000, 9000] } } },
+    { type: 'cache', zone: 'j', reward: { resources: { refinedMinerals: [2000, 4000] } } },
+    { type: 'storySite', zone: 'g', storyId: 'r2_wreckage' },
+    { type: 'storySite', zone: 'h', storyId: 'r2_overrideVault', reward: { capability: 'overrideModule' } },
 
-    // R3, the antipode (finale): two hard settlements, one cache, the command ruin + hive heart (story ids are placeholders)
+    // The far continents (finale): two hard settlements, one cache, the command ruin + hive heart (story ids are placeholders)
     // The first runs three levels unannounced, and its bottom is barely defended: the largest haul on the
     // planet behind the weakest garrison, and the largest discard.
-    { type: 'settlement', band: 'r3', territoryRadius: 2, discardedKg: [2300, 3500], levels: [
-        { difficulty: 30, formation: 'scatter', terrain: 'ruins',
-            reward: { resources: { refinedMinerals: [2000, 3500] } } },
-        { difficulty: 22, formation: 'surround', terrain: 'ruins',
-            reward: { resources: { refinedMinerals: [2500, 4000], energy: [6000, 10000] } } },
-        { difficulty: 4, formation: 'clusters',
-            reward: { resources: { refinedMinerals: [8000, 12000] } } }
-    ] },
-    { type: 'settlement', band: 'r3', territoryRadius: 2, levelsShown: true, discardedKg: [400, 700], levels: [
-        { difficulty: 40, formation: 'ring', garrison: { shelter: 2, defender: 32 }, terrain: 'canyon',
-            reward: { resources: { refinedMinerals: [3000, 5000] } } },
-        { difficulty: 28, formation: 'surround', terrain: 'canyon',
-            reward: { resources: { refinedMinerals: [5000, 8000], energy: [10000, 15000] } } }
-    ] },
-    { type: 'cache', band: 'r3', reward: { resources: { refinedMinerals: [5000, 8000] } } },
-    { type: 'storySite', band: 'r3', storyId: 'r3_commandRuin' },
-    { type: 'storySite', band: 'r3', storyId: 'r3_hiveHeart' }
+    { type: 'settlement', zone: 'q', territoryRadius: 2, discardedKg: [2300, 3500],
+        levels: [
+            { difficulty: 30, formation: 'scatter', terrain: 'ruins',
+                reward: { resources: { refinedMinerals: [2000, 3500] } } },
+            { difficulty: 22, formation: 'surround', terrain: 'ruins',
+                reward: { resources: { refinedMinerals: [2500, 4000], energy: [6000, 10000] } } },
+            { difficulty: 4, formation: 'clusters',
+                reward: { resources: { refinedMinerals: [8000, 12000] } } }
+        ],
+        camps: [
+            { difficulty: 8, reward: { resources: { refinedMinerals: [600, 1000] } } },
+            { difficulty: 8, terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000] } } },
+            { difficulty: 8, formation: 'scatter', reward: { resources: { refinedMinerals: [600, 1000] } } }
+        ] },
+    { type: 'settlement', zone: 't', territoryRadius: 2, levelsShown: true, discardedKg: [400, 700],
+        levels: [
+            { difficulty: 40, formation: 'ring', garrison: { shelter: 2, defender: 32 }, terrain: 'canyon',
+                reward: { resources: { refinedMinerals: [3000, 5000] } } },
+            { difficulty: 28, formation: 'surround', terrain: 'canyon',
+                reward: { resources: { refinedMinerals: [5000, 8000], energy: [10000, 15000] } } }
+        ],
+        camps: [
+            { difficulty: 10, reward: { resources: { refinedMinerals: [800, 1400] } } },
+            { difficulty: 10, terrain: 'canyon', reward: { resources: { refinedMinerals: [800, 1400] } } },
+            { difficulty: 10, formation: 'surround', reward: { resources: { refinedMinerals: [800, 1400] } } }
+        ] },
+    { type: 'cache', zone: 'l', reward: { resources: { refinedMinerals: [5000, 8000] } } },
+    { type: 'storySite', zone: 'q', storyId: 'r3_commandRuin' },
+    { type: 'storySite', zone: 't', storyId: 'r3_hiveHeart' }
 ]
-
-// Gate POIs, one definition per gate kind (the map-gen stamp pass marks sector.gated/gateKind tiles).
-export const GATE_DEFS: Record<GateKind, GateDef> = {
-    cave: {
-        name: 'Collapsed Cave',
-        requires: 'drill',
-        promptText: 'The only pass through the ring is choked with rockfall. Drill through?',
-        actionLabel: 'Drill'
-    },
-    door: {
-        name: 'Sealed Bulkhead',
-        requires: 'overrideModule',
-        promptText: 'A first-swarm bulkhead, still powered. The override module interfaces cleanly. Open it?',
-        actionLabel: 'Open'
-    }
-}
 
 // Resolves a definition's reward at generation time: [lo, hi] resource ranges roll to a multiple of 100;
 // capability rewards pass through unchanged.

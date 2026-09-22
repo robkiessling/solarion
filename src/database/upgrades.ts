@@ -1317,7 +1317,7 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     },
     droidFactory_drill: {
         onFinish: (dispatch) => {
-            // unlockedTerrains doubles as the capability set; 'drill' satisfies the cave gate's `requires`
+            // unlockedTerrains doubles as the capability set; 'drill' will satisfy a sealed tunnel's `requires`
             dispatch(fromPlanet.unlockTerrain('drill'));
         }
     },
