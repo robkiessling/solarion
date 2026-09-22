@@ -15,7 +15,7 @@ export type PoiStatus =
     | 'available'  // discovered, not yet resolved
     | 'cleared';   // resolved
 
-export type Capability = 'drill' | 'sealedChassis' | 'overrideModule' | 'pontoon';
+export type Capability = 'drill' | 'overrideModule' | 'amphibious';
 
 /** What accepting an encounter popup does: 'auto' resolves and closes it, 'narrate' holds it open on a result phase */
 export type ResultBehavior = 'auto' | 'narrate';
@@ -100,9 +100,8 @@ export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 // POI `requires` both read it), granted via upgrades or POI salvage (reward.capability).
 export const CAPABILITY_LABELS: Record<Capability, string> = {
     drill: 'Plasma Drill',
-    sealedChassis: 'Sealed Chassis',
     overrideModule: 'Override Module',
-    pontoon: 'Pontoon Rig'
+    amphibious: 'Amphibious Tracks'
 }
 
 // Story text lives here (not in the log database) because reports are dynamic; POIs store the key only.
@@ -111,7 +110,6 @@ export type StoryId = keyof typeof STORY_TEXTS;
 export const STORY_TEXTS = {
     r1_deadDroid: 'A droid chassis, half-buried. The model number matches your own manufacturing line. You did not build it.',
     r2_scorchedCore: 'A collapsed structure of familiar design. Its data core is scorched from the inside.',
-    r2_chassisCache: 'A maintenance bay, mostly intact. One sealed hazard chassis still hangs in its cradle.',
     r2_wreckage: 'Wreckage strewn across a kilometer. The blast patterns came from above. Something attacked them.',
     r2_overrideVault: 'A command vault. Inside, an override module -- its authorization codes are older than your directive.',
     r3_commandRuin: 'The ruined command center of the first swarm. The final log is intact.',
@@ -168,7 +166,7 @@ export const POI_DEFS: PoiDef[] = [
     { type: 'cache', zone: 'a', reward: { resources: { refinedMinerals: [200, 400] } } },
     { type: 'storySite', zone: 'a', storyId: 'r1_deadDroid' },
 
-    // The near belt: the Sealed Chassis salvage lives here so the acid beyond is crossable.
+    // The near belt.
     { type: 'settlement', zone: 'b', territoryRadius: 2,
         levels: [
             { difficulty: 6, terrain: 'rocks', reward: { resources: { refinedMinerals: [300, 600] } } }
@@ -198,13 +196,8 @@ export const POI_DEFS: PoiDef[] = [
             { difficulty: 4, formation: 'scatter', reward: { resources: { refinedMinerals: [200, 400] } } }
         ] },
     { type: 'cache', zone: 'c', reward: { resources: { ore: [2000, 4000] } } },
-    {
-        type: 'cache', zone: 'd',
-        requires: 'sealedChassis', // teased before the unlock: visible, sealed, backtrack target
-        reward: { resources: { refinedMinerals: [1000, 2000] } }
-    },
+    { type: 'cache', zone: 'd', reward: { resources: { refinedMinerals: [1000, 2000] } } },
     { type: 'storySite', zone: 'b', storyId: 'r2_scorchedCore' },
-    { type: 'storySite', zone: 'e', storyId: 'r2_chassisCache', reward: { capability: 'sealedChassis' } },
 
     // The far belt: the Override Module salvage; the red-herring wreckage.
     { type: 'settlement', zone: 'g', territoryRadius: 2, discardedKg: [150, 300],
@@ -274,8 +267,10 @@ export const POI_DEFS: PoiDef[] = [
 /** A tunnel system: what holds it, and what crossing costs. Keyed by the digit painted on its two mouths. */
 export interface TunnelDef {
     name?: string;
+    /** seals both mouths (they bump like a sealed cache) until the capability is owned */
     requires?: Capability;
-    /** the fight(s) inside; the squad that wins comes out the far mouth */
+    /** the fight(s) inside; the squad that wins comes out the far mouth. Empty = nobody inside, open at once
+     * (or as soon as `requires` is met). Both together: sealed, then fought through once unsealed. */
     levels: PoiLevelDef[];
     /** battery the crossing costs, in flatland tiles walked */
     crossTiles: number;

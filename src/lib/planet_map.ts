@@ -12,7 +12,7 @@ import {
 } from "./planet_geometry";
 
 /** TERRAINS[x].key (the debug meridians add `meridian_<n>` keys at runtime; they never reach a save) */
-export type TerrainKey = 'home' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'acid' | 'shallows' | 'water';
+export type TerrainKey = 'home' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'shallows' | 'water';
 
 /** How much of a tile the player has seen (the keys of STATUSES below) */
 export type SectorStatus = 'unknown' | 'exploring' | 'explored';
@@ -188,10 +188,9 @@ export const TERRAINS: Record<TerrainKey, TerrainDef> = {
     mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
     // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
     ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
-    acid: { key: 'acid', display: '~', variants: ['≈'], label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // Dead seas; binary (Sealed Chassis or no)
-    // A strait shallow enough to bridge: a wall until the Pontoon Rig is researched, then slow going. Never land
+    // A strait shallow enough to wade: a wall until Amphibious Tracks are researched, then slow going. Never land
     // (not surveyed, not developable), so the crossing stays a crossing.
-    shallows: { key: 'shallows', display: '=', label: 'Shallows', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'pontoon' },
+    shallows: { key: 'shallows', display: '=', label: 'Shallows', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'amphibious' },
     // Open water: a permanent wall like ice (the crossUpgrade is never granted). The authored map's oceans; the
     // only ways across are the land the map leaves and, later, tunnels.
     water: { key: 'water', display: '~', variants: ['≈'], variantShare: 0.2, label: 'Sea', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'seafaring' },
@@ -294,7 +293,7 @@ const LASER_BEAM_STREAKS: Record<number, number> = { // some beams make a streak
  *   A-Z    flatland marking one exact spot (sector.point): a POI def naming the point lands on that tile; an
  *          unused point is just flatland
  *   1-9    tunnel mouth; every mouth sharing a digit belongs to one tunnel system (sector.tunnel; mechanics later)
- *   ^      mountain      ~  water (sea)      *  ice      =  shallows (crossable with the Pontoon Rig)
+ *   ^      mountain      ~  water (sea)      *  ice      =  shallows (crossable with Amphibious Tracks)
  *   #      home (exactly one; column floor(HOME_FRACTION * PLANET_COLS) keeps the noon/slider math honest)
  * Walls are permanent (mountain, water, ice), so every pocket of land is reachable only through what the
  * drawing leaves open; the load-time check below counts orphaned land so a bad edit shows up in the console.
@@ -878,15 +877,6 @@ const GROUND_LIFE = {
             alpha: 1 - this.pulseDepth * pulse,
             char: flickerAt < this.flickerMs ? this.flickerGlyph : undefined
         };
-    }),
-    // Acid ripples: a crest glyph travelling diagonally across the flats.
-    acid: living({
-        stepMs: 420,          // the wave advances one tile per this
-        wavelength: 4,        // tiles from crest to crest
-        crestGlyph: '≈',
-    }, function(timeMs, row, col) {
-        const crest = (Math.floor(timeMs / this.stepMs) + row + col) % this.wavelength === 0;
-        return crest ? { char: this.crestGlyph } : null;
     })
 } satisfies Partial<Record<TerrainKey | 'held', GroundLife>>;
 const GROUND_LIFE_BY_KEY: Partial<Record<TerrainKey | 'held', GroundLife>> = GROUND_LIFE;

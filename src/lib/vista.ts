@@ -36,7 +36,6 @@ const GROUND: Record<VistaGround, string> = {
     developed: '+++++',
     mountain: '_____', // the rocky foot under a peak that fills the sky rows
     ice: '=====',
-    acid: '~~~~~',
     shallows: '=====',
     water: '~~~~~',
     held: '░░░░░',

@@ -1059,10 +1059,10 @@ const database = {
             castTime: { add: -5 }
         }
     }),
-    droidFactory_pontoonRig: upgrade({
-        name: "Pontoon Rig",
+    droidFactory_amphibiousTracks: upgrade({
+        name: "Amphibious Tracks",
         structure: 'droidFactory',
-        description: 'Deployable floating track. Carries the squad over shallows too deep to drive.',
+        description: 'Sealed drivetrain and flotation skirts. The squad drives through shallows it could not cross before.',
         discoverWhen: {
             upgrades: ['droidFactory_drill'],
             resources: {
@@ -1368,9 +1368,9 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
             dispatch(fromAbilities.setAutocastable('droidFactory_buildStandardDroid'));
         }
     },
-    droidFactory_pontoonRig: {
+    droidFactory_amphibiousTracks: {
         onFinish: (dispatch) => {
-            dispatch(fromPlanet.unlockTerrain('pontoon')); // shallows' crossUpgrade (see TERRAINS in lib/planet_map.ts)
+            dispatch(fromPlanet.unlockTerrain('amphibious')); // shallows' crossUpgrade (see TERRAINS in lib/planet_map.ts)
         }
     },
     droidFactory_surveyAutomation: {

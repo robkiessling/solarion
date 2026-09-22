@@ -20,7 +20,6 @@ export const PLANET_COLORS = {
     developedNight: '#ffb455', // city lights: replicated land warms toward sodium amber as daylight falls
     mountain: '#e07f30',  // the horizon peaks' orange in the base view (backgrounds.planet), so it is the same rock
     ice: '#ffffff',
-    acid: '#9acd32',     // the mid-world belt
     shallows: '#86d5fb', // a bridgeable strait: lighter and greener than the sea, so the gap reads as a way across
     water: '#2f6b8f',    // open sea: deep steel blue, cooler and bluer than the fog so unexplored ground never reads as coast
     held: '#d94f8c', // held ground around a settlement (retracts when it is cleared): rose, kin to the settlement's red and clear of the story sites' purple
@@ -146,7 +145,7 @@ function glyphInkBox(context: CanvasRenderingContext2D, char: string): InkBox | 
 // see planet_map's daylightAt) interpolates between them. Night is deliberately deep: the squad's lantern
 // (cell.lit) and the markers' self-lit floor carry readability, so the ambient can go dark enough that night
 // is unmistakable next to day and the pool of light around the team means something.
-const NIGHT_ALPHA = 0.14;
+const NIGHT_ALPHA = 0.08;
 // Things with their own light never sink below a floor in the dark. selfLit is that floor (0..1); `true`
 // means the standard running-lights level below (units, the beacon, the command center; replicated land
 // uses a dimmer floor of its own): dimmed enough to still read as night, bright enough to stay findable.

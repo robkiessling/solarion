@@ -69,7 +69,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     const pois: Record<string, Poi> = {};
     const usedKeys = new Set();
 
-    // Only place POIs where a fully-tooled squad can actually walk (acid crossable, tunnels open). A capability salvage in a pocket walled off by mountains or sea would make the map
+    // Only place POIs where a fully-tooled squad can actually walk (shallows and tunnels open). A capability salvage in a pocket walled off by mountains or sea would make the map
     // unfinishable.
     const reachable = squadReachableSet(map);
 
@@ -132,7 +132,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         return pois[id];
     };
 
-    // A settlement additionally stamps its territory radius (flatland only; mountains/acid are barriers already).
+    // A settlement additionally stamps its territory radius (flatland only; mountains and water are barriers already).
     // Placement requires clean ground out to radius+1, so stamps never overlap (retraction assumes one owner).
     const addSettlement = (def: PoiDef) => {
         for (let attempt = 0; attempt < 20; attempt++) {
@@ -185,7 +185,8 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         const def = TUNNEL_DEFS[digit] || TUNNEL_DEFAULT;
         ends.forEach((sector, i) => {
             usedKeys.add(`${sector.coord[0]},${sector.coord[1]}`);
-            add('tunnel', sector, { tunnel: digit, exitCoord: ends[1 - i].coord, open: false,
+            // No levels = nobody inside: open from the start (a `requires` seal is the only barrier then)
+            add('tunnel', sector, { tunnel: digit, exitCoord: ends[1 - i].coord, open: def.levels.length === 0,
                 crossTiles: def.crossTiles, requires: def.requires || null,
                 levels: def.levels.map(rollLevel), ...(def.name ? { name: def.name } : {}) });
         });
@@ -247,7 +248,7 @@ export function levelPayout(poi: Poi, levelIndex: number): PoiReward {
 // their zones take content now, ahead of the tunnel mechanics). Keys are "row,col".
 function squadReachableSet(map: PlanetMap): Set<string> {
     const home = getHomeBasePosition(map).coord;
-    const allTools = { drill: true, sealedChassis: true, overrideModule: true, pontoon: true };
+    const allTools = { drill: true, overrideModule: true, amphibious: true };
 
     const mouths: Record<string, Coord[]> = {};
     map.forEach(row => row.forEach(sector => {

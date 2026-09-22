@@ -7,8 +7,7 @@ export const TERRAIN_BLURBS: Partial<Record<SquadZone, string>> = {
     grid: 'Powered ground. Cells topping up.',
     flatland: 'Open flatland. Dust and a long horizon.',
     mountain: 'Into the mountains. Slow going; the ridges hide what lies beyond.',
-    acid: 'Acid flats. The ground hisses under the treads.',
-    shallows: 'Shallows. Surf over the pontoons; the far shore is a line.',
+    shallows: 'Shallows. Treads in the surf; the far shore is a line.',
     water: 'The shore. Dead water to the horizon; the treads stop here.',
     ice: 'Ice sheet. Wind, glare, and nothing else.',
     held: 'Hostile territory. Thermal signatures: multiple, moving.'
