@@ -16,7 +16,6 @@ import {
     POI_COLOR_KEYS,
     POI_GLYPHS,
     POI_LABELS,
-    isGarrisoned,
 } from "../lib/expeditions";
 import {stepInDirection, squadCrossMs, squadZone, CONTACT_MS, SQUAD_GLYPH} from "../lib/squad";
 import {EQUIPMENT_ORDER} from "../database/equipment";
@@ -449,10 +448,8 @@ class Planet extends React.Component {
             overlays[`${poi.coord[0]},${poi.coord[1]}`] = {
                 char: POI_GLYPHS[poi.type],
                 colorKey: hovered ? 'poiHighlight' : POI_COLOR_KEYS[poi.type],
-                // Sites are things on the ground, not lights, and vanish into the night like the ground they
-                // sit on. The exception is people: somebody is home at a standing settlement or camp, so it
-                // keeps a low light, the only lights on the night side that are not the player's own.
-                selfLit: isGarrisoned(poi) ? 0.5 : undefined,
+                // No selfLit: sites are things on the ground, not lights, and vanish into the night like the
+                // ground they sit on (only the powered grid and units carry lights)
                 // Radar ping on the hovered marker: 0..1 through the expand-and-fade cycle (drawn in planet_render)
                 ping: hovered ?
                     { fraction: (this.props.elapsedTime % POI_PING_PERIOD_MS) / POI_PING_PERIOD_MS, variant: 'hover' } :

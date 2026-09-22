@@ -1,7 +1,7 @@
 import {getRandomFromArray, getRandomIntInclusive, mapObject} from "./helpers";
 import {getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, VISION_HOPS, type PlanetMap, type Sector} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, TUNNEL_DEFAULT, TUNNEL_DEFS, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
+import {CAMPS_ENABLED, LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, TUNNEL_DEFAULT, TUNNEL_DEFS, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
 import type {HostileType} from "../database/battle";
 import type {HostileFormation, TerrainLayoutId} from "./battle";
 
@@ -160,7 +160,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             // Camps: one per declared level, each on a random tile of this site's own held ground (the only
             // POIs that live on held ground; pick() keeps everything else off it). A territory squeezed
             // small by mountains or coast simply fits fewer.
-            (def.camps || []).forEach(campDef => {
+            (CAMPS_ENABLED ? def.camps || [] : []).forEach(campDef => {
                 const free = held.filter(tile => beyondStartingVision(tile) && !usedKeys.has(`${tile.coord[0]},${tile.coord[1]}`));
                 if (free.length === 0) return;
                 const tile = getRandomFromArray(free);

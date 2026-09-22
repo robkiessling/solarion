@@ -198,10 +198,10 @@ export const TERRAINS: Record<TerrainKey, TerrainDef> = {
 }
 
 // Held flatland (sector.heldBy) gets its own glyph, not just a tint (a tint alone is impossible
-// to tell on the night side): a shaded zone spreading out from the settlement's 'Ω', the ground its people
-// work and watch. A light block shade fills the cell, so neighbouring tiles join into one marked area the way
-// a denied zone is hatched on a chart (a thin glyph like ':' vanished into the flatland around it). A neutral
-// survey mark on purpose, and it holds still: anything drawn here must be literally true of a settlement's
+// to tell on the night side): a shaded zone spreading out from the settlement's '▓', the ground its
+// people work and watch, the lightest shade of the same family as the camp's '▒'. (Not '·': that is the fog
+// glyph, and the two would be one shape in the dark.)
+// A neutral survey mark on purpose, and it holds still: anything drawn here must be literally true of a settlement's
 // land (the terminal omits, it never shows a falsehood), and marks that move or glow on a tile read as
 // something to walk onto. Only flatland is ever stamped held (see generatePois), so no other terrain loses
 // its glyph to this.

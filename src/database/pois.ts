@@ -91,7 +91,7 @@ export const LOOT_LABELS: Partial<Record<ResourceId, string>> = { refinedMineral
 
 // Map display vocabulary (colorKeys index into PLANET_COLORS in planet_render.ts; FIGHT_EFFECT_CHARS
 // animate over a settlement tile while a battle runs there).
-export const POI_GLYPHS = { cache: '□', settlement: 'Ω', camp: '•', storySite: '?', tunnel: '∩' }; // cache: a crate; settlement: Ω (its held ground is '░'); camp: a contact that stays put; tunnel: a mouth
+export const POI_GLYPHS = { cache: '□', settlement: '▓', camp: '▒', storySite: '?', tunnel: '∩' }; // a density map: held ground '░' is scattered returns, a camp a knot of them, the settlement the dense core; cache: a crate; tunnel: a mouth
 export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory', tunnel: 'poiTunnel' };
 export const POI_LABELS = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
@@ -141,6 +141,9 @@ export const STORY_TEXTS = {
 // unset keeps it unknown until the bottom is reached. `discardedKg` is material the classifier weighs and
 // throws away once the site has fallen: one terminal line, no value, no effect.
 //
+// CAMPS_ENABLED = false places no camps at all (the defs keep their `camps` lists; the placement pass skips
+// them), for trying the map without them.
+export const CAMPS_ENABLED = false;
 // `camps` seeds small one-fight POIs on the site's held ground: foragers, herders, a watch. Visible once their
 // tile is known, optional (the squad can path around them), gone for good once beaten, and a taste of the site's
 // strength before committing to it. They never release land (the ground stays held until the settlement falls),

@@ -31,7 +31,7 @@ export const PLANET_COLORS = {
     // Expedition overlays (POI markers, squad, skirmish effect)
     poiCache: '#ffd700',
     poiSettlement: '#ff4d4d',
-    poiCamp: '#ff4d4d', // same red as the settlement it belongs to; the smaller glyph tells them apart
+    poiCamp: '#ff4d4d', // same red as the settlement it belongs to; the lowercase glyph tells them apart
     poiStory: '#c58fff',
     poiTunnel: '#e0c060',
     poiHighlight: '#ffffff',
