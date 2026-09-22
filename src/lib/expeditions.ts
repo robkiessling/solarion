@@ -38,6 +38,8 @@ export interface Poi {
     levelsShown?: boolean;
     reloot?: number[];
     discardedKg?: number;
+    /** settlements on a pre-war network facility: its number (see PoiDef.site) */
+    site?: number;
     /** camps: the settlement whose held ground this sits on */
     parentId?: string;
     /** tunnels: the painted digit, the far mouth, whether the passage has been fought through, crossing cost */
@@ -55,7 +57,7 @@ export interface Poi {
 
 // POI content records (types, texts, labels, glyphs) live in database/pois.ts; re-exported here so
 // consumers keep one import site.
-export {CAPABILITY_LABELS, FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, STORY_TEXTS} from "../database/pois";
+export {CAPABILITY_LABELS, FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, SITE_GLYPH, STORY_TEXTS} from "../database/pois";
 
 /**
  * The placement pass: each POI_DEFS entry lands in the zone (a random tile of it) or on the point (one exact
@@ -147,7 +149,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             }
 
             const poi = add('settlement', sector, { territoryRadius, levels: (def.levels || []).map(rollLevel),
-                levelsShown: def.levelsShown, reloot: def.reloot });
+                levelsShown: def.levelsShown, reloot: def.reloot, ...(def.site != null ? { site: def.site } : {}) });
             if (def.discardedKg) poi.discardedKg = getRandomIntInclusive(def.discardedKg[0] / 10, def.discardedKg[1] / 10) * 10;
             const held: Sector[] = [];
             [sector.coord, ...getCoordsWithinHops(sector.coord, territoryRadius)].forEach(([r, c]) => {

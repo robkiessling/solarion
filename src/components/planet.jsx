@@ -16,6 +16,7 @@ import {
     POI_COLOR_KEYS,
     POI_GLYPHS,
     POI_LABELS,
+    SITE_GLYPH,
 } from "../lib/expeditions";
 import {stepInDirection, squadCrossMs, squadZone, CONTACT_MS, SQUAD_GLYPH} from "../lib/squad";
 import {EQUIPMENT_ORDER} from "../database/equipment";
@@ -446,7 +447,7 @@ class Planet extends React.Component {
             if (poi.status !== 'available') return;
             const hovered = poi.id === this.props.hoveredPoiId;
             overlays[`${poi.coord[0]},${poi.coord[1]}`] = {
-                char: POI_GLYPHS[poi.type],
+                char: poi.site != null ? SITE_GLYPH : POI_GLYPHS[poi.type],
                 colorKey: hovered ? 'poiHighlight' : POI_COLOR_KEYS[poi.type],
                 // No selfLit: sites are things on the ground, not lights, and vanish into the night like the
                 // ground they sit on (only the powered grid and units carry lights)

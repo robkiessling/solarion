@@ -39,7 +39,7 @@ import {
     type Poi,
 } from "../../lib/expeditions";
 import {applyEquipment, createBattle, startWithdrawal, type Battle} from "../../lib/battle";
-import {advanceSquad, CONTACT_MS, createSquad, droidsRecovered, isOnGrid, squadDrainPerTile, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
+import {advanceSquad, CONTACT_MS, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadDrainPerTile, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
 import {logInline} from "./log";
 import {EXPLORE_EVERYTHING} from "../../dev/skips";
 import {zoneColor} from "../../lib/planet_render";
@@ -488,6 +488,15 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                     updates.pois[poi.id] = { status: { $set: 'cleared' } };
                 }
             });
+
+            // A network site secured: its tile becomes an outpost, powered ground of the player's own (see
+            // TERRAINS.outpost). The cleared marker goes; the terrain carries the glyph from here on.
+            if (won && won.type === 'settlement' && won.site != null) {
+                updates.map = updates.map || {};
+                updates.map[won.coord[0]] = updates.map[won.coord[0]] || {};
+                updates.map[won.coord[0]][won.coord[1]] = { ...(updates.map[won.coord[0]][won.coord[1]] || {}),
+                    terrain: { $set: TERRAINS.outpost.key } };
+            }
 
             // A tunnel fought through: the squad comes out the far mouth, and both mouths stay on the map as
             // an open passage (never 'cleared', which would hide them) offering the crossing from now on
@@ -1199,6 +1208,17 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                     dispatch(unlockTerrain(reward.capability));
                 }
                 if (poi.type === 'tunnel') revealFromSquad(dispatch, getState); // it came out the far mouth
+                if (poi.site != null) {
+                    dispatch(logInline(`Site ${poi.site} secured. Power tap: live. Production: none.`));
+                    // The ground under the squad just became powered: it gets what a step onto the grid gives
+                    // (refill, repair, reload, cargo banked) without having to step off and back on
+                    const standing = getState().planet.squad;
+                    if (standing) {
+                        dispatch({ type: ADVANCE_SQUAD, payload: { squad: { ...standing, ...restoredOnGrid(standing) },
+                            reveals: [], revealedFlatland: 0 } });
+                        resolveSquadEvent(dispatch, getState, standing, { type: 'onGrid' });
+                    }
+                }
             }
             else if (event.result === 'wiped') {
                 // The player watched it happen; the popup holds the ending (planet-level prompt, no squad

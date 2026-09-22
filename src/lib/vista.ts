@@ -31,6 +31,7 @@ type VistaGround = TerrainKey | 'held' | 'unknown' | 'void';
 
 const GROUND: Record<VistaGround, string> = {
     home: '#####',
+    outpost: '#####',
     flatland: '_____',
     developing: '+++++',
     developed: '+++++',

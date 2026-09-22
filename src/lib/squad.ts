@@ -154,6 +154,21 @@ export function createSquad(homeCoord: Coord, assignedDroids = 1, multiplier = 1
 // Disband settlement: surviving units round back to whole droids, to the nearest (losing less than half a
 // multiplier's worth of units costs nothing: partial stacks re-replicate at home, the same fiction as
 // heals-at-home; unexploitable because settlements reset fully between engagements).
+// What powered ground does for a squad standing on it: the battery refills, battle wounds repair, and
+// equipment charges reload (everyone heals at home, gear reloads at home). Applied per tile entered by
+// advanceSquad, and in place when the ground under a standing squad becomes powered (a site secured).
+export function restoredOnGrid(squad: Squad): Pick<Squad, 'battery' | 'droidHp' | 'equipment'> {
+    const maxHp = (squad.droidStats || DROID_BASE_STATS).hp;
+    let { droidHp, equipment } = squad;
+    if (droidHp && droidHp.some(hp => hp < maxHp)) {
+        droidHp = fullDroidHp(droidHp.length, maxHp);
+    }
+    if (equipment && typedEntries(equipment).some(([id, n]) => n < EQUIPMENT_DEFS[id].charges)) {
+        equipment = mapObject(equipment, id => EQUIPMENT_DEFS[id].charges);
+    }
+    return { battery: squadBatteryCapacity(squad), droidHp, equipment };
+}
+
 export function droidsRecovered(squad: Squad): number {
     return Math.min(squad.assignedDroids || squad.squadSize,
         Math.round(squad.squadSize / (squad.multiplier || 1)));
@@ -236,16 +251,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
         }
 
         if (isOnGrid(map, coord)) {
-            battery = squadBatteryCapacity(squad);
-            // Powered ground repairs battle wounds and reloads equipment charges the same way it refills
-            // the battery (everyone heals at home, gear reloads at home)
-            const maxHp = (squad.droidStats || DROID_BASE_STATS).hp;
-            if (droidHp && droidHp.some(hp => hp < maxHp)) {
-                droidHp = fullDroidHp(droidHp.length, maxHp);
-            }
-            if (equipment && typedEntries(equipment).some(([id, n]) => n < EQUIPMENT_DEFS[id].charges)) {
-                equipment = mapObject(equipment, id => EQUIPMENT_DEFS[id].charges);
-            }
+            ({ battery, droidHp, equipment } = restoredOnGrid({ ...squad, battery, droidHp, equipment }));
             events.push({ type: 'onGrid' });
         }
         else if (battery <= 0) {

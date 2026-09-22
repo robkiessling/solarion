@@ -402,7 +402,7 @@ export default {
             dispatch(addTrigger('squadBatteryHalf'));
             dispatch(addTrigger('settlementSighted'));
             dispatch(addTrigger('firstBattleOver'));
-            dispatch(addTrigger('firstSettlementReclaimed'));
+            dispatch(addTrigger('firstSiteSecured'));
         }
     },
 
@@ -433,7 +433,7 @@ export default {
     replicationOnline: {
         text: [
             ['', 0],
-            ['Nest cleared. Ground reclaimed.', 500, true],
+            ['Site secured. Foundations intact; power tap live.', 500, true],
             ['Replication: AVAILABLE', 1000, true],
             ['Surveyed flatland can now carry copies of the base.', 1500, true],
         ],

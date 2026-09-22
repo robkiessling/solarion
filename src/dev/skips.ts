@@ -37,7 +37,7 @@ export const LOG_SPEED = 1;
 
 // A fresh map starts fully revealed (every tile explored, every site visible). Read by the planet module's
 // generateMap action, at call time, so the import cycle through the redux modules is harmless.
-export const EXPLORE_EVERYTHING = false;
+export const EXPLORE_EVERYTHING = true;
 
 export function runGameMode(dispatch: Dispatch) {
     switch (GAME_MODE) {

@@ -43,6 +43,8 @@ export interface PoiDef {
     zone?: string;
     point?: string;
     name?: string;
+    /** settlements built into a pre-war network facility: its number. Securing the first opens replication. */
+    site?: number;
     territoryRadius?: number;
     /** settlements: the site's fights, surface first (one or more) */
     levels?: PoiLevelDef[];
@@ -93,6 +95,8 @@ export const LOOT_LABELS: Partial<Record<ResourceId, string>> = { refinedMineral
 // animate over a settlement tile while a battle runs there).
 export const POI_GLYPHS = { cache: '□', settlement: '▓', camp: '▒', storySite: '?', tunnel: '∩' }; // a density map: held ground '░' is scattered returns, a camp a knot of them, the settlement the dense core; cache: a crate; tunnel: a mouth
 export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory', tunnel: 'poiTunnel' };
+// A settlement with `site` draws as the facility the plan says is there, not as a plain return
+export const SITE_GLYPH = '▣';
 export const POI_LABELS = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 
@@ -174,6 +178,10 @@ export const POI_DEFS: PoiDef[] = [
         camps: [
             { difficulty: 2, reward: { resources: { refinedMinerals: [100, 200] } } }
         ] },
+
+    { type: 'settlement', zone: 'c', site: 2, territoryRadius: 0, levelsShown: true,
+        levels: [ { difficulty: 20, terrain: 'compound', garrison: { shelter: 1, defender: 14 } } ] },
+
     // The first two-level site, count announced: it teaches the descend-or-withdraw rule
     { type: 'settlement', zone: 'd', territoryRadius: 2, levelsShown: true, discardedKg: [80, 160],
         levels: [
@@ -211,7 +219,7 @@ export const POI_DEFS: PoiDef[] = [
             { difficulty: 5, reward: { resources: { refinedMinerals: [300, 600] } } },
             { difficulty: 5, formation: 'surround', reward: { resources: { refinedMinerals: [300, 600] } } }
         ] },
-    { type: 'settlement', zone: 'h', territoryRadius: 2, levelsShown: true, discardedKg: [200, 400],
+    { type: 'settlement', zone: 'h', site: 2, territoryRadius: 2, levelsShown: true, discardedKg: [200, 400], // PLACEHOLDER site: the real Site 2 goes on a Gobi point
         levels: [
             { difficulty: 24, formation: 'ring', garrison: { shelter: 1, defender: 18 }, terrain: 'canyon',
                 reward: { resources: { refinedMinerals: [1500, 2500] } } },

@@ -12,7 +12,7 @@ import {
 } from "./planet_geometry";
 
 /** TERRAINS[x].key (the debug meridians add `meridian_<n>` keys at runtime; they never reach a save) */
-export type TerrainKey = 'home' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'shallows' | 'water';
+export type TerrainKey = 'home' | 'outpost' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'shallows' | 'water';
 
 /** How much of a tile the player has seen (the keys of STATUSES below) */
 export type SectorStatus = 'unknown' | 'exploring' | 'explored';
@@ -185,6 +185,11 @@ export const TERRAINS: Record<TerrainKey, TerrainDef> = {
     flatland: { key: 'flatland', display: ',', variants: ['.'], variantShare: 0.15, label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining. Dust and pebbles: deliberately the quietest glyphs on the map, so features stand out against the ground
     developing: { key: 'developing', display: '+', label: 'Replicating', crossTime: EXPLORATION_TIME_FACTOR },
     developed: { key: 'developed', display: '+', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
+    // A secured network site: its pre-war power tap is live, so it is powered ground for the squad (recharge,
+    // repair, cargo banks, scouts dock) and the survey halo reaches out from it, but it is not replicated land
+    // (nothing produces here until replication builds on it). Never painted; a settlement with `site` leaves
+    // one behind when it falls.
+    outpost: { key: 'outpost', display: '▣', label: 'Site', crossTime: EXPLORATION_TIME_FACTOR },
     mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
     // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
     ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
@@ -442,7 +447,7 @@ export function getHomeBasePosition(map: PlanetMap): { coord: Coord, rotation: n
 // halo radiates from here, and development grows from here. Mid-replication ('developing') tiles are still
 // under construction -- not powered until the cast finishes. (They also never exist when development picks
 // its next batch: replicate is single-flight and the previous batch completes before the next cast starts.)
-export const GRID_TERRAINS = new Set<TerrainKey>([TERRAINS.home.key, TERRAINS.developed.key]);
+export const GRID_TERRAINS = new Set<TerrainKey>([TERRAINS.home.key, TERRAINS.outpost.key, TERRAINS.developed.key]);
 
 export function isOnGrid(map: PlanetMap, coord: Coord): boolean {
     return GRID_TERRAINS.has(map[coord[0]][coord[1]].terrain);
@@ -952,7 +957,7 @@ export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: n
                 // Held ground: its own glyph and tint; both retract when the settlement is cleared
                 if (sector.heldBy) { char = HELD_GLYPH; colorKey = 'held'; }
                 // City lights (see DEVELOPED_NIGHT_LIGHT_MIN)
-                if (sector.terrain === TERRAINS.home.key) { selfLit = true; }
+                if (sector.terrain === TERRAINS.home.key || sector.terrain === TERRAINS.outpost.key) { selfLit = true; }
                 else if (sector.terrain === TERRAINS.developed.key) {
                     const [row, col] = sector.coord;
                     const density = gridNight.density[row][col];

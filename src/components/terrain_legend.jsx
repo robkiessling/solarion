@@ -11,7 +11,7 @@ import {getAbility} from "../redux/modules/abilities";
  */
 // The legend's order. Home and the fog are always there; every other terrain appears once a tile of it has been
 // explored (the player has seen the glyph before the key explains it).
-const TERRAIN_ORDER = ['flatland', 'mountain', 'ice', 'water', 'shallows'];
+const TERRAIN_ORDER = ['flatland', 'mountain', 'ice', 'water', 'shallows', 'outpost'];
 
 // Which terrains have been explored, recomputed only when the explored count changes (the map is a few
 // thousand tiles; scanning it every render would be wasteful)

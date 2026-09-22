@@ -108,13 +108,15 @@ const database = {
         condition: (fought) => fought >= 1,
         action: () => store.dispatch(fromLog.startLogSequence('firstBattleOver'))
     }),
-    // Replication: a settlement is dead and a squad has come home since. Waiting for the return keeps this
-    // beat apart from the battle's own, and Replicate is held while a squad is fielded anyway. A wipe is not a
-    // return: firing on "no squad" made a team lost on a later assault read as the nest being cleared.
-    firstSettlementReclaimed: trigger({
+    // Replication: a network SITE has fallen (a settlement def with `site`, the pre-war facility whose
+    // foundations and power tap replication needs; ordinary villages don't count) and a squad has come home
+    // since. Waiting for the return keeps this beat apart from the battle's own, and Replicate is held while a
+    // squad is fielded anyway. A wipe is not a return: firing on "no squad" made a team lost on a later
+    // assault read as the site being cleared.
+    firstSiteSecured: trigger({
         selector: (state) => state.planet.squadsReturned,
         condition: (returned) => returned > 0 && Object.values(store.getState().planet.pois)
-            .some(poi => poi.type === 'settlement' && poi.status === 'cleared'),
+            .some(poi => poi.type === 'settlement' && poi.site != null && poi.status === 'cleared'),
         action: () => store.dispatch(fromLog.startLogSequence('replicationOnline'))
     }),
     windTurbine_global: trigger({
