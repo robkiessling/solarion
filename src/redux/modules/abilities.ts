@@ -1,6 +1,6 @@
 import update, {Spec} from 'immutability-helper';
 import database, {callbacks, calculators, type Ability, type AbilityId} from "../../database/abilities";
-import {recalculateState, withRecalculation} from "../reducer";
+import {canCastAbility, recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {play as playSfx} from "../../singletons/audio";
 import _ from "lodash";
@@ -32,6 +32,8 @@ export const END_CAST = 'abilities/END_CAST' as const;
 export const END_COOLDOWN = 'abilities/END_COOLDOWN' as const;
 
 export const CHARGE_RNG = 'abilities/CHARGE_RNG' as const;
+export const SET_AUTOCASTABLE = 'abilities/SET_AUTOCASTABLE' as const;
+export const SET_AUTOCAST = 'abilities/SET_AUTOCAST' as const;
 
 export type AbilitiesAction =
     | { type: typeof LEARN; payload: { id: AbilityId } }
@@ -40,7 +42,9 @@ export type AbilitiesAction =
     | { type: typeof END_CAST; payload: { ability: Ability } }
     | { type: typeof END_COOLDOWN; payload: { ability: Ability } }
     /** animations: immutability-helper specs applied to the charge ability's animation counters */
-    | { type: typeof CHARGE_RNG; payload: { resources: ResourceAmounts; animations: { [counter: string]: Spec<number> } } };
+    | { type: typeof CHARGE_RNG; payload: { resources: ResourceAmounts; animations: { [counter: string]: Spec<number> } } }
+    | { type: typeof SET_AUTOCASTABLE; payload: { id: AbilityId } }
+    | { type: typeof SET_AUTOCAST; payload: { id: AbilityId; on: boolean } };
 
 // Initial State
 const initialState: AbilitiesState = {
@@ -64,6 +68,12 @@ export default function reducer(state: AbilitiesState = initialState, action: Ga
                 },
                 visibleIds: { $push: [action.payload.id] }
             });
+        case SET_AUTOCASTABLE:
+            if (!state.byId[action.payload.id]) return state;
+            return update(state, { byId: { [action.payload.id]: { autocastable: { $set: true } } } });
+        case SET_AUTOCAST:
+            if (!state.byId[action.payload.id]) return state;
+            return update(state, { byId: { [action.payload.id]: { autocast: { $set: action.payload.on } } } });
         case START_CAST:
             return update(state, {
                 byId: {
@@ -159,6 +169,30 @@ export function getManualRate(state: AbilitiesState): number {
 export function learn(id: AbilityId) {
     return withRecalculation({ type: LEARN, payload: { id } }); // recalculate so we immediately calculate costs
 }
+// Grants the autocast toggle (an upgrade's doing; the ability keeps it from then on)
+export function setAutocastable(id: AbilityId): AbilitiesAction {
+    return { type: SET_AUTOCASTABLE, payload: { id } };
+}
+// Turning autocast on while the ability is idle fires it at once, so the toggle never sits lit over a button that is
+// doing nothing.
+export function setAutocast(id: AbilityId, on: boolean) {
+    return function(dispatch: Dispatch, getState: GetState) {
+        dispatch({ type: SET_AUTOCAST, payload: { id, on } });
+        if (on) autocastIfDue(dispatch, getState, id);
+    }
+}
+
+// An ability under a standing order recasts the moment it is ready and affordable. Called when a cast (or its
+// cooldown) ends and on every tick, so an order that stalled on cost resumes as soon as the resources are there.
+// Nothing is paid ahead: each cast pays its own cost when it starts, the way a click would, which matters for
+// costs that climb per cast (the droid price).
+function autocastIfDue(dispatch: Dispatch, getState: GetState, id: AbilityId) {
+    const ability = getAbility(getState().abilities, id);
+    if (!ability || !ability.autocast || !ability.autocastable) return;
+    if (!canCastAbility(getState(), ability)) return;
+    dispatch(startCastUnsafe(ability));
+    if (ability.castTime > 0 && ability.castStartSound) { playSfx(ability.castStartSound); }
+}
 export function startCastUnsafe(ability: Ability) {
     return function(dispatch: Dispatch, getState: GetState) {
         batch(() => {
@@ -219,6 +253,8 @@ export function abilitiesTick(timeDelta: number) {
                 if (value.state === 'cooldown' && (value.cooldownProgress ?? 0) >= value.cooldown * 1000) {
                     endCooldown(dispatch, getState, value);
                 }
+                // A stalled autocast (unaffordable when its last cast ended) retries here
+                if (value.autocast && value.state === 'ready') autocastIfDue(dispatch, getState, value.id);
             }
         });
     }
@@ -234,6 +270,7 @@ function endCast(dispatch: Dispatch, getState: GetState, ability: Ability) {
     }
 
     dispatch(recalculateState());
+    autocastIfDue(dispatch, getState, ability.id); // autocast goes straight into the next cast
 }
 
 function endCooldown(dispatch: Dispatch, getState: GetState, ability: Ability) {

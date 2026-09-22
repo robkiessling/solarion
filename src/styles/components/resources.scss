@@ -25,8 +25,8 @@
       padding-left: 0;
     }
 
-    // The droid cell's second line carries the unassign link as well as the idle count, so it needs more room
-    // than a rate does. Still a fixed width, so the link coming and going never shifts the cells after it.
+    // The droid cell's top line carries the unassign link beside the total, so it needs more room than a
+    // number does. Still a fixed width, so the link coming and going never shifts the cells after it.
     &.droid-cell {
       flex-basis: 13rem;
       width: 13rem;
@@ -53,17 +53,19 @@
       min-height: 1.2em; // keep cell height stable when a resource has no rate to show
       text-align: right;
       white-space: nowrap; // a wrapped rate line makes the whole bar taller
+    }
 
-      // Unassign-all: a link in the rate line's own dim voice, lit on hover
-      .recall-droids {
-        margin-right: 0.6rem;
-        cursor: pointer;
-        text-decoration: underline;
-        text-underline-offset: 2px;
+    // Unassign-all: a small dim link beside the total, lit on hover
+    .recall-droids {
+      margin-right: 0.8rem;
+      font-size: 0.8rem;
+      color: $ui-text-dim;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
 
-        &:hover {
-          color: $ui-text;
-        }
+      &:hover {
+        color: $ui-text;
       }
     }
   }

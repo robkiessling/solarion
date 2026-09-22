@@ -6,6 +6,7 @@ import {canCastAbility, castAbility} from "../../redux/reducer";
 import ProgressButton from "../ui/progress_button";
 import _ from "lodash";
 import {highlightCosts} from "../../redux/modules/resources";
+import Tooltip from "../ui/tooltip";
 
 /**
  * An ability's cast button with its tooltip. `disabledReason` (optional, from the parent) holds the button
@@ -38,7 +39,35 @@ class Ability extends React.Component {
                 {this.props.name}
             </ProgressButton>
             {
-                this.props.displayInfo && <div className='ability-info'>{ this.props.displayInfo }</div>
+                (this.props.displayInfo || this.props.autocastable) && <div className='ability-info'>
+                    { this.props.displayInfo && <div>{ this.props.displayInfo }</div> }
+                    {
+                        // Auto-build (the standing order), under the info line: lit while on. Casts back to back while
+                        // affordable; a stalled order says why.
+                        this.props.autocastable &&
+                        <React.Fragment>
+                            <button className={`action-button autocast-toggle${this.props.autocast ? ' on' : ''}`}
+                                    data-tip data-for={`ability-${this.props.id}-auto-tip`}
+                                    onClick={(event) => {
+                                        // A clicked button keeps keyboard focus, and react-tooltip shows on focus:
+                                        // coming back to the window would refocus it and reopen the tooltip
+                                        // with no mouse to leave. Drop the focus with the click.
+                                        event.currentTarget.blur();
+                                        this.props.setAutocast(this.props.id, !this.props.autocast);
+                                    }}>
+                                {this.props.autocast ? '■ Auto-build: on' : '□ Auto-build: off'}
+                            </button>
+                            {/*{ this.props.autocast && !this.props.canCast && !this.props.isCasting &&*/}
+                            {/*    <span className='autocast-waiting'>waiting on resources</span> }*/}
+                            <Tooltip id={`ability-${this.props.id}-auto-tip`} {...(this.props.tooltipProps || {})}>
+                                <div>
+                                    <p className='tooltip-header'><span className='ability'>Auto-build</span></p>
+                                    <p>Builds again the moment each build ends, for as long as the factory can pay.</p>
+                                </div>
+                            </Tooltip>
+                        </React.Fragment>
+                    }
+                </div>
             }
         </div>;
     }
@@ -57,11 +86,14 @@ const mapStateToProps = (state, ownProps) => {
         canCast: canCastAbility(state, ability),
         progress: fromAbilities.getProgress(ability, true),
         displayInfo: ability.displayInfo,
-        hidden: ability.hidden
+        hidden: ability.hidden,
+        autocastable: !!ability.autocastable,
+        autocast: !!ability.autocast,
+        isCasting: fromAbilities.isCasting(ability)
     }
 };
 
 export default connect(
     mapStateToProps,
-    { castAbility }
+    { castAbility, setAutocast: fromAbilities.setAutocast }
 )(Ability);

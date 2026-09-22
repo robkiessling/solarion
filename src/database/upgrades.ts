@@ -1035,6 +1035,30 @@ const database = {
             type: 'misc'
         },
     }),
+    // Autocast for droid production: the first standing authorization the player signs on the factory, and a
+    // little faster besides
+    droidFactory_assemblyOrder: upgrade({
+        name: "Build Automation",
+        structure: 'droidFactory',
+        description: 'Allows for continuous droid production. Also reduces droid build time by 5 seconds.',
+        discoverWhen: {
+            resources: {
+                standardDroids: 10
+            }
+        },
+        cost: {
+            ore: 3000,
+            energy: 2000,
+            refinedMinerals: 250
+        },
+        affects: {
+            type: 'ability',
+            id: 'droidFactory_buildStandardDroid'
+        },
+        effect: {
+            castTime: { add: -5 }
+        }
+    }),
     droidFactory_pontoonRig: upgrade({
         name: "Pontoon Rig",
         structure: 'droidFactory',
@@ -1337,6 +1361,11 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
         onFinish: (dispatch) => {
             // unlockedTerrains doubles as the capability set; 'drill' will satisfy a sealed tunnel's `requires`
             dispatch(fromPlanet.unlockTerrain('drill'));
+        }
+    },
+    droidFactory_assemblyOrder: {
+        onFinish: (dispatch) => {
+            dispatch(fromAbilities.setAutocastable('droidFactory_buildStandardDroid'));
         }
     },
     droidFactory_pontoonRig: {

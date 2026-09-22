@@ -31,15 +31,16 @@ class ResourceBar extends React.Component {
 
         return <div className="resource-cell droid-cell" key={resource.id}>
             <div className="cell-amount">
-                <span className="resource-amount">{total}</span>
-                <div className="cell-rate">
+                <span className="resource-amount">
                     {/* A quiet link, not a button: the bar is a readout, and a white button outweighs the numbers.
-                        Gone when there is nothing to unassign. */}
+                        Beside the total, not the idle count, so it can't be read as "unassign the idle". Gone
+                        when there is nothing to unassign. */}
                     {this.props.showRecall && this.props.numRecallable > 0 &&
                         <a className="recall-droids" onClick={() => this.props.recallAllDroids()}
                            data-tip data-for="recall-droids-tip">unassign</a>}
-                    {idle} idle
-                </div>
+                    {total}
+                </span>
+                <div className="cell-rate">{idle} idle</div>
                 {/* Same condition as the link: ReactTooltip binds its hover listeners once, on mount, so the two
                     must mount together or a link that shows up later never gets a tooltip. The field team line
                     waits for the Planet tab so it does not give away expeditions early. */}

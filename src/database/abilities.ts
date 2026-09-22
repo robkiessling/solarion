@@ -40,12 +40,14 @@ export interface AbilityRecord {
      */
     castStartSound: SfxName | false;
     castFinishSound: SfxName | false;
+    autocastable: boolean;
 }
 
 export interface Ability extends AbilityRecord {
     id: AbilityId;
     castProgress?: number;
     cooldownProgress?: number;
+    autocast?: boolean;
     variables?: Variables;
     displayInfo?: string;
 }
@@ -69,6 +71,7 @@ const base: AbilityRecord = {
 
     castStartSound: 'castStart',
     castFinishSound: 'castFinish',
+    autocastable: false,
 }
 
 /** A table entry: the overrides merged over `base` (deep, so a nested field can be overridden on its own) */
