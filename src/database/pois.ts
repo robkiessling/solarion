@@ -7,14 +7,15 @@ export type PoiType =
     | 'cache'      // a supply drop: take it
     | 'settlement' // where survivors live (the terminal only ever says "nest"): stepping on it starts a fight
     | 'camp'       // a few of a settlement's people out on its held ground (the terminal says "contact"): a small fight
-    | 'storySite'; // a ruin with a log to read
+    | 'storySite'  // a ruin with a log to read
+    | 'tunnel';    // a mouth of a passage under the sea: fought through once, then crossed at will
 
 export type PoiStatus =
     | 'hidden'     // its tile has not been revealed by scouting yet
     | 'available'  // discovered, not yet resolved
     | 'cleared';   // resolved
 
-export type Capability = 'drill' | 'sealedChassis' | 'overrideModule';
+export type Capability = 'drill' | 'sealedChassis' | 'overrideModule' | 'pontoon';
 
 /** What accepting an encounter popup does: 'auto' resolves and closes it, 'narrate' holds it open on a result phase */
 export type ResultBehavior = 'auto' | 'narrate';
@@ -80,6 +81,7 @@ export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: 
     reloot?: number[] }> = {
     cache: { actionLabel: 'Take', result: 'auto', promptText: 'Supply cache found{loot}. Take it?' },
     storySite: { actionLabel: 'Explore', result: 'narrate', promptText: 'Structure of unknown origin. Investigate?' },
+    tunnel: { result: 'narrate', reloot: [1] }, // never prompts: fought on entry, crossed on entry once open
     settlement: { result: 'narrate', reloot: [1, 0.5, 0.25] },
     camp: { result: 'narrate', reloot: [1] }
 }
@@ -89,9 +91,9 @@ export const LOOT_LABELS: Partial<Record<ResourceId, string>> = { refinedMineral
 
 // Map display vocabulary (colorKeys index into PLANET_COLORS in planet_render.ts; FIGHT_EFFECT_CHARS
 // animate over a settlement tile while a battle runs there).
-export const POI_GLYPHS = { cache: '□', settlement: 'Ω', camp: '•', storySite: '?' }; // cache: a crate; settlement: Ω (its held ground is '░'); camp: a contact that stays put
-export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory' };
-export const POI_LABELS = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins' };
+export const POI_GLYPHS = { cache: '□', settlement: 'Ω', camp: '•', storySite: '?', tunnel: '∩' }; // cache: a crate; settlement: Ω (its held ground is '░'); camp: a contact that stays put; tunnel: a mouth
+export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory', tunnel: 'poiTunnel' };
+export const POI_LABELS = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 
 // The three tools. Stored in planet.unlockedTerrains (the shared capability set: terrain crossUpgrades and
@@ -99,7 +101,8 @@ export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 export const CAPABILITY_LABELS: Record<Capability, string> = {
     drill: 'Plasma Drill',
     sealedChassis: 'Sealed Chassis',
-    overrideModule: 'Override Module'
+    overrideModule: 'Override Module',
+    pontoon: 'Pontoon Rig'
 }
 
 // Story text lives here (not in the log database) because reports are dynamic; POIs store the key only.
@@ -264,6 +267,39 @@ export const POI_DEFS: PoiDef[] = [
     { type: 'storySite', zone: 'q', storyId: 'r3_commandRuin' },
     { type: 'storySite', zone: 't', storyId: 'r3_hiveHeart' }
 ]
+
+/** A tunnel system: what holds it, and what crossing costs. Keyed by the digit painted on its two mouths. */
+export interface TunnelDef {
+    name?: string;
+    requires?: Capability;
+    /** the fight(s) inside; the squad that wins comes out the far mouth */
+    levels: PoiLevelDef[];
+    /** battery the crossing costs, in flatland tiles walked */
+    crossTiles: number;
+}
+
+// Tunnels: each digit painted on the map (two mouths per digit) is one passage. Stepping into a mouth the
+// first time is the fight inside, on corridor ground (several `levels` = a long tunnel held in stages, with
+// the same descend-or-withdraw choice between them as a settlement); win the last and the squad emerges at
+// the far mouth, fall back and it returns the way it came. After that, stepping into either mouth crosses
+// at once, for `crossTiles` of battery. A digit without an entry here gets TUNNEL_DEFAULT. PLACEHOLDER
+// garrisons.
+export const TUNNEL_DEFAULT: TunnelDef = { levels: [{ difficulty: 12, terrain: 'corridor' }], crossTiles: 4 };
+export const TUNNEL_DEFS: Partial<Record<string, TunnelDef>> = {
+    '1': { levels: [{ difficulty: 8, terrain: 'corridor', reward: { resources: { refinedMinerals: [200, 400] } } }], crossTiles: 3 },
+    // '2' runs under the strait between Iberia and Morocco: the tunnel garrison, then the fortified far mouth
+    '2': { levels: [
+        { difficulty: 16, terrain: 'corridor', reward: { resources: { refinedMinerals: [600, 1000] } } },
+        { difficulty: 20, terrain: 'corridor', formation: 'surround',
+            reward: { resources: { refinedMinerals: [800, 1400] } } }
+    ], crossTiles: 4 },
+    '3': { levels: [{ difficulty: 20, terrain: 'corridor', reward: { resources: { refinedMinerals: [800, 1400] } } }], crossTiles: 4 },
+    '4': { levels: [
+        { difficulty: 14, terrain: 'corridor', reward: { resources: { refinedMinerals: [500, 900] } } },
+        { difficulty: 18, terrain: 'corridor', formation: 'surround',
+            reward: { resources: { refinedMinerals: [1000, 1800] } } }
+    ], crossTiles: 4 }
+};
 
 // Resolves a definition's reward at generation time: [lo, hi] resource ranges roll to a multiple of 100;
 // capability rewards pass through unchanged.

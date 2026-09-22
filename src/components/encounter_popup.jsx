@@ -5,6 +5,7 @@ import {
     actionLabelFor,
     CAPABILITY_LABELS,
     formatResourceList,
+    isGarrisoned,
     poiLevels,
     POI_COLOR_KEYS,
     POI_GLYPHS,
@@ -85,8 +86,11 @@ class EncounterPopup extends React.Component {
         // over it, so the fight's ending stays on screen instead of snapping down to the small prompt;
         // the outcome text and Continue share the fixed-height footer the action row occupied.
         const finalBattle = result.finalBattle;
-        // A level of a deeper site fell: the result doubles as the descend-or-withdraw choice
+        // A level of a deeper site fell: the result doubles as the descend-or-withdraw choice (a tunnel's
+        // levels run ahead, not down)
         const descent = result.nextLevel != null;
+        const tunnel = poi.type === 'tunnel';
+        const onward = tunnel ? 'ahead' : 'below';
         const body = (
             <div className="popup-body">
                 {story && <span className="story-text">"{story}"</span>}
@@ -100,7 +104,7 @@ class EncounterPopup extends React.Component {
                     </span>}
                 {result.losses != null &&
                     <span className="result-line">
-                        {descent ? `Level ${result.level + 1} cleared` : poi.type === 'camp' ? 'Contact cleared' : 'Nest cleared'} — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
+                        {descent ? `Level ${result.level + 1} cleared` : poi.type === 'camp' ? 'Contact cleared' : poi.type === 'tunnel' ? 'Tunnel cleared' : 'Nest cleared'} — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
                     </span>}
                 {result.landCredit > 0 &&
                     <span className="outcome-line">Reclaimed {result.landCredit} land.</span>}
@@ -113,9 +117,9 @@ class EncounterPopup extends React.Component {
                 {descent &&
                     <span className="result-line">
                         {result.levelsTotal ?
-                            `Level ${result.nextLevel + 1} of ${result.levelsTotal} lies below.` :
-                            'Signatures below.'}
-                        {' '}Descend?
+                            `Level ${result.nextLevel + 1} of ${result.levelsTotal} lies ${onward}.` :
+                            `Signatures ${onward}.`}
+                        {' '}{tunnel ? 'Press on?' : 'Descend?'}
                     </span>}
             </div>
         );
@@ -124,7 +128,7 @@ class EncounterPopup extends React.Component {
         const actions = descent ? (
             <div className="popup-actions">
                 <button onClick={() => this.props.squadDescend()}>
-                    <kbd>Enter</kbd>Descend
+                    <kbd>Enter</kbd>{tunnel ? 'Press on' : 'Descend'}
                 </button>
                 <button onClick={() => this.props.squadWithdraw()}>
                     <kbd>Esc</kbd>Withdraw
@@ -146,7 +150,7 @@ class EncounterPopup extends React.Component {
                 <div className="battle-final">
                     <BattleCanvas battle={finalBattle}/>
                     <div className={`battle-verdict${result.wiped ? ' wiped' : ''}`}>
-                        {result.wiped ? 'CONTACT LOST' : descent ? 'LEVEL CLEARED' : poi.type === 'camp' ? 'CONTACT CLEARED' : 'NEST CLEARED'}
+                        {result.wiped ? 'CONTACT LOST' : descent ? 'LEVEL CLEARED' : poi.type === 'camp' ? 'CONTACT CLEARED' : poi.type === 'tunnel' ? 'TUNNEL CLEARED' : 'NEST CLEARED'}
                     </div>
                 </div>
                 <div className="battle-footer">
@@ -241,7 +245,7 @@ class EncounterPopup extends React.Component {
         // only numbers the levels once the squad is below it.
         let levelLabel = '';
         const level = fighting ? fighting.level : prompt && prompt.result && prompt.result.level;
-        if (poi.type === 'settlement' && level != null && poiLevels(poi).length > 1) {
+        if (isGarrisoned(poi) && level != null && poiLevels(poi).length > 1) {
             if (poi.levelsShown) levelLabel = ` · LEVEL ${level + 1} OF ${poiLevels(poi).length}`;
             else if (level > 0) levelLabel = ` · LEVEL ${level + 1}`;
         }

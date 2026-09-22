@@ -58,6 +58,7 @@ export const GROUND_BLURBS: Record<TerrainLayoutId | 'open', string> = {
     rocks: 'The squad drops into a boulder field',
     ruins: 'The squad drops among shattered ruins',
     canyon: 'The squad drops before a canyon wall',
+    corridor: 'The squad advances into the tunnel',
     open: 'The squad drops onto open ground'
 };
 export const HOSTILE_BLURBS: Record<HostileFormation, string> = {

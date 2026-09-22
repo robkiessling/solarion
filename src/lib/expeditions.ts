@@ -1,7 +1,7 @@
 import {getRandomFromArray, getRandomIntInclusive, mapObject} from "./helpers";
-import {getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, type PlanetMap, type Sector} from "./planet_map";
+import {getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, VISION_HOPS, type PlanetMap, type Sector} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
+import {LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, TUNNEL_DEFAULT, TUNNEL_DEFS, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
 import type {HostileType} from "../database/battle";
 import type {HostileFormation, TerrainLayoutId} from "./battle";
 
@@ -40,6 +40,11 @@ export interface Poi {
     discardedKg?: number;
     /** camps: the settlement whose held ground this sits on */
     parentId?: string;
+    /** tunnels: the painted digit, the far mouth, whether the passage has been fought through, crossing cost */
+    tunnel?: string;
+    exitCoord?: Coord;
+    open?: boolean;
+    crossTiles?: number;
 }
 
 /**
@@ -54,7 +59,7 @@ export {CAPABILITY_LABELS, FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_L
 
 /**
  * The placement pass: each POI_DEFS entry lands in the zone (a random tile of it) or on the point (one exact
- * tile) painted for it in the authored map, and a territory stamp around
+ * tile) painted for it in the authored map, a tunnel POI on every painted mouth, and a territory stamp around
  * every settlement (sector.heldBy: scout-impassable, not developable, squad-crossable; retracts when the
  * settlement is cleared). An entry that cannot be placed is reported on the console rather than dropped
  * silently: the manifest is the content plan, and a missing entry is a bug in the drawing or the manifest.
@@ -68,10 +73,13 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     // unfinishable.
     const reachable = squadReachableSet(map);
 
+    // Nothing starts in sight of home: the ground within VISION_HOPS is explored from the first frame, and a site
+    // born there is "sighted" before the player has done anything (the sighting triggers would fire at once).
+    const beyondStartingVision = (sector: Sector) => sector.graphDistanceHome > VISION_HOPS;
     const candidates: Sector[] = [];
     map.forEach(row => {
         row.forEach(sector => {
-            if (sector.terrain === TERRAINS.flatland.key && sector.graphDistanceHome > 2 &&
+            if (sector.terrain === TERRAINS.flatland.key && beyondStartingVision(sector) &&
                 reachable.has(`${sector.coord[0]},${sector.coord[1]}`)) {
                 candidates.push(sector);
             }
@@ -153,7 +161,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             // POIs that live on held ground; pick() keeps everything else off it). A territory squeezed
             // small by mountains or coast simply fits fewer.
             (def.camps || []).forEach(campDef => {
-                const free = held.filter(tile => !usedKeys.has(`${tile.coord[0]},${tile.coord[1]}`));
+                const free = held.filter(tile => beyondStartingVision(tile) && !usedKeys.has(`${tile.coord[0]},${tile.coord[1]}`));
                 if (free.length === 0) return;
                 const tile = getRandomFromArray(free);
                 usedKeys.add(`${tile.coord[0]},${tile.coord[1]}`);
@@ -163,7 +171,27 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         }
     };
 
-    // The content manifest: each definition placed in its band, rewards rolled from their declared ranges
+    // Tunnels: a POI on each mouth, both carrying the passage's fight and pointing at the other. Mouths stay
+    // 'available' for good (the crossing is offered forever), so the map keeps showing them.
+    const mouths: Record<string, Sector[]> = {};
+    map.forEach(row => row.forEach(sector => {
+        if (sector.tunnel) (mouths[sector.tunnel] = mouths[sector.tunnel] || []).push(sector);
+    }));
+    Object.entries(mouths).forEach(([digit, ends]) => {
+        if (ends.length !== 2) {
+            console.warn(`Authored map: tunnel ${digit} has ${ends.length} mouths, expected 2; skipped`);
+            return;
+        }
+        const def = TUNNEL_DEFS[digit] || TUNNEL_DEFAULT;
+        ends.forEach((sector, i) => {
+            usedKeys.add(`${sector.coord[0]},${sector.coord[1]}`);
+            add('tunnel', sector, { tunnel: digit, exitCoord: ends[1 - i].coord, open: false,
+                crossTiles: def.crossTiles, requires: def.requires || null,
+                levels: def.levels.map(rollLevel), ...(def.name ? { name: def.name } : {}) });
+        });
+    });
+
+    // The content manifest: each definition placed in its zone, rewards rolled from their declared ranges
     POI_DEFS.forEach(def => {
         if (def.type === 'settlement') {
             addSettlement(def);
@@ -193,9 +221,10 @@ export function poiLevels(poi: Poi): PoiLevel[] {
     return poi.levels || [];
 }
 
-// POIs that are fought, not prompted: stepping onto one starts its battle
+// POIs that are fought, not prompted: stepping onto one starts its battle. A tunnel is fought through
+// once; open, it prompts the crossing instead.
 export function isGarrisoned(poi: Poi): boolean {
-    return poi.type === 'settlement' || poi.type === 'camp';
+    return poi.type === 'settlement' || poi.type === 'camp' || (poi.type === 'tunnel' && !poi.open);
 }
 
 // What winning a level pays on THIS clear: its rolled resources scaled by the site's reloot schedule (indexed by
@@ -218,7 +247,7 @@ export function levelPayout(poi: Poi, levelIndex: number): PoiReward {
 // their zones take content now, ahead of the tunnel mechanics). Keys are "row,col".
 function squadReachableSet(map: PlanetMap): Set<string> {
     const home = getHomeBasePosition(map).coord;
-    const allTools = { drill: true, sealedChassis: true, overrideModule: true };
+    const allTools = { drill: true, sealedChassis: true, overrideModule: true, pontoon: true };
 
     const mouths: Record<string, Coord[]> = {};
     map.forEach(row => row.forEach(sector => {

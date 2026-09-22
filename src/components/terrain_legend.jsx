@@ -11,7 +11,7 @@ import {getAbility} from "../redux/modules/abilities";
  */
 class TerrainLegend extends React.Component {
     render() {
-        const entries = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.water];
+        const entries = [TERRAINS.home, STATUSES.unknown, TERRAINS.flatland, TERRAINS.mountain, TERRAINS.water, TERRAINS.shallows];
         if (this.props.replicationKnown) {
             entries.push(TERRAINS.developed);
         }

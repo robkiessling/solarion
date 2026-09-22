@@ -1035,6 +1035,24 @@ const database = {
             type: 'misc'
         },
     }),
+    droidFactory_pontoonRig: upgrade({
+        name: "Pontoon Rig",
+        structure: 'droidFactory',
+        description: 'Deployable floating track. Carries the squad over shallows too deep to drive.',
+        discoverWhen: {
+            upgrades: ['droidFactory_drill'],
+            resources: {
+                refinedMinerals: 1500
+            }
+        },
+        cost: {
+            ore: 6000,
+            refinedMinerals: 2500,
+        },
+        affects: {
+            type: 'misc'
+        },
+    }),
     droidFactory_surveyAutomation: upgrade({
         name: "Survey Automation",
         structure: 'droidFactory',
@@ -1319,6 +1337,11 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
         onFinish: (dispatch) => {
             // unlockedTerrains doubles as the capability set; 'drill' will satisfy a sealed tunnel's `requires`
             dispatch(fromPlanet.unlockTerrain('drill'));
+        }
+    },
+    droidFactory_pontoonRig: {
+        onFinish: (dispatch) => {
+            dispatch(fromPlanet.unlockTerrain('pontoon')); // shallows' crossUpgrade (see TERRAINS in lib/planet_map.ts)
         }
     },
     droidFactory_surveyAutomation: {

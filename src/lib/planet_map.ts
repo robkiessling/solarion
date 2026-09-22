@@ -12,7 +12,7 @@ import {
 } from "./planet_geometry";
 
 /** TERRAINS[x].key (the debug meridians add `meridian_<n>` keys at runtime; they never reach a save) */
-export type TerrainKey = 'home' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'acid' | 'water';
+export type TerrainKey = 'home' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'acid' | 'shallows' | 'water';
 
 /** How much of a tile the player has seen (the keys of STATUSES below) */
 export type SectorStatus = 'unknown' | 'exploring' | 'explored';
@@ -168,8 +168,6 @@ function daylightAt(deltaTurns: number) {
 }
 
 
-const EXPLORE_EVERYTHING = true;
-
 const EXPLORATION_TIME_FACTOR = 0.5; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = true;
 
@@ -191,6 +189,9 @@ export const TERRAINS: Record<TerrainKey, TerrainDef> = {
     // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
     ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
     acid: { key: 'acid', display: '~', variants: ['≈'], label: 'Acid Flats', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'sealedChassis' }, // Dead seas; binary (Sealed Chassis or no)
+    // A strait shallow enough to bridge: a wall until the Pontoon Rig is researched, then slow going. Never land
+    // (not surveyed, not developable), so the crossing stays a crossing.
+    shallows: { key: 'shallows', display: '=', label: 'Shallows', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'pontoon' },
     // Open water: a permanent wall like ice (the crossUpgrade is never granted). The authored map's oceans; the
     // only ways across are the land the map leaves and, later, tunnels.
     water: { key: 'water', display: '~', variants: ['≈'], variantShare: 0.2, label: 'Sea', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'seafaring' },
@@ -293,15 +294,16 @@ const LASER_BEAM_STREAKS: Record<number, number> = { // some beams make a streak
  *   A-Z    flatland marking one exact spot (sector.point): a POI def naming the point lands on that tile; an
  *          unused point is just flatland
  *   1-9    tunnel mouth; every mouth sharing a digit belongs to one tunnel system (sector.tunnel; mechanics later)
- *   ^      mountain      ~  water (sea)      *  ice
+ *   ^      mountain      ~  water (sea)      *  ice      =  shallows (crossable with the Pontoon Rig)
  *   #      home (exactly one; column floor(HOME_FRACTION * PLANET_COLS) keeps the noon/slider math honest)
  * Walls are permanent (mountain, water, ice), so every pocket of land is reachable only through what the
  * drawing leaves open; the load-time check below counts orphaned land so a bad edit shows up in the console.
  * Passage between land masses is by tunnel (the digits); there are no gate tiles, a choke is held by whatever
  * the content pass puts on the point painted there.
  */
-export function generatePlanetMap(): PlanetMap {
-    return generateAuthoredMap();
+/** exploreEverything: a dev skip (src/dev/skips.ts); the map starts fully revealed */
+export function generatePlanetMap(exploreEverything = false): PlanetMap {
+    return generateAuthoredMap(exploreEverything);
 }
 
 export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coord } {
@@ -321,6 +323,7 @@ export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coo
                 case '.': return flat();
                 case '^': return createSector(TERRAINS.mountain, STATUSES.unknown, coord);
                 case '~': return createSector(TERRAINS.water, STATUSES.unknown, coord);
+                case '=': return createSector(TERRAINS.shallows, STATUSES.unknown, coord);
                 case '*': return createSector(TERRAINS.ice, STATUSES.unknown, coord);
                 case '#':
                     if (homeCoord) throw new Error(`Authored map has two homes: ${homeCoord} and ${[rowIndex, colIndex]}`);
@@ -338,7 +341,7 @@ export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coo
     return { map, homeCoord };
 }
 
-function generateAuthoredMap() {
+function generateAuthoredMap(exploreEverything: boolean) {
     const { map, homeCoord } = parseAuthoredMap(AUTHORED_MAP_TEXT);
 
     if (START_WITH_ADJ_EXPLORED) {
@@ -346,7 +349,7 @@ function generateAuthoredMap() {
             map[row][col].status = STATUSES.explored.key;
         });
     }
-    if (EXPLORE_EVERYTHING) {
+    if (exploreEverything) {
         map.forEach(row => row.forEach(sector => { sector.status = STATUSES.explored.key; }));
     }
 

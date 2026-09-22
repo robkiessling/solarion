@@ -39,8 +39,9 @@ import {
     type Poi,
 } from "../../lib/expeditions";
 import {applyEquipment, createBattle, startWithdrawal, type Battle} from "../../lib/battle";
-import {advanceSquad, CONTACT_MS, createSquad, droidsRecovered, isOnGrid, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
+import {advanceSquad, CONTACT_MS, createSquad, droidsRecovered, isOnGrid, squadDrainPerTile, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
 import {logInline} from "./log";
+import {EXPLORE_EVERYTHING} from "../../dev/skips";
 import {zoneColor} from "../../lib/planet_render";
 import {TERRAIN_BLURBS} from "../../database/terrain_blurbs";
 import type {DroidStats} from "../../database/battle";
@@ -166,6 +167,7 @@ export const SQUAD_USE_EQUIPMENT = 'planet/SQUAD_USE_EQUIPMENT' as const;
 export const SQUAD_PROMPT = 'planet/SQUAD_PROMPT' as const;
 export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT' as const;
 export const SQUAD_RESOLVE_POI = 'planet/SQUAD_RESOLVE_POI' as const;
+export const SQUAD_CROSS_TUNNEL = 'planet/SQUAD_CROSS_TUNNEL' as const;
 export const SQUAD_DELIVER_CARGO = 'planet/SQUAD_DELIVER_CARGO' as const;
 
 export type PlanetAction =
@@ -208,6 +210,8 @@ export type PlanetAction =
     | { type: typeof SQUAD_PROMPT; payload: { poiId: string } }
     | { type: typeof SQUAD_LEAVE_PROMPT }
     | { type: typeof SQUAD_RESOLVE_POI; payload: { poiId: string; reward: PoiReward; result: EncounterResult | null } }
+    /** an open tunnel crossed: the squad reappears at the far mouth, the battery lighter by `cost` */
+    | { type: typeof SQUAD_CROSS_TUNNEL; payload: { poiId: string; exitCoord: Coord; cost: number } }
     | { type: typeof SQUAD_DELIVER_CARGO; payload: { cargo: ResourceAmounts } };
 
 // Initial State
@@ -451,6 +455,7 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             });
         case SQUAD_FIGHT_WON: {
             // The battle's outcome shows in the encounter popup's result phase (losses, reclaimed land, loot)
+            const won = state.pois[action.payload.poiId];
             updates = {
                 pois: { [action.payload.poiId]: { status: { $set: 'cleared' } } },
                 squad: {
@@ -483,6 +488,16 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                     updates.pois[poi.id] = { status: { $set: 'cleared' } };
                 }
             });
+
+            // A tunnel fought through: the squad comes out the far mouth, and both mouths stay on the map as
+            // an open passage (never 'cleared', which would hide them) offering the crossing from now on
+            if (won && won.type === 'tunnel') {
+                updates.pois[won.id] = { open: { $set: true } };
+                Object.values(state.pois).forEach(poi => {
+                    if (poi.type === 'tunnel' && poi.tunnel === won.tunnel) updates.pois[poi.id] = { open: { $set: true } };
+                });
+                if (won.exitCoord) updates.squad.coord = { $set: won.exitCoord };
+            }
 
             return update(state, updates);
         }
@@ -546,6 +561,16 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             };
             return update(state, updates);
         }
+        case SQUAD_CROSS_TUNNEL:
+            return update(state, {
+                squad: {
+                    coord: { $set: action.payload.exitCoord },
+                    path: { $set: [] },
+                    moveProgress: { $set: 0 },
+                    battery: { $apply: (battery: number) => Math.max(0, battery - action.payload.cost) }
+                },
+                prompt: { $set: null }
+            });
         case SQUAD_DELIVER_CARGO:
             return update(state, {
                 squad: { cargo: { $set: {} } }
@@ -609,7 +634,7 @@ export function startCooking(): PlanetAction {
 }
 
 export function generateMap(): PlanetAction {
-    const map = generatePlanetMap();
+    const map = generatePlanetMap(EXPLORE_EVERYTHING); // dev skip, read at call time (see dev/skips.ts)
     const homeCoord = getHomeBasePosition(map).coord;
     const pois = generatePois(map); // also stamps territory flags onto the map
     return { type: GENERATE_MAP, payload: { map, homeCoord, pois } };
@@ -1058,6 +1083,23 @@ export function squadWithdraw() {
     }
 }
 
+// Emerging from a tunnel (fought through, or crossed): the far mouth is a tile arrived at, so the squad
+// looks around from it the way any step reveals ground (advanceSquad does this per tile walked; a teleport
+// skips that, and the far side would otherwise sit unexplored around the squad).
+function revealFromSquad(dispatch: Dispatch, getState: GetState) {
+    const planet = getState().planet;
+    const squad = planet.squad;
+    if (!squad) return;
+    const reveals = getVisibleCoords(planet.map, squad.coord)
+        .filter(([r, c]) => planet.map[r][c].status === STATUSES.unknown.key);
+    if (reveals.length === 0) return;
+    const revealedFlatland = reveals.filter(
+        ([r, c]) => planet.map[r][c].terrain === TERRAINS.flatland.key && !planet.map[r][c].heldBy
+    ).length;
+    dispatch({ type: ADVANCE_SQUAD, payload: { squad, reveals, revealedFlatland } });
+    if (revealedFlatland > 0) dispatch(recalculateState());
+}
+
 // Fires a carried equipment piece into the live battle (the popup's action row / number hotkeys).
 export function useEquipment(itemId: EquipmentId) {
     return function(dispatch: Dispatch, getState: GetState) {
@@ -1156,6 +1198,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                 if (reward && reward.capability) {
                     dispatch(unlockTerrain(reward.capability));
                 }
+                if (poi.type === 'tunnel') revealFromSquad(dispatch, getState); // it came out the far mouth
             }
             else if (event.result === 'wiped') {
                 // The player watched it happen; the popup holds the ending (planet-level prompt, no squad
@@ -1165,7 +1208,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                     result: { wiped: true, squadSize: squad.squadSize,
                         multiplier: squad.multiplier || 1, cargoLost,
                         finalBattle: event.battle } } });
-                dispatch(logInline(`Team lost assaulting ${poi.name}.` +
+                dispatch(logInline(`Team lost ${poi.type === 'tunnel' ? 'in' : 'assaulting'} ${poi.name}.` +
                     (cargoLost ? ` Cargo lost: ${formatResourceList(cargoLost)}.` : '')));
             }
             else { // retreated
@@ -1187,6 +1230,19 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                 // Walked into the settlement: the fight starts here, on the tile. Win and the squad is already
                 // through; retreat and it walks back to event.fromCoord.
                 dispatch(squadAttack(event.poiId, event.fromCoord));
+                break;
+            }
+            if (entered && entered.type === 'tunnel' && entered.exitCoord) {
+                // An open tunnel: stepping into the mouth IS the crossing, no prompt. Paid in battery as so many
+                // tiles walked (never hull: the passage is the shortcut the squad already fought for); the
+                // follow-cam recenters on the far mouth next tick. Arriving there raises nothing (the teleport
+                // is not a step), so the squad walks off the far mouth freely.
+                const current = getState().planet.squad;
+                if (!current) break;
+                dispatch({ type: SQUAD_CROSS_TUNNEL, payload: { poiId: entered.id, exitCoord: entered.exitCoord,
+                    cost: (entered.crossTiles || 0) * squadDrainPerTile(current) } });
+                revealFromSquad(dispatch, getState);
+                dispatch(logInline(`Team crossed ${entered.name}.`));
                 break;
             }
             // Walked onto a cache/story tile: movement stops and the interaction prompt opens (the player

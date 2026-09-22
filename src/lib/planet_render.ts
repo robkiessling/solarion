@@ -21,6 +21,7 @@ export const PLANET_COLORS = {
     mountain: '#e07f30',  // the horizon peaks' orange in the base view (backgrounds.planet), so it is the same rock
     ice: '#ffffff',
     acid: '#9acd32',     // the mid-world belt
+    shallows: '#86d5fb', // a bridgeable strait: lighter and greener than the sea, so the gap reads as a way across
     water: '#2f6b8f',    // open sea: deep steel blue, cooler and bluer than the fog so unexplored ground never reads as coast
     held: '#d94f8c', // held ground around a settlement (retracts when it is cleared): rose, kin to the settlement's red and clear of the story sites' purple
     droid: '#ffe14d',
@@ -32,6 +33,7 @@ export const PLANET_COLORS = {
     poiSettlement: '#ff4d4d',
     poiCamp: '#ff4d4d', // same red as the settlement it belongs to; the smaller glyph tells them apart
     poiStory: '#c58fff',
+    poiTunnel: '#e0c060',
     poiHighlight: '#ffffff',
     squad: '#20d9ff',    // friendly cyan like home base; keeps the squad readable next to yellow scouts
     battle: '#ff6b35',

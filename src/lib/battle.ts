@@ -613,11 +613,38 @@ function canyonTerrain(arenaW: number, arenaH: number, salt: number): BattleTerr
     return placer.pieces;
 }
 
+// A tunnel: solid rock above and below a band a few bodies tall running the whole width, so both sides
+// meet head-on in a narrow front and numbers count for less than the queue. A little rubble inside the band
+// breaks it up. The band's height and where it sits come from the salt.
+function corridorTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
+    const placer = makePlacer(arenaW, arenaH);
+    const tile = terrainSize('wallH');
+    const bandRows = 5 + Math.floor(hash01(salt) * 3); // 5..7 cells
+    const bandTop = Math.round((placer.rows - bandRows) * (0.3 + 0.4 * hash01(salt + 1)));
+    // Rock fill in wallH tiles; runs end exactly at the band's edges (force-placed, overlapping) and at the
+    // right arena edge, so no seam is left open
+    for (const [from, to] of [[0, bandTop], [bandTop + bandRows, placer.rows]]) {
+        for (let row = from; row < to; row += tile.h) {
+            const r = Math.min(row, to - tile.h);
+            if (r < from) break;
+            for (let col = 0; col < placer.cols; col += tile.w) placer.tryPlace('wallH', Math.min(col, placer.cols - tile.w), r, true);
+        }
+    }
+    // Rubble in the band, clear of both spawn ends
+    const edge = Math.ceil(10 / TERRAIN_CELL_W);
+    for (let i = 0; i < Math.max(2, Math.round(arenaW / 40)); i++) {
+        const col = edge + Math.floor(hash01(salt + 50 + i * 2) * Math.max(1, placer.cols - 2 * edge));
+        placer.tryPlace('boulder', col, bandTop + 1 + Math.floor(hash01(salt + 51 + i * 2) * Math.max(1, bandRows - 3)));
+    }
+    return placer.pieces;
+}
+
 // The layout registry (settlements declare theirs via poi.terrain; unset = open ground).
 export const TERRAIN_LAYOUTS = {
     rocks: rocksTerrain,     // boulder field over the mid-field strip
     ruins: ruinsTerrain,     // broken structures over the whole field
-    canyon: canyonTerrain    // one full-height wall with a single choke
+    canyon: canyonTerrain,   // one full-height wall with a single choke
+    corridor: corridorTerrain // a tunnel: rock above and below a narrow band the whole way across
 } satisfies Record<string, (arenaW: number, arenaH: number, salt: number) => BattleTerrainPiece[]>;
 
 // One-line scene description for the battle footer: ground clause + the garrison's opening (text records
