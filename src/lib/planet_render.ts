@@ -34,6 +34,7 @@ export const PLANET_COLORS = {
     poiCamp: '#ff4d4d', // same red as the settlement it belongs to; the lowercase glyph tells them apart
     poiStory: '#c58fff',
     poiTunnel: '#e0c060',
+    poiFieldEvent: '#ff9f40', // a field event that has gone off (or, with SHOW_CONCEALED_POIS, one still waiting): amber, between cache gold and battle orange
     poiHighlight: '#ffffff',
     squad: '#20d9ff',    // friendly cyan like home base; keeps the squad readable next to yellow scouts
     battle: '#ff6b35',

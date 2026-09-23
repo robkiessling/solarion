@@ -52,7 +52,7 @@ class NavigationTabs extends React.Component {
         const reserve = battery <= 0;
         const batteryLow = !reserve && battery <= capacity * 0.25;
         const hpLow = hp <= hpMax * 0.5;
-        const rangeTiles = Math.floor(Math.max(0, battery) / squadDrainPerTile(squad));
+        const rangeTiles = Math.floor(Math.max(0, battery) / squadDrainPerTile());
         const pct = (value, max) => Math.max(0, Math.min(100, (value / max) * 100));
 
         return (

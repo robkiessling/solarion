@@ -4,7 +4,7 @@ import {connect} from "react-redux";
 import {deploySquad, disbandSquad} from "../redux/modules/planet";
 import {formatResourceList} from "../lib/expeditions";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
-import {isOnGrid, SQUAD_DRAIN_PER_DROID} from "../lib/squad";
+import {isOnGrid, SQUAD_DRAIN_PER_TILE} from "../lib/squad";
 import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, getSquadUpgradeIds, ownedEquipment} from "../redux/reducer";
 import DroidCount from "./structures/droid_count";
 import Upgrade from "./structures/upgrade";
@@ -87,16 +87,14 @@ class Expedition extends React.Component {
                         <p>At zero the squad runs on reserve power: every droid loses health each tile.</p>
                     </Tooltip>
                     {this.renderRange(
-                        size > 0 ? Math.floor(this.props.batteryCapacity / (SQUAD_DRAIN_PER_DROID * size)) : null,
+                        size > 0 ? Math.floor(this.props.batteryCapacity / SQUAD_DRAIN_PER_TILE) : null,
                         'force-projection-tip',
                         <React.Fragment>
                             <p className="tooltip-header">Deployment</p>
                             {multiplier > 1 &&
                                 <p>Replication multiplies the fielded force, snapshotted at deploy.</p>}
-                            <p>{`Each assigned droid adds ${formatStat(SQUAD_DRAIN_PER_DROID)} / tile of ` +
-                                'battery drain off the grid: bigger teams have shorter range.'}</p>
-                            <p>Past empty, the squad runs on reserve power: every droid loses health
-                                each tile.</p>
+                            <p>{`The battery drains ${formatStat(SQUAD_DRAIN_PER_TILE)} / tile off the grid.`}</p>
+                            <p>Once drained, every droid loses health during movement.</p>
                         </React.Fragment>)}
                     {this.renderEquipment(this.props.ownedEquipment)}
                     <div className="squad-actions">

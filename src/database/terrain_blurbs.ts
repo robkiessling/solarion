@@ -1,3 +1,5 @@
+import type {SquadZone} from '../lib/squad';
+
 // One-line terminal notes as the squad crosses into new ground, keyed by squadZone (lib/squad.ts): the
 // terrain underfoot, or 'held' inside settlement territory, or 'grid' back on powered ground. Printed once per
 // zone change, in the zone's map color, so the terminal carries the sense of place the ASCII map can't.
@@ -12,4 +14,3 @@ export const TERRAIN_BLURBS: Partial<Record<SquadZone, string>> = {
     ice: 'Ice sheet. Wind, glare, and nothing else.',
     held: 'Hostile territory. Thermal signatures: multiple, moving.'
 };
-import type {SquadZone} from '../lib/squad';

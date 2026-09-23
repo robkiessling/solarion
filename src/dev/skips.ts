@@ -41,6 +41,10 @@ export const EXPLORE_EVERYTHING = false;
 
 export const INFINITE_CHARGE = false; // testing toggle: the battery never drains off-grid (no reserve power, no field wipes)
 
+// Draws every concealed POI (camps on held ground, field events on open ground) on the map before the squad
+// has found it, dimmed. Read by the planet component's overlay pass.
+export const SHOW_CONCEALED_POIS = false;
+
 export function runGameMode(dispatch: Dispatch) {
     switch (GAME_MODE) {
         case NORMAL_BOOTUP:

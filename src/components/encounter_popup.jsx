@@ -1,9 +1,11 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {retreatFromFight, squadDescend, squadInteract, squadLeavePrompt, squadWithdraw, useEquipment} from "../redux/modules/planet";
+import {retreatFromFight, squadDescend, squadEngage, squadInteract, squadLeaveApproach, squadLeavePrompt, squadWithdraw, useEquipment} from "../redux/modules/planet";
 import {
     actionLabelFor,
+    approachTextFor,
     CAPABILITY_LABELS,
+    estimateDifficultyRange,
     formatResourceList,
     isGarrisoned,
     poiLevels,
@@ -16,14 +18,16 @@ import {PLANET_COLORS} from "../lib/planet_render";
 import {ARENA_W, battleBlurb, countSpawners, countUnits} from "../lib/battle";
 import {CONTACT_MS} from "../lib/squad";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
+import {APPROACH_GROUND} from "../database/battle";
 import BattleCanvas from "./battle_canvas";
 import Tooltip from "./ui/tooltip";
 import PopupFrame from "./ui/popup_frame";
 
 /**
- * The centered encounter popup over the planet canvas, in one of three modes: the squad is standing on a
- * site awaiting a choice (offer phase), reading what happened there (result phase, including a wipe's
- * ending), or fighting -- the live battle arena with the equipment action row. Offer/result are views of
+ * The centered encounter popup over the planet canvas, in one of four modes: the squad is standing on a
+ * site awaiting a choice (offer phase), on a garrisoned site deciding whether to fight (approach phase: the
+ * card that commits to the battle), reading what happened there (result phase, including a wipe's ending),
+ * or fighting -- the live battle arena with the equipment action row. Offer/result are views of
  * planet.prompt (planet-level, so a wipe's popup outlives the squad); the battle is a view of
  * squad.fighting. The world stays live behind the backdrop dim (nothing pauses), but the popup blocks
  * squad movement. Keyboard mapping (1..N actions, Enter/Space accept, Esc leave/retreat) lives in the
@@ -65,16 +69,53 @@ class EncounterPopup extends React.Component {
     }
 
     renderOffer(poi) {
+        // A field event offers its own answers (1..N, mirrored by the planet component's input layer); every
+        // other site has the one take-it action
+        const choices = poi.choices || [{ label: actionLabelFor(poi) }];
         return (
             <React.Fragment>
                 <div className="popup-body">{promptTextFor(poi)}</div>
                 <div className="popup-actions">
-                    <button onClick={() => this.props.squadInteract()}>
-                        <kbd>1</kbd>{actionLabelFor(poi)}
-                    </button>
+                    {choices.map((choice, i) => (
+                        <button key={i} onClick={() => this.props.squadInteract(i)}>
+                            <kbd>{i + 1}</kbd>{choice.label}
+                        </button>
+                    ))}
                     <button onClick={() => this.props.squadLeavePrompt()}>
                         <kbd>Esc</kbd>Leave
                     </button>
+                </div>
+            </React.Fragment>
+        );
+    }
+
+    // The approach card: what the sensors make of the site from outside (the authored line, the ground ahead, the
+    // threat as a band until a fight has shown the true count), and the choice. Continue is never on a number key
+    // (those fire equipment mid-fight, and no number press should ever start a battle). A concealed site (a camp,
+    // an ambush) was sprung on the squad, so it offers no Leave.
+    renderApproach(poi) {
+        const level = poiLevels(poi)[0];
+        const ground = level && APPROACH_GROUND[level.terrain || 'open'];
+        let threat = null;
+        if (level) {
+            const [lo, hi] = estimateDifficultyRange(level.difficulty);
+            threat = poi.difficultyKnown ? `Signatures: ${level.difficulty}.` : `Signatures: ${lo} to ${hi}.`;
+        }
+        return (
+            <React.Fragment>
+                <div className="popup-body">
+                    <span className="result-line">{approachTextFor(poi)}</span>
+                    {ground && <span className="result-line">{ground}</span>}
+                    {threat && <span className="outcome-line">{threat}</span>}
+                </div>
+                <div className="popup-actions">
+                    <button onClick={() => this.props.squadEngage()}>
+                        <kbd>Enter</kbd>Continue
+                    </button>
+                    {!poi.concealed &&
+                        <button onClick={() => this.props.squadLeaveApproach()}>
+                            <kbd>Esc</kbd>Leave
+                        </button>}
                 </div>
             </React.Fragment>
         );
@@ -104,7 +145,7 @@ class EncounterPopup extends React.Component {
                     </span>}
                 {result.losses != null &&
                     <span className="result-line">
-                        {descent ? `Level ${result.level + 1} cleared` : poi.type === 'camp' ? 'Contact cleared' : poi.type === 'tunnel' ? 'Tunnel cleared' : 'Nest cleared'} — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
+                        {descent ? `Level ${result.level + 1} cleared` : poi.type === 'camp' ? 'Contact cleared' : poi.type === 'fieldEvent' ? 'Ambush repelled' : poi.type === 'tunnel' ? 'Tunnel cleared' : 'Nest cleared'} — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
                     </span>}
                 {result.landCredit > 0 &&
                     <span className="outcome-line">Reclaimed {result.landCredit} land.</span>}
@@ -114,6 +155,10 @@ class EncounterPopup extends React.Component {
                     </span>}
                 {result.loaded &&
                     <span className="outcome-line">Loaded {formatResourceList(result.loaded)}.</span>}
+                {result.battery != null && result.battery !== 0 &&
+                    <span className="outcome-line">Battery {result.battery > 0 ? '+' : ''}{result.battery}.</span>}
+                {result.unitsGained > 0 &&
+                    <span className="outcome-line">Recovered {result.unitsGained} {result.unitsGained > 1 ? 'droids' : 'droid'}.</span>}
                 {descent &&
                     <span className="result-line">
                         {result.levelsTotal ?
@@ -150,7 +195,7 @@ class EncounterPopup extends React.Component {
                 <div className="battle-final">
                     <BattleCanvas battle={finalBattle}/>
                     <div className={`battle-verdict${result.wiped ? ' wiped' : ''}`}>
-                        {result.wiped ? 'CONTACT LOST' : descent ? 'LEVEL CLEARED' : poi.type === 'camp' ? 'CONTACT CLEARED' : poi.type === 'tunnel' ? 'TUNNEL CLEARED' : 'NEST CLEARED'}
+                        {result.wiped ? 'CONTACT LOST' : descent ? 'LEVEL CLEARED' : poi.type === 'camp' ? 'CONTACT CLEARED' : poi.type === 'fieldEvent' ? 'AMBUSH REPELLED' : poi.type === 'tunnel' ? 'TUNNEL CLEARED' : 'NEST CLEARED'}
                     </div>
                 </div>
                 <div className="battle-footer">
@@ -207,6 +252,10 @@ class EncounterPopup extends React.Component {
             this.props.squad.fighting.contactMs < CONTACT_MS;
         const fighting = !descending && this.props.squad && this.props.squad.fighting;
         const prompt = this.props.prompt;
+        // A sprung approach card (a camp, an ambush) holds shut through the contact beat too: the map is
+        // playing the squad's glyph blinking on the tile it was caught on.
+        if (prompt && prompt.phase === 'approach' && prompt.sprungAt != null &&
+            this.props.elapsedTime - prompt.sprungAt < CONTACT_MS) return null;
         const poiId = fighting ? fighting.poiId : prompt && prompt.poiId;
         if (!poiId) return null;
         const poi = this.props.pois[poiId];
@@ -260,7 +309,8 @@ class EncounterPopup extends React.Component {
         return (
             <PopupFrame className={`encounter-popup${battleView ? ' battle' : ''}`} style={style} title={title}>
                 {fighting ? this.renderBattle(poi, fighting) :
-                    prompt.phase === 'result' ? this.renderResult(poi, prompt.result) : this.renderOffer(poi)}
+                    prompt.phase === 'result' ? this.renderResult(poi, prompt.result) :
+                    prompt.phase === 'approach' ? this.renderApproach(poi) : this.renderOffer(poi)}
             </PopupFrame>
         );
     }
@@ -270,11 +320,12 @@ const mapStateToProps = state => {
     return {
         squad: state.planet.squad,
         prompt: state.planet.prompt,
-        pois: state.planet.pois
+        pois: state.planet.pois,
+        elapsedTime: state.clock.elapsedTime
     };
 };
 
 export default connect(
     mapStateToProps,
-    { squadInteract, squadLeavePrompt, squadDescend, squadWithdraw, useEquipment, retreatFromFight }
+    { squadInteract, squadLeavePrompt, squadEngage, squadLeaveApproach, squadDescend, squadWithdraw, useEquipment, retreatFromFight }
 )(EncounterPopup);

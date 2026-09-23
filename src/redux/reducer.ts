@@ -239,8 +239,7 @@ export function researchUpgrade(upgradeId: UpgradeId) {
 // modifies the expedition droids' unit stats. New combat upgrades just join this list.
 const DROID_COMBAT_UPGRADE_IDS: UpgradeId[] = ['droidFactory_reinforcedPlating', 'droidFactory_weaponCalibration'];
 
-// Squad battery upgrades (squad-level, not per-droid: capacity scaling with team size would erase the
-// big-team-short-legs range tradeoff).
+// Squad battery upgrades (squad-level, not per-droid: range belongs to the rig, not the team size).
 const BATTERY_UPGRADE_IDS: UpgradeId[] = ['droidFactory_extendedCells'];
 
 // Folds every researched upgrade's effect from `upgradeIds` into the `variables` object, in place.

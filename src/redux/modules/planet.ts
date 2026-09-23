@@ -20,7 +20,7 @@ import {
     type PlanetMap,
     type Unlocks,
 } from "../../lib/planet_map";
-import {getCoordsWithinHops, parseCoordKey} from "../../lib/planet_geometry";
+import {getApproxDistance, getCoordsWithinHops, parseCoordKey} from "../../lib/planet_geometry";
 import {typedEntries} from "../../lib/helpers";
 import {
     findNearestLookout,
@@ -38,8 +38,8 @@ import {
     resultBehaviorFor,
     type Poi,
 } from "../../lib/expeditions";
-import {applyEquipment, createBattle, startWithdrawal, type Battle} from "../../lib/battle";
-import {advanceSquad, CONTACT_MS, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadDrainPerTile, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
+import {applyEquipment, createBattle, DROID_BASE_STATS, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle";
+import {advanceSquad, CONTACT_MS, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
 import {logInline} from "./log";
 import {EXPLORE_EVERYTHING} from "../../dev/skips";
 import {zoneColor} from "../../lib/planet_render";
@@ -48,6 +48,8 @@ import type {DroidStats} from "../../database/battle";
 import type {EquipmentCharges, EquipmentId} from "../../database/equipment";
 import type {Capability, PoiReward, StoryId} from "../../database/pois";
 import type {DroidAssignment} from "../../database/structures";
+import {batch} from "react-redux";
+import * as fromClock from "./clock";
 
 /** A scout droid (planet.droids) */
 export interface ScoutDroid {
@@ -78,6 +80,9 @@ export interface EncounterResult {
     storyId?: StoryId | null;
     capability?: Capability | null;
     loaded?: ResourceAmounts | null;
+    /** field event answers: battery gained or spent, units added to the roster */
+    battery?: number;
+    unitsGained?: number;
     /** fights in a multi-level settlement: the level just won (0 = surface), and the site's level count when it is known
      * (announced up front, or learned by reaching the bottom) */
     level?: number;
@@ -88,10 +93,14 @@ export interface EncounterResult {
 
 export interface EncounterPrompt {
     poiId: string;
-    phase: 'offer' | 'result';
+    /** offer: a site's take-it choice; approach: a garrisoned site's card before the fight; result: what happened */
+    phase: 'offer' | 'approach' | 'result';
     result?: EncounterResult | null;
-    /** between a settlement's levels: the tile the squad entered from, where a withdrawal walks back to */
+    /** approach, and between a settlement's levels: the tile the squad entered from, where leaving walks back to */
     fromCoord?: Coord;
+    /** approach on a concealed site: elapsed game time it was sprung; the card holds for the contact beat while
+     * the map plays the squad's glyph blinking on the tile */
+    sprungAt?: number;
 }
 
 /** planet.overallStatus: the state of scout exploration of the map */
@@ -130,8 +139,6 @@ export interface PlanetState {
 // window inside which re-entering that zone stays quiet
 const lastBlurbAt: Partial<Record<SquadZone, number>> = {};
 const BLURB_REPEAT_MS = 45000;
-import {batch} from "react-redux";
-import * as fromClock from "./clock";
 
 // Actions
 export const GENERATE_MAP = 'planet/GENERATE_MAP' as const;
@@ -167,6 +174,7 @@ export const SQUAD_USE_EQUIPMENT = 'planet/SQUAD_USE_EQUIPMENT' as const;
 export const SQUAD_PROMPT = 'planet/SQUAD_PROMPT' as const;
 export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT' as const;
 export const SQUAD_RESOLVE_POI = 'planet/SQUAD_RESOLVE_POI' as const;
+export const REVEAL_POI = 'planet/REVEAL_POI' as const;
 export const SQUAD_CROSS_TUNNEL = 'planet/SQUAD_CROSS_TUNNEL' as const;
 export const SQUAD_DELIVER_CARGO = 'planet/SQUAD_DELIVER_CARGO' as const;
 
@@ -207,9 +215,13 @@ export type PlanetAction =
     | { type: typeof SQUAD_RETREATED; payload: { poiId: string; survivors: number; droidHp: number[] } }
     | { type: typeof SQUAD_RETREAT_ORDERED }
     | { type: typeof SQUAD_USE_EQUIPMENT; payload: { itemId: EquipmentId } }
-    | { type: typeof SQUAD_PROMPT; payload: { poiId: string } }
+    | { type: typeof SQUAD_PROMPT; payload: { poiId: string; phase?: 'offer' | 'approach'; fromCoord?: Coord; sprungAt?: number } }
     | { type: typeof SQUAD_LEAVE_PROMPT }
-    | { type: typeof SQUAD_RESOLVE_POI; payload: { poiId: string; reward: PoiReward; result: EncounterResult | null } }
+    /** battery is a delta on the squad (clamped to capacity); units join the roster at full hull */
+    | { type: typeof SQUAD_RESOLVE_POI; payload: { poiId: string; reward: PoiReward; result: EncounterResult | null;
+        battery?: number; units?: number } }
+    /** a concealed POI found (stepped on, or traced by a signal): it shows from here on, its tile marked */
+    | { type: typeof REVEAL_POI; payload: { poiId: string } }
     /** an open tunnel crossed: the squad reappears at the far mouth, the battery lighter by `cost` */
     | { type: typeof SQUAD_CROSS_TUNNEL; payload: { poiId: string; exitCoord: Coord; cost: number } }
     | { type: typeof SQUAD_DELIVER_CARGO; payload: { cargo: ResourceAmounts } };
@@ -432,22 +444,27 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                     path: { $set: [] },
                     moveProgress: { $set: 0 },
                     // The contact beat (the squad dropping into the settlement on the map) only plays for the surface
-                    // fight; a descent starts its battle at once, the squad is already inside.
+                    // fight of a site the squad chose to enter; a descent starts its battle at once, the squad is
+                    // already inside, and a concealed site (a camp, an ambush) had its beat before the approach card
+                    // (the glyph blinking where it was sprung), so its fight opens the moment the card is answered.
                     fighting: { $set: { poiId: action.payload.poiId, battle: action.payload.battle,
                         fromCoord: action.payload.fromCoord, level: action.payload.level,
-                        contactMs: action.payload.level > 0 ? CONTACT_MS : 0 } }
+                        contactMs: action.payload.level > 0 || state.pois[action.payload.poiId]?.concealed ? CONTACT_MS : 0 } }
                 },
                 pois: { [action.payload.poiId]: { difficultyKnown: { $set: true } } },
                 prompt: { $set: null }
             });
         case SQUAD_PROMPT:
-            // Standing on a cache/story tile: movement locks until the player answers (take/explore or leave)
+            // Standing on a cache/story tile (offer) or a garrisoned site (approach): movement locks until the
+            // player answers
             return update(state, {
                 squad: {
                     path: { $set: [] },
                     moveProgress: { $set: 0 }
                 },
-                prompt: { $set: { poiId: action.payload.poiId, phase: 'offer' } }
+                prompt: { $set: { poiId: action.payload.poiId, phase: action.payload.phase || 'offer',
+                    ...(action.payload.fromCoord ? { fromCoord: action.payload.fromCoord } : {}),
+                    ...(action.payload.sprungAt != null ? { sprungAt: action.payload.sprungAt } : {}) } }
             });
         case SQUAD_LEAVE_PROMPT:
             return update(state, {
@@ -568,6 +585,29 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                 prompt: { $set: action.payload.result ?
                     { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } : null }
             };
+            // A field event's answer can touch the squad itself: cells found (or spent), a droid recovered
+            if (action.payload.battery && state.squad) {
+                const capacity = squadBatteryCapacity(state.squad);
+                updates.squad.battery = { $apply: (battery: number) =>
+                    Math.max(0, Math.min(capacity, battery + action.payload.battery!)) };
+            }
+            if (action.payload.units && state.squad) {
+                const maxHp = (state.squad.droidStats || DROID_BASE_STATS).hp;
+                updates.squad.squadSize = { $apply: (size: number) => size + action.payload.units! };
+                updates.squad.droidHp = { $apply: (droidHp: number[]) =>
+                    [...(droidHp || fullDroidHp(state.squad!.squadSize, maxHp)), ...fullDroidHp(action.payload.units!, maxHp)] };
+            }
+            return update(state, updates);
+        }
+        case REVEAL_POI: {
+            // A concealed POI found: it shows on the map from here on (its tile marked explored if it wasn't)
+            const found = state.pois[action.payload.poiId];
+            if (!found) return state;
+            updates = { pois: { [found.id]: { status: { $set: 'available' } } } };
+            if (state.map[found.coord[0]][found.coord[1]].status === STATUSES.unknown.key) {
+                addRevealUpdates(state, updates, [found.coord]);
+                updates.pois[found.id] = { status: { $set: 'available' } }; // over the reveal pass's (concealed skip)
+            }
             return update(state, updates);
         }
         case SQUAD_CROSS_TUNNEL:
@@ -620,10 +660,11 @@ function addRevealUpdates(state: PlanetState, updates: Record<string, any>, reve
     updates.numExplored = { $apply: (x: number) => x + reveals.length };
     updates.overallStatus = { $set: 'inProgress' };
 
-    // POI discovery: a hidden POI whose tile just got revealed becomes available (shows on map + sidebar)
+    // POI discovery: a hidden POI whose tile just got revealed becomes available (shows on map + sidebar).
+    // Concealed ones (camps, field events) stay hidden: seeing the ground doesn't find them, stepping on it does.
     const revealKeys = new Set(reveals.map(([r, c]) => `${r},${c}`));
     Object.values(state.pois).forEach(poi => {
-        if (poi.status === 'hidden' && revealKeys.has(`${poi.coord[0]},${poi.coord[1]}`)) {
+        if (poi.status === 'hidden' && !poi.concealed && revealKeys.has(`${poi.coord[0]},${poi.coord[1]}`)) {
             if (updates.pois === undefined) updates.pois = {};
             updates.pois[poi.id] = { status: { $set: 'available' } };
         }
@@ -965,8 +1006,9 @@ export function squadStepInto(coord: Coord, tap: boolean) {
         const squad = planet.squad;
         if (!squad || squad.fighting) return 'busy';
 
+        // A concealed POI still hidden is never a wall: the step onto it is how it is found (see advanceSquad)
         const blockingPoi = Object.values(planet.pois).find(poi =>
-            poi.status !== 'cleared' &&
+            poi.status !== 'cleared' && !(poi.status === 'hidden' && poi.concealed) &&
             poi.coord[0] === coord[0] && poi.coord[1] === coord[1] &&
             (isGarrisoned(poi) || (poi.requires && !planet.unlockedTerrains[poi.requires]))
         );
@@ -990,9 +1032,9 @@ export function squadStepInto(coord: Coord, tap: boolean) {
     }
 }
 
-// Player accepts the open interaction prompt (take the cache / explore the site): resolve the POI, load any
-// reward as cargo, file the report.
-export function squadInteract() {
+// Player accepts the open interaction prompt (take the cache / explore the site, or one of a field event's
+// answers by index): resolve the POI, load any reward as cargo, file the report.
+export function squadInteract(choiceIndex = 0) {
     return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
         const squad = planet.squad;
@@ -1004,25 +1046,84 @@ export function squadInteract() {
             return false;
         }
 
+        // A field event's answer carries its own reward and narration; every other POI has one answer, the POI's
+        const choice = poi.choices ? poi.choices[choiceIndex] : null;
+        if (poi.choices && !choice) return false;
+        const reward: PoiReward = choice ? (choice.reward || {}) : poi.reward;
+        const storyId = choice ? choice.storyId : poi.storyId;
+        const narrate = choice ? !!choice.storyId : resultBehaviorFor(poi) === 'narrate';
+
         // A 'narrate' POI's outcome shows in the popup's result phase; the fields stay serializable and the
         // display strings are composed at render time (story text lookup, capability label, loot list)
-        const result = resultBehaviorFor(poi) === 'narrate' ? {
-            storyId: poi.storyId || null,
-            capability: (poi.reward && poi.reward.capability) || null,
-            loaded: (poi.reward && poi.reward.resources) || null
+        const result: EncounterResult | null = narrate ? {
+            storyId: storyId || null,
+            capability: (reward && reward.capability) || null,
+            loaded: (reward && reward.resources) || null,
+            ...(choice && choice.battery ? { battery: choice.battery } : {}),
+            ...(choice && choice.units ? { unitsGained: choice.units } : {})
         } : null;
 
-        dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward: poi.reward, result } });
-        if (poi.reward && poi.reward.capability) {
-            dispatch(unlockTerrain(poi.reward.capability)); // salvaged tool: permanent, instant (not cargo)
+        dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward, result,
+            ...(choice && choice.battery ? { battery: choice.battery } : {}),
+            ...(choice && choice.units ? { units: choice.units } : {}) } });
+        if (reward && reward.capability) {
+            dispatch(unlockTerrain(reward.capability)); // salvaged tool: permanent, instant (not cargo)
         }
+        if (choice && choice.revealNearest) revealNearestConcealed(dispatch, getState, poi);
+        if (choice && choice.units) dispatch(recalculateState());
         return true;
     }
+}
+
+// A traced signal: the nearest concealed POI still hidden (a camp or a field event) shows on the map, and its
+// tile is marked so there is something to look at. Nothing to find = the terminal says so.
+function revealNearestConcealed(dispatch: Dispatch, getState: GetState, from: Poi) {
+    const pois = getState().planet.pois;
+    let nearest: Poi | null = null;
+    let nearestDistance = Infinity;
+    Object.values(pois).forEach(poi => {
+        if (poi.id === from.id || poi.status !== 'hidden' || !poi.concealed) return;
+        const distance = getApproxDistance(from.coord, poi.coord);
+        if (distance < nearestDistance) { nearest = poi; nearestDistance = distance; }
+    });
+    if (!nearest) {
+        dispatch(logInline('Signal traced: no source within range.'));
+        return;
+    }
+    dispatch({ type: REVEAL_POI, payload: { poiId: (nearest as Poi).id } });
+    dispatch(logInline(`Signal traced: ${(nearest as Poi).name.toLowerCase()} marked on the map.`));
 }
 
 // Player declines the offer (or continues past a result); the popup's only exits besides accepting.
 export function squadLeavePrompt(): PlanetAction {
     return { type: SQUAD_LEAVE_PROMPT };
+}
+
+// The approach card's Continue: commit to the fight on the tile the squad is standing on. The card closes and
+// the assault starts exactly as stepping in used to start it (contact beat, then the arena).
+export function squadEngage() {
+    return function(dispatch: Dispatch, getState: GetState) {
+        const planet = getState().planet;
+        const prompt = planet.prompt;
+        if (!planet.squad || !prompt || prompt.phase !== 'approach') return false;
+        dispatch({ type: SQUAD_LEAVE_PROMPT });
+        return dispatch(squadAttack(prompt.poiId, prompt.fromCoord || planet.squad.coord));
+    }
+}
+
+// The approach card's Leave: think better of it and step back off the site the way the squad came. Not offered
+// on a concealed site (the fight is already sprung), so the thunk refuses too.
+export function squadLeaveApproach() {
+    return function(dispatch: Dispatch, getState: GetState) {
+        const planet = getState().planet;
+        const prompt = planet.prompt;
+        if (!planet.squad || !prompt || prompt.phase !== 'approach') return false;
+        const poi = planet.pois[prompt.poiId];
+        if (poi && poi.concealed) return false;
+        dispatch({ type: SQUAD_LEAVE_PROMPT });
+        if (prompt.fromCoord) dispatch(squadStep(prompt.fromCoord));
+        return true;
+    }
 }
 
 // Walking onto an uncleared settlement starts the fight: a live per-unit battle (lib/battle.ts) against the settlement's
@@ -1246,10 +1347,18 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
         }
         case 'enteredPoi': {
             const entered = pois[event.poiId];
+            if (entered && entered.status === 'hidden') {
+                // Concealed and just stepped on (a camp, a field event): found. It shows from here on, and a
+                // fight or prompt follows like any other contact.
+                dispatch({ type: REVEAL_POI, payload: { poiId: entered.id } });
+            }
             if (entered && isGarrisoned(entered)) {
-                // Walked into the settlement: the fight starts here, on the tile. Win and the squad is already
-                // through; retreat and it walks back to event.fromCoord.
-                dispatch(squadAttack(event.poiId, event.fromCoord));
+                // Walked onto a garrisoned site: the approach card comes up (what is ahead, the threat estimate)
+                // and the fight starts on Continue, here on the tile; Leave walks back to event.fromCoord. A
+                // concealed site was sprung: its card holds through the contact beat while the map plays the
+                // glyph blinking on the tile, and offers no Leave.
+                dispatch({ type: SQUAD_PROMPT, payload: { poiId: event.poiId, phase: 'approach', fromCoord: event.fromCoord,
+                    ...(entered.concealed ? { sprungAt: getState().clock.elapsedTime } : {}) } });
                 break;
             }
             if (entered && entered.type === 'tunnel' && entered.exitCoord) {
@@ -1260,7 +1369,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                 const current = getState().planet.squad;
                 if (!current) break;
                 dispatch({ type: SQUAD_CROSS_TUNNEL, payload: { poiId: entered.id, exitCoord: entered.exitCoord,
-                    cost: (entered.crossTiles || 0) * squadDrainPerTile(current) } });
+                    cost: (entered.crossTiles || 0) * squadDrainPerTile() } });
                 revealFromSquad(dispatch, getState);
                 dispatch(logInline(`Team crossed ${entered.name}.`));
                 break;

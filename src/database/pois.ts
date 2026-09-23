@@ -2,16 +2,18 @@ import {getRandomIntInclusive, mapObject} from "../lib/helpers";
 import type {HostileFormation, TerrainLayoutId} from "../lib/battle";
 import type {PlanetColorKey} from "../lib/planet_render";
 import type {HostileType} from "./battle";
+import {FIELD_EVENT_TEXTS} from "./field_events";
 
 export type PoiType =
     | 'cache'      // a supply drop: take it
     | 'settlement' // where survivors live (the terminal only ever says "nest"): stepping on it starts a fight
     | 'camp'       // a few of a settlement's people out on its held ground (the terminal says "contact"): a small fight
     | 'storySite'  // a ruin with a log to read
-    | 'tunnel';    // a mouth of a passage under the sea: fought through once, then crossed at will
+    | 'tunnel'     // a mouth of a passage under the sea: fought through once, then crossed at will
+    | 'fieldEvent';     // a field event seeded on open ground (database/field_events.ts): concealed until stepped on
 
 export type PoiStatus =
-    | 'hidden'     // its tile has not been revealed by scouting yet
+    | 'hidden'     // its tile has not been revealed by scouting yet (or it is concealed: see Poi.concealed)
     | 'available'  // discovered, not yet resolved
     | 'cleared';   // resolved
 
@@ -51,6 +53,8 @@ export interface PoiDef {
     levelsShown?: boolean;
     reloot?: number[];
     discardedKg?: [number, number];
+    /** garrisoned sites: the approach card's line, shown before the fight is committed to (type default if unset) */
+    approachText?: string;
     /** settlements: the camps seeded on this site's held ground, one single-fight level each */
     camps?: PoiLevelDef[];
     requires?: Capability;
@@ -72,20 +76,23 @@ export interface PoiDef {
 // Per-type encounter popup behavior; individual definitions override. `result` decides what accepting does:
 // 'auto' resolves and closes the popup (the map change is the feedback), 'narrate' holds it open on a result
 // phase (story text, salvage, losses) until the player continues or drives away. `promptText` is the offer
-// line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.ts); settlements and camps
-// never prompt (the fight starts on entry).
+// line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.ts). Garrisoned sites don't
+// offer; they raise the approach card instead (`approachText`, with the ground line and the threat estimate),
+// which commits to the fight on Continue. A site the squad chose to walk into can be left from that card; a
+// concealed one (a camp, an ambush) cannot: it is sprung.
 //
 // `reloot` is a settlement's payout schedule: the fraction of a level's rolled resources it pays by how many times
 // that level has been cleared before (a site that is left resets, so its upper levels can be fought again;
 // they have less each time). Past the end of the list a level pays nothing: [1] is pay-once, a long run of
 // 1s is fully farmable. Capability salvage only ever happens on a level's first clear.
 export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: ResultBehavior, promptText?: string,
-    reloot?: number[] }> = {
+    approachText?: string, reloot?: number[] }> = {
     cache: { actionLabel: 'Take', result: 'auto', promptText: 'Supply cache found{loot}. Take it?' },
     storySite: { actionLabel: 'Explore', result: 'narrate', promptText: 'Structure of unknown origin. Investigate?' },
-    tunnel: { result: 'narrate', reloot: [1] }, // never prompts: fought on entry, crossed on entry once open
-    settlement: { result: 'narrate', reloot: [1, 0.5, 0.25] },
-    camp: { result: 'narrate', reloot: [1] }
+    tunnel: { result: 'narrate', reloot: [1], approachText: 'Tunnel mouth. Thermal signatures in the dark beyond.' }, // crossed on entry once open
+    settlement: { result: 'narrate', reloot: [1, 0.5, 0.25], approachText: 'Dense structural returns. Thermal signatures inside.' },
+    camp: { result: 'narrate', reloot: [1], approachText: 'Contact. Movement closing on all sides.' },
+    fieldEvent: { result: 'narrate', reloot: [1], approachText: 'Nearby sounds detected. Movement closing.' } // choices carry their own labels and texts (database/field_events.ts)
 }
 
 // Loot list wording where the resource id predates its display name
@@ -93,11 +100,11 @@ export const LOOT_LABELS: Partial<Record<ResourceId, string>> = { refinedMineral
 
 // Map display vocabulary (colorKeys index into PLANET_COLORS in planet_render.ts; FIGHT_EFFECT_CHARS
 // animate over a settlement tile while a battle runs there).
-export const POI_GLYPHS = { cache: '□', settlement: '▓', camp: '▒', storySite: '?', tunnel: '∩' }; // a density map: held ground '░' is scattered returns, a camp a knot of them, the settlement the dense core; cache: a crate; tunnel: a mouth
-export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory', tunnel: 'poiTunnel' };
+export const POI_GLYPHS = { cache: '□', settlement: '▓', camp: '▒', storySite: '?', tunnel: '∩', fieldEvent: '!' }; // a density map: held ground '░' is scattered returns, a camp a knot of them, the settlement the dense core; cache: a crate; tunnel: a mouth; event: only ever seen once it has gone off
+export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory', tunnel: 'poiTunnel', fieldEvent: 'poiFieldEvent' };
 // A settlement with `site` draws as the facility the plan says is there, not as a plain return
 export const SITE_GLYPH = '▣';
-export const POI_LABELS = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel' };
+export const POI_LABELS = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel', fieldEvent: 'Event' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 
 // The three tools. Stored in planet.unlockedTerrains (the shared capability set: terrain crossUpgrades and
@@ -109,9 +116,11 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
 }
 
 // Story text lives here (not in the log database) because reports are dynamic; POIs store the key only.
+// Field event narration (FIELD_EVENT_TEXTS, database/field_events.ts) is folded in so one key space covers every popup.
 // PLACEHOLDER texts: the real ~12-log mystery is authored in the content pass.
 export type StoryId = keyof typeof STORY_TEXTS;
 export const STORY_TEXTS = {
+    ...FIELD_EVENT_TEXTS,
     r1_deadDroid: 'A droid chassis, half-buried. The model number matches your own manufacturing line. You did not build it.',
     r2_scorchedCore: 'A collapsed structure of familiar design. Its data core is scorched from the inside.',
     r2_wreckage: 'Wreckage strewn across a kilometer. The blast patterns came from above. Something attacked them.',
@@ -145,11 +154,13 @@ export const STORY_TEXTS = {
 //
 // CAMPS_ENABLED = false places no camps at all (the defs keep their `camps` lists; the placement pass skips
 // them), for trying the map without them.
-export const CAMPS_ENABLED = false;
-// `camps` seeds small one-fight POIs on the site's held ground: foragers, herders, a watch. Visible once their
-// tile is known, optional (the squad can path around them), gone for good once beaten, and a taste of the site's
-// strength before committing to it. They never release land (the ground stays held until the settlement falls),
-// and when it does fall whoever is still out there scatters.
+export const CAMPS_ENABLED = true;
+// `camps` seeds small one-fight POIs on the site's held ground: foragers, herders, a watch. CONCEALED: scouting
+// the tile does not show them, the squad finds out by stepping on one, and the fight opens as an ambush
+// (surround, unless the camp names a formation), so crossing territory is a gamble the map never spells out.
+// Gone for good once beaten, and a taste of the site's strength before committing to it. They never release
+// land (the ground stays held until the settlement falls), and when it does fall whoever is still out there
+// scatters.
 //
 // Loot is what scavengers hold and what they are sitting on: worked metal on top (it classifies as minerals),
 // power cells further in, the old facility's stores at the core. Never ore; nothing out here mines.

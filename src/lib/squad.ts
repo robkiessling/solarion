@@ -84,15 +84,16 @@ export const SQUAD_SPEED_FACTOR = 0.8;
 // overdraft on range -- overextend far enough and the squad dies in the field (cargo and all). Speed is
 // unaffected (the bleed is per tile, so slowness would only stretch the dying in real time, not raise
 // the stakes).
-// Drain scales with the assigned droids (not the replicated units, so growing the multiplier never shrinks
-// range): a bigger team is a shorter-legged team, which is what makes force sizing a real decision.
+// Drain is flat per tile, whatever the team size: range is a property of the rig (cells plus upgrades), not
+// of who rides it, so a lone scout and a full army have the same legs. Force sizing costs droids pulled off
+// the base, not range.
 // The contact beat between stepping onto a settlement and the fight being shown: the squad shrinks into the settlement
 // (planet.jsx draws it), the battle sim holds its opening frame, and the encounter popup waits. Doubles as
 // the climb-back-out duration when the fight ends.
 export const CONTACT_MS = 400;
 
 export const SQUAD_BATTERY_CAPACITY = 100;
-export const SQUAD_DRAIN_PER_DROID = 0.4; // per assigned droid per tile; the default 5-droid team drains 2
+export const SQUAD_DRAIN_PER_TILE = 2;    // battery per tile entered off the grid, any team size
 export const RESERVE_HP_PER_TILE = 1;     // hull every unit burns per tile on reserve power
 
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
@@ -108,9 +109,9 @@ export function squadZone(map: PlanetMap, coord: Coord): SquadZone {
     return getTerrain(sector.terrain).key;
 }
 
-export function squadDrainPerTile(squad: Squad) {
+export function squadDrainPerTile() {
     if (INFINITE_CHARGE) return 0;
-    return SQUAD_DRAIN_PER_DROID * (squad.assignedDroids || 5);
+    return SQUAD_DRAIN_PER_TILE;
 }
 
 export function squadBatteryCapacity(squad: Squad) {
@@ -183,10 +184,12 @@ export function droidsRecovered(squad: Squad): number {
         Math.round(squad.squadSize / (squad.multiplier || 1)));
 }
 
-// The available (discovered, unresolved) POI standing on `coord`, or null.
+// The POI a step onto `coord` makes contact with, or null: an available (discovered, unresolved) one, or a
+// concealed one still hidden (camps, field events): stepping on it is how those are found.
 export function poiAtCoord(pois: Record<string, Poi>, coord: Coord): Poi | null {
     return Object.values(pois || {}).find(poi =>
-        poi.status === 'available' && poi.coord[0] === coord[0] && poi.coord[1] === coord[1]
+        (poi.status === 'available' || (poi.status === 'hidden' && poi.concealed)) &&
+        poi.coord[0] === coord[0] && poi.coord[1] === coord[1]
     ) || null;
 }
 
@@ -277,7 +280,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
             squadSize = droidHp.length;
         }
         else {
-            battery = Math.max(0, battery - squadDrainPerTile(squad));
+            battery = Math.max(0, battery - squadDrainPerTile());
         }
 
         const poi = poiAtCoord(pois, coord);

@@ -28,14 +28,19 @@ import {
     squadFace,
     squadInteract,
     squadDescend,
+    squadEngage,
+    squadLeaveApproach,
     squadLeavePrompt,
     squadWithdraw,
     squadStepInto,
     useEquipment
 } from "../redux/modules/planet";
+import {SHOW_CONCEALED_POIS} from "../dev/skips";
 import EncounterPopup from "./encounter_popup";
 import CameraStrip from "./camera_strip";
 import {surveyAutomationUnlocked} from "../redux/reducer";
+import {PLANET_FPS} from "../singletons/game_clock";
+import * as fromClock from "../redux/modules/clock";
 
 const POI_PING_PERIOD_MS = 1200; // one full expand-and-fade cycle of the hovered marker's radar ping
 const SQUAD_PING_PERIOD_MS = 2200; // slower, subtler locator pulse on the deployed squad
@@ -55,8 +60,8 @@ const BEACON_PING_PERIOD_MS = 2600; // slow locator pulse on the placed beacon
 const SHOW_ZONE_RIM = false;
 // The sky behind the planet: stars panning opposite to the ground (see planet_render's drawSky)
 const SHOW_SKY = true;
-import {PLANET_FPS} from "../singletons/game_clock";
-import * as fromClock from "../redux/modules/clock";
+// How many times the squad glyph blinks on the tile where an ambush springs (over the contact beat)
+const AMBUSH_BLINKS = 2;
 
 const CHAR_RATIO = 0.5; // cell width/height; must match the AsciiCanvas charRatio below
 
@@ -184,19 +189,33 @@ class Planet extends React.Component {
             // swallowed there: it fires equipment mid-fight, so a press landing just after the last kill
             // must not start the next battle.
             const descent = prompt.phase === 'result' && prompt.result && prompt.result.nextLevel != null;
+            // The approach card commits to a fight, so like the descent it is never on '1'
+            const approach = prompt.phase === 'approach';
             if (event.key === 'Enter' || event.key === ' ' || event.key === '1') {
                 event.preventDefault();
                 if (!event.repeat) {
                     if (descent) { if (event.key !== '1') this.props.squadDescend(); }
+                    else if (approach) { if (event.key !== '1') this.props.squadEngage(); }
                     else if (prompt.phase === 'result') this.props.squadLeavePrompt();
-                    else this.props.squadInteract();
+                    else this.props.squadInteract(0);
                 }
                 return;
+            }
+            // A field event's further answers sit on 2..N (the popup's buttons carry the same numbers)
+            const choiceSlot = parseInt(event.key, 10);
+            if (prompt.phase === 'offer' && choiceSlot >= 2) {
+                const offered = this.props.pois[prompt.poiId];
+                if (offered && offered.choices && choiceSlot <= offered.choices.length) {
+                    event.preventDefault();
+                    if (!event.repeat) this.props.squadInteract(choiceSlot - 1);
+                    return;
+                }
             }
             if (event.key === 'Escape') {
                 event.preventDefault();
                 if (!event.repeat) {
                     if (descent) this.props.squadWithdraw();
+                    else if (approach) this.props.squadLeaveApproach(); // refuses on a sprung site
                     else this.props.squadLeavePrompt();
                 }
                 return;
@@ -444,11 +463,15 @@ class Planet extends React.Component {
         });
 
         Object.values(this.props.pois || {}).forEach(poi => {
-            if (poi.status !== 'available') return;
+            // Concealed POIs (camps, field events) stay off the map until stepped on; the dev toggle shows
+            // them dimmed so seeding and contact can be checked
+            const peeking = SHOW_CONCEALED_POIS && poi.status === 'hidden' && poi.concealed;
+            if (poi.status !== 'available' && !peeking) return;
             const hovered = poi.id === this.props.hoveredPoiId;
             overlays[`${poi.coord[0]},${poi.coord[1]}`] = {
                 char: poi.site != null ? SITE_GLYPH : POI_GLYPHS[poi.type],
                 colorKey: hovered ? 'poiHighlight' : POI_COLOR_KEYS[poi.type],
+                ...(peeking ? { alpha: 0.5 } : {}),
                 // No selfLit: sites are things on the ground, not lights, and vanish into the night like the
                 // ground they sit on (only the powered grid and units carry lights)
                 // Radar ping on the hovered marker: 0..1 through the expand-and-fade cycle (drawn in planet_render)
@@ -564,9 +587,18 @@ class Planet extends React.Component {
         // Descending into the settlement: the squad shrinks away into the tile it just stepped onto while the
         // contact beat runs, and climbs back out when the fight ends -- on the settlement tile if it won (it is
         // already through), then walking back to fromCoord if it fell back. A wipe never climbs out.
+        // A concealed site (a camp, an ambush) is sprung on the squad instead: before its approach card opens the
+        // glyph blinks in place through the same beat, AMBUSH_BLINKS times, ending lit, and stays lit under the
+        // card; its fight then opens with no second beat (the glyph hides under the churn).
         let scale = 1;
+        const prompt = this.props.prompt;
         if (squad.fighting) {
             scale = 1 - Math.min((squad.fighting.contactMs || 0) / CONTACT_MS, 1);
+        }
+        else if (prompt && prompt.phase === 'approach' && prompt.sprungAt != null &&
+            this.props.elapsedTime - prompt.sprungAt < CONTACT_MS) {
+            const sinceSprung = this.props.elapsedTime - prompt.sprungAt;
+            scale = Math.floor(sinceSprung / (CONTACT_MS / (AMBUSH_BLINKS * 2))) % 2 === 0 ? 0 : 1;
         }
         else if (this.insideSettlement(this.props)) {
             scale = 0;
@@ -644,7 +676,7 @@ class Planet extends React.Component {
         // POI legend entries only appear once relevant (any POI discovered)
         const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== 'hidden');
         if (anyPoiVisible) {
-            ['cache', 'settlement', 'camp', 'storySite', 'tunnel'].forEach(type => {
+            ['cache', 'settlement', 'camp', 'storySite', 'tunnel', 'fieldEvent'].forEach(type => {
                 markerLegend.push({ key: POI_COLOR_KEYS[type], display: POI_GLYPHS[type], label: POI_LABELS[type] });
             });
         }
@@ -702,6 +734,6 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadStepInto, squadFace, squadInteract, squadLeavePrompt, squadDescend, squadWithdraw, useEquipment, retreatFromFight,
+    { squadStepInto, squadFace, squadInteract, squadLeavePrompt, squadEngage, squadLeaveApproach, squadDescend, squadWithdraw, useEquipment, retreatFromFight,
       setBeaconAt, setRotation, setRotationMode }
 )(Planet);

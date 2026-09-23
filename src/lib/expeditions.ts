@@ -1,6 +1,7 @@
-import {getRandomFromArray, getRandomIntInclusive, mapObject} from "./helpers";
+import {getRandomFromArray, getRandomIntInclusive, mapObject, shuffleArray} from "./helpers";
 import {getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, VISION_HOPS, type PlanetMap, type Sector} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
+import {ambushDifficulty, FIELD_EVENT_DEFS, FIELD_EVENT_SEEDING, type FieldEventChoiceDef, type FieldEventDef, type FieldEventKind} from "../database/field_events";
 import {CAMPS_ENABLED, LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, TUNNEL_DEFAULT, TUNNEL_DEFS, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
 import type {HostileType} from "../database/battle";
 import type {HostileFormation, TerrainLayoutId} from "./battle";
@@ -17,6 +18,16 @@ export interface PoiLevel {
     timesCleared: number;
 }
 
+/** One answer to a field event, rewards rolled (see FieldEventChoiceDef in database/field_events.ts) */
+export interface FieldEventChoice {
+    label: string;
+    storyId?: StoryId;
+    reward?: PoiReward;
+    battery?: number;
+    units?: number;
+    revealNearest?: boolean;
+}
+
 /** A placed POI in planet.pois */
 export interface Poi {
     id: string;
@@ -31,6 +42,7 @@ export interface Poi {
     territoryRadius?: number;
     storyId?: StoryId;
     promptText?: string;
+    approachText?: string;
     actionLabel?: string;
     resultBehavior?: ResultBehavior;
     /** settlements: the site's fights, surface first (one or more) */
@@ -42,6 +54,11 @@ export interface Poi {
     site?: number;
     /** camps: the settlement whose held ground this sits on */
     parentId?: string;
+    /** stays hidden when its tile is scouted; found by stepping on it (camps, field events) */
+    concealed?: boolean;
+    /** field events: which kind, and its answers (an ambush has `levels` instead) */
+    fieldEvent?: FieldEventKind;
+    choices?: FieldEventChoice[];
     /** tunnels: the painted digit, the far mouth, whether the passage has been fought through, crossing cost */
     tunnel?: string;
     exitCoord?: Coord;
@@ -65,6 +82,7 @@ export {CAPABILITY_LABELS, FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_L
  * every settlement (sector.heldBy: scout-impassable, not developable, squad-crossable; retracts when the
  * settlement is cleared). An entry that cannot be placed is reported on the console rather than dropped
  * silently: the manifest is the content plan, and a missing entry is a bug in the drawing or the manifest.
+ * Last, the field events are sown over whatever open ground is left (placeEvents).
  * MUTATES the map (generation-time only).
  */
 export function generatePois(map: PlanetMap): Record<string, Poi> {
@@ -123,8 +141,9 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             type,
             name: POI_LABELS[type],
             // Discovery normally happens when scouting reveals the tile; a POI born on already-explored
-            // ground (the home ring, or an EXPLORE_EVERYTHING debug map) would otherwise stay hidden forever
-            status: sector.status === STATUSES.explored.key ? 'available' : 'hidden',
+            // ground (the home ring, or an EXPLORE_EVERYTHING debug map) would otherwise stay hidden forever.
+            // A concealed one is found by stepping on it, so it starts hidden regardless.
+            status: sector.status === STATUSES.explored.key && !extras.concealed ? 'available' : 'hidden',
             distance: sector.graphDistanceHome, // cached for display/sorting (static once the map is generated)
             requires: null,
             difficultyKnown: false,
@@ -149,7 +168,8 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             }
 
             const poi = add('settlement', sector, { territoryRadius, levels: (def.levels || []).map(rollLevel),
-                levelsShown: def.levelsShown, reloot: def.reloot, ...(def.site != null ? { site: def.site } : {}) });
+                levelsShown: def.levelsShown, reloot: def.reloot, ...(def.site != null ? { site: def.site } : {}),
+                ...(def.approachText ? { approachText: def.approachText } : {}) });
             if (def.discardedKg) poi.discardedKg = getRandomIntInclusive(def.discardedKg[0] / 10, def.discardedKg[1] / 10) * 10;
             const held: Sector[] = [];
             [sector.coord, ...getCoordsWithinHops(sector.coord, territoryRadius)].forEach(([r, c]) => {
@@ -161,13 +181,15 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
 
             // Camps: one per declared level, each on a random tile of this site's own held ground (the only
             // POIs that live on held ground; pick() keeps everything else off it). A territory squeezed
-            // small by mountains or coast simply fits fewer.
+            // small by mountains or coast simply fits fewer. Concealed, and the fight opens as an ambush
+            // unless the camp names its own formation.
             (CAMPS_ENABLED ? def.camps || [] : []).forEach(campDef => {
                 const free = held.filter(tile => beyondStartingVision(tile) && !usedKeys.has(`${tile.coord[0]},${tile.coord[1]}`));
                 if (free.length === 0) return;
                 const tile = getRandomFromArray(free);
                 usedKeys.add(`${tile.coord[0]},${tile.coord[1]}`);
-                add('camp', tile, { levels: [rollLevel(campDef)], parentId: poi.id });
+                add('camp', tile, { levels: [rollLevel({ formation: 'surround', ...campDef })], parentId: poi.id,
+                    concealed: true });
             });
             return;
         }
@@ -205,11 +227,65 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         if (def.requires) extras.requires = def.requires;
         if (def.storyId) extras.storyId = def.storyId;
         if (def.promptText) extras.promptText = def.promptText;
+        if (def.approachText) extras.approachText = def.approachText;
         if (def.actionLabel) extras.actionLabel = def.actionLabel;
         if (def.reward) extras.reward = rollPoiReward(def.reward);
         const sector = pick(def);
         if (sector) add(def.type, sector, extras);
     });
+
+    // Field events: sown over the open ground left after the manifest, at FIELD_EVENT_SEEDING's density, never
+    // closer to each other than its spacing, never on held ground (that is the camps' beat). Kind by weight;
+    // an ambush's strength by distance from home.
+    const open = candidates.filter(sector => !sector.heldBy && !usedKeys.has(`${sector.coord[0]},${sector.coord[1]}`));
+    const target = Math.floor(open.length / FIELD_EVENT_SEEDING.tilesPerEvent);
+    const eventKeys = new Set<string>();
+    const kinds = Object.keys(FIELD_EVENT_DEFS) as FieldEventKind[];
+    const totalWeight = kinds.reduce((sum, kind) => sum + FIELD_EVENT_DEFS[kind].weight, 0);
+    const rollKind = (): FieldEventKind => {
+        let roll = Math.random() * totalWeight;
+        for (const kind of kinds) {
+            roll -= FIELD_EVENT_DEFS[kind].weight;
+            if (roll < 0) return kind;
+        }
+        return kinds[kinds.length - 1];
+    };
+    let placed = 0;
+    const shuffled = open.slice();
+    shuffleArray(shuffled);
+    for (const sector of shuffled) {
+        if (placed >= target) break;
+        const key = `${sector.coord[0]},${sector.coord[1]}`;
+        const crowded = getCoordsWithinHops(sector.coord, FIELD_EVENT_SEEDING.spacing).some(([r, c]) => eventKeys.has(`${r},${c}`));
+        if (crowded || usedKeys.has(key)) continue;
+        eventKeys.add(key);
+        usedKeys.add(key);
+        placed++;
+
+        const kind = rollKind();
+        const def: FieldEventDef = FIELD_EVENT_DEFS[kind];
+        const extras: Partial<Poi> = { name: def.name, fieldEvent: kind, concealed: true };
+        if (def.fight) {
+            const difficulty = ambushDifficulty(sector.graphDistanceHome);
+            extras.levels = [rollLevel({ difficulty, formation: def.fight.formation, terrain: def.fight.terrain,
+                reward: { resources: { refinedMinerals: [difficulty * 50, difficulty * 100] } } })];
+        }
+        if (def.promptText) extras.promptText = def.promptText;
+        if (def.approachText) extras.approachText = def.approachText;
+        if (def.choices) {
+            extras.choices = def.choices.map((choice: FieldEventChoiceDef): FieldEventChoice => ({
+                label: choice.label,
+                ...(choice.storyId ? { storyId: choice.storyId } : {}),
+                ...(choice.reward ? { reward: rollPoiReward(choice.reward) } : {}),
+                ...(choice.battery != null ? { battery: choice.battery } : {}),
+                ...(choice.units != null ? { units: choice.units } : {}),
+                ...(choice.revealNearest ? { revealNearest: true } : {})
+            }));
+            // The offer line's {loot} is the first choice's roll (the take-it answer)
+            extras.reward = extras.choices[0].reward || {};
+        }
+        add('fieldEvent', sector, extras);
+    }
 
     return pois;
 }
@@ -225,9 +301,10 @@ export function poiLevels(poi: Poi): PoiLevel[] {
 }
 
 // POIs that are fought, not prompted: stepping onto one starts its battle. A tunnel is fought through
-// once; open, it prompts the crossing instead.
+// once; open, it prompts the crossing instead. A field event is a fight only when it is an ambush.
 export function isGarrisoned(poi: Poi): boolean {
-    return poi.type === 'settlement' || poi.type === 'camp' || (poi.type === 'tunnel' && !poi.open);
+    return poi.type === 'settlement' || poi.type === 'camp' || (poi.type === 'tunnel' && !poi.open) ||
+        (poi.type === 'fieldEvent' && poiLevels(poi).length > 0);
 }
 
 // What winning a level pays on THIS clear: its rolled resources scaled by the site's reloot schedule (indexed by
@@ -293,6 +370,11 @@ export function promptTextFor(poi: Poi): string {
     const template = poi.promptText || POI_TYPE_DEFAULTS[poi.type].promptText || '';
     const loot = poi.reward && poi.reward.resources ? ` — ${formatResourceList(poi.reward.resources)}` : '';
     return template.replace('{loot}', loot);
+}
+
+// The approach card's line for a garrisoned site
+export function approachTextFor(poi: Poi): string {
+    return poi.approachText || POI_TYPE_DEFAULTS[poi.type].approachText || '';
 }
 
 export function actionLabelFor(poi: Poi): string {
