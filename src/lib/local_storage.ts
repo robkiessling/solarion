@@ -14,6 +14,7 @@ export const loadState = () => {
         // Slightly change the state we are about to load: hide the settings modal since often times it can be saved open
         if (parsedState && parsedState.game) {
             parsedState.game.settingsModalOpen = false;
+            parsedState.game.catchUp = null; // transient overlay state; a save written mid-catch-up must not show it
         }
         // Same rule for special upgrade panels (schematic index etc.): never load with one open
         if (parsedState && parsedState.panels) {

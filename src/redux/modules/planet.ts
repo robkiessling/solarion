@@ -797,6 +797,19 @@ export function unlockTerrain(upgrade: string): PlanetAction {
     return { type: UNLOCK_TERRAIN, payload: { upgrade } };
 }
 
+// isExplorationComplete scans the whole map, and the tick asks 30 times a second while the answer only changes
+// when a tile is revealed (new map object), the halo grows or a terrain unlocks. Remember the last answer.
+let completionMemo: { map: PlanetMap; haloRadius: number; unlockedTerrains: unknown; complete: boolean } | null = null;
+function explorationComplete(planet: PlanetState, halo: ReturnType<typeof getGridHalo>['halo']): boolean {
+    if (completionMemo && completionMemo.map === planet.map && completionMemo.haloRadius === planet.haloRadius &&
+        completionMemo.unlockedTerrains === planet.unlockedTerrains) {
+        return completionMemo.complete;
+    }
+    const complete = isExplorationComplete(planet.map, planet.unlockedTerrains, halo);
+    completionMemo = { map: planet.map, haloRadius: planet.haloRadius, unlockedTerrains: planet.unlockedTerrains, complete };
+    return complete;
+}
+
 export function planetTick(timeDelta: number) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
@@ -868,7 +881,7 @@ export function planetTick(timeDelta: number) {
             const { halo } = getGridHalo(planetState.map, planetState.haloRadius);
 
             // Don't bother re-targeting idle droids once there's nothing left to reach (avoids a pathfind per idle droid).
-            const complete = finished || isExplorationComplete(planetState.map, planetState.unlockedTerrains, halo);
+            const complete = finished || explorationComplete(planetState, halo);
 
             const { droids, reveals, numArrivedHome } = advanceDroids(
                 planetState.map, planetState.droids, timeDelta * planetState.exploreSpeed, planetState.unlockedTerrains, !complete, halo

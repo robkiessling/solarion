@@ -20,11 +20,16 @@ export { calculators };
 export const LEARN = 'resources/LEARN' as const;
 export const CONSUME = 'resources/CONSUME' as const;
 export const PRODUCE = 'resources/PRODUCE' as const;
+export const TICK = 'resources/TICK' as const;
+
+/** One resource's outcome for a tick: where it landed, and how much of the production was banked vs. thrown away */
+export interface TickResult { amount: number; gained: number; discarded: number }
 
 export type ResourcesAction =
     | { type: typeof LEARN; payload: { id: ResourceId } }
     | { type: typeof CONSUME; payload: { amounts: ResourceAmounts } }
-    | { type: typeof PRODUCE; payload: { amounts: ResourceAmounts } };
+    | { type: typeof PRODUCE; payload: { amounts: ResourceAmounts } }
+    | { type: typeof TICK; payload: { results: Partial<Record<ResourceId, TickResult>> } };
 
 // Initial State
 const initialState: ResourcesState = {
@@ -53,6 +58,16 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             return consumeReducer(state, action.payload.amounts);
         case PRODUCE:
             return produceReducer(state, action.payload.amounts);
+        case TICK:
+            // The structures' consumption and production for one tick, already netted out in visible order by
+            // resourcesTick (reducer.ts); this just lands the results
+            return update(state, {
+                byId: mapObject(action.payload.results, (resourceId, result) => ({
+                    amount: { $set: roundToDecimal(result.amount, 5) },
+                    lifetimeTotal: { $apply: (x: number) => roundToDecimal(x + result.gained, 5) },
+                    discarded: { $apply: (x: number) => roundToDecimal((x || 0) + result.discarded, 5) }
+                }))
+            });
         case fromStructures.BUILD:
             return consumeReducer(state, fromStructures.getBuildCost(action.payload.structure));
         case fromUpgrades.RESEARCH:
@@ -168,6 +183,10 @@ export function consumeUnsafe(amounts: ResourceAmounts): ResourcesAction {
 
 export function produce(amounts: ResourceAmounts): ResourcesAction {
     return { type: PRODUCE, payload: { amounts } };
+}
+
+export function tickResults(results: Partial<Record<ResourceId, TickResult>>): ResourcesAction {
+    return { type: TICK, payload: { results } };
 }
 
 

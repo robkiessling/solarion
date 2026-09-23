@@ -20,6 +20,7 @@ import CommandCenter from "./structures/command_center";
 import PlanetPanels from "./planet_panels";
 import PanelHost from "./panels/panel_host";
 import DecisionPopup from "./decision_popup";
+import CatchUpOverlay from "./catch_up_overlay";
 
 // Dead equipment glimpsed in the dark before the facility powers up. Both pieces stay permanently,
 // sitting behind the column UI (z-index -1) as background texture; they show wherever the panels
@@ -229,6 +230,7 @@ class App extends React.Component {
                 <PanelHost/>
                 <DecisionPopup/>
                 <BlockPointerEvents/>
+                <CatchUpOverlay/>
             </div>
         );
     }

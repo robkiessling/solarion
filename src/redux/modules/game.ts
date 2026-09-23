@@ -32,6 +32,8 @@ export interface GameState {
     gameOver: boolean;
     /** set by the ending cutscene (not in the initial state) */
     fadeToBlack?: boolean;
+    /** a hidden-tab catch-up long enough to show its overlay (see singletons/game_clock.ts); null otherwise */
+    catchUp: { totalMs: number; remainingMs: number } | null;
 }
 
 // Actions
@@ -85,6 +87,8 @@ const initialState: GameState = {
     hideUI: false,
     hideCanvas: false,
     gameOver: false,
+
+    catchUp: null,
 }
 
 // Reducers

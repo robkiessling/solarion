@@ -54,10 +54,12 @@ declare global {
         (action: GameAction | Thunk<unknown>): unknown;
     }
 
-    // Dev-console handles set in redux/store.ts
+    // Dev-console handles set in redux/store.ts and singletons/game_clock.ts
     interface Window {
         solarionStore?: any;
         solarionBattle?: any;
+        /** runs a hidden-tab catch-up for the given absence (ms) without waiting for one */
+        solarionCatchUp?: (ms: number) => void;
         __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: any;
     }
 }

@@ -182,11 +182,20 @@ export function setAutocast(id: AbilityId, on: boolean) {
     }
 }
 
+// While suspended, standing orders don't start new casts (a cast already underway still finishes). The catch-up
+// probe (lib/catch_up.ts) suspends them so the rates it measures exclude autocast spending; the jump then applies
+// each cast at its own moment and price.
+let autocastSuspended = false;
+export function setAutocastSuspended(value: boolean) {
+    autocastSuspended = value;
+}
+
 // An ability under a standing order recasts the moment it is ready and affordable. Called when a cast (or its
 // cooldown) ends and on every tick, so an order that stalled on cost resumes as soon as the resources are there.
 // Nothing is paid ahead: each cast pays its own cost when it starts, the way a click would, which matters for
 // costs that climb per cast (the droid price).
 function autocastIfDue(dispatch: Dispatch, getState: GetState, id: AbilityId) {
+    if (autocastSuspended) return;
     const ability = getAbility(getState().abilities, id);
     if (!ability || !ability.autocast || !ability.autocastable) return;
     if (!canCastAbility(getState(), ability)) return;
@@ -241,20 +250,47 @@ export function chargeRNG(dispatch: Dispatch, getState: GetState) {
     dispatch({ type: CHARGE_RNG, payload: { resources, animations } })
 }
 
+// ms until the soonest cast or cooldown ends; Infinity when nothing is underway
+export function msToNextBoundary(state: AbilitiesState): number {
+    let soonest = Infinity;
+    for (const ability of Object.values(state.byId)) {
+        if (ability.state === 'casting') {
+            soonest = Math.min(soonest, ability.castTime * 1000 - (ability.castProgress ?? 0));
+        }
+        else if (ability.state === 'cooldown') {
+            soonest = Math.min(soonest, ability.cooldown * 1000 - (ability.cooldownProgress ?? 0));
+        }
+    }
+    return Math.max(soonest, 0);
+}
+
+// Advances casts and cooldowns by timeDelta, stepping boundary to boundary rather than in one lump: a delta that
+// covers several back-to-back autocasts (a late frame, a catch-up jump) completes each cast in turn instead of
+// finishing only the first and discarding the rest of the time.
 export function abilitiesTick(timeDelta: number) {
     return (dispatch: Dispatch, getState: GetState) => {
         batch(() => {
-            dispatch({ type: PROGRESS, payload: { timeDelta } });
+            let remaining = timeDelta;
+            while (true) {
+                const before = getState().abilities;
+                const step = Math.min(remaining, msToNextBoundary(before));
+                dispatch({ type: PROGRESS, payload: { timeDelta: step } });
 
-            for (const value of Object.values(getState().abilities.byId)) {
-                if (value.state === 'casting' && (value.castProgress ?? 0) >= value.castTime * 1000) {
-                    endCast(dispatch, getState, value);
+                for (const value of Object.values(getState().abilities.byId)) {
+                    if (value.state === 'casting' && (value.castProgress ?? 0) >= value.castTime * 1000) {
+                        endCast(dispatch, getState, value);
+                    }
+                    if (value.state === 'cooldown' && (value.cooldownProgress ?? 0) >= value.cooldown * 1000) {
+                        endCooldown(dispatch, getState, value);
+                    }
+                    // A stalled autocast (unaffordable when its last cast ended) retries here
+                    if (value.autocast && value.state === 'ready') autocastIfDue(dispatch, getState, value.id);
                 }
-                if (value.state === 'cooldown' && (value.cooldownProgress ?? 0) >= value.cooldown * 1000) {
-                    endCooldown(dispatch, getState, value);
-                }
-                // A stalled autocast (unaffordable when its last cast ended) retries here
-                if (value.autocast && value.state === 'ready') autocastIfDue(dispatch, getState, value.id);
+
+                remaining -= step;
+                if (remaining <= 0) break;
+                // A boundary that resolves to nothing (no state change) would loop forever at step 0
+                if (step === 0 && getState().abilities === before) break;
             }
         });
     }

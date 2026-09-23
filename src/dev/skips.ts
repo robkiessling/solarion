@@ -186,7 +186,7 @@ function skipToRobotics(dispatch: Dispatch) {
 // the map generated but unexplored.
 // Counts, upgrades and resources are from that run at that moment; the next tier (Feedback Loop, Kinetic Engines,
 // Perovskite Solar Cells, Ultra-Dense Matrices, Hyper-Alloy Synthesizer, Plasma Drill) was still on offer.
-function skipToGlobe(dispatch: Dispatch) {
+export function skipToGlobe(dispatch: Dispatch) {
     dispatch(fromLog.logInline('Skipping to globe'));
     dispatch(skipClockToDay(28, 22));
 

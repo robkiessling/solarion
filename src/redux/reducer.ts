@@ -14,7 +14,7 @@ import planet, * as fromPlanet from "./modules/planet";
 import star, {type StarState} from "./modules/star";
 import panels, * as fromPanels from "./modules/panels";
 import decisions, {type DecisionsState} from "./modules/decisions";
-import {mapObject, roundToDecimal, typedEntries} from "../lib/helpers";
+import {INFINITY, mapObject, roundToDecimal, typedEntries} from "../lib/helpers";
 import {getQuantity, getResource, type ResourcesState} from "./modules/resources";
 import {aimMirrors, startEnergyBeam} from "./modules/star";
 import {HYPER_BEAM_CHARGE_TIME} from "../lib/star";
@@ -25,7 +25,7 @@ import {EQUIPMENT_DEFS, EQUIPMENT_ORDER, type EquipmentCharges} from "../databas
 import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations, type Variables} from "../lib/effect";
 import type {Ability, AbilityId} from "../database/abilities";
 import type {DroidStats} from "../database/battle";
-import type {DroidAssignment, Structure} from "../database/structures";
+import type {DroidAssignment, Structure, StructureStatus} from "../database/structures";
 import type {Upgrade, UpgradeId} from "../database/upgrades";
 import type {AbilitiesState} from "./modules/abilities";
 import type {LogState} from "./modules/log";
@@ -544,22 +544,59 @@ export function numStandardDroids(state: RootState): number {
 // For each structure:
 //      1) try to consume. if CAN -> consume it AND produce what those structures can
 //      2) if cannot consume -> DON'T produce and DON'T consume
+// One tick of the economy. Each visible structure, in order, consumes its inputs for the tick if it can and then
+// produces; a structure that can't afford its inputs goes insufficient instead (and sits out a short cooldown).
+// The amounts are netted in a local ledger and landed with a single dispatch: a later structure sees an earlier
+// one's output within the same tick (and the capacity clamp between them), exactly as when each step was its own
+// dispatch, but the hidden-tab catch-up replays this tick hundreds of thousands of times, so the dispatch count
+// matters.
 export function resourcesTick(time: number) {
     return function(dispatch: Dispatch, getState: GetState) {
-        fromStructures.iterateVisible(getState().structures, structure => {
+        const state = getState();
+        const ledger: Partial<Record<ResourceId, fromResources.TickResult>> = {};
+        const entry = (resourceId: ResourceId) => {
+            let result = ledger[resourceId];
+            if (!result) {
+                result = { amount: getQuantity(getResource(state.resources, resourceId)), gained: 0, discarded: 0 };
+                ledger[resourceId] = result;
+            }
+            return result;
+        };
+        const statuses: [Structure, StructureStatus][] = [];
+
+        fromStructures.iterateVisible(state.structures, structure => {
             if (structure.runningCooldown && structure.runningCooldown > 0) { return; }
 
-            const consumption = mapObject(getStructureStatistic(getState(), structure, 'consumes'), (resourceId, amount) => amount * time);
-            if (fromResources.canConsume(getState().resources, consumption)) {
-                dispatch(fromResources.consumeUnsafe(consumption));
-                dispatch(fromResources.produce(mapObject(getStructureStatistic(getState(), structure, 'produces'), (resourceId, amount) => amount * time)));
-                fromStructures.setStatus(dispatch, structure, 'normal');
+            const consumption = typedEntries(getStructureStatistic(state, structure, 'consumes'));
+            const affordable = consumption.every(([resourceId, rate]) => {
+                // Unlearned resources read as 0, as canConsume has it
+                return (getResource(state.resources, resourceId) ? entry(resourceId).amount : 0) >= rate * time;
+            });
+            if (!affordable) {
+                statuses.push([structure, 'insufficient']);
+                return;
             }
-            else {
-                fromStructures.setStatus(dispatch, structure, 'insufficient');
-                // dispatch(fromStructures.turnOff(structure.id)); // todo we are not turning off anymore; too jarring
-            }
+
+            consumption.forEach(([resourceId, rate]) => { entry(resourceId).amount -= rate * time; });
+            typedEntries(getStructureStatistic(state, structure, 'produces')).forEach(([resourceId, rate]) => {
+                const resource = getResource(state.resources, resourceId);
+                if (!resource) { return; } // produceReducer drops unlearned ids silently; same here
+                const result = entry(resourceId);
+                const amount = rate * time;
+                const capacity = fromResources.getCapacity(resource);
+                const newAmount = Math.min(result.amount + amount, capacity);
+                const gain = capacity === INFINITY ? amount : (newAmount - result.amount);
+                result.amount = newAmount;
+                result.gained += gain;
+                result.discarded += Math.max(0, amount - gain);
+            });
+            statuses.push([structure, 'normal']);
         });
+
+        if (Object.keys(ledger).length > 0) {
+            dispatch(fromResources.tickResults(ledger));
+        }
+        statuses.forEach(([structure, status]) => fromStructures.setStatus(dispatch, structure, status));
 
         if (getState().game.rapidlyRecalcEnergy) {
             // Need to rapidly recalculate energy variables because it is changing with every new probe added

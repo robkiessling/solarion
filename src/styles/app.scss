@@ -184,6 +184,32 @@ html {
   }
 }
 
+// Hidden-tab catch-up (game.catchUp): covers the page while the backlog replays over a few frames
+.catch-up-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background-color: rgba(1, 4, 9, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: $font-family;
+  color: white;
+
+  .catch-up-box {
+    background: $black;
+    border: 2px solid #fff;
+    border-radius: 4px;
+    padding: 1rem 2rem;
+  }
+  .catch-up-ellipsis {
+    animation: catch-up-blink 0.6s steps(1) infinite;
+  }
+}
+@keyframes catch-up-blink {
+  50% { opacity: 0; }
+}
+
 .settings-modal-overlay {
   background-color: rgba(62, 62, 62, 0.3);
   position: fixed;

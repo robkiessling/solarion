@@ -65,6 +65,13 @@ export function setEnabled(value: boolean) {
     enabled = value;
 }
 
+// A separate switch from `enabled` (which the store keeps re-syncing) for the hidden-tab catch-up: it replays
+// hours of research finishes and casts in a moment, none of which should be heard.
+let suppressed = false;
+export function setSuppressed(value: boolean) {
+    suppressed = value;
+}
+
 
 function fetchBytes(name: SfxName): Promise<ArrayBuffer | null> {
     if (!bytes[name]) {
@@ -116,7 +123,7 @@ export function preload(...names: SfxName[]) {
 }
 
 export function play(name: SfxName, overrides: PlayOptions = {}) {
-    if (!enabled || !unlocked) return;
+    if (!enabled || !unlocked || suppressed) return;
     const options: PlayOptions = { ...CLIPS[name], ...overrides };
 
     const ctx = getContext();
