@@ -32,6 +32,9 @@ const CATCH_UP_FRAME_BUDGET_MS = 30;
 const CATCH_UP_ANNOUNCE_MS = 30 * 1000;
 // Once shown, the overlay stays at least this long so a fast replay reads as a notice rather than a flicker
 const CATCH_UP_OVERLAY_MIN_MS = 1000;
+// The most game days a hidden tab is credited (about 50 real minutes at the 100 s day). Covers any ordinary reason
+// to switch away, while a tab parked overnight doesn't hand over several games' worth of ore and minerals.
+const CATCH_UP_MAX_DAYS = 30;
 
 type PeriodicFn = (iterations: number, period: number) => void;
 
@@ -42,7 +45,7 @@ class GameClock {
     delta: number;  // Time since last tick
     total: number;  // Total time elapsed
     periodicFns: Record<string, { fn: PeriodicFn, period: number, current: number }>; // functions to call periodically
-    catchUpJob: { job: CatchUpJob, steps: Generator<void, CatchUpSummary>, overlayShownAt: number | null } | null; // a hidden-tab replay in progress
+    catchUpJob: { job: CatchUpJob, steps: Generator<void, CatchUpSummary>, overlayShownAt: number | null, capped: boolean } | null; // a hidden-tab replay in progress
 
     constructor() {
         this.now = Date.now() || (new Date).getTime();
@@ -160,10 +163,13 @@ class GameClock {
         window.requestAnimationFrame(() => this.run())
     }
 
-    /** Replays `ms` of hidden-tab time, spread over the coming frames (see lib/catch_up.ts) */
+    /** Replays `ms` of hidden-tab time (up to CATCH_UP_MAX_DAYS), spread over the coming frames (see lib/catch_up.ts) */
     startCatchUp(ms: number) {
-        const job: CatchUpJob = { totalMs: ms, remainingMs: ms };
-        this.catchUpJob = { job, steps: catchUp(store, job), overlayShownAt: null };
+        const maxMs = CATCH_UP_MAX_DAYS * dayLength(store.getState().clock) * 1000;
+        const capped = ms > maxMs;
+        const creditedMs = capped ? maxMs : ms;
+        const job: CatchUpJob = { totalMs: creditedMs, remainingMs: creditedMs };
+        this.catchUpJob = { job, steps: catchUp(store, job), overlayShownAt: null, capped };
         this._driveCatchUp();
     }
 
@@ -186,6 +192,7 @@ class GameClock {
 
     _finishCatchUp(summary: CatchUpSummary) {
         const shownAt = this.catchUpJob?.overlayShownAt ?? null;
+        const capped = this.catchUpJob?.capped ?? false;
         this.catchUpJob = null;
         const state = store.getState();
         if (state.game.catchUp) {
@@ -195,7 +202,7 @@ class GameClock {
             else window.setTimeout(clear, CATCH_UP_OVERLAY_MIN_MS - shownFor);
         }
         if (summary.totalMs >= CATCH_UP_ANNOUNCE_MS) {
-            store.dispatch(logInline(catchUpSummaryLine(state, summary)));
+            store.dispatch(logInline(catchUpSummaryLine(state, summary, capped)));
         }
         // The autosave is throttled; a close right after returning would otherwise lose the whole replay
         if (state.game.autoSaveEnabled && !state.game.endGameSequenceStarted) {
@@ -231,13 +238,14 @@ class GameClock {
 }
 
 // "Autonomous 1.1 days: +32.0k Minerals, +4 Droids, -1.2k Ore." The base ran itself; in game days, the terminal's
-// own clock (visible resources only, changes under half a unit dropped)
-function catchUpSummaryLine(state: RootState, summary: CatchUpSummary): string {
+// own clock (visible resources only, changes under half a unit dropped). A capped absence says so, or twelve hours
+// away producing a month's worth reads as a bug.
+function catchUpSummaryLine(state: RootState, summary: CatchUpSummary, capped: boolean): string {
     const changes = typedEntries(summary.deltas)
         .filter(([id, delta]) => state.resources.visibleIds.includes(id) && Math.abs(delta) >= 0.5)
         .map(([id, delta]) => `${delta > 0 ? '+' : '-'}${formatNumber(Math.abs(delta), 1, true)} ${state.resources.byId[id]?.name ?? id}`);
     const days = summary.totalMs / 1000 / dayLength(state.clock);
-    const away = `Autonomous ${days.toFixed(1)} days`;
+    const away = `Autonomous ${days.toFixed(1)} days${capped ? ' (limit)' : ''}`;
     return changes.length > 0 ? `${away}: ${changes.join(', ')}.` : `${away}.`;
 }
 
