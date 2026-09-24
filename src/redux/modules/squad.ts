@@ -4,7 +4,7 @@ import {getVisibleCoords, isPassable} from "../../lib/planet/map";
 import {STATUSES, TERRAINS, TERRAIN_BLOCKED_BLURBS, TERRAIN_BLURBS, TERRAIN_BLURB_REPEAT_MS, type SquadZone, type TerrainKey} from "../../database/planet/terrain";
 import {getApproxDistance, getCoordsWithinHops} from "../../lib/planet/geometry";
 import {typedEntries} from "../../lib/helpers";
-import {formatResourceList, isGarrisoned, levelPayout, poiLevels, resultBehaviorFor, type Poi} from "../../lib/planet/pois";
+import {formatResourceList, isGarrisoned, levelPayout, poiChoices, poiLevels, type Poi} from "../../lib/planet/pois";
 import {applyEquipment, createBattle, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle/sim";
 import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent} from "../../lib/planet/squad";
 import {logInline} from "./log";
@@ -12,7 +12,6 @@ import {zoneColor} from "../../database/planet/colors";
 import {CONTACT_MS} from "../../database/squad/tuning";
 import type {PoiReward} from "../../database/planet/poi_types";
 import {CAPABILITY_LABELS, type Capability} from "../../database/planet/capabilities";
-import {STORY_TEXTS} from "../../database/planet/story_sites";
 import {TELEMETRY, unitNoun} from "../../database/planet/telemetry";
 import {DROID_BASE_STATS, type DroidStats} from "../../database/battle/units";
 import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
@@ -551,8 +550,8 @@ export function squadStepInto(coord: Coord) {
     }
 }
 
-// Player accepts the open interaction prompt (take the cache / explore the site, or one of a field event's
-// answers by index): resolve the POI, load any reward as cargo, file the report.
+// Player takes one of the open prompt's answers (by index; a POI without authored choices has the one take-it
+// answer): resolve the POI, load any reward as cargo, file the report.
 export function squadInteract(choiceIndex = 0) {
     return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
@@ -565,31 +564,29 @@ export function squadInteract(choiceIndex = 0) {
             return false;
         }
 
-        // A field event's answer carries its own reward and narration; every other POI has one answer, the POI's
-        const choice = poi.choices ? poi.choices[choiceIndex] : null;
-        if (poi.choices && !choice) return false;
-        const reward: PoiReward = choice ? (choice.reward || {}) : poi.reward;
-        const text = choice ? choice.resultText : (poi.storyId ? STORY_TEXTS[poi.storyId] : null);
-        const narrate = choice ? !!choice.resultText : resultBehaviorFor(poi) === 'narrate';
+        // An answer with its own reward pays that, otherwise the POI's (a cache's crate, a vault's module)
+        const choice = poiChoices(poi)[choiceIndex];
+        if (!choice) return false;
+        const reward: PoiReward = choice.reward || poi.reward;
 
-        // A 'narrate' POI's outcome shows in the popup's result phase; the fields stay serializable and the
-        // display strings are composed at render time (capability label, loot list)
-        const result: EncounterResult | null = narrate ? {
-            text: text || null,
-            capability: (reward && reward.capability) || null,
-            loaded: (reward && reward.resources) || null,
-            ...(choice && choice.battery ? { battery: choice.battery } : {}),
-            ...(choice && choice.units ? { unitsGained: choice.units } : {})
+        // An answer with narration holds the popup open on a result phase; one without closes it. The fields
+        // stay serializable and the display strings are composed at render time (capability label, loot list)
+        const result: EncounterResult | null = choice.resultText ? {
+            text: choice.resultText,
+            capability: reward.capability || null,
+            loaded: reward.resources || null,
+            ...(choice.battery ? { battery: choice.battery } : {}),
+            ...(choice.units ? { unitsGained: choice.units } : {})
         } : null;
 
         dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward, result,
-            ...(choice && choice.battery ? { battery: choice.battery } : {}),
-            ...(choice && choice.units ? { units: choice.units } : {}) } });
-        if (reward && reward.capability) {
+            ...(choice.battery ? { battery: choice.battery } : {}),
+            ...(choice.units ? { units: choice.units } : {}) } });
+        if (reward.capability) {
             dispatch(grantCapability(reward.capability)); // salvaged tool: permanent, instant (not cargo)
         }
-        if (choice && choice.revealNearest) revealNearestConcealed(dispatch, getState, poi);
-        if (choice && choice.units) dispatch(recalculateState());
+        if (choice.revealNearest) revealNearestConcealed(dispatch, getState, poi);
+        if (choice.units) dispatch(recalculateState());
         return true;
     }
 }

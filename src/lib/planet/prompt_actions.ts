@@ -1,5 +1,5 @@
 import type {EncounterPrompt} from "../../redux/modules/squad";
-import {actionLabelFor, type Poi} from "./pois";
+import {poiChoices, type Poi} from "./pois";
 
 /**
  * The encounter popup's answers for each phase of a prompt, in button order. One list feeds both the buttons
@@ -31,10 +31,8 @@ export interface PromptAction {
 export function promptActions(poi: Poi, prompt: EncounterPrompt): PromptAction[] {
     switch (prompt.phase) {
         case 'offer': {
-            // A field event offers its own answers; every other site has the one take-it action
-            const choices = poi.choices || [{ label: actionLabelFor(poi) }];
             return [
-                ...choices.map((choice, i) => ({ label: choice.label, run: (via: PromptDispatchers) => { via.squadInteract(i); } })),
+                ...poiChoices(poi).map((choice, i) => ({ label: choice.label, run: (via: PromptDispatchers) => { via.squadInteract(i); } })),
                 { label: 'Leave', run: via => { via.squadLeavePrompt(); } }
             ];
         }

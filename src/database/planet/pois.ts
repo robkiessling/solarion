@@ -15,8 +15,8 @@ import type {PoiDef, TunnelDef} from "./poi_types";
  * map without them */
 export const CAMPS_ENABLED = true;
 
-/** Field events never land closer than this many hops to each other, so a belt's ambushes spread out over it
- * instead of clumping. Placement is once per new game, so a walked route is learnable: the map does not roll
+/** Field events and ambushes never land closer than this many hops to each other, so a belt's ambushes spread
+ * out over it instead of clumping. Placement is once per new game, so a walked route is learnable: the map does not roll
  * dice under the squad's feet (same rule as the battle sim). */
 export const FIELD_EVENT_SPACING = 2;
 
@@ -25,9 +25,9 @@ export const FIELD_EVENT_SPACING = 2;
  * (rollPoiReward).
  *
  * The list reads by region, home outward, so a belt's settlement, camps, ambushes, finds and caches sit side by
- * side and tune as one. Order only matters among field events (they take tiles in manifest order, and the
- * spacing between them can squeeze out whatever comes last), so within a region the one-offs are listed before
- * the counted ones. Settlements are placed first whatever their position here.
+ * side and tune as one. Order only matters among field events and ambushes (they take tiles in manifest order,
+ * and the spacing between them can squeeze out whatever comes last), so within a region the one-offs are listed
+ * before the counted ones. Settlements are placed first whatever their position here.
  *
  * Settlements: `levels` lists the site's fights, surface first; most have one. Each level is a full battle of its own:
  *   `difficulty`  standard defenders fielded, and the displayed threat estimate; a [lo, hi] range rolls at map
@@ -54,14 +54,16 @@ export const FIELD_EVENT_SPACING = 2;
  * `camps` seeds small one-fight POIs on the site's held ground: foragers, herders, a watch. CONCEALED: scouting
  * the tile does not show them, the squad finds out by stepping on one, and the fight opens as an ambush
  * (surround, unless the camp names a formation), so crossing territory is a gamble the map never spells out.
+ * They approach with the site's `campApproachText` unless a camp writes its own `approachText`.
  * Gone for good once beaten, and a taste of the site's strength before committing to it. They never release
  * land (the ground stays held until the settlement falls), and when it does fall whoever is still out there
  * scatters.
  *
- * Field events: concealed on open ground (never held ground: that is the camps' beat) and found by stepping
- * on them. An entry with `levels` is an ambush, fought on entry at the difficulty written here, which sits
- * under the camps and settlements of the same belt. Everything else is a scene with `choices`; `count`
- * scatters the repeatable ones, the one-offs are authored to their place so each says its own thing.
+ * Field events and ambushes: concealed on open ground (never held ground: that is the camps' beat) and found
+ * by stepping on them. An ambush is fought on entry at the difficulty written here, which sits under the camps
+ * and settlements of the same belt; a field event is a scene with `choices`. `count` scatters the repeatable
+ * ones, the one-offs are authored to their place so each says its own thing. Every prompted site writes its own
+ * offer line and every garrisoned one its approach line (a camp's is its settlement's unless it writes its own).
  *
  * Loot is what scavengers hold and what they are sitting on: worked metal on top (it classifies as minerals),
  * power cells further in, the old facility's stores at the core. Never ore; nothing out here mines.
@@ -75,6 +77,8 @@ export const POI_DEFS: PoiDef[] = [
     // points home), scraps, one soft ambush
     {
         type: 'settlement', zone: 'a', territoryRadius: 1,
+        approachText: 'A low structure of scrap and cloth. Thermal signatures inside, few and still.',
+        campApproachText: 'Two of them, out from the shelter with sacks. They drop the sacks.',
         levels: [
             { difficulty: 3, reward: { resources: { refinedMinerals: [100, 200] } } }
         ],
@@ -82,9 +86,23 @@ export const POI_DEFS: PoiDef[] = [
             { difficulty: 1, reward: { resources: { refinedMinerals: [100, 100] } } }
         ]
     },
-    { type: 'cache', zone: 'a', reward: { resources: { ore: [500, 1000] } } },
-    { type: 'cache', zone: 'a', reward: { resources: { refinedMinerals: [200, 400] } } },
-    { type: 'storySite', zone: 'a', storyId: 'deadDroid' },
+    {
+        type: 'cache', zone: 'a',
+        promptText: 'A supply crate on its side, seals intact{loot}. Take it?',
+        reward: { resources: { ore: [500, 1000] } }
+    },
+    {
+        type: 'cache', zone: 'a',
+        promptText: 'A drop pallet, chute still tangled in the frame{loot}. Take it?',
+        reward: { resources: { refinedMinerals: [200, 400] } }
+    },
+    {
+        type: 'storySite', zone: 'a',
+        promptText: 'A shape in the sand the scanner reads as one of ours. Investigate?',
+        choices: [
+            { label: 'Explore', resultText: 'A droid chassis, half-buried. The model number matches your own manufacturing line. You did not build it.' }
+        ]
+    },
     {
         type: 'fieldEvent', zone: 'a', name: 'Wreck',
         promptText: 'A chassis in the dust. Your manufacturing line; not your serial.',
@@ -100,10 +118,9 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
     {
-        type: 'fieldEvent', zone: 'a', name: 'Ambush',
-        levels: [
-            { difficulty: 1, formation: 'surround', reward: { resources: { refinedMinerals: [50, 100] } } }
-        ]
+        type: 'ambush', zone: 'a',
+        approachText: 'Sound from the rocks ahead. Then from behind.',
+        level: { difficulty: 1, formation: 'surround', reward: { resources: { refinedMinerals: [50, 100] } } }
     },
     {
         type: 'fieldEvent', zone: 'a', count: 2, name: 'Sighting',
@@ -117,6 +134,8 @@ export const POI_DEFS: PoiDef[] = [
     // teaches the descend-or-withdraw rule)
     {
         type: 'settlement', zone: 'b', territoryRadius: 2,
+        approachText: 'Rock shelters cut into a scarp. Signatures moving between them.',
+        campApproachText: 'Foragers from the scarp, closing from the rocks.',
         levels: [
             { difficulty: 6, terrain: 'rocks', reward: { resources: { refinedMinerals: [300, 600] } } }
         ],
@@ -126,12 +145,15 @@ export const POI_DEFS: PoiDef[] = [
     },
     {
         type: 'settlement', zone: 'c', site: 2, territoryRadius: 0, levelsShown: true,
+        approachText: 'A pre-war compound, walls intact, gate shut. Dense returns behind it.',
         levels: [
             { difficulty: 20, terrain: 'compound', garrison: { shelter: 1, defender: 14 } }
         ]
     },
     {
         type: 'settlement', zone: 'd', territoryRadius: 2, levelsShown: true, discardedKg: [80, 160],
+        approachText: 'Terraces climbing a ridge, and shafts going down. Signatures on every level the optics reach.',
+        campApproachText: 'A watch post on the terraces. They saw you climbing.',
         levels: [
             { difficulty: 10, formation: 'scatter', terrain: 'rocks', reward: { resources: { refinedMinerals: [400, 800] } } },
             { difficulty: 7, formation: 'clusters', terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000], energy: [1000, 2000] } } }
@@ -143,6 +165,8 @@ export const POI_DEFS: PoiDef[] = [
     },
     {
         type: 'settlement', zone: 'e', territoryRadius: 2,
+        approachText: 'A ruined town, half of it roofed again. Signatures clustered in the standing blocks.',
+        campApproachText: 'Scavengers from the town, more of them than the optics counted.',
         levels: [
             { difficulty: 14, formation: 'clusters', terrain: 'ruins', reward: { resources: { refinedMinerals: [800, 1400] } } }
         ],
@@ -151,9 +175,23 @@ export const POI_DEFS: PoiDef[] = [
             { difficulty: 4, formation: 'scatter', reward: { resources: { refinedMinerals: [200, 400] } } }
         ]
     },
-    { type: 'cache', zone: 'c', reward: { resources: { ore: [2000, 4000] } } },
-    { type: 'cache', zone: 'd', reward: { resources: { refinedMinerals: [1000, 2000] } } },
-    { type: 'storySite', zone: 'b', storyId: 'scorchedCore' },
+    {
+        type: 'cache', zone: 'c',
+        promptText: 'Ore sacks under a collapsed awning, never collected{loot}. Take it?',
+        reward: { resources: { ore: [2000, 4000] } }
+    },
+    {
+        type: 'cache', zone: 'd',
+        promptText: 'A field depot, door forced from outside, shelves still full{loot}. Take it?',
+        reward: { resources: { refinedMinerals: [1000, 2000] } }
+    },
+    {
+        type: 'storySite', zone: 'b',
+        promptText: 'A collapsed structure. The layout matches your own blueprints. Investigate?',
+        choices: [
+            { label: 'Explore', resultText: 'A collapsed structure of familiar design. Its data core is scorched from the inside.' }
+        ]
+    },
     {
         type: 'fieldEvent', zone: ['b', 'd'], name: 'Signal',
         promptText: 'Faint carrier, repeating. Not yours.',
@@ -177,16 +215,14 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
     {
-        type: 'fieldEvent', zone: ['b', 'c', 'd'], count: 3, name: 'Ambush',
-        levels: [
-            { difficulty: 2, formation: 'surround', reward: { resources: { refinedMinerals: [100, 200] } } }
-        ]
+        type: 'ambush', zone: ['b', 'c', 'd'], count: 3,
+        approachText: 'Signatures rising out of the ground on three sides. They were waiting.',
+        level: { difficulty: 2, formation: 'surround', reward: { resources: { refinedMinerals: [100, 200] } } }
     },
     {
-        type: 'fieldEvent', zone: ['d', 'e'], count: 3, name: 'Ambush',
-        levels: [
-            { difficulty: 3, formation: 'surround', reward: { resources: { refinedMinerals: [150, 300] } } }
-        ]
+        type: 'ambush', zone: ['d', 'e'], count: 3,
+        approachText: 'The ridge line moves. It was never empty.',
+        level: { difficulty: 3, formation: 'surround', reward: { resources: { refinedMinerals: [150, 300] } } }
     },
     {
         type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Sighting',
@@ -199,6 +235,8 @@ export const POI_DEFS: PoiDef[] = [
     // ---- The far belt: the Override Module salvage, the red-herring wreckage, the first sealed vault
     {
         type: 'settlement', zone: 'g', territoryRadius: 2, discardedKg: [150, 300],
+        approachText: 'Earthworks in a ring, a dry canyon beyond. Signatures on the rim and none below it.',
+        campApproachText: 'Herders off the rim, and what they herd.',
         levels: [
             { difficulty: 18, formation: 'surround', reward: { resources: { refinedMinerals: [1200, 2000] } } },
             { difficulty: 12, terrain: 'canyon', reward: { resources: { refinedMinerals: [1500, 2500], energy: [3000, 5000] } } }
@@ -211,6 +249,8 @@ export const POI_DEFS: PoiDef[] = [
     {
         // PLACEHOLDER site: the real Site 2 goes on a Gobi point
         type: 'settlement', zone: 'h', site: 2, territoryRadius: 2, levelsShown: true, discardedKg: [200, 400],
+        approachText: 'A facility dug into a canyon wall, ringed with watch posts. Dense returns at the core.',
+        campApproachText: 'A picket from the facility. They knew this ground before you did.',
         levels: [
             { difficulty: 24, formation: 'ring', garrison: { shelter: 1, defender: 18 }, terrain: 'canyon', reward: { resources: { refinedMinerals: [1500, 2500] } } },
             { difficulty: 16, formation: 'clusters', terrain: 'ruins', reward: { resources: { energy: [4000, 7000] } } },
@@ -223,10 +263,31 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
     // Pre-war stores behind rubble: bump until the drill is held (PLACEHOLDER: which vaults are sealed)
-    { type: 'cache', zone: 'k', name: 'Sealed Vault', requires: 'drill', reward: { resources: { ore: [5000, 9000] } } },
-    { type: 'cache', zone: 'j', reward: { resources: { refinedMinerals: [2000, 4000] } } },
-    { type: 'storySite', zone: 'g', storyId: 'wreckage' },
-    { type: 'storySite', zone: 'h', storyId: 'overrideVault', reward: { capability: 'overrideModule' } },
+    {
+        type: 'cache', zone: 'k', name: 'Sealed Vault', requires: 'drill',
+        promptText: 'The rubble is through. Pre-war stores, palletised and dry{loot}. Take it?',
+        reward: { resources: { ore: [5000, 9000] } }
+    },
+    {
+        type: 'cache', zone: 'j',
+        promptText: 'A convoy trailer, uncoupled and left{loot}. Take it?',
+        reward: { resources: { refinedMinerals: [2000, 4000] } }
+    },
+    {
+        type: 'storySite', zone: 'g',
+        promptText: 'A debris trail a kilometer long. Investigate?',
+        choices: [
+            { label: 'Explore', resultText: 'Wreckage strewn across a kilometer. The blast patterns came from above. Something attacked them.' }
+        ]
+    },
+    {
+        type: 'storySite', zone: 'h',
+        promptText: 'A hardened door in a hillside, still powered. Investigate?',
+        choices: [
+            { label: 'Explore', resultText: 'A command vault. Inside, an override module; its authorization codes are older than your directive.' }
+        ],
+        reward: { capability: 'overrideModule' }
+    },
     {
         type: 'fieldEvent', zone: ['g', 'h'], name: 'Wreck',
         promptText: 'A chassis of your line, split along the spine. Recent.',
@@ -257,16 +318,14 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
     {
-        type: 'fieldEvent', zone: ['f', 'g', 'h', 'i'], count: 4, name: 'Ambush',
-        levels: [
-            { difficulty: 5, formation: 'surround', reward: { resources: { refinedMinerals: [250, 500] } } }
-        ]
+        type: 'ambush', zone: ['f', 'g', 'h', 'i'], count: 4,
+        approachText: 'Contact on the flanks, closing fast. The column you saw was not the whole of them.',
+        level: { difficulty: 5, formation: 'surround', reward: { resources: { refinedMinerals: [250, 500] } } }
     },
     {
-        type: 'fieldEvent', zone: ['j', 'k'], count: 3, name: 'Ambush',
-        levels: [
-            { difficulty: 7, formation: 'surround', reward: { resources: { refinedMinerals: [350, 700] } } }
-        ]
+        type: 'ambush', zone: ['j', 'k'], count: 3,
+        approachText: 'Dust plumes converging. They have done this before.',
+        level: { difficulty: 7, formation: 'surround', reward: { resources: { refinedMinerals: [350, 700] } } }
     },
     {
         type: 'fieldEvent', zone: ['f', 'g', 'h', 'i', 'j', 'k'], count: 3, name: 'Sighting',
@@ -276,11 +335,13 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
 
-    // ---- The far continents (finale): two hard settlements, one cache, the command ruin + hive heart (story ids
-    // are placeholders). The first settlement runs three levels unannounced, and its bottom is barely defended:
+    // ---- The far continents (finale): two hard settlements, one cache, the command ruin + hive heart (PLACEHOLDER
+    // story texts here and above: the real ~12-log mystery is authored in the content pass). The first settlement runs three levels unannounced, and its bottom is barely defended:
     // the largest haul on the planet behind the weakest garrison, and the largest discard.
     {
         type: 'settlement', zone: 'q', territoryRadius: 2, discardedKg: [2300, 3500],
+        approachText: 'Ruins on the scale of a city, still inhabited. Signatures scattered thin across a wide front.',
+        campApproachText: 'A work party from the ruins, downing tools.',
         levels: [
             { difficulty: 30, formation: 'scatter', terrain: 'ruins', reward: { resources: { refinedMinerals: [2000, 3500] } } },
             { difficulty: 22, formation: 'surround', terrain: 'ruins', reward: { resources: { refinedMinerals: [2500, 4000], energy: [6000, 10000] } } },
@@ -294,6 +355,8 @@ export const POI_DEFS: PoiDef[] = [
     },
     {
         type: 'settlement', zone: 't', territoryRadius: 2, levelsShown: true, discardedKg: [400, 700],
+        approachText: 'A fortress in a canyon mouth. Rings of signatures around something that does not move.',
+        campApproachText: 'An outer ring of the fortress, turning inward on you.',
         levels: [
             { difficulty: 40, formation: 'ring', garrison: { shelter: 2, defender: 32 }, terrain: 'canyon', reward: { resources: { refinedMinerals: [3000, 5000] } } },
             { difficulty: 28, formation: 'surround', terrain: 'canyon', reward: { resources: { refinedMinerals: [5000, 8000], energy: [10000, 15000] } } }
@@ -304,9 +367,25 @@ export const POI_DEFS: PoiDef[] = [
             { difficulty: 10, formation: 'surround', reward: { resources: { refinedMinerals: [800, 1400] } } }
         ]
     },
-    { type: 'cache', zone: 'l', name: 'Sealed Vault', requires: 'drill', reward: { resources: { refinedMinerals: [5000, 8000] } } },
-    { type: 'storySite', zone: 'q', storyId: 'commandRuin' },
-    { type: 'storySite', zone: 't', storyId: 'hiveHeart' },
+    {
+        type: 'cache', zone: 'l', name: 'Sealed Vault', requires: 'drill',
+        promptText: 'Behind the rubble, a strongroom. Refined stock, stamped and racked{loot}. Take it?',
+        reward: { resources: { refinedMinerals: [5000, 8000] } }
+    },
+    {
+        type: 'storySite', zone: 'q',
+        promptText: 'A ruined complex on the scale of a city block. Investigate?',
+        choices: [
+            { label: 'Explore', resultText: 'The ruined command center of the first swarm. The final log is intact.' }
+        ]
+    },
+    {
+        type: 'storySite', zone: 't',
+        promptText: 'An opening in the rock, warm, exhaling. Investigate?',
+        choices: [
+            { label: 'Explore', resultText: 'A vast organic chamber, pulsing faintly. The hive is not from this planet either.' }
+        ]
+    },
     {
         type: 'fieldEvent', zone: ['q', 't'], name: 'Wreck',
         promptText: 'A chassis of your line, intact, powered down by hand. Someone chose to stop here.',
@@ -322,16 +401,14 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
     {
-        type: 'fieldEvent', zone: ['l', 'q', 't'], count: 4, name: 'Ambush',
-        levels: [
-            { difficulty: 10, formation: 'surround', reward: { resources: { refinedMinerals: [500, 1000] } } }
-        ]
+        type: 'ambush', zone: ['l', 'q', 't'], count: 4,
+        approachText: 'They come out of the ruins in silence, from every doorway at once.',
+        level: { difficulty: 10, formation: 'surround', reward: { resources: { refinedMinerals: [500, 1000] } } }
     },
     {
-        type: 'fieldEvent', zone: ['m', 'n', 'o', 'p', 'r', 's'], count: 3, name: 'Ambush',
-        levels: [
-            { difficulty: 8, formation: 'surround', reward: { resources: { refinedMinerals: [400, 800] } } }
-        ]
+        type: 'ambush', zone: ['m', 'n', 'o', 'p', 'r', 's'], count: 3,
+        approachText: 'Nothing on the optics until it is everywhere.',
+        level: { difficulty: 8, formation: 'surround', reward: { resources: { refinedMinerals: [400, 800] } } }
     },
     {
         type: 'fieldEvent', zone: ['l', 'm', 'n', 'q', 't'], count: 3, name: 'Sighting',
@@ -343,7 +420,11 @@ export const POI_DEFS: PoiDef[] = [
 ]
 
 /** What a painted tunnel digit gets when TUNNEL_DEFS has no entry for it */
-export const TUNNEL_DEFAULT: TunnelDef = { levels: [{ difficulty: 12, terrain: 'corridor' }], crossTiles: 4 };
+export const TUNNEL_DEFAULT: TunnelDef = {
+    approachText: 'A tunnel mouth. Signatures in the dark beyond.',
+    levels: [{ difficulty: 12, terrain: 'corridor' }],
+    crossTiles: 4
+};
 
 /**
  * Tunnels: each digit painted on the map (two mouths per digit) is one passage. Stepping into a mouth the
@@ -353,11 +434,16 @@ export const TUNNEL_DEFAULT: TunnelDef = { levels: [{ difficulty: 12, terrain: '
  * at once, for `crossTiles` of battery. PLACEHOLDER garrisons.
  */
 export const TUNNEL_DEFS: Partial<Record<string, TunnelDef>> = {
-    '1': { levels: [{ difficulty: 8, terrain: 'corridor', reward: { resources: { refinedMinerals: [200, 400] } } }], crossTiles: 3 },
+    '1': {
+        approachText: 'A tunnel mouth under the hill. Faint signatures, deep in.',
+        levels: [{ difficulty: 8, terrain: 'corridor', reward: { resources: { refinedMinerals: [200, 400] } } }],
+        crossTiles: 3
+    },
     // '2' and '3' are rubble-sealed: both mouths bump until the drill is held, then they are fought through
     // like any other. '1' stays open as the first crossing the squad meets (PLACEHOLDER: which tunnels are sealed).
     // '2' runs under the strait between Iberia and Morocco: the tunnel garrison, then the fortified far mouth
     '2': {
+        approachText: 'The strait tunnel. Rubble cleared, and behind it a garrison that heard the drill.',
         requires: 'drill',
         levels: [
             { difficulty: 16, terrain: 'corridor', reward: { resources: { refinedMinerals: [600, 1000] } } },
@@ -365,8 +451,14 @@ export const TUNNEL_DEFS: Partial<Record<string, TunnelDef>> = {
         ],
         crossTiles: 4
     },
-    '3': { requires: 'drill', levels: [{ difficulty: 20, terrain: 'corridor', reward: { resources: { refinedMinerals: [800, 1400] } } }], crossTiles: 4 },
+    '3': {
+        approachText: 'A tunnel mouth behind broken rock. Signatures, and the sound of water.',
+        requires: 'drill',
+        levels: [{ difficulty: 20, terrain: 'corridor', reward: { resources: { refinedMinerals: [800, 1400] } } }],
+        crossTiles: 4
+    },
     '4': {
+        approachText: 'A wide bore, engineered, held. Signatures in ranks.',
         levels: [
             { difficulty: 14, terrain: 'corridor', reward: { resources: { refinedMinerals: [500, 900] } } },
             { difficulty: 18, terrain: 'corridor', formation: 'surround', reward: { resources: { refinedMinerals: [1000, 1800] } } }

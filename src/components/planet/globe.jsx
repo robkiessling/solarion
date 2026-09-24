@@ -652,7 +652,7 @@ class Planet extends React.Component {
         // POI legend entries only appear once relevant (any POI discovered)
         const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== 'hidden');
         if (anyPoiVisible) {
-            ['cache', 'settlement', 'camp', 'storySite', 'tunnel', 'fieldEvent'].forEach(type => {
+            ['cache', 'settlement', 'camp', 'storySite', 'tunnel', 'fieldEvent', 'ambush'].forEach(type => {
                 markerLegend.push({ key: POI_COLOR_KEYS[type], display: POI_GLYPHS[type], label: POI_LABELS[type] });
             });
         }

@@ -180,7 +180,7 @@ class EncounterPopup extends React.Component {
                 <div className="battle-final">
                     <BattleCanvas battle={finalBattle}/>
                     <div className={`battle-verdict${result.wiped ? ' wiped' : ''}`}>
-                        {result.wiped ? 'CONTACT LOST' : descent ? 'LEVEL CLEARED' : poi.type === 'camp' ? 'CONTACT CLEARED' : poi.type === 'fieldEvent' ? 'AMBUSH REPELLED' : poi.type === 'tunnel' ? 'TUNNEL CLEARED' : 'NEST CLEARED'}
+                        {result.wiped ? 'CONTACT LOST' : descent ? 'LEVEL CLEARED' : (POI_TYPE_DEFAULTS[poi.type].clearedLabel || 'Cleared').toUpperCase()}
                     </div>
                 </div>
                 <div className="battle-footer">
