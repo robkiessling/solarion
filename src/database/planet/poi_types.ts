@@ -38,7 +38,10 @@ export interface PoiReward {
 /** One fight of a settlement, as authored: the garrison, its battlefield, and what falls out of it. [lo, hi] ranges
  * roll at map generation. */
 export interface PoiLevelDef {
-    difficulty: number;
+    /** standard defenders fielded (and the threat estimate's basis): a number, or a [lo, hi] range rolled at map
+     * generation, so copies of a counted entry come out at mixed strengths. A level with a typed `garrison` fields
+     * that roster instead and only shows this number, so give it a plain one. */
+    difficulty: number | [number, number];
     formation?: HostileFormation;
     terrain?: TerrainLayoutId;
     blurb?: string;

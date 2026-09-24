@@ -268,7 +268,8 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
 }
 
 function rollLevel(def: PoiLevelDef): PoiLevel {
-    return { difficulty: def.difficulty, formation: def.formation, terrain: def.terrain,
+    const difficulty = Array.isArray(def.difficulty) ? getRandomIntInclusive(def.difficulty[0], def.difficulty[1]) : def.difficulty;
+    return { difficulty, formation: def.formation, terrain: def.terrain,
         blurb: def.blurb, garrison: def.garrison, reward: def.reward ? rollPoiReward(def.reward) : {}, timesCleared: 0 };
 }
 
@@ -363,10 +364,17 @@ export function resultBehaviorFor(poi: Poi): ResultBehavior {
     return poi.resultBehavior || POI_TYPE_DEFAULTS[poi.type].result;
 }
 
-// Difficulty shown as a band until a squad has made contact (first fight reveals the exact number).
+// Difficulty shown as a band until a squad has made contact (first fight reveals the exact number). The band is
+// a cell of a fixed grid, not a spread around the true value (a centered spread would give the number away as
+// its midpoint), and the grid coarsens with magnitude so the fuzz stays about a third wide from a handful of
+// defenders to thousands: the step is the largest rung of the ladder at or under a third of the value.
+// 6 -> 4 to 6, 45 -> 41 to 50, 1500 -> 1001 to 1500.
+const ESTIMATE_STEPS = [3, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
 export function estimateDifficultyRange(difficulty: number): [number, number] {
-    const lo = Math.floor((difficulty - 1) / 3) * 3 + 1;
-    return [lo, lo + 2];
+    let step = ESTIMATE_STEPS[0];
+    ESTIMATE_STEPS.forEach(rung => { if (rung <= difficulty / 3) step = rung; });
+    const lo = Math.floor((difficulty - 1) / step) * step + 1;
+    return [lo, lo + step - 1];
 }
 
 

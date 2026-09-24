@@ -14,7 +14,8 @@ import type {PoiDef, TunnelDef} from "./poi_types";
 // Resource reward amounts are [lo, hi] ranges, rolled to a multiple of 100 at map generation (rollPoiReward).
 //
 // Settlements: `levels` lists the site's fights, surface first; most have one. Each level is a full battle of its own:
-//   `difficulty`  standard defenders fielded, and the displayed threat estimate
+//   `difficulty`  standard defenders fielded, and the displayed threat estimate; a [lo, hi] range rolls at map
+//                 generation
 //   `garrison`    a typed garrison ({ type: count }, see HOSTILE_TYPES in database/battle/units.ts) fielded instead of
 //                 `difficulty` standard defenders; entry order maps to formation slots, so a shelter listed first
 //                 takes a ring's center
