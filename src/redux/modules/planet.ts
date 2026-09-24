@@ -1,6 +1,7 @@
 import update from 'immutability-helper';
 import {recalculateState, surveyAutomationUnlocked, withRecalculation} from "../reducer";
-import {generatePlanetMap, getCrossTime, getCurrentDevelopmentArea, getGridHalo, getHomeBasePosition, getNextDevelopmentArea, getVisibleCoords, NUM_SECTORS, numSectorsMatching, type PlanetMap, type Unlocks} from "../../lib/planet/map";
+import {generatePlanetMap, getCrossTime, getCurrentDevelopmentArea, getGridHalo, getHomeBasePosition, getNextDevelopmentArea, getVisibleCoords, NUM_SECTORS, numSectorsMatching, type PlanetMap} from "../../lib/planet/map";
+import type {Capabilities, Capability} from "../../database/planet/capabilities";
 import {centeringRotation, COOK_TIME, sunTrackingRotation} from "../../lib/planet/image";
 import {SCOUT_VISION_HOPS, STATUSES, SURVEY_HALO_RADIUS, TERRAINS} from "../../database/planet/terrain";
 import {parseCoordKey} from "../../lib/planet/geometry";
@@ -43,7 +44,8 @@ export interface PlanetState {
     droidData: DroidAssignment;
     squadDroidData: DroidAssignment;
     droids: ScoutDroid[];
-    unlockedTerrains: Unlocks;
+    /** the tools held (see database/planet/capabilities.ts); gates terrain crossing and sealed POIs */
+    capabilities: Capabilities;
     haloRadius: number;
     beaconCoord: Coord | null;
     exploreSpeed: number;
@@ -69,7 +71,7 @@ export const START_DEVELOPMENT = 'planet/START_DEVELOPMENT' as const;
 export const FINISH_DEVELOPMENT = 'planet/FINISH_DEVELOPMENT' as const;
 export const SET_EXPLORE_SPEED = 'planet/SET_EXPLORE_SPEED' as const;
 export const SET_BEACON = 'planet/SET_BEACON' as const;
-export const UNLOCK_TERRAIN = 'planet/UNLOCK_TERRAIN' as const;
+export const GRANT_CAPABILITY = 'planet/GRANT_CAPABILITY' as const;
 export const START_COOK = 'planet/START_COOK' as const;
 export const INCREMENT_COOK = 'planet/INCREMENT_COOK' as const;
 
@@ -89,7 +91,7 @@ export type PlanetAction =
     | { type: typeof FINISH_DEVELOPMENT; payload: { coords: Coord[] } }
     | { type: typeof SET_EXPLORE_SPEED; payload: { value: number } }
     | { type: typeof SET_BEACON; payload: { coord: Coord | null } }
-    | { type: typeof UNLOCK_TERRAIN; payload: { upgrade: string } }
+    | { type: typeof GRANT_CAPABILITY; payload: { capability: Capability } }
     | { type: typeof START_COOK }
     | { type: typeof INCREMENT_COOK; payload: { timeDelta: number } }
     | SquadAction;
@@ -117,7 +119,7 @@ const initialState: PlanetState = {
     // they start docked (no coord; "in the grid"), surface on the powered tile nearest their work, and walk
     // back into the nearest powered tile when the sweep is done (docking) or they're unassigned (returning).
     droids: [],
-    unlockedTerrains: {}, // e.g. { mountaineering: true } once researched; gates which terrain droids can cross
+    capabilities: {},
     haloRadius: SURVEY_HALO_RADIUS, // scout uplink range in hops from the powered grid; comms upgrades raise it
     beaconCoord: null, // [row, col] growth beacon: replication grows toward it (nearest home when null)
     exploreSpeed: 1,
@@ -250,11 +252,11 @@ export default function reducer(state: PlanetState = initialState, action: GameA
             return update(state, {
                 beaconCoord: { $set: action.payload.coord }
             })
-        case UNLOCK_TERRAIN:
-            // A terrain-crossing upgrade (e.g. mountaineering) makes that terrain passable, which re-opens frontier.
-            // Clear any 'finished' status so planetTick resumes exploring the newly-reachable ground.
+        case GRANT_CAPABILITY:
+            // A tool that crosses new ground (Amphibious Tracks) re-opens the frontier: clear any 'finished' status
+            // so planetTick resumes exploring the newly-reachable ground.
             return update(state, {
-                unlockedTerrains: { [action.payload.upgrade]: { $set: true } },
+                capabilities: { [action.payload.capability]: { $set: true } },
                 overallStatus: { $set: 'inProgress' }
             })
         case START_COOK:
@@ -356,7 +358,7 @@ export function removeDroidUnsafe(amount = 1) {
         const instantIndices: number[] = [];
         candidates.forEach(({ droid, index }) => {
             const path = droid.coord ?
-                findPathToGrid(planet.map, droid.coord, { unlocks: planet.unlockedTerrains }) : null;
+                findPathToGrid(planet.map, droid.coord, { capabilities: planet.capabilities }) : null;
 
             if (path && path.length > 0) {
                 recalls.push({ index, path });
@@ -414,22 +416,22 @@ export function clearBeacon(): PlanetAction {
     return { type: SET_BEACON, payload: { coord: null } };
 }
 
-// Marks a terrain-crossing upgrade as researched (e.g. 'mountaineering'), making that terrain passable and resuming
-// exploration. Call this from the upgrade's onFinish; `upgrade` must match the terrain's `crossUpgrade` key.
-export function unlockTerrain(upgrade: string): PlanetAction {
-    return { type: UNLOCK_TERRAIN, payload: { upgrade } };
+// The squad gains a tool for good: from an upgrade's onFinish, or salvaged at a POI (reward.capability). Whatever
+// the tool gates (a terrain's or a POI's `requires`) opens at once, and exploration resumes.
+export function grantCapability(capability: Capability): PlanetAction {
+    return { type: GRANT_CAPABILITY, payload: { capability } };
 }
 
 // isExplorationComplete scans the whole map, and the tick asks 30 times a second while the answer only changes
-// when a tile is revealed (new map object), the halo grows or a terrain unlocks. Remember the last answer.
-let completionMemo: { map: PlanetMap; haloRadius: number; unlockedTerrains: unknown; complete: boolean } | null = null;
+// when a tile is revealed (new map object), the halo grows or a capability is gained. Remember the last answer.
+let completionMemo: { map: PlanetMap; haloRadius: number; capabilities: unknown; complete: boolean } | null = null;
 function explorationComplete(planet: PlanetState, halo: ReturnType<typeof getGridHalo>['halo']): boolean {
     if (completionMemo && completionMemo.map === planet.map && completionMemo.haloRadius === planet.haloRadius &&
-        completionMemo.unlockedTerrains === planet.unlockedTerrains) {
+        completionMemo.capabilities === planet.capabilities) {
         return completionMemo.complete;
     }
-    const complete = isExplorationComplete(planet.map, planet.unlockedTerrains, halo);
-    completionMemo = { map: planet.map, haloRadius: planet.haloRadius, unlockedTerrains: planet.unlockedTerrains, complete };
+    const complete = isExplorationComplete(planet.map, planet.capabilities, halo);
+    completionMemo = { map: planet.map, haloRadius: planet.haloRadius, capabilities: planet.capabilities, complete };
     return complete;
 }
 
@@ -489,7 +491,7 @@ export function planetTick(timeDelta: number) {
             const complete = finished || explorationComplete(planetState, halo);
 
             const { droids, reveals, numArrivedHome } = advanceDroids(
-                planetState.map, planetState.droids, timeDelta * planetState.exploreSpeed, planetState.unlockedTerrains, !complete, halo
+                planetState.map, planetState.droids, timeDelta * planetState.exploreSpeed, planetState.capabilities, !complete, halo
             );
 
             // Newly-revealed flatland becomes buildable land (resources reducer listens for this on PROGRESS).
@@ -521,7 +523,7 @@ export function percentExplored(state: PlanetState) {
 //     (counted in numArrivedHome; the resources reducer credits the pool from it)
 // Targeting is bounded to `halo`, the scouts' sweep area (see getGridHalo).
 // Pure: reads `map` but never mutates it -- returns the new droid array plus the list of newly-revealed coords.
-function advanceDroids(map: PlanetMap, droids: ScoutDroid[], moveAmount: number, unlocks: Unlocks, allowRetarget: boolean, halo: Set<string> | null = null) {
+function advanceDroids(map: PlanetMap, droids: ScoutDroid[], moveAmount: number, capabilities: Capabilities, allowRetarget: boolean, halo: Set<string> | null = null) {
     const reveals = new Set<string>();
     const isRevealed = (row: number, col: number) => map[row][col].status !== STATUSES.unknown.key || reveals.has(`${row},${col}`);
     const reveal = (row: number, col: number) => {
@@ -550,7 +552,7 @@ function advanceDroids(map: PlanetMap, droids: ScoutDroid[], moveAmount: number,
 
         while (path.length > 0) {
             const next = path[0];
-            const tileCrossMs = getCrossTime(map[next[0]][next[1]].terrain, unlocks) * 1000;
+            const tileCrossMs = getCrossTime(map[next[0]][next[1]].terrain, capabilities) * 1000;
             if (moveProgress < tileCrossMs) break;
             moveProgress -= tileCrossMs;
             coord = next;
@@ -569,7 +571,7 @@ function advanceDroids(map: PlanetMap, droids: ScoutDroid[], moveAmount: number,
         // deploy point) and sweeps from there. Coordless legacy droids are treated as docked.
         if (droid.docked || !droid.coord) {
             if (allowRetarget) {
-                const result = findNearestLookoutFromGrid(map, { claimed, unlocks, halo });
+                const result = findNearestLookoutFromGrid(map, { claimed, capabilities, halo });
                 if (result) {
                     const [emergence, ...path] = result.path;
                     claim(result.target);
@@ -584,7 +586,7 @@ function advanceDroids(map: PlanetMap, droids: ScoutDroid[], moveAmount: number,
 
         // A docking scout is still assigned: if work reappeared (the halo grew), re-task it where it stands.
         if (droid.docking && allowRetarget) {
-            const result = findNearestLookout(map, droid.coord, { claimed, unlocks, heading: droid.heading, halo });
+            const result = findNearestLookout(map, droid.coord, { claimed, capabilities, heading: droid.heading, halo });
             if (result) {
                 claim(result.target);
                 nextDroids.push({ coord: droid.coord, path: result.path, target: result.target, moveProgress: 0, heading: result.heading });
@@ -626,7 +628,7 @@ function advanceDroids(map: PlanetMap, droids: ScoutDroid[], moveAmount: number,
         // Acquire a target when idle, following the droid's heading so it holds a course. When there's no
         // work to acquire (sweep complete, or nothing reachable), head for the nearest powered tile and dock.
         if (path.length === 0) {
-            const result = allowRetarget ? findNearestLookout(map, coord, { claimed, unlocks, heading, halo }) : null;
+            const result = allowRetarget ? findNearestLookout(map, coord, { claimed, capabilities, heading, halo }) : null;
             if (result) {
                 target = result.target;
                 path = result.path;
@@ -634,7 +636,7 @@ function advanceDroids(map: PlanetMap, droids: ScoutDroid[], moveAmount: number,
                 claim(target);
             }
             else {
-                const dockPath = findPathToGrid(map, coord, { unlocks });
+                const dockPath = findPathToGrid(map, coord, { capabilities });
                 if (dockPath === null) {
                     // The grid is unreachable from here (walled off): hold position
                     nextDroids.push({ coord, path: [], target: null, moveProgress: 0, heading });
@@ -652,7 +654,7 @@ function advanceDroids(map: PlanetMap, droids: ScoutDroid[], moveAmount: number,
         // Walk the path, spending one tile's crossTime per step; reveal each tile's neighbors on arrival.
         while (path.length > 0) {
             const next = path[0];
-            const tileCrossMs = getCrossTime(map[next[0]][next[1]].terrain, unlocks) * 1000;
+            const tileCrossMs = getCrossTime(map[next[0]][next[1]].terrain, capabilities) * 1000;
             if (moveProgress < tileCrossMs) break;
             moveProgress -= tileCrossMs;
             coord = next;

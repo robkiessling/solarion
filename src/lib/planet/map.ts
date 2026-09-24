@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import AUTHORED_MAP_TEXT from "../../database/planet/map.txt?raw";
 import {STATUSES, TERRAINS, VISION_HOPS, type SectorStatus, type SectorStatusDef, type TerrainDef, type TerrainKey} from "../../database/planet/terrain";
+import type {Capabilities} from "../../database/planet/capabilities";
 import {getAdjacentCoords, getApproxDistance, getGraphDistancesFrom, NUM_PLANET_ROWS, PLANET_COLS} from "./geometry";
 
 /**
@@ -35,9 +36,6 @@ export interface Sector {
 }
 
 export type PlanetMap = Sector[][];
-
-/** The set of unlocked crossing capabilities, e.g. { drill: true } */
-export type Unlocks = { [capability: string]: boolean };
 
 export { NUM_SECTORS } from "./geometry";
 
@@ -262,17 +260,17 @@ export function getTerrain(terrainKey: TerrainKey): TerrainDef {
     return TERRAINS[terrainKey];
 }
 
-// ms to cross one tile of the given terrain, given the set of unlocked crossing upgrades. Returns Infinity when the
-// terrain is currently blocked (its crossUpgrade hasn't been researched). `unlocks` is a map like { mountaineering: true }.
-export function getCrossTime(terrainKey: TerrainKey, unlocks: Unlocks = {}): number {
+// Seconds to cross one tile of the given terrain, given the capabilities held. Returns Infinity when the terrain is
+// blocked: a permanent wall, or ground whose required tool is not yet held.
+export function getCrossTime(terrainKey: TerrainKey, capabilities: Capabilities = {}): number {
     const terrain = TERRAINS[terrainKey];
-    if (terrain.crossUpgrade && !unlocks[terrain.crossUpgrade]) { return Infinity; }
+    if (terrain.impassable || (terrain.requires && !capabilities[terrain.requires])) { return Infinity; }
     return terrain.crossTime;
 }
 
-export function isPassable(map: PlanetMap, coord: Coord | null, unlocks: Unlocks = {}): boolean {
+export function isPassable(map: PlanetMap, coord: Coord | null, capabilities: Capabilities = {}): boolean {
     if (coord === null) { return false; }
-    return getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) < Infinity;
+    return getCrossTime(map[coord[0]][coord[1]].terrain, capabilities) < Infinity;
 }
 
 export function blocksVision(terrainKey: TerrainKey): boolean {
@@ -310,8 +308,8 @@ export function getVisibleCoords(map: PlanetMap, coord: Coord, hops: number = VI
 
 // Scout passability: beyond raw terrain, held ground (sector.heldBy, stamped around settlements) stops the
 // dumb remotes. The player-driven squad crosses territory freely.
-export function isScoutPassable(map: PlanetMap, coord: Coord | null, unlocks: Unlocks = {}): boolean {
-    if (coord === null || !isPassable(map, coord, unlocks)) { return false; }
+export function isScoutPassable(map: PlanetMap, coord: Coord | null, capabilities: Capabilities = {}): boolean {
+    if (coord === null || !isPassable(map, coord, capabilities)) { return false; }
     return !map[coord[0]][coord[1]].heldBy;
 }
 

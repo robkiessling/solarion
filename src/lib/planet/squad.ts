@@ -1,5 +1,6 @@
 import {NUM_PLANET_ROWS, parseCoordKey, PLANET_COLS} from "./geometry";
-import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, type PlanetMap, type Unlocks} from "./map";
+import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, type PlanetMap} from "./map";
+import type {Capabilities} from "../../database/planet/capabilities";
 import {STATUSES, type SquadZone} from "../../database/planet/terrain";
 import {CONTACT_MS, RESERVE_HP_PER_TILE, SQUAD_BATTERY_CAPACITY, SQUAD_DRAIN_PER_TILE, SQUAD_SPEED_FACTOR} from "../../database/squad/tuning";
 import {mapObject, mod, typedEntries} from "../helpers";
@@ -172,8 +173,8 @@ export function poiAtCoord(pois: Record<string, Poi>, coord: Coord): Poi | null 
     ) || null;
 }
 
-export function squadCrossMs(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
-    return getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) * 1000 * SQUAD_SPEED_FACTOR;
+export function squadCrossMs(map: PlanetMap, coord: Coord, capabilities: Capabilities) {
+    return getCrossTime(map[coord[0]][coord[1]].terrain, capabilities) * 1000 * SQUAD_SPEED_FACTOR;
 }
 
 /**
@@ -192,7 +193,7 @@ export function squadCrossMs(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
  *   { type: 'fieldWiped', unitsLost, multiplier, cargoLost } (reserve-power hull burn killed the last
  *       unit; the returned squad is null and the caller settles the loss)
  */
-export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: Squad, moveAmountMs: number, unlocks: Unlocks):
+export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: Squad, moveAmountMs: number, capabilities: Capabilities):
     { squad: Squad | null, reveals: Coord[], events: SquadEvent[] } {
     const events: SquadEvent[] = [];
 
@@ -244,7 +245,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
 
     while (path.length > 0) {
         const next = path[0];
-        const tileCrossMs = squadCrossMs(map, next, unlocks);
+        const tileCrossMs = squadCrossMs(map, next, capabilities);
         if (moveProgress < tileCrossMs) break;
         moveProgress -= tileCrossMs;
         const cameFrom = coord; // reported on contact: a failed assault falls back to the tile it came from

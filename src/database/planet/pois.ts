@@ -126,7 +126,8 @@ export const POI_DEFS: PoiDef[] = [
             { difficulty: 6, terrain: 'rocks', reward: { resources: { refinedMinerals: [400, 800] } } },
             { difficulty: 6, formation: 'clusters', reward: { resources: { refinedMinerals: [400, 800] } } }
         ] },
-    { type: 'cache', zone: 'k', reward: { resources: { ore: [5000, 9000] } } },
+    // Pre-war stores behind rubble: bump until the drill is held (PLACEHOLDER: which vaults are sealed)
+    { type: 'cache', zone: 'k', name: 'Sealed Vault', requires: 'drill', reward: { resources: { ore: [5000, 9000] } } },
     { type: 'cache', zone: 'j', reward: { resources: { refinedMinerals: [2000, 4000] } } },
     { type: 'storySite', zone: 'g', storyId: 'wreckage' },
     { type: 'storySite', zone: 'h', storyId: 'overrideVault', reward: { capability: 'overrideModule' } },
@@ -160,7 +161,7 @@ export const POI_DEFS: PoiDef[] = [
             { difficulty: 10, terrain: 'canyon', reward: { resources: { refinedMinerals: [800, 1400] } } },
             { difficulty: 10, formation: 'surround', reward: { resources: { refinedMinerals: [800, 1400] } } }
         ] },
-    { type: 'cache', zone: 'l', reward: { resources: { refinedMinerals: [5000, 8000] } } },
+    { type: 'cache', zone: 'l', name: 'Sealed Vault', requires: 'drill', reward: { resources: { refinedMinerals: [5000, 8000] } } },
     { type: 'storySite', zone: 'q', storyId: 'commandRuin' },
     { type: 'storySite', zone: 't', storyId: 'hiveHeart' }
 ]
@@ -174,13 +175,15 @@ export const POI_DEFS: PoiDef[] = [
 export const TUNNEL_DEFAULT: TunnelDef = { levels: [{ difficulty: 12, terrain: 'corridor' }], crossTiles: 4 };
 export const TUNNEL_DEFS: Partial<Record<string, TunnelDef>> = {
     '1': { levels: [{ difficulty: 8, terrain: 'corridor', reward: { resources: { refinedMinerals: [200, 400] } } }], crossTiles: 3 },
+    // '2' and '3' are rubble-sealed: both mouths bump until the drill is held, then they are fought through
+    // like any other. '1' stays open as the first crossing the squad meets (PLACEHOLDER: which tunnels are sealed).
     // '2' runs under the strait between Iberia and Morocco: the tunnel garrison, then the fortified far mouth
-    '2': { levels: [
+    '2': { requires: 'drill', levels: [
         { difficulty: 16, terrain: 'corridor', reward: { resources: { refinedMinerals: [600, 1000] } } },
         { difficulty: 20, terrain: 'corridor', formation: 'surround',
             reward: { resources: { refinedMinerals: [800, 1400] } } }
     ], crossTiles: 4 },
-    '3': { levels: [{ difficulty: 20, terrain: 'corridor', reward: { resources: { refinedMinerals: [800, 1400] } } }], crossTiles: 4 },
+    '3': { requires: 'drill', levels: [{ difficulty: 20, terrain: 'corridor', reward: { resources: { refinedMinerals: [800, 1400] } } }], crossTiles: 4 },
     '4': { levels: [
         { difficulty: 14, terrain: 'corridor', reward: { resources: { refinedMinerals: [500, 900] } } },
         { difficulty: 18, terrain: 'corridor', formation: 'surround',

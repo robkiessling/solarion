@@ -1188,8 +1188,8 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     },
     droidFactory_drill: {
         onFinish: (dispatch) => {
-            // unlockedTerrains doubles as the capability set; 'drill' will satisfy a sealed tunnel's `requires`
-            dispatch(fromPlanet.unlockTerrain('drill'));
+            // satisfies a sealed tunnel's `requires`
+            dispatch(fromPlanet.grantCapability('drill'));
         }
     },
     droidFactory_assemblyOrder: {
@@ -1199,7 +1199,7 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     },
     droidFactory_amphibiousTracks: {
         onFinish: (dispatch) => {
-            dispatch(fromPlanet.unlockTerrain('amphibious')); // shallows' crossUpgrade (see TERRAINS in database/planet/terrain.ts)
+            dispatch(fromPlanet.grantCapability('amphibious')); // what the shallows require (see TERRAINS in database/planet/terrain.ts)
         }
     },
     droidFactory_surveyAutomation: {

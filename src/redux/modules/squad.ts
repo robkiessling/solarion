@@ -10,12 +10,13 @@ import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, sq
 import {logInline} from "./log";
 import {zoneColor} from "../../database/planet/colors";
 import {CONTACT_MS} from "../../database/squad/tuning";
-import {CAPABILITY_LABELS, type Capability, type PoiReward} from "../../database/planet/poi_types";
+import type {PoiReward} from "../../database/planet/poi_types";
+import {CAPABILITY_LABELS, type Capability} from "../../database/planet/capabilities";
 import {STORY_TEXTS} from "../../database/planet/story_sites";
 import {TELEMETRY, unitNoun} from "../../database/planet/telemetry";
 import {DROID_BASE_STATS, type DroidStats} from "../../database/battle/units";
 import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
-import {addRevealUpdates, setRotationMode, unlockTerrain, type PlanetState} from "./planet";
+import {addRevealUpdates, grantCapability, setRotationMode, type PlanetState} from "./planet";
 
 /**
  * The driven squad: its slice of the planet state (planet.squad, planet.prompt, the POIs it resolves), the
@@ -382,7 +383,7 @@ function mergeCargo(cargo: ResourceAmounts, reward: PoiReward) {
 // reveals as already applied, or a tile revealed by both in the same tick would double-count numExplored.
 export function advanceSquadTick(dispatch: Dispatch, getState: GetState, state: PlanetState, timeDelta: number): PlanetState {
     if (!state.squad || !(state.squad.path.length > 0 || state.squad.fighting || state.squad.crossing)) return state;
-    const { squad, reveals, events } = advanceSquad(state.map, state.pois, state.squad, timeDelta, state.unlockedTerrains);
+    const { squad, reveals, events } = advanceSquad(state.map, state.pois, state.squad, timeDelta, state.capabilities);
     const revealedFlatland = reveals.filter(
         ([r, c]) => state.map[r][c].terrain === TERRAINS.flatland.key && !state.map[r][c].heldBy
     ).length;
@@ -481,9 +482,9 @@ function reportBlockedTerrain(dispatch: Dispatch, getState: GetState, terrain: T
     const now = getState().clock.elapsedTime;
     if (now - (lastBlockedAt[terrain] || -Infinity) < TERRAIN_BLURB_REPEAT_MS) return;
     lastBlockedAt[terrain] = now;
-    // Only a crossUpgrade that is a capability the player can earn gets named; the permanent walls' keys are not
-    const tool = TERRAINS[terrain].crossUpgrade as Capability | undefined;
-    const needs = tool && CAPABILITY_LABELS[tool] ? ` Needs ${CAPABILITY_LABELS[tool]}.` : '';
+    // Gated ground names the tool; a permanent wall says only what it is
+    const tool = TERRAINS[terrain].requires;
+    const needs = tool ? ` Needs ${CAPABILITY_LABELS[tool]}.` : '';
     dispatch(logInline(blurb + needs, 'terrain-blurb', { color: zoneColor(terrain) }, 'logFlash'));
 }
 
@@ -493,7 +494,7 @@ export function squadStep(coord: Coord) {
         const squad = planet.squad;
         if (!squad || squad.fighting || squad.crossing) return false;
 
-        if (!isPassable(planet.map, coord, planet.unlockedTerrains)) {
+        if (!isPassable(planet.map, coord, planet.capabilities)) {
             reportBlockedTerrain(dispatch, getState, planet.map[coord[0]][coord[1]].terrain);
             if (planet.map[coord[0]][coord[1]].status === STATUSES.unknown.key) {
                 // Reveal the wall: same action shape as movement, with the squad itself unchanged
@@ -528,7 +529,7 @@ export function squadStepInto(coord: Coord) {
         const blockingPoi = Object.values(planet.pois).find(poi =>
             poi.status !== 'cleared' && !(poi.status === 'hidden' && poi.concealed) &&
             poi.coord[0] === coord[0] && poi.coord[1] === coord[1] &&
-            (isGarrisoned(poi) || (poi.requires && !planet.unlockedTerrains[poi.requires]))
+            (isGarrisoned(poi) || (poi.requires && !planet.capabilities[poi.requires]))
         );
 
         if (blockingPoi) {
@@ -539,7 +540,7 @@ export function squadStepInto(coord: Coord) {
                 dispatch({ type: ADVANCE_SQUAD, payload: { squad, reveals: [coord], revealedFlatland: 0 } });
                 return 'blocked';
             }
-            if (blockingPoi.requires && !planet.unlockedTerrains[blockingPoi.requires]) {
+            if (blockingPoi.requires && !planet.capabilities[blockingPoi.requires]) {
                 dispatch(logInline(sealedText(blockingPoi)));
                 return 'blocked';
             }
@@ -585,7 +586,7 @@ export function squadInteract(choiceIndex = 0) {
             ...(choice && choice.battery ? { battery: choice.battery } : {}),
             ...(choice && choice.units ? { units: choice.units } : {}) } });
         if (reward && reward.capability) {
-            dispatch(unlockTerrain(reward.capability)); // salvaged tool: permanent, instant (not cargo)
+            dispatch(grantCapability(reward.capability)); // salvaged tool: permanent, instant (not cargo)
         }
         if (choice && choice.revealNearest) revealNearestConcealed(dispatch, getState, poi);
         if (choice && choice.units) dispatch(recalculateState());
@@ -656,7 +657,7 @@ export function squadAttack(poiId: string, fromCoord: Coord, level = 0) {
 
         if (!squad || squad.fighting) return false;
         if (!poi || poi.status === 'cleared') return false;
-        if (poi.requires && !planet.unlockedTerrains[poi.requires]) {
+        if (poi.requires && !planet.capabilities[poi.requires]) {
             dispatch(logInline(sealedText(poi)));
             return false;
         }
@@ -782,7 +783,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                         finalBattle: event.battle
                     } } });
                 if (reward.capability) {
-                    dispatch(unlockTerrain(reward.capability));
+                    dispatch(grantCapability(reward.capability));
                 }
             }
             else if (event.result === 'won') {
@@ -824,7 +825,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                     dispatch(logInline(TELEMETRY.organicDiscarded(poi.discardedKg)));
                 }
                 if (reward && reward.capability) {
-                    dispatch(unlockTerrain(reward.capability));
+                    dispatch(grantCapability(reward.capability));
                 }
                 if (poi.type === 'tunnel') revealFromSquad(dispatch, getState); // it came out the far mouth
                 if (poi.site != null) {

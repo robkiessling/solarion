@@ -1,14 +1,15 @@
 import { getRandomFromArray } from "../helpers";
 import { MinHeap } from "../min_heap";
 import { getAdjacentCoords } from "./geometry";
-import {getCrossTime, GRID_TERRAINS, isScoutPassable, type PlanetMap, type Unlocks} from "./map";
+import {getCrossTime, GRID_TERRAINS, isScoutPassable, type PlanetMap} from "./map";
+import type {Capabilities} from "../../database/planet/capabilities";
 import {STATUSES} from "../../database/planet/terrain";
 
 /** Options for the scout lookout searches */
 export interface LookoutOptions {
     /** "row,col" keys of lookouts other scouts already own */
     claimed?: Set<string>;
-    unlocks?: Unlocks;
+    capabilities?: Capabilities;
     /** the scout's current [dRow, dCol] heading, to break ties along it */
     heading?: [number, number] | null;
     /** "row,col" keys of the grid halo; null = unrestricted */
@@ -43,14 +44,14 @@ export function hasUnknownNeighbor(map: PlanetMap, coord: Coord, halo: Set<strin
  * The "lookout" tiles: explored, passable tiles that still border an unknown. Standing on one reveals that unknown, so
  * these are the tiles worth visiting (one next to an unknown mountain counts too; visiting it reveals the wall).
  */
-export function getExplorationFrontier(map: PlanetMap, unlocks: Unlocks = {}, halo: Set<string> | null = null): Coord[] {
+export function getExplorationFrontier(map: PlanetMap, capabilities: Capabilities = {}, halo: Set<string> | null = null): Coord[] {
     const frontier: Coord[] = [];
 
     map.forEach((row, rowIndex) => {
         row.forEach((sector, colIndex) => {
             if (sector.status !== EXPLORED) return;
             if (halo && !halo.has(`${rowIndex},${colIndex}`)) return;
-            if (!isScoutPassable(map, [rowIndex, colIndex], unlocks)) return;
+            if (!isScoutPassable(map, [rowIndex, colIndex], capabilities)) return;
             if (hasUnknownNeighbor(map, [rowIndex, colIndex], halo)) frontier.push([rowIndex, colIndex]);
         });
     });
@@ -60,11 +61,11 @@ export function getExplorationFrontier(map: PlanetMap, unlocks: Unlocks = {}, ha
 
 /**
  * Done when no lookouts remain. Any unknowns left then are out of the scouts' reach: beyond the halo (the squad's
- * job), or unviewable from reachable ground (mountain interiors, sealed pockets) until a crossing upgrade (via
- * `unlocks`) re-opens the frontier. Development growth re-arms this by extending the halo.
+ * job), or unviewable from reachable ground (mountain interiors, sealed pockets) until a new capability (via
+ * `capabilities`) re-opens the frontier. Development growth re-arms this by extending the halo.
  */
-export function isExplorationComplete(map: PlanetMap, unlocks: Unlocks = {}, halo: Set<string> | null = null): boolean {
-    return getExplorationFrontier(map, unlocks, halo).length === 0;
+export function isExplorationComplete(map: PlanetMap, capabilities: Capabilities = {}, halo: Set<string> | null = null): boolean {
+    return getExplorationFrontier(map, capabilities, halo).length === 0;
 }
 
 
@@ -82,8 +83,8 @@ export function isExplorationComplete(map: PlanetMap, unlocks: Unlocks = {}, hal
  * null if unreachable. `toCoord` may be an unknown frontier tile; it's reached as the final step off an adjacent
  * traversable tile.
  */
-export function findPath(map: PlanetMap, fromCoord: Coord, toCoord: Coord, { unlocks = {} }: { unlocks?: Unlocks } = {}): Coord[] | null {
-    const { dist, prev } = dijkstra(map, fromCoord, unlocks);
+export function findPath(map: PlanetMap, fromCoord: Coord, toCoord: Coord, { capabilities = {} }: { capabilities?: Capabilities } = {}): Coord[] | null {
+    const { dist, prev } = dijkstra(map, fromCoord, capabilities);
     const toK = coordKey(toCoord);
 
     // Destination is itself traversable and was reached directly.
@@ -92,7 +93,7 @@ export function findPath(map: PlanetMap, fromCoord: Coord, toCoord: Coord, { unl
     }
 
     // Otherwise reach it as a final step off the cheapest adjacent traversable tile (only if it's passable to enter).
-    if (getCrossTime(map[toCoord[0]][toCoord[1]].terrain, unlocks) === Infinity) return null;
+    if (getCrossTime(map[toCoord[0]][toCoord[1]].terrain, capabilities) === Infinity) return null;
     let bestVia: Coord | null = null;
     let bestCost = Infinity;
     getAdjacentCoords(toCoord).forEach(neighbor => {
@@ -116,7 +117,7 @@ export function findPath(map: PlanetMap, fromCoord: Coord, toCoord: Coord, { unl
  * direction. This means a fresh batch fans out, and it avoids lookouts already claimed by others (falling back to a
  * claimed one only when that's all that's reachable).
  */
-export function findNearestLookout(map: PlanetMap, fromCoord: Coord, { claimed = new Set<string>(), unlocks = {}, heading = null, halo = null }: LookoutOptions = {}) {
+export function findNearestLookout(map: PlanetMap, fromCoord: Coord, { claimed = new Set<string>(), capabilities = {}, heading = null, halo = null }: LookoutOptions = {}) {
     // Dijkstra outward, but stop once we can't beat the nearest lookout found. Lookouts sit right at the frontier the
     // droid just revealed, so in the common case this only explores a tiny local radius (not the whole explored map).
     const startKey = coordKey(fromCoord);
@@ -153,8 +154,8 @@ export function findNearestLookout(map: PlanetMap, fromCoord: Coord, { claimed =
         }
 
         getAdjacentCoords(coord).forEach(neighbor => {
-            if (!isTraversable(map, neighbor, unlocks)) return; // only travel over explored, passable terrain
-            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, unlocks);
+            if (!isTraversable(map, neighbor, capabilities)) return; // only travel over explored, passable terrain
+            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, capabilities);
             const nk = coordKey(neighbor);
             if (newDist < (dist[nk] ?? Infinity)) {
                 dist[nk] = newDist;
@@ -187,7 +188,7 @@ export function findNearestLookout(map: PlanetMap, fromCoord: Coord, { claimed =
  * fallback: with nothing unclaimed left, scouts stay docked rather than pile onto another scout's target.
  * Returns { target, path, heading } or null.
  */
-export function findNearestLookoutFromGrid(map: PlanetMap, { claimed = new Set<string>(), unlocks = {}, halo = null }: LookoutOptions = {}) {
+export function findNearestLookoutFromGrid(map: PlanetMap, { claimed = new Set<string>(), capabilities = {}, halo = null }: LookoutOptions = {}) {
     const dist: Record<string, number> = {};
     const prev: Record<string, Coord> = {};
     const settled = new Set<string>();
@@ -218,8 +219,8 @@ export function findNearestLookoutFromGrid(map: PlanetMap, { claimed = new Set<s
         }
 
         getAdjacentCoords(coord).forEach(neighbor => {
-            if (!isTraversable(map, neighbor, unlocks)) return;
-            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, unlocks);
+            if (!isTraversable(map, neighbor, capabilities)) return;
+            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, capabilities);
             const nk = coordKey(neighbor);
             if (newDist < (dist[nk] ?? Infinity)) {
                 dist[nk] = newDist;
@@ -249,7 +250,7 @@ export function findNearestLookoutFromGrid(map: PlanetMap, { claimed = new Set<s
  * despawning into the pool). Returns the step coords (excludes start, ends on the grid tile), [] when
  * already standing on powered ground, or null when the grid is unreachable from here.
  */
-export function findPathToGrid(map: PlanetMap, fromCoord: Coord, { unlocks = {} }: { unlocks?: Unlocks } = {}): Coord[] | null {
+export function findPathToGrid(map: PlanetMap, fromCoord: Coord, { capabilities = {} }: { capabilities?: Capabilities } = {}): Coord[] | null {
     if (GRID_TERRAINS.has(map[fromCoord[0]][fromCoord[1]].terrain)) return [];
 
     const dist = { [coordKey(fromCoord)]: 0 };
@@ -269,8 +270,8 @@ export function findPathToGrid(map: PlanetMap, fromCoord: Coord, { unlocks = {} 
         }
 
         getAdjacentCoords(coord).forEach(neighbor => {
-            if (!isTraversable(map, neighbor, unlocks)) return;
-            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, unlocks);
+            if (!isTraversable(map, neighbor, capabilities)) return;
+            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, capabilities);
             const nk = coordKey(neighbor);
             if (newDist < (dist[nk] ?? Infinity)) {
                 dist[nk] = newDist;
@@ -288,15 +289,15 @@ const coordKey = ([row, col]: Coord) => `${row},${col}`;
 
 // A droid may travel over a tile if it is revealed (explored) and currently scout-passable (terrain the
 // scout can cross, not held).
-function isTraversable(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
-    return map[coord[0]][coord[1]].status === EXPLORED && isScoutPassable(map, coord, unlocks);
+function isTraversable(map: PlanetMap, coord: Coord, capabilities: Capabilities) {
+    return map[coord[0]][coord[1]].status === EXPLORED && isScoutPassable(map, coord, capabilities);
 }
 
 /**
  * Dijkstra from `fromCoord` over all traversable tiles, using a binary min-heap (min_heap.ts) so it runs in O(E log V).
  * Returns { dist, prev } keyed by "row,col" (coordKey). The start tile is always seeded even if not otherwise traversable.
  */
-function dijkstra(map: PlanetMap, fromCoord: Coord, unlocks: Unlocks) {
+function dijkstra(map: PlanetMap, fromCoord: Coord, capabilities: Capabilities) {
     const dist = { [coordKey(fromCoord)]: 0 };
     const prev: Record<string, Coord> = {};
     const settled = new Set<string>();
@@ -310,8 +311,8 @@ function dijkstra(map: PlanetMap, fromCoord: Coord, unlocks: Unlocks) {
         settled.add(k);
 
         getAdjacentCoords(coord).forEach(neighbor => {
-            if (!isTraversable(map, neighbor, unlocks)) return;
-            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, unlocks);
+            if (!isTraversable(map, neighbor, capabilities)) return;
+            const newDist = distance + getCrossTime(map[neighbor[0]][neighbor[1]].terrain, capabilities);
             const nk = coordKey(neighbor);
             if (newDist < (dist[nk] ?? Infinity)) {
                 dist[nk] = newDist;

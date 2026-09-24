@@ -3,6 +3,7 @@
  * entering it. The map module (lib/planet/map.ts) reads these; the painted map (database/planet/map.txt)
  * names terrains by glyph.
  */
+import type {Capability} from "./capabilities";
 
 /** TERRAINS[x].key (the debug meridians add `meridian_<n>` keys at runtime; they never reach a save) */
 export type TerrainKey = 'home' | 'outpost' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'shallows' | 'water';
@@ -22,8 +23,10 @@ export interface TerrainDef {
     label?: string;
     /** seconds for a droid to cross one tile of this terrain */
     crossTime: number;
-    /** capability required before the terrain can be crossed at all */
-    crossUpgrade?: string;
+    /** the capability the squad must hold to cross this ground at all (until then it is a wall) */
+    requires?: Capability;
+    /** a permanent wall: never crossed, still revealed by line of sight so the barrier can be seen */
+    impassable?: boolean;
     blocksVision?: boolean;
     exploreLength?: number;
 }
@@ -40,9 +43,10 @@ const EXPLORATION_TIME_FACTOR = 0.5;
 
 /**
  * crossTime: ms for a droid to cross one tile of this terrain (the movement cost / terrain weight).
- * crossUpgrade: research key that must be unlocked before the terrain can be crossed at all; until then it is impassable,
- *   but still revealed by line-of-sight so you can see the barrier. Only the shallows' key is ever granted (Amphibious
- *   Tracks); mountains, ice and the sea carry keys nothing researches, so they are walls for good.
+ * requires: the capability (database/planet/capabilities.ts) the squad must hold to cross the terrain at all; until
+ *   then it is impassable but still revealed by line-of-sight so you can see the barrier (the shallows, crossed with
+ *   Amphibious Tracks).
+ * impassable: a wall for good (mountains, ice, the sea). Revealed like a gated terrain, never crossed.
  * blocksVision (optional): the tile stops sight. It is revealed itself, but nothing behind it is (see
  *   getVisibleCoords). Independent of passability: a ridge you can climb with Mountaineering still hides
  *   what is on the far side.
@@ -60,15 +64,15 @@ export const TERRAINS: Record<TerrainKey, TerrainDef> = {
     // (nothing produces here until replication builds on it). Never painted; a settlement with `site` leaves
     // one behind when it falls.
     outpost: { key: 'outpost', display: '▣', label: 'Site', crossTime: EXPLORATION_TIME_FACTOR },
-    mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // A permanent wall (the crossUpgrade is never granted); also hides what is behind it
-    // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
-    ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // A permanent wall like the mountains (the crossUpgrade is never granted), in ice
+    mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, impassable: true, blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // A permanent wall; also hides what is behind it
+    // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, impassable: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
+    ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, impassable: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // A permanent wall like the mountains, in ice
     // A strait shallow enough to wade: a wall until Amphibious Tracks are researched, then slow going. Never land
     // (not surveyed, not developable), so the crossing stays a crossing.
-    shallows: { key: 'shallows', display: '=', label: 'Shallows', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'amphibious' },
-    // Open water: a permanent wall like ice (the crossUpgrade is never granted). The authored map's oceans; the
+    shallows: { key: 'shallows', display: '=', label: 'Shallows', crossTime: EXPLORATION_TIME_FACTOR * 2, requires: 'amphibious' },
+    // Open water: a permanent wall like ice. The authored map's oceans; the
     // only ways across are the land the map leaves and, later, tunnels.
-    water: { key: 'water', display: '~', variants: ['≈'], variantShare: 0.2, label: 'Sea', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'seafaring' },
+    water: { key: 'water', display: '~', variants: ['≈'], variantShare: 0.2, label: 'Sea', crossTime: EXPLORATION_TIME_FACTOR * 2, impassable: true },
 }
 
 // Held flatland (sector.heldBy) gets its own glyph, not just a tint (a tint alone is impossible
@@ -116,9 +120,9 @@ export const TERRAIN_BLURBS: Partial<Record<SquadZone, string>> = {
 export const TERRAIN_BLURB_REPEAT_MS = 120000;
 
 // The note for a deliberate step into ground the squad can't cross (a tap into a wall; held keys bump silently),
-// keyed by the wall's terrain and printed in its map color like the notes above. Where the terrain's crossUpgrade
-// is a capability the player can earn, the line goes on to name it (see reportBlockedTerrain in
-// redux/modules/squad.ts); the permanent walls say only what they are. Same repeat window as the zone notes.
+// keyed by the wall's terrain and printed in its map color like the notes above. Where the terrain `requires` a
+// capability, the line goes on to name it (see reportBlockedTerrain in redux/modules/squad.ts); the permanent walls
+// say only what they are. Same repeat window as the zone notes.
 // PLACEHOLDER copy until the content pass.
 export const TERRAIN_BLOCKED_BLURBS: Partial<Record<TerrainKey, string>> = {
     mountain: 'Sheer rock. No line up; the ridge stands.',

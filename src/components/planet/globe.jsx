@@ -362,7 +362,7 @@ class Planet extends React.Component {
         const step = mod(next[1] - squad.coord[1] + PLANET_COLS / 2, PLANET_COLS) - PLANET_COLS / 2;
         if (step === 0) return 0;
 
-        const crossMs = squadCrossMs(this.props.map, next, this.props.unlockedTerrains);
+        const crossMs = squadCrossMs(this.props.map, next, this.props.capabilities);
         return step * Math.min(squad.moveProgress / crossMs, 1);
     }
 
@@ -502,7 +502,7 @@ class Planet extends React.Component {
         if (!squad || squad.path.length === 0) return [0, 0];
 
         const next = squad.path[0];
-        const crossMs = squadCrossMs(this.props.map, next, this.props.unlockedTerrains);
+        const crossMs = squadCrossMs(this.props.map, next, this.props.capabilities);
         const fraction = Math.min(squad.moveProgress / crossMs, 1);
         const fromCell = coordToImageCell(squad.coord, this.props.rotation);
         const toCell = coordToImageCell(next, this.props.rotation);
@@ -696,7 +696,7 @@ const mapStateToProps = state => {
         hoveredPoiId: state.game.hoveredPoiId,
         homeCoord: state.planet.homeCoord,
         numExplored: state.planet.numExplored,
-        unlockedTerrains: state.planet.unlockedTerrains,
+        capabilities: state.planet.capabilities,
         surveyUnlocked: surveyAutomationUnlocked(state),
         haloRadius: state.planet.haloRadius,
         beaconCoord: state.planet.beaconCoord,

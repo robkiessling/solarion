@@ -3,9 +3,10 @@ import {getCrossTime, getHomeBasePosition, type PlanetMap, type Sector} from "./
 import {getAdjacentCoords, getCoordsWithinHops} from "./geometry";
 import {STATUSES, TERRAINS, VISION_HOPS} from "../../database/planet/terrain";
 import {ambushDifficulty, FIELD_EVENT_DEFS, FIELD_EVENT_SEEDING, type FieldEventChoiceDef, type FieldEventDef, type FieldEventKind} from "../../database/planet/field_events";
-import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior} from "../../database/planet/poi_types";
+import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior} from "../../database/planet/poi_types";
 import {CAMPS_ENABLED, POI_DEFS, TUNNEL_DEFAULT, TUNNEL_DEFS} from "../../database/planet/pois";
 import type {StoryId} from "../../database/planet/story_sites";
+import type {Capabilities, Capability} from "../../database/planet/capabilities";
 import type {HostileType} from "../../database/battle/units";
 import type {HostileFormation, TerrainLayoutId} from "../battle/layouts";
 
@@ -328,7 +329,7 @@ export function levelPayout(poi: Poi, levelIndex: number): PoiReward {
 // their zones take content now, ahead of the tunnel mechanics). Keys are "row,col".
 function squadReachableSet(map: PlanetMap): Set<string> {
     const home = getHomeBasePosition(map).coord;
-    const allTools = { drill: true, overrideModule: true, amphibious: true };
+    const allTools: Capabilities = { drill: true, overrideModule: true, amphibious: true };
 
     const mouths: Record<string, Coord[]> = {};
     map.forEach(row => row.forEach(sector => {

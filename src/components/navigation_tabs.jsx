@@ -89,14 +89,14 @@ class NavigationTabs extends React.Component {
     // the driver should notice (a speed divisor when the ground slows the squad; the settlement warning). Kept
     // to one line of fixed height so the strip holds still as conditions come and go.
     renderTerrainLine() {
-        const { sector, onGrid, unlockedTerrains } = this.props;
+        const { sector, onGrid, capabilities } = this.props;
         if (!sector) return null;
 
         const terrain = getTerrain(sector.terrain);
         // Crossing-time multiple relative to flatland (integer multiples by construction), shown as a speed
         // divisor and only when the ground actually slows the squad; drain isn't shown (constant per
         // deployment; the range readout above carries it live)
-        const slowdown = getCrossTime(sector.terrain, unlockedTerrains) / TERRAINS.flatland.crossTime;
+        const slowdown = getCrossTime(sector.terrain, capabilities) / TERRAINS.flatland.crossTime;
         const slow = !onGrid && slowdown > 1;
 
         return (
@@ -129,7 +129,7 @@ const mapStateToProps = state => {
         squad,
         sector: squad && map.length > 0 ? map[squad.coord[0]][squad.coord[1]] : null,
         onGrid: !!(squad && map.length > 0 && isOnGrid(map, squad.coord)),
-        unlockedTerrains: state.planet.unlockedTerrains
+        capabilities: state.planet.capabilities
     }
 };
 

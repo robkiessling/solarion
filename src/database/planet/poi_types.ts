@@ -3,6 +3,7 @@ import type {HostileFormation, TerrainLayoutId} from "../../lib/battle/layouts";
 import type {PlanetColorKey} from "./colors";
 import type {HostileType} from "../battle/units";
 import type {StoryId} from "./story_sites";
+import type {Capability} from "./capabilities";
 
 /**
  * The POI vocabulary: the kinds of thing that can sit on a map tile, how each behaves when the squad
@@ -24,8 +25,6 @@ export type PoiStatus =
     | 'hidden'     // its tile has not been revealed by scouting yet (or it is concealed: see Poi.concealed)
     | 'available'  // discovered, not yet resolved
     | 'cleared';   // resolved
-
-export type Capability = 'drill' | 'overrideModule' | 'amphibious';
 
 /** What accepting an encounter popup does: 'auto' resolves and closes it, 'narrate' holds it open on a result phase */
 export type ResultBehavior = 'auto' | 'narrate';
@@ -118,14 +117,6 @@ export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCach
 export const SITE_GLYPH = '▣';
 export const POI_LABELS = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel', fieldEvent: 'Event' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
-
-// The three tools. Stored in planet.unlockedTerrains (the shared capability set: terrain crossUpgrades and
-// POI `requires` both read it), granted via upgrades or POI salvage (reward.capability).
-export const CAPABILITY_LABELS: Record<Capability, string> = {
-    drill: 'Plasma Drill',
-    overrideModule: 'Override Module',
-    amphibious: 'Amphibious Tracks'
-}
 
 // Resolves a definition's reward at generation time: [lo, hi] resource ranges roll to a multiple of 100;
 // capability rewards pass through unchanged.
