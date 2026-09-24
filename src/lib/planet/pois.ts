@@ -79,10 +79,11 @@ export interface Poi {
  * The placement pass: each POI_DEFS entry lands in its zone (a random free tile of it, or of any zone in its
  * list) or on its point (one exact tile) painted in the authored map, `count` times; a tunnel POI on every
  * painted mouth; and a territory stamp around every settlement (sector.heldBy: scout-impassable, not
- * developable, squad-crossable; retracts when the settlement is cleared). Field events keep FIELD_EVENT_SPACING
- * hops from each other. An entry that cannot be placed (in full) is reported on the console rather than
- * dropped silently: the manifest is the content plan, and a missing entry is a bug in the drawing or the
- * manifest.
+ * developable, squad-crossable; retracts when the settlement is cleared). Settlements go first whatever the
+ * manifest's order, since a stamp must not swallow a tile something else already took; the rest follow in
+ * manifest order, and field events keep FIELD_EVENT_SPACING hops from each other. An entry that cannot be
+ * placed (in full) is reported on the console rather than dropped silently: the manifest is the content plan,
+ * and a missing entry is a bug in the drawing or the manifest.
  * MUTATES the map (generation-time only).
  */
 export function generatePois(map: PlanetMap): Record<string, Poi> {
@@ -113,6 +114,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     // (a settlement rolled inside another's stamp would share ground; a cache under one would be unreachable
     // to scouts), so held tiles are out of the pool. Field events also keep their spacing from each other.
     const eventKeys = new Set<string>();
+    const rejected = new Set<string>(); // settlement picks turned down for their territory: not offered again, not obstacles
     const pick = (def: PoiDef, report = true): Sector | null => {
         let pool: Sector[];
         if (def.point) {
@@ -126,7 +128,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             console.warn(`POI_DEFS: ${def.type} names neither a zone nor a point; skipped`);
             return null;
         }
-        pool = pool.filter(sector => !sector.heldBy && !usedKeys.has(`${sector.coord[0]},${sector.coord[1]}`));
+        pool = pool.filter(sector => !sector.heldBy && !usedKeys.has(`${sector.coord[0]},${sector.coord[1]}`) && !rejected.has(`${sector.coord[0]},${sector.coord[1]}`));
         if (def.type === 'fieldEvent') {
             pool = pool.filter(sector => !getCoordsWithinHops(sector.coord, FIELD_EVENT_SPACING).some(([r, c]) => eventKeys.has(`${r},${c}`)));
         }
@@ -161,15 +163,18 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     };
 
     // A settlement additionally stamps its territory radius (flatland only; mountains and water are barriers already).
-    // Placement requires clean ground out to radius+1, so stamps never overlap (retraction assumes one owner).
+    // Placement requires clean ground out to radius+1 (nothing held, nothing already placed such as a tunnel
+    // mouth, not home), so stamps never overlap (retraction assumes one owner) and never swallow a POI.
     const addSettlement = (def: PoiDef) => {
         for (let attempt = 0; attempt < 20; attempt++) {
             const sector = pick(def);
             if (!sector) return;
             const territoryRadius = def.territoryRadius ?? 0;
-            const area = [sector.coord, ...getCoordsWithinHops(sector.coord, territoryRadius + 1)];
-            const clean = area.every(([r, c]) => !map[r][c].heldBy && map[r][c].terrain !== TERRAINS.home.key);
-            if (!clean) { // pick() already marked it used; try another tile
+            const area = getCoordsWithinHops(sector.coord, territoryRadius + 1);
+            const clean = area.every(([r, c]) => !map[r][c].heldBy && !usedKeys.has(`${r},${c}`) && map[r][c].terrain !== TERRAINS.home.key);
+            if (!clean) { // give the tile back (it is not a POI) and try another
+                usedKeys.delete(`${sector.coord[0]},${sector.coord[1]}`);
+                rejected.add(`${sector.coord[0]},${sector.coord[1]}`);
                 if (attempt === 19) console.warn(`POI_DEFS: no clean ground for ${describe(def)}'s territory; skipped`);
                 continue;
             }
@@ -224,16 +229,15 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     });
 
     // The content manifest: each definition placed in its zone(s) `count` times, rewards rolled from their
-    // declared ranges. A field event lands concealed (found by stepping on it): its answers roll their own
-    // rewards, and the offer line's {loot} is the first answer's roll (the take-it one); an ambush's fight is a
-    // level like any other site's.
-    POI_DEFS.forEach(def => {
+    // declared ranges. Settlements first (see above), then everything else in manifest order. A field event
+    // lands concealed (found by stepping on it): its answers roll their own rewards, and the offer line's {loot}
+    // is the first answer's roll (the take-it one); an ambush's fight is a level like any other site's.
+    POI_DEFS.filter(def => def.type === 'settlement').forEach(def => {
+        for (let i = 0; i < (def.count ?? 1); i++) addSettlement(def);
+    });
+    POI_DEFS.filter(def => def.type !== 'settlement').forEach(def => {
         const count = def.count ?? 1;
         for (let i = 0; i < count; i++) {
-            if (def.type === 'settlement') {
-                addSettlement(def);
-                continue;
-            }
             const sector = pick(def, false);
             if (!sector) {
                 console.warn(`POI_DEFS: no free reachable tile for ${describe(def)}; ${i > 0 ? `placed ${i} of ${count}` : 'skipped'}`);
