@@ -19,7 +19,8 @@ export type PoiType =
     | 'camp'       // a few of a settlement's people out on its held ground (the terminal says "contact"): a small fight
     | 'storySite'  // a ruin with a log to read
     | 'tunnel'     // a mouth of a passage under the sea: fought through once, then crossed at will
-    | 'fieldEvent';     // a field event seeded on open ground (database/planet/field_events.ts): concealed until stepped on
+    | 'fieldEvent'; // what happens to the squad in the field: an ambush, a wreck, a signal. Concealed until stepped on;
+                    // answered by its `choices` in the encounter popup, or fought if it has `levels` (an ambush)
 
 export type PoiStatus =
     | 'hidden'     // its tile has not been revealed by scouting yet (or it is concealed: see Poi.concealed)
@@ -45,12 +46,29 @@ export interface PoiLevelDef {
     reward?: { resources?: Partial<Record<ResourceId, [number, number]>>; capability?: Capability };
 }
 
+/** One answer to a field event, as authored: what the popup offers and what taking it does */
+export interface FieldEventChoiceDef {
+    label: string;
+    /** the result phase's narration; absent = the popup closes on the choice */
+    resultText?: string;
+    reward?: { resources?: Partial<Record<ResourceId, [number, number]>> };
+    /** battery change on the squad, clamped to [0, capacity] */
+    battery?: number;
+    /** units added to the fielded roster, at full hull */
+    units?: number;
+    /** flips the nearest concealed POI (camp or event) to available and marks its tile */
+    revealNearest?: boolean;
+}
+
 /** A POI_DEFS entry: resource rewards are [lo, hi] ranges until rolled at map generation */
 export interface PoiDef {
     type: PoiType;
-    /** where it goes, one or the other: a random tile of the painted zone (a-z), or the one painted point (A-Z) */
-    zone?: string;
+    /** where it goes, one or the other: a random free tile of the painted zone (a-z), or of any zone in a list, or the
+     * one painted point (A-Z) */
+    zone?: string | string[];
     point?: string;
+    /** how many to place (default 1), each on its own random tile of the zone(s); the same entry every time */
+    count?: number;
     name?: string;
     /** settlements built into a pre-war network facility: its number. Securing the first opens replication. */
     site?: number;
@@ -69,6 +87,11 @@ export interface PoiDef {
     promptText?: string;
     actionLabel?: string;
     reward?: { resources?: Partial<Record<ResourceId, [number, number]>>; capability?: Capability };
+    /** stays hidden when its tile is scouted and is found by stepping on it (field events default to true) */
+    concealed?: boolean;
+    /** field events: the popup's answers, each with its own narration and effect ({loot} in `promptText` expands to
+     * the FIRST choice's roll). An event with `levels` instead is an ambush: fought on entry */
+    choices?: FieldEventChoiceDef[];
 }
 
 /** A tunnel system: what holds it, and what crossing costs. Keyed by the digit painted on its two mouths. */
@@ -103,7 +126,7 @@ export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: 
     tunnel: { result: 'narrate', reloot: [1], approachText: 'Tunnel mouth. Thermal signatures in the dark beyond.', clearedLabel: 'Tunnel cleared' }, // crossed on entry once open
     settlement: { result: 'narrate', reloot: [1, 0.5, 0.25], approachText: 'Dense structural returns. Thermal signatures inside.', clearedLabel: 'Nest cleared' },
     camp: { result: 'narrate', reloot: [1], approachText: 'Contact. Movement closing on all sides.', clearedLabel: 'Contact cleared' },
-    fieldEvent: { result: 'narrate', reloot: [1], approachText: 'Nearby sounds detected. Movement closing.', clearedLabel: 'Ambush repelled' } // choices carry their own labels and texts (database/planet/field_events.ts)
+    fieldEvent: { result: 'narrate', reloot: [1], approachText: 'Nearby sounds detected. Movement closing.', clearedLabel: 'Ambush repelled' } // choices carry their own labels and texts
 }
 
 // Loot list wording where the resource id predates its display name

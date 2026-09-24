@@ -1,11 +1,11 @@
 import type {PoiDef, TunnelDef} from "./poi_types";
 
 /**
- * The content manifest: WHAT exists on the planet. One POI_DEFS entry per placed POI, each naming the painted
- * zone or point of database/planet/map.txt it lands in, and one TUNNEL_DEFS entry per painted tunnel digit.
- * The vocabulary these are written in (types, per-type behavior, glyphs) is database/planet/poi_types.ts; the
- * placement pass (generatePois in lib/planet/pois.ts) owns the mechanics: zone/point lookup, reachability, territory
- * stamping.
+ * The content manifest: WHAT exists on the planet. One POI_DEFS entry per placed POI (or per `count` copies of
+ * it), each naming the painted zone(s) or point of database/planet/map.txt it lands in, and one TUNNEL_DEFS
+ * entry per painted tunnel digit. The vocabulary these are written in (types, per-type behavior, glyphs) is
+ * database/planet/poi_types.ts; the placement pass (generatePois in lib/planet/pois.ts) owns the mechanics:
+ * zone/point lookup, reachability, territory stamping, event spacing.
  *
  * Names, texts, difficulties, and rewards are PLACEHOLDERS until the content pass; this file is what that
  * pass edits.
@@ -37,6 +37,12 @@ import type {PoiDef, TunnelDef} from "./poi_types";
 // CAMPS_ENABLED = false places no camps at all (the defs keep their `camps` lists; the placement pass skips
 // them), for trying the map without them.
 export const CAMPS_ENABLED = true;
+// Field events never land closer than this many hops to each other, so a belt's ambushes spread out over it
+// instead of clumping. Entries take tiles in manifest order, so within a region the one-offs are listed before
+// the counted ones (a wreck should not be squeezed out by the ambushes' spacing). Placement is once per new
+// game, so a walked route is learnable: the map does not roll dice under the squad's feet (same rule as the
+// battle sim).
+export const FIELD_EVENT_SPACING = 2;
 // `camps` seeds small one-fight POIs on the site's held ground: foragers, herders, a watch. CONCEALED: scouting
 // the tile does not show them, the squad finds out by stepping on one, and the fight opens as an ambush
 // (surround, unless the camp names a formation), so crossing territory is a gamble the map never spells out.
@@ -163,7 +169,92 @@ export const POI_DEFS: PoiDef[] = [
         ] },
     { type: 'cache', zone: 'l', name: 'Sealed Vault', requires: 'drill', reward: { resources: { refinedMinerals: [5000, 8000] } } },
     { type: 'storySite', zone: 'q', storyId: 'commandRuin' },
-    { type: 'storySite', zone: 't', storyId: 'hiveHeart' }
+    { type: 'storySite', zone: 't', storyId: 'hiveHeart' },
+
+    // Field events: concealed on open ground (never held ground: that is the camps' beat) and found by stepping
+    // on them. An entry with `levels` is an ambush, fought on entry at the difficulty written here, which sits
+    // under the camps and settlements of the same belt. Everything else is a scene with `choices`; `count`
+    // scatters the repeatable ones, the one-offs are authored to their place so each says its own thing.
+    // Counts and difficulties are PLACEHOLDER tuning.
+    // Home basin: the first wreck (its log points home), scraps, one soft ambush
+    { type: 'fieldEvent', zone: 'a', name: 'Wreck',
+        promptText: 'A chassis in the dust. Your manufacturing line; not your serial.',
+        choices: [{ label: 'Search', battery: 15,
+            resultText: 'Its cells still held a charge. Its log did not. The last heading it recorded points home.' }] },
+    { type: 'fieldEvent', zone: 'a', name: 'Debris Field',
+        promptText: 'Debris field. Pre-war alloys in the scatter{loot}. Load it?',
+        choices: [{ label: 'Load', reward: { resources: { refinedMinerals: [100, 200] } } }] },
+    { type: 'fieldEvent', zone: 'a', name: 'Ambush',
+        levels: [{ difficulty: 1, formation: 'surround', reward: { resources: { refinedMinerals: [50, 100] } } }] },
+    { type: 'fieldEvent', zone: 'a', count: 2, name: 'Sighting',
+        promptText: 'Thermal signatures at range. Multiple. Receding.',
+        choices: [{ label: 'Observe', resultText: 'Gone over the rise before the optics resolved. No pattern match. Logged.' }] },
+
+    // The near belt
+    { type: 'fieldEvent', zone: ['b', 'd'], name: 'Signal',
+        promptText: 'Faint carrier, repeating. Not yours.',
+        choices: [{ label: 'Trace', revealNearest: true, resultText: 'Bearing fixed. Source marked.' }] },
+    { type: 'fieldEvent', zone: ['d', 'e'], name: 'Dormant Droid',
+        promptText: 'A dormant droid, half-buried. Same line as yours; an older serial.',
+        choices: [
+            { label: 'Recover', units: 1, battery: -10,
+              resultText: 'Jump-started off the team\'s cells. It fell into formation without being told.' },
+            { label: 'Strip', reward: { resources: { refinedMinerals: [200, 400] } },
+              resultText: 'Plating and cells recovered. The core was left where it lay.' }
+        ] },
+    { type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Debris Field',
+        promptText: 'A collapsed relay mast. Structural alloy in the wreckage{loot}. Load it?',
+        choices: [{ label: 'Load', reward: { resources: { refinedMinerals: [200, 400] } } }] },
+    { type: 'fieldEvent', zone: ['b', 'c', 'd'], count: 3, name: 'Ambush',
+        levels: [{ difficulty: 2, formation: 'surround', reward: { resources: { refinedMinerals: [100, 200] } } }] },
+    { type: 'fieldEvent', zone: ['d', 'e'], count: 3, name: 'Ambush',
+        levels: [{ difficulty: 3, formation: 'surround', reward: { resources: { refinedMinerals: [150, 300] } } }] },
+    { type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Sighting',
+        promptText: 'Movement on the ridge line. Two, then none.',
+        choices: [{ label: 'Observe', resultText: 'Nothing on the second pass. Whatever it was knows the ground better than the optics do.' }] },
+
+    // The far belt
+    { type: 'fieldEvent', zone: ['g', 'h'], name: 'Wreck',
+        promptText: 'A chassis of your line, split along the spine. Recent.',
+        choices: [{ label: 'Search', battery: 25,
+            resultText: 'Cells intact; whatever opened it wanted the core. The log ends mid-word.' }] },
+    { type: 'fieldEvent', zone: ['j', 'k'], name: 'Signal',
+        promptText: 'A carrier under the noise floor. Yours, in an older cipher.',
+        choices: [{ label: 'Trace', revealNearest: true, resultText: 'Bearing fixed. Source marked. It stopped transmitting when the trace locked.' }] },
+    { type: 'fieldEvent', zone: ['j', 'k'], name: 'Dormant Droid',
+        promptText: 'A droid, powered down and dug in. It faced outward when it stopped.',
+        choices: [
+            { label: 'Recover', units: 1, battery: -10,
+              resultText: 'It came up with its weapon raised, then lowered it. It had been waiting for someone with the right serial.' },
+            { label: 'Strip', reward: { resources: { refinedMinerals: [400, 800] } },
+              resultText: 'Plating and cells recovered. Its last order was still in the buffer. Nobody read it.' }
+        ] },
+    { type: 'fieldEvent', zone: ['g', 'h', 'j'], count: 2, name: 'Debris Field',
+        promptText: 'A vehicle graveyard, stripped long ago. Not stripped of everything{loot}. Load it?',
+        choices: [{ label: 'Load', reward: { resources: { refinedMinerals: [500, 1000] } } }] },
+    { type: 'fieldEvent', zone: ['f', 'g', 'h', 'i'], count: 4, name: 'Ambush',
+        levels: [{ difficulty: 5, formation: 'surround', reward: { resources: { refinedMinerals: [250, 500] } } }] },
+    { type: 'fieldEvent', zone: ['j', 'k'], count: 3, name: 'Ambush',
+        levels: [{ difficulty: 7, formation: 'surround', reward: { resources: { refinedMinerals: [350, 700] } } }] },
+    { type: 'fieldEvent', zone: ['f', 'g', 'h', 'i', 'j', 'k'], count: 3, name: 'Sighting',
+        promptText: 'A column on the horizon, moving in step. Not receding.',
+        choices: [{ label: 'Observe', resultText: 'It held its heading and passed. The optics counted more than the team could take.' }] },
+
+    // The far continents
+    { type: 'fieldEvent', zone: ['q', 't'], name: 'Wreck',
+        promptText: 'A chassis of your line, intact, powered down by hand. Someone chose to stop here.',
+        choices: [{ label: 'Search', battery: 40,
+            resultText: 'Full cells. The log is complete, and it was not written for you. It was written for whoever came after.' }] },
+    { type: 'fieldEvent', zone: ['l', 'q', 't'], count: 2, name: 'Debris Field',
+        promptText: 'A shattered hauler, cargo spilled down the slope{loot}. Load it?',
+        choices: [{ label: 'Load', reward: { resources: { refinedMinerals: [1200, 2000] } } }] },
+    { type: 'fieldEvent', zone: ['l', 'q', 't'], count: 4, name: 'Ambush',
+        levels: [{ difficulty: 10, formation: 'surround', reward: { resources: { refinedMinerals: [500, 1000] } } }] },
+    { type: 'fieldEvent', zone: ['m', 'n', 'o', 'p', 'r', 's'], count: 3, name: 'Ambush',
+        levels: [{ difficulty: 8, formation: 'surround', reward: { resources: { refinedMinerals: [400, 800] } } }] },
+    { type: 'fieldEvent', zone: ['l', 'm', 'n', 'q', 't'], count: 3, name: 'Sighting',
+        promptText: 'Signatures everywhere the optics turn. None of them moving toward you. Yet.',
+        choices: [{ label: 'Observe', resultText: 'They are not hunting. They are tending something. Logged.' }] }
 ]
 
 // Tunnels: each digit painted on the map (two mouths per digit) is one passage. Stepping into a mouth the
