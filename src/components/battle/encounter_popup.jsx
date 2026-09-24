@@ -3,7 +3,6 @@ import {connect} from "react-redux";
 import {retreatFromFight, squadDescend, squadEngage, squadInteract, squadLeaveApproach, squadLeavePrompt, squadWithdraw, useEquipment} from "../../redux/modules/squad";
 import {approachTextFor, estimateDifficultyRange, formatResourceList, isGarrisoned, poiLevels, promptTextFor} from "../../lib/planet/pois";
 import {CAPABILITY_LABELS, POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../../database/planet/poi_types";
-import {STORY_TEXTS} from "../../database/planet/story_sites";
 import {PLANET_COLORS} from "../../database/planet/colors";
 import {ARENA_W, battleBlurb, countSpawners, countUnits} from "../../lib/battle/sim";
 import {CONTACT_MS, POPUP_INPUT_LOCK_MS} from "../../database/squad/tuning";
@@ -125,7 +124,6 @@ class EncounterPopup extends React.Component {
 
     renderResult(poi, prompt) {
         const result = prompt.result;
-        const story = result.storyId ? STORY_TEXTS[result.storyId] : null;
         // Battle results hold the field's final frame (frozen, nothing ticks it) with a verdict banner
         // over it, so the fight's ending stays on screen instead of snapping down to the small prompt;
         // the outcome text and Continue share the fixed-height footer the action row occupied.
@@ -137,7 +135,7 @@ class EncounterPopup extends React.Component {
         const onward = tunnel ? 'ahead' : 'below';
         const body = (
             <div className="popup-body">
-                {story && <span className="story-text">"{story}"</span>}
+                {result.text && <span className="story-text">"{result.text}"</span>}
                 {result.wiped &&
                     <span className="result-line">
                         Contact lost — all {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'} destroyed.

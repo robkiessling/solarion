@@ -11,7 +11,7 @@ import {logInline} from "./log";
 import {zoneColor} from "../../database/planet/colors";
 import {CONTACT_MS} from "../../database/squad/tuning";
 import {CAPABILITY_LABELS, type Capability, type PoiReward} from "../../database/planet/poi_types";
-import type {StoryId} from "../../database/planet/story_sites";
+import {STORY_TEXTS} from "../../database/planet/story_sites";
 import {TELEMETRY, unitNoun} from "../../database/planet/telemetry";
 import {DROID_BASE_STATS, type DroidStats} from "../../database/battle/units";
 import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
@@ -38,7 +38,8 @@ export interface EncounterResult {
     landCredit?: number;
     cargoLost?: ResourceAmounts | null;
     finalBattle?: Battle;
-    storyId?: StoryId | null;
+    /** the narration line (a story site's text, or a field event answer's) */
+    text?: string | null;
     capability?: Capability | null;
     loaded?: ResourceAmounts | null;
     /** field event answers: battery gained or spent, units added to the roster */
@@ -567,13 +568,13 @@ export function squadInteract(choiceIndex = 0) {
         const choice = poi.choices ? poi.choices[choiceIndex] : null;
         if (poi.choices && !choice) return false;
         const reward: PoiReward = choice ? (choice.reward || {}) : poi.reward;
-        const storyId = choice ? choice.storyId : poi.storyId;
-        const narrate = choice ? !!choice.storyId : resultBehaviorFor(poi) === 'narrate';
+        const text = choice ? choice.resultText : (poi.storyId ? STORY_TEXTS[poi.storyId] : null);
+        const narrate = choice ? !!choice.resultText : resultBehaviorFor(poi) === 'narrate';
 
         // A 'narrate' POI's outcome shows in the popup's result phase; the fields stay serializable and the
-        // display strings are composed at render time (story text lookup, capability label, loot list)
+        // display strings are composed at render time (capability label, loot list)
         const result: EncounterResult | null = narrate ? {
-            storyId: storyId || null,
+            text: text || null,
             capability: (reward && reward.capability) || null,
             loaded: (reward && reward.resources) || null,
             ...(choice && choice.battery ? { battery: choice.battery } : {}),

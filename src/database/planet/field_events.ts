@@ -17,8 +17,8 @@ export type FieldEventKind = keyof typeof FIELD_EVENT_DEFS;
 /** One answer to a non-combat event, as authored: what the popup offers and what taking it does */
 export interface FieldEventChoiceDef {
     label: string;
-    /** the result phase's narration (FIELD_EVENT_TEXTS key); absent = the popup closes on the choice */
-    storyId?: keyof typeof FIELD_EVENT_TEXTS;
+    /** the result phase's narration; absent = the popup closes on the choice */
+    resultText?: string;
     reward?: { resources?: Partial<Record<ResourceId, [number, number]>> };
     /** battery change on the squad, clamped to [0, capacity] */
     battery?: number;
@@ -56,14 +56,6 @@ export function ambushDifficulty(distance: number): number {
     return difficulty;
 }
 
-export const FIELD_EVENT_TEXTS = {
-    ev_wreckSearched: 'Its cells still held a charge. Its log did not. The last heading it recorded points home.',
-    ev_signalTraced: 'Bearing fixed. Source marked.',
-    ev_sightingObserved: 'Gone over the rise before the optics resolved. No pattern match. Logged.',
-    ev_strayRecovered: 'Jump-started off the team\'s cells. It fell into formation without being told.',
-    ev_strayStripped: 'Plating and cells recovered. The core was left where it lay.'
-};
-
 export const FIELD_EVENT_DEFS = {
     ambush: {
         name: 'Ambush',
@@ -84,7 +76,8 @@ export const FIELD_EVENT_DEFS = {
         weight: 2,
         promptText: 'A chassis in the dust. Your manufacturing line; not your serial.',
         choices: [
-            { label: 'Search', storyId: 'ev_wreckSearched', battery: 15 }
+            { label: 'Search', battery: 15,
+              resultText: 'Its cells still held a charge. Its log did not. The last heading it recorded points home.' }
         ]
     },
     signal: {
@@ -92,7 +85,7 @@ export const FIELD_EVENT_DEFS = {
         weight: 1,
         promptText: 'Faint carrier, repeating. Not yours.',
         choices: [
-            { label: 'Trace', storyId: 'ev_signalTraced', revealNearest: true }
+            { label: 'Trace', revealNearest: true, resultText: 'Bearing fixed. Source marked.' }
         ]
     },
     sighting: {
@@ -100,7 +93,7 @@ export const FIELD_EVENT_DEFS = {
         weight: 2,
         promptText: 'Thermal signatures at range. Multiple. Receding.',
         choices: [
-            { label: 'Observe', storyId: 'ev_sightingObserved' }
+            { label: 'Observe', resultText: 'Gone over the rise before the optics resolved. No pattern match. Logged.' }
         ]
     },
     strayDroid: {
@@ -108,8 +101,10 @@ export const FIELD_EVENT_DEFS = {
         weight: 1,
         promptText: 'A dormant droid, half-buried. Same line as yours; an older serial.',
         choices: [
-            { label: 'Recover', storyId: 'ev_strayRecovered', units: 1, battery: -10 },
-            { label: 'Strip', storyId: 'ev_strayStripped', reward: { resources: { refinedMinerals: [100, 300] } } }
+            { label: 'Recover', units: 1, battery: -10,
+              resultText: 'Jump-started off the team\'s cells. It fell into formation without being told.' },
+            { label: 'Strip', reward: { resources: { refinedMinerals: [100, 300] } },
+              resultText: 'Plating and cells recovered. The core was left where it lay.' }
         ]
     }
 } satisfies Record<string, FieldEventDef>;

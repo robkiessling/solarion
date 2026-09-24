@@ -24,7 +24,7 @@ export interface PoiLevel {
 /** One answer to a field event, rewards rolled (see FieldEventChoiceDef in database/planet/field_events.ts) */
 export interface FieldEventChoice {
     label: string;
-    storyId?: StoryId;
+    resultText?: string;
     reward?: PoiReward;
     battery?: number;
     units?: number;
@@ -276,7 +276,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         if (def.choices) {
             extras.choices = def.choices.map((choice: FieldEventChoiceDef): FieldEventChoice => ({
                 label: choice.label,
-                ...(choice.storyId ? { storyId: choice.storyId } : {}),
+                ...(choice.resultText ? { resultText: choice.resultText } : {}),
                 ...(choice.reward ? { reward: rollPoiReward(choice.reward) } : {}),
                 ...(choice.battery != null ? { battery: choice.battery } : {}),
                 ...(choice.units != null ? { units: choice.units } : {}),

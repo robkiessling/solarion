@@ -61,7 +61,7 @@ export const POI_DEFS: PoiDef[] = [
         ] },
     { type: 'cache', zone: 'a', reward: { resources: { ore: [500, 1000] } } },
     { type: 'cache', zone: 'a', reward: { resources: { refinedMinerals: [200, 400] } } },
-    { type: 'storySite', zone: 'a', storyId: 'r1_deadDroid' },
+    { type: 'storySite', zone: 'a', storyId: 'deadDroid' },
 
     // The near belt.
     { type: 'settlement', zone: 'b', territoryRadius: 2,
@@ -98,7 +98,7 @@ export const POI_DEFS: PoiDef[] = [
         ] },
     { type: 'cache', zone: 'c', reward: { resources: { ore: [2000, 4000] } } },
     { type: 'cache', zone: 'd', reward: { resources: { refinedMinerals: [1000, 2000] } } },
-    { type: 'storySite', zone: 'b', storyId: 'r2_scorchedCore' },
+    { type: 'storySite', zone: 'b', storyId: 'scorchedCore' },
 
     // The far belt: the Override Module salvage; the red-herring wreckage.
     { type: 'settlement', zone: 'g', territoryRadius: 2, discardedKg: [150, 300],
@@ -128,8 +128,8 @@ export const POI_DEFS: PoiDef[] = [
         ] },
     { type: 'cache', zone: 'k', reward: { resources: { ore: [5000, 9000] } } },
     { type: 'cache', zone: 'j', reward: { resources: { refinedMinerals: [2000, 4000] } } },
-    { type: 'storySite', zone: 'g', storyId: 'r2_wreckage' },
-    { type: 'storySite', zone: 'h', storyId: 'r2_overrideVault', reward: { capability: 'overrideModule' } },
+    { type: 'storySite', zone: 'g', storyId: 'wreckage' },
+    { type: 'storySite', zone: 'h', storyId: 'overrideVault', reward: { capability: 'overrideModule' } },
 
     // The far continents (finale): two hard settlements, one cache, the command ruin + hive heart (story ids are placeholders)
     // The first runs three levels unannounced, and its bottom is barely defended: the largest haul on the
@@ -161,8 +161,8 @@ export const POI_DEFS: PoiDef[] = [
             { difficulty: 10, formation: 'surround', reward: { resources: { refinedMinerals: [800, 1400] } } }
         ] },
     { type: 'cache', zone: 'l', reward: { resources: { refinedMinerals: [5000, 8000] } } },
-    { type: 'storySite', zone: 'q', storyId: 'r3_commandRuin' },
-    { type: 'storySite', zone: 't', storyId: 'r3_hiveHeart' }
+    { type: 'storySite', zone: 'q', storyId: 'commandRuin' },
+    { type: 'storySite', zone: 't', storyId: 'hiveHeart' }
 ]
 
 // Tunnels: each digit painted on the map (two mouths per digit) is one passage. Stepping into a mouth the
