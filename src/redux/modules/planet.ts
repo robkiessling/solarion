@@ -459,7 +459,7 @@ export function planetTick(timeDelta: number) {
             if (state.rotationMode === 'squad') {
                 // Follow the squad; with nobody deployed, center home base instead. Computed AFTER the advance
                 // so the camera snaps its column in the same tick the squad arrives -- the render-side
-                // cameraShift (see planet.jsx) returns to 0 at that exact moment, keeping the scroll seamless.
+                // cameraShift (see components/planet/globe.jsx) returns to 0 at that exact moment, keeping the scroll seamless.
                 const focusCoord = (planetState.squad && planetState.squad.coord) ?
                     planetState.squad.coord : state.homeCoord;
                 if (focusCoord) {

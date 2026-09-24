@@ -1,15 +1,15 @@
 import React from 'react';
 import ReactTooltip from "react-tooltip";
 import {connect} from "react-redux";
-import {deploySquad, disbandSquad} from "../redux/modules/squad";
-import {formatResourceList} from "../lib/planet/pois";
-import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/squad/equipment";
-import {isOnGrid} from "../lib/planet/squad";
-import {SQUAD_DRAIN_PER_TILE} from "../database/squad/tuning";
-import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, getSquadUpgradeIds, ownedEquipment} from "../redux/reducer";
-import DroidCount from "./structures/droid_count";
-import Upgrade from "./structures/upgrade";
-import Tooltip from "./ui/tooltip";
+import {deploySquad, disbandSquad} from "../../redux/modules/squad";
+import {formatResourceList} from "../../lib/planet/pois";
+import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../../database/squad/equipment";
+import {isOnGrid} from "../../lib/planet/squad";
+import {SQUAD_DRAIN_PER_TILE} from "../../database/squad/tuning";
+import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, getSquadUpgradeIds, ownedEquipment} from "../../redux/reducer";
+import DroidCount from "../structures/droid_count";
+import Upgrade from "../structures/upgrade";
+import Tooltip from "../ui/tooltip";
 import Vista from "./vista";
 
 const formatStat = (n) => Number.isInteger(n) ? n : n.toFixed(1);

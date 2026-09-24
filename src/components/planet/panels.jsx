@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import PlanetCard from "./planet_card";
+import PlanetCard from "./card";
 
 /**
  * Left-column slot for the Planet tab; fills the space where the Command Center sits on the Base tab.

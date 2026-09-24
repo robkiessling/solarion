@@ -1,24 +1,24 @@
 import React from 'react';
 import {connect} from "react-redux";
-import AsciiCanvas from "../lib/ascii_canvas";
-import {getGridHalo} from "../lib/planet/map";
-import {generateImage, coordToImageCell, imageCellToCoord, isDisplayCellVisible} from "../lib/planet/image";
-import {NUM_PLANET_ROWS, DISPLAY_COLS, PLANET_COLS} from "../lib/planet/geometry";
-import {mod} from "../lib/helpers";
-import {drawPlanetImage, drawSky} from "../lib/planet/render";
-import {PLANET_COLORS, zoneColor} from "../database/planet/colors";
-import {FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, SITE_GLYPH} from "../database/planet/poi_types";
-import {stepInDirection, squadCrossMs, squadZone} from "../lib/planet/squad";
-import {CONTACT_MS, SQUAD_GLYPH} from "../database/squad/tuning";
-import {EQUIPMENT_ORDER} from "../database/squad/equipment";
-import {setBeaconAt, setRotation, setRotationMode} from "../redux/modules/planet";
-import {retreatFromFight, squadFace, squadInteract, squadDescend, squadEngage, squadLeaveApproach, squadLeavePrompt, squadWithdraw, squadStepInto, useEquipment} from "../redux/modules/squad";
-import {SHOW_CONCEALED_POIS} from "../dev/skips";
-import EncounterPopup from "./encounter_popup";
+import AsciiCanvas from "../../lib/ascii_canvas";
+import {getGridHalo} from "../../lib/planet/map";
+import {generateImage, coordToImageCell, imageCellToCoord, isDisplayCellVisible} from "../../lib/planet/image";
+import {NUM_PLANET_ROWS, DISPLAY_COLS, PLANET_COLS} from "../../lib/planet/geometry";
+import {mod} from "../../lib/helpers";
+import {drawPlanetImage, drawSky} from "../../lib/planet/render";
+import {PLANET_COLORS, zoneColor} from "../../database/planet/colors";
+import {FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, SITE_GLYPH} from "../../database/planet/poi_types";
+import {stepInDirection, squadCrossMs, squadZone} from "../../lib/planet/squad";
+import {CONTACT_MS, SQUAD_GLYPH} from "../../database/squad/tuning";
+import {EQUIPMENT_ORDER} from "../../database/squad/equipment";
+import {setBeaconAt, setRotation, setRotationMode} from "../../redux/modules/planet";
+import {retreatFromFight, squadFace, squadInteract, squadDescend, squadEngage, squadLeaveApproach, squadLeavePrompt, squadWithdraw, squadStepInto, useEquipment} from "../../redux/modules/squad";
+import {SHOW_CONCEALED_POIS} from "../../dev/skips";
+import EncounterPopup from "../battle/encounter_popup";
 import CameraStrip from "./camera_strip";
-import {surveyAutomationUnlocked} from "../redux/reducer";
-import {PLANET_FPS} from "../singletons/game_clock";
-import * as fromClock from "../redux/modules/clock";
+import {surveyAutomationUnlocked} from "../../redux/reducer";
+import {PLANET_FPS} from "../../singletons/game_clock";
+import * as fromClock from "../../redux/modules/clock";
 
 const POI_PING_PERIOD_MS = 1200; // one full expand-and-fade cycle of the hovered marker's radar ping
 const SQUAD_PING_PERIOD_MS = 2200; // slower, subtler locator pulse on the deployed squad

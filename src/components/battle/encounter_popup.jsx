@@ -1,17 +1,17 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {retreatFromFight, squadDescend, squadEngage, squadInteract, squadLeaveApproach, squadLeavePrompt, squadWithdraw, useEquipment} from "../redux/modules/squad";
-import {actionLabelFor, approachTextFor, estimateDifficultyRange, formatResourceList, isGarrisoned, poiLevels, promptTextFor} from "../lib/planet/pois";
-import {CAPABILITY_LABELS, POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../database/planet/poi_types";
-import {STORY_TEXTS} from "../database/planet/story_sites";
-import {PLANET_COLORS} from "../database/planet/colors";
-import {ARENA_W, battleBlurb, countSpawners, countUnits} from "../lib/battle/sim";
-import {CONTACT_MS} from "../database/squad/tuning";
-import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/squad/equipment";
-import {APPROACH_GROUND} from "../database/battle/blurbs";
-import BattleCanvas from "./battle_canvas";
-import Tooltip from "./ui/tooltip";
-import PopupFrame from "./ui/popup_frame";
+import {retreatFromFight, squadDescend, squadEngage, squadInteract, squadLeaveApproach, squadLeavePrompt, squadWithdraw, useEquipment} from "../../redux/modules/squad";
+import {actionLabelFor, approachTextFor, estimateDifficultyRange, formatResourceList, isGarrisoned, poiLevels, promptTextFor} from "../../lib/planet/pois";
+import {CAPABILITY_LABELS, POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../../database/planet/poi_types";
+import {STORY_TEXTS} from "../../database/planet/story_sites";
+import {PLANET_COLORS} from "../../database/planet/colors";
+import {ARENA_W, battleBlurb, countSpawners, countUnits} from "../../lib/battle/sim";
+import {CONTACT_MS} from "../../database/squad/tuning";
+import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../../database/squad/equipment";
+import {APPROACH_GROUND} from "../../database/battle/blurbs";
+import BattleCanvas from "./canvas";
+import Tooltip from "../ui/tooltip";
+import PopupFrame from "../ui/popup_frame";
 
 /**
  * The centered encounter popup over the planet canvas, in one of four modes: the squad is standing on a

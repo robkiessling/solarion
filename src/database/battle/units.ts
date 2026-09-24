@@ -38,7 +38,7 @@ export interface UnitStats extends DroidStats {
 // snapshotted onto the squad at deploy (refits apply to the next deployment, not squads in the field).
 // Hostile TYPES are static definitions, never upgraded; settlements differ only in how many of each type they
 // field (their composition). New types (tougher variants, bosses) are new rows here; anything with hp
-// above the standard defender automatically earns an hp bar in the arena (battle_canvas.jsx).
+// above the standard defender automatically earns an hp bar in the arena (components/battle/canvas.jsx).
 export const DROID_BASE_STATS: DroidStats = { hp: 9, damage: 1, attackMs: 1500, speed: 9 };
 export const HOSTILE_TYPES: Record<HostileType, UnitStats> = {
     defender: { hp: 6, damage: 1, attackMs: 1300, speed: 11 },

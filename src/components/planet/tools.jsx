@@ -1,7 +1,7 @@
 import React from 'react';
 import {connect} from "react-redux";
 import Expedition from "./expedition";
-import TerrainLegend from "./terrain_legend";
+import TerrainLegend from "./legend";
 import 'overlayscrollbars/styles/overlayscrollbars.css';
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 

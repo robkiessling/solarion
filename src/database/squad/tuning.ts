@@ -9,7 +9,7 @@ export const SQUAD_GLYPH = '@';
 export const SQUAD_SPEED_FACTOR = 0.8;
 
 // The contact beat between stepping onto a settlement and the fight being shown: the squad shrinks into the
-// settlement (planet.jsx draws it), the battle sim holds its opening frame, and the encounter popup waits.
+// settlement (components/planet/globe.jsx draws it), the battle sim holds its opening frame, and the encounter popup waits.
 // Doubles as the climb-back-out duration when the fight ends.
 export const CONTACT_MS = 400;
 

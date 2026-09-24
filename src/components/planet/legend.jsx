@@ -1,8 +1,8 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {HELD_GLYPH, STATUSES, TERRAINS} from "../database/planet/terrain";
-import {PLANET_COLORS} from "../database/planet/colors";
-import {getAbility} from "../redux/modules/abilities";
+import {HELD_GLYPH, STATUSES, TERRAINS} from "../../database/planet/terrain";
+import {PLANET_COLORS} from "../../database/planet/colors";
+import {getAbility} from "../../redux/modules/abilities";
 
 /**
  * Key to the ground glyphs on the globe. Terrain drives movement cost and battery drain, so it stays spelled

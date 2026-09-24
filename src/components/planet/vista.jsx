@@ -1,7 +1,7 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {buildVista, headingName} from "../lib/planet/vista";
-import {PLANET_COLORS} from "../database/planet/colors";
+import {buildVista, headingName} from "../../lib/planet/vista";
+import {PLANET_COLORS} from "../../database/planet/colors";
 
 // Off while other sense-of-place ideas are tried: as a live driving panel the vista changed too much per
 // turn (facing isn't a concept the driver otherwise has) to be worth a glance. buildVista is kept for a

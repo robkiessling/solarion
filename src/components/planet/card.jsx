@@ -1,12 +1,12 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {roundToDecimal} from "../lib/helpers";
-import DroidCount from "./structures/droid_count";
-import Ability from "./structures/ability";
-import {getAbility} from "../redux/modules/abilities";
-import {getIcon, getQuantity, getResource} from "../redux/modules/resources";
-import {clearBeacon, percentExplored} from "../redux/modules/planet";
-import {planetDevelopmentProgress, showDroidsUI, surveyAutomationUnlocked} from "../redux/reducer";
+import {roundToDecimal} from "../../lib/helpers";
+import DroidCount from "../structures/droid_count";
+import Ability from "../structures/ability";
+import {getAbility} from "../../redux/modules/abilities";
+import {getIcon, getQuantity, getResource} from "../../redux/modules/resources";
+import {clearBeacon, percentExplored} from "../../redux/modules/planet";
+import {planetDevelopmentProgress, showDroidsUI, surveyAutomationUnlocked} from "../../redux/reducer";
 
 /**
  * The Planet tab's left-slot status card, the counterpart of the Base tab's Command Center: how much of the
