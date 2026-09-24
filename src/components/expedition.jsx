@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactTooltip from "react-tooltip";
 import {connect} from "react-redux";
-import {deploySquad, disbandSquad} from "../redux/modules/planet";
+import {deploySquad, disbandSquad} from "../redux/modules/squad";
 import {formatResourceList} from "../lib/planet/pois";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/squad/equipment";
 import {isOnGrid} from "../lib/planet/squad";

@@ -10,7 +10,7 @@ import {DROID_BASE_STATS, type DroidStats} from "../../database/battle/units";
 import type {Poi} from "./pois";
 import {INFINITE_CHARGE} from "../../dev/skips";
 
-/** What advanceSquad reports back to the caller; resolved by resolveSquadEvent in redux/modules/planet.ts */
+/** What advanceSquad reports back to the caller; resolved by resolveSquadEvent in redux/modules/squad.ts */
 export type SquadEvent =
     | (BattleOverEvent & { poiId: string; battle: Battle; fromCoord?: Coord; level: number })
     | { type: 'enteredPoi'; poiId: string; fromCoord: Coord }

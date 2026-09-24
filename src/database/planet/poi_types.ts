@@ -7,7 +7,7 @@ import type {StoryId} from "./story_sites";
 /**
  * The POI vocabulary: the kinds of thing that can sit on a map tile, how each behaves when the squad
  * arrives, and how it draws. The content manifest (database/planet/pois.ts) is written in these terms; the
- * placement pass (generatePois in lib/planet/pois.ts) and the encounter flow (redux/modules/planet.ts) interpret them.
+ * placement pass (generatePois in lib/planet/pois.ts) and the encounter flow (redux/modules/squad.ts) interpret them.
  * A new POI TYPE is a code change (contact rules, resolution, a legend row); a new combination of the
  * fields below is content.
  */

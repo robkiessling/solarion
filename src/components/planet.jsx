@@ -11,21 +11,8 @@ import {FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, SITE_GLYPH} 
 import {stepInDirection, squadCrossMs, squadZone} from "../lib/planet/squad";
 import {CONTACT_MS, SQUAD_GLYPH} from "../database/squad/tuning";
 import {EQUIPMENT_ORDER} from "../database/squad/equipment";
-import {
-    retreatFromFight,
-    setBeaconAt,
-    setRotation,
-    setRotationMode,
-    squadFace,
-    squadInteract,
-    squadDescend,
-    squadEngage,
-    squadLeaveApproach,
-    squadLeavePrompt,
-    squadWithdraw,
-    squadStepInto,
-    useEquipment
-} from "../redux/modules/planet";
+import {setBeaconAt, setRotation, setRotationMode} from "../redux/modules/planet";
+import {retreatFromFight, squadFace, squadInteract, squadDescend, squadEngage, squadLeaveApproach, squadLeavePrompt, squadWithdraw, squadStepInto, useEquipment} from "../redux/modules/squad";
 import {SHOW_CONCEALED_POIS} from "../dev/skips";
 import EncounterPopup from "./encounter_popup";
 import CameraStrip from "./camera_strip";

@@ -10,7 +10,7 @@ import logsDatabase from '../database/logs';
 import {fullDroidHp} from './battle/sim';
 import {DROID_BASE_STATS} from '../database/battle/units';
 import {SAVE_FORMAT_VERSION} from './save_version';
-import type {EncounterPrompt} from '../redux/modules/planet';
+import type {EncounterPrompt} from '../redux/modules/squad';
 import type {Squad} from './planet/squad';
 
 // lodash merges arrays index-by-index, which would mangle saved maps, droid lists, etc.

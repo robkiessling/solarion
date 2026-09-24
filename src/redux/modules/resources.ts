@@ -6,6 +6,7 @@ import * as fromStructures from "./structures";
 import * as fromUpgrades from "./upgrades";
 import * as fromAbilities from "./abilities";
 import * as fromPlanet from "./planet";
+import * as fromSquad from "./squad";
 import {withRecalculation} from "../reducer";
 import {STATUSES, TERRAINS} from "../../database/planet/terrain";
 
@@ -80,10 +81,10 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             return produceReducer(state, action.payload.resources)
         case fromStructures.ASSIGN_DROID:
         case fromPlanet.ASSIGN_DROID:
-        case fromPlanet.SQUAD_ASSIGN_DROID:
+        case fromSquad.SQUAD_ASSIGN_DROID:
             return consumeReducer(state, { standardDroids: action.payload.amount })
         case fromStructures.REMOVE_DROID:
-        case fromPlanet.SQUAD_REMOVE_DROID:
+        case fromSquad.SQUAD_REMOVE_DROID:
             // Do not want assigning/removing droids to affect lifetimeTotal
             return produceReducer(state, { standardDroids: action.payload.amount }, false)
         case fromPlanet.REMOVE_DROID:
@@ -92,14 +93,14 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             return action.payload.instantIndices.length > 0
                 ? produceReducer(state, { standardDroids: action.payload.instantIndices.length }, false)
                 : state;
-        case fromPlanet.DISBAND_SQUAD:
+        case fromSquad.DISBAND_SQUAD:
             // Any undelivered cargo banks here. (Recovered droids stay assigned to the team rather than returning
             // to the idle pool; see the planet reducer.) Rewards must be already-LEARNed resources (unlearned ids
             // are dropped silently by produceReducer).
             return action.payload.cargo && Object.keys(action.payload.cargo).length > 0
                 ? produceReducer(state, action.payload.cargo)
                 : state;
-        case fromPlanet.SQUAD_DELIVER_CARGO:
+        case fromSquad.SQUAD_DELIVER_CARGO:
             // The squad touched the powered grid: cargo banks (lost on a wipe, so this is the payoff moment)
             return produceReducer(state, action.payload.cargo)
         case fromPlanet.GENERATE_MAP: {
@@ -114,12 +115,12 @@ export default function reducer(state: ResourcesState = initialState, action: Ga
             }));
             return produceReducer(state, { buildableLand: startingLand });
         }
-        case fromPlanet.SQUAD_FIGHT_WON:
+        case fromSquad.SQUAD_FIGHT_WON:
             // A cleared settlement retracts its territory; the revealed flatland under it credits as one chunk
             return action.payload.landCredit > 0
                 ? produceReducer(state, { buildableLand: action.payload.landCredit })
                 : state;
-        case fromPlanet.ADVANCE_SQUAD:
+        case fromSquad.ADVANCE_SQUAD:
             // The driven squad reveals tiles just like scouts do; same land credit.
             return action.payload.revealedFlatland > 0
                 ? produceReducer(state, { buildableLand: action.payload.revealedFlatland })

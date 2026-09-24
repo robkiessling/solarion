@@ -11,6 +11,7 @@ import upgrades, * as fromUpgrades from "./modules/upgrades";
 import resources, * as fromResources from './modules/resources';
 import abilities, * as fromAbilities from "./modules/abilities";
 import planet, * as fromPlanet from "./modules/planet";
+import * as fromSquad from "./modules/squad";
 import star, {type StarState} from "./modules/star";
 import panels, * as fromPanels from "./modules/panels";
 import decisions, {type DecisionsState} from "./modules/decisions";
@@ -392,7 +393,7 @@ export function assignDroid(droidData: DroidAssignment, targetId: StructureId) {
                     dispatch(fromPlanet.assignDroidUnsafe());
                     break;
                 case 'squad':
-                    dispatch(fromPlanet.squadAssignDroidUnsafe());
+                    dispatch(fromSquad.squadAssignDroidUnsafe());
                     break;
                 default:
                     console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
@@ -423,7 +424,7 @@ export function assignAllDroids(droidData: DroidAssignment, targetId: StructureI
                 break;
             case 'squad':
                 if (numDroids > 0 && !getState().planet.squad) {
-                    dispatch(fromPlanet.squadAssignDroidUnsafe(numDroids));
+                    dispatch(fromSquad.squadAssignDroidUnsafe(numDroids));
                 }
                 break;
             default:
@@ -443,7 +444,7 @@ export function removeDroid(droidData: DroidAssignment, targetId: StructureId) {
                     dispatch(fromPlanet.removeDroidUnsafe());
                     break;
                 case 'squad':
-                    dispatch(fromPlanet.squadRemoveDroidUnsafe());
+                    dispatch(fromSquad.squadRemoveDroidUnsafe());
                     break;
                 default:
                     console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
@@ -465,7 +466,7 @@ export function removeAllDroids(droidData: DroidAssignment, targetId: StructureI
                     dispatch(fromPlanet.removeDroidUnsafe(numDroids));
                     break;
                 case 'squad':
-                    dispatch(fromPlanet.squadRemoveDroidUnsafe(numDroids));
+                    dispatch(fromSquad.squadRemoveDroidUnsafe(numDroids));
                     break;
                 default:
                     console.error(`Unknown droidAssignmentType: ${droidData.droidAssignmentType}`);
@@ -497,7 +498,7 @@ export function recallAllDroids() {
             const numScouts = state.planet.droidData.numDroidsAssigned;
             if (numScouts > 0) dispatch(fromPlanet.removeDroidUnsafe(numScouts));
             const numStandingBy = state.planet.squadDroidData.numDroidsAssigned;
-            if (numStandingBy > 0) dispatch(fromPlanet.squadRemoveDroidUnsafe(numStandingBy));
+            if (numStandingBy > 0) dispatch(fromSquad.squadRemoveDroidUnsafe(numStandingBy));
         });
     }
 }
