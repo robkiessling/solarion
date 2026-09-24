@@ -133,16 +133,21 @@ class Planet extends React.Component {
     }
 
     componentDidUpdate(prevProps, prevState) {
-        // The squad just left a settlement alive: start the climb back out (a wipe leaves no squad, so nothing
-        // emerges). Between a settlement's levels it is still down there, so the climb waits for the withdrawal.
-        if (this.insideSettlement(prevProps) && this.props.squad && !this.insideSettlement(this.props)) {
+        // The squad just left a settlement alive, or came out the far mouth of a tunnel: start the climb back out
+        // (a wipe leaves no squad, so nothing emerges). Between a settlement's levels it is still down there, so
+        // the climb waits for the withdrawal.
+        const wasUnder = this.insideSettlement(prevProps) || !!(prevProps.squad && prevProps.squad.crossing);
+        if (wasUnder && this.props.squad && !this.insideSettlement(this.props) && !this.props.squad.crossing) {
             this.emergedAt = this.props.elapsedTime;
         }
         // A popup phase just opened (a prompt set or replaced, a fight begun): its number keys are dead for
-        // POPUP_INPUT_LOCK_MS, see handleKeyDown
+        // POPUP_INPUT_LOCK_MS, see handleKeyDown. Contact also drops a turn buffered mid-slide: the tap that
+        // landed while the squad slid onto the site must not fire on the way back out (Leave and a retreat both
+        // step the squad back to the tile it came from, and a stale buffer would walk it straight back in).
         const fightStarted = this.props.squad && this.props.squad.fighting && !(prevProps.squad && prevProps.squad.fighting);
         if ((this.props.prompt && this.props.prompt !== prevProps.prompt) || fightStarted) {
             this.popupOpenedAt = performance.now();
+            this.bufferedDir = null;
         }
         this.maybeContinueMovement(prevProps);
         this.drawPlanet();
@@ -189,6 +194,12 @@ class Planet extends React.Component {
 
         if (!this.props.squad) return;
 
+        // Mid-crossing (a tunnel): movement is locked, but the key still tracks so it resumes at the far mouth
+        if (this.props.squad.crossing) {
+            this.trackHeldKey(event);
+            return;
+        }
+
         // Mid-battle: number keys fire equipment (1..N in carried order, mirrored by the popup's action row),
         // Esc orders the retreat (never locked: leaving early is never the costly mistake). Movement keys still
         // track into heldKeys so a held direction resumes driving the moment the battle ends.
@@ -218,7 +229,7 @@ class Planet extends React.Component {
             this.bufferedDir = dir; // mid-slide: queue the turn for arrival
         }
         else {
-            this.tryStep(dir, true);
+            this.tryStep(dir);
         }
     }
 
@@ -237,23 +248,23 @@ class Planet extends React.Component {
         }
     }
 
-    // When the squad becomes free again (arrival, fight resolved, prompt answered), continue: a buffered tap
-    // wins once, then any still-held key takes over. An OPEN prompt suppresses continuation -- held-walk stops
-    // at the site until the player answers the popup (a held direction then resumes on dismissal).
+    // When the squad becomes free again (arrival, fight resolved, tunnel crossed, prompt answered), continue: a
+    // buffered tap wins once, then any still-held key takes over. An OPEN prompt suppresses continuation --
+    // held-walk stops at the site until the player answers the popup (a held direction then resumes on dismissal).
     maybeContinueMovement(prevProps) {
         const squad = this.props.squad;
-        if (!squad || squad.path.length > 0 || squad.fighting || this.props.prompt) return;
+        if (!squad || squad.path.length > 0 || squad.fighting || squad.crossing || this.props.prompt) return;
 
         const prev = prevProps.squad;
-        const wasBusy = prev && (prev.path.length > 0 || prev.fighting || prevProps.prompt);
+        const wasBusy = prev && (prev.path.length > 0 || prev.fighting || prev.crossing || prevProps.prompt);
         if (!wasBusy) return;
 
         const next = this.bufferedDir || (this.heldKeys.length > 0 ? this.heldKeys[this.heldKeys.length - 1].dir : null);
         this.bufferedDir = null;
-        if (next) this.tryStep(next, false);
+        if (next) this.tryStep(next);
     }
 
-    tryStep(dir, tap) {
+    tryStep(dir) {
         const squad = this.props.squad;
         if (!squad || squad.path.length > 0) return;
 
@@ -268,10 +279,10 @@ class Planet extends React.Component {
             return;
         }
 
-        // The thunk applies the contact rules (move / bump-to-attack on tap / blocked, revealing hidden
-        // walls and POIs as probed). A rejection renders as a bump toward the target; 'busy' (mid-fight,
+        // The thunk applies the contact rules (move / blocked, revealing hidden walls and POIs as probed and
+        // reporting what stopped the squad). A rejection renders as a bump toward the target; 'busy' (mid-fight,
         // no squad) is silently ignored.
-        const result = this.props.squadStepInto(target, tap);
+        const result = this.props.squadStepInto(target);
         if (result === 'blocked') {
             this.startBump(dir, target);
         }
@@ -545,9 +556,10 @@ class Planet extends React.Component {
             }
         }
 
-        // Descending into the settlement: the squad shrinks away into the tile it just stepped onto while the
-        // contact beat runs, and climbs back out when the fight ends -- on the settlement tile if it won (it is
-        // already through), then walking back to fromCoord if it fell back. A wipe never climbs out.
+        // Descending into the settlement (or an open tunnel's mouth): the squad shrinks away into the tile it just
+        // stepped onto while the contact beat runs, and climbs back out when the fight ends -- on the settlement
+        // tile if it won (it is already through), then walking back to fromCoord if it fell back -- or at the far
+        // mouth once the crossing lands. A wipe never climbs out.
         // A concealed site (a camp, an ambush) is sprung on the squad instead: before its approach card opens the
         // glyph blinks in place through the same beat, AMBUSH_BLINKS times, ending lit, and stays lit under the
         // card; its fight then opens with no second beat (the glyph hides under the churn).
@@ -555,6 +567,9 @@ class Planet extends React.Component {
         const prompt = this.props.prompt;
         if (squad.fighting) {
             scale = 1 - Math.min((squad.fighting.contactMs || 0) / CONTACT_MS, 1);
+        }
+        else if (squad.crossing) {
+            scale = 1 - Math.min(squad.crossing.contactMs / CONTACT_MS, 1);
         }
         else if (prompt && prompt.phase === 'approach' && prompt.sprungAt != null &&
             this.props.elapsedTime - prompt.sprungAt < CONTACT_MS) {

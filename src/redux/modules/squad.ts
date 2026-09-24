@@ -1,7 +1,7 @@
 import update from 'immutability-helper';
 import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, ownedEquipment, recalculateState, withRecalculation} from "../reducer";
 import {getVisibleCoords, isPassable} from "../../lib/planet/map";
-import {STATUSES, TERRAINS, TERRAIN_BLURBS, TERRAIN_BLURB_REPEAT_MS, type SquadZone} from "../../database/planet/terrain";
+import {STATUSES, TERRAINS, TERRAIN_BLOCKED_BLURBS, TERRAIN_BLURBS, TERRAIN_BLURB_REPEAT_MS, type SquadZone, type TerrainKey} from "../../database/planet/terrain";
 import {getApproxDistance, getCoordsWithinHops} from "../../lib/planet/geometry";
 import {typedEntries} from "../../lib/helpers";
 import {formatResourceList, isGarrisoned, levelPayout, poiLevels, resultBehaviorFor, type Poi} from "../../lib/planet/pois";
@@ -65,8 +65,10 @@ export interface EncounterPrompt {
 }
 
 /** planet.overallStatus: the state of scout exploration of the map */
-// Terrain notes: elapsed game time each zone was last noted (session-only; not worth persisting)
+// Terrain notes: elapsed game time each zone was last noted, and each wall last bumped (session-only; not worth
+// persisting)
 const lastBlurbAt: Partial<Record<SquadZone, number>> = {};
+const lastBlockedAt: Partial<Record<TerrainKey, number>> = {};
 
 // Actions
 export const SQUAD_ASSIGN_DROID = 'planet/SQUAD_ASSIGN_DROID' as const;
@@ -116,7 +118,8 @@ export type SquadAction =
         battery?: number; units?: number } }
     /** a concealed POI found (stepped on, or traced by a signal): it shows from here on, its tile marked */
     | { type: typeof REVEAL_POI; payload: { poiId: string } }
-    /** an open tunnel crossed: the squad reappears at the far mouth, the battery lighter by `cost` */
+    /** an open tunnel entered: the squad holds at the near mouth for the contact beat, then reappears at the far
+     * mouth (see advanceSquad's crossing); the battery is lighter by `cost` from the start */
     | { type: typeof SQUAD_CROSS_TUNNEL; payload: { poiId: string; exitCoord: Coord; cost: number } }
     | { type: typeof SQUAD_DELIVER_CARGO; payload: { cargo: ResourceAmounts } };
 
@@ -340,9 +343,9 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
         case SQUAD_CROSS_TUNNEL:
             return update(state, {
                 squad: {
-                    coord: { $set: action.payload.exitCoord },
                     path: { $set: [] },
                     moveProgress: { $set: 0 },
+                    crossing: { $set: { poiId: action.payload.poiId, exitCoord: action.payload.exitCoord, contactMs: 0 } },
                     battery: { $apply: (battery: number) => Math.max(0, battery - action.payload.cost) }
                 },
                 prompt: { $set: null }
@@ -377,7 +380,7 @@ function mergeCargo(cargo: ResourceAmounts, reward: PoiReward) {
 // whatever it ran into. Returns the planet state afterwards: the scouts run next and must see the squad's
 // reveals as already applied, or a tile revealed by both in the same tick would double-count numExplored.
 export function advanceSquadTick(dispatch: Dispatch, getState: GetState, state: PlanetState, timeDelta: number): PlanetState {
-    if (!state.squad || !(state.squad.path.length > 0 || state.squad.fighting)) return state;
+    if (!state.squad || !(state.squad.path.length > 0 || state.squad.fighting || state.squad.crossing)) return state;
     const { squad, reveals, events } = advanceSquad(state.map, state.pois, state.squad, timeDelta, state.unlockedTerrains);
     const revealedFlatland = reveals.filter(
         ([r, c]) => state.map[r][c].terrain === TERRAINS.flatland.key && !state.map[r][c].heldBy
@@ -443,7 +446,7 @@ export function disbandSquad() {
     return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
         const squad = planet.squad;
-        if (!squad || squad.fighting) return;
+        if (!squad || squad.fighting || squad.crossing) return;
         if (!isOnGrid(planet.map, squad.coord)) return;
 
         const droidsReturned = droidsRecovered(squad);
@@ -468,13 +471,29 @@ export function squadFace(dir: [number, number]): SquadAction {
     return { type: SQUAD_FACE, payload: { facing: dir } };
 }
 
+// Bumped into a wall, by a fresh press or a held key driving into it: say what it is, in its map color, and name
+// the tool if one would open it. Not repeated for a terrain bumped within TERRAIN_BLURB_REPEAT_MS (feeling out
+// the edge of a sea or a ridge taps it several times in a row).
+function reportBlockedTerrain(dispatch: Dispatch, getState: GetState, terrain: TerrainKey) {
+    const blurb = TERRAIN_BLOCKED_BLURBS[terrain];
+    if (!blurb) return;
+    const now = getState().clock.elapsedTime;
+    if (now - (lastBlockedAt[terrain] || -Infinity) < TERRAIN_BLURB_REPEAT_MS) return;
+    lastBlockedAt[terrain] = now;
+    // Only a crossUpgrade that is a capability the player can earn gets named; the permanent walls' keys are not
+    const tool = TERRAINS[terrain].crossUpgrade as Capability | undefined;
+    const needs = tool && CAPABILITY_LABELS[tool] ? ` Needs ${CAPABILITY_LABELS[tool]}.` : '';
+    dispatch(logInline(blurb + needs, 'terrain-blurb', { color: zoneColor(terrain) }, 'logFlash'));
+}
+
 export function squadStep(coord: Coord) {
     return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
         const squad = planet.squad;
-        if (!squad || squad.fighting) return false;
+        if (!squad || squad.fighting || squad.crossing) return false;
 
         if (!isPassable(planet.map, coord, planet.unlockedTerrains)) {
+            reportBlockedTerrain(dispatch, getState, planet.map[coord[0]][coord[1]].terrain);
             if (planet.map[coord[0]][coord[1]].status === STATUSES.unknown.key) {
                 // Reveal the wall: same action shape as movement, with the squad itself unchanged
                 dispatch({ type: ADVANCE_SQUAD, payload: { squad, reveals: [coord], revealedFlatland: 0 } });
@@ -489,19 +508,20 @@ export function squadStep(coord: Coord) {
 
 /**
  * The single keyboard entry point: attempt to step onto `coord`. Returns what happened so the component can
- * render it: 'moved' | 'blocked' (bump) | 'busy' (no squad / mid-fight: ignore silently).
+ * render it: 'moved' | 'blocked' (bump) | 'busy' (no squad / mid-fight / mid-crossing: ignore silently).
  *
  * Contact rules: an available settlement is walked ONTO -- tapped or held (running headlong into a settlement is a
  * fight, Pokemon-grass style; the posted difficulty was your warning) -- and the fight starts on arrival,
- * the same way a cache raises its prompt on arrival. Sealed sites bump (with a report on deliberate taps
- * only, so held keys don't spam it). Hidden blocking POIs reveal on the bump, same as probing an unknown
- * wall -- you discover the danger, and the NEXT step in commits.
+ * the same way a cache raises its prompt on arrival. Sealed sites and impassable terrain bump, and every bump
+ * reports what stopped the squad (a held key doesn't re-step after a bump, so a report per bump can't spam).
+ * Hidden blocking POIs reveal on the bump, same as probing an unknown wall -- you discover the danger, and the
+ * NEXT step in commits.
  */
-export function squadStepInto(coord: Coord, tap: boolean) {
+export function squadStepInto(coord: Coord) {
     return function(dispatch: Dispatch, getState: GetState) {
         const planet = getState().planet;
         const squad = planet.squad;
-        if (!squad || squad.fighting) return 'busy';
+        if (!squad || squad.fighting || squad.crossing) return 'busy';
 
         // A concealed POI still hidden is never a wall: the step onto it is how it is found (see advanceSquad)
         const blockingPoi = Object.values(planet.pois).find(poi =>
@@ -519,7 +539,7 @@ export function squadStepInto(coord: Coord, tap: boolean) {
                 return 'blocked';
             }
             if (blockingPoi.requires && !planet.unlockedTerrains[blockingPoi.requires]) {
-                if (tap) dispatch(logInline(sealedText(blockingPoi)));
+                dispatch(logInline(sealedText(blockingPoi)));
                 return 'blocked';
             }
             // An available settlement or camp falls through: it is walkable, and arriving on it starts the fight
@@ -858,20 +878,25 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
             }
             if (entered && entered.type === 'tunnel' && entered.exitCoord) {
                 // An open tunnel: stepping into the mouth IS the crossing, no prompt. Paid in battery as so many
-                // tiles walked (never hull: the passage is the shortcut the squad already fought for); the
-                // follow-cam recenters on the far mouth next tick. Arriving there raises nothing (the teleport
-                // is not a step), so the squad walks off the far mouth freely.
+                // tiles walked (never hull: the passage is the shortcut the squad already fought for). The
+                // squad holds at this mouth for the contact beat and comes out the far one (advanceSquad's
+                // crossing, resolved below on crossedTunnel).
                 const current = getState().planet.squad;
                 if (!current) break;
                 dispatch({ type: SQUAD_CROSS_TUNNEL, payload: { poiId: entered.id, exitCoord: entered.exitCoord,
                     cost: (entered.crossTiles || 0) * squadDrainPerTile() } });
-                revealFromSquad(dispatch, getState);
-                dispatch(logInline(TELEMETRY.teamCrossed(entered.name)));
                 break;
             }
             // Walked onto a cache/story tile: movement stops and the interaction prompt opens (the player
             // chooses to take/explore via squadInteract, or leaves via squadLeavePrompt)
             dispatch({ type: SQUAD_PROMPT, payload: { poiId: event.poiId } });
+            break;
+        }
+        case 'crossedTunnel': {
+            // Out the far mouth (the sim already moved the squad and revealed around it); the follow-cam
+            // recenters there next tick
+            const crossed = pois[event.poiId];
+            if (crossed) dispatch(logInline(TELEMETRY.teamCrossed(crossed.name)));
             break;
         }
         case 'fieldWiped': {
@@ -885,13 +910,17 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
         }
         case 'enteredZone': {
             // Crossed into different ground: a one-line note in the zone's color, not repeated for a zone the
-            // terminal noted recently (TERRAIN_BLURBS in database/planet/terrain.ts)
+            // terminal noted recently (TERRAIN_BLURBS in database/planet/terrain.ts). Coming home with cargo, the
+            // onGrid event right behind this one prints the banking line, which marks the arrival well enough;
+            // the powered-ground note only prints when the squad returns empty.
             const now = getState().clock.elapsedTime;
             const zone: SquadZone = event.zone;
             const blurb = TERRAIN_BLURBS[zone];
-            if (blurb && !(now - (lastBlurbAt[zone] || -Infinity) < TERRAIN_BLURB_REPEAT_MS)) {
+            const current = getState().planet.squad;
+            const bankingCargo = zone === 'grid' && !!(current && current.cargo && Object.keys(current.cargo).length > 0);
+            if (blurb && !bankingCargo && !(now - (lastBlurbAt[zone] || -Infinity) < TERRAIN_BLURB_REPEAT_MS)) {
                 lastBlurbAt[zone] = now;
-                dispatch(logInline(blurb, 'terrain-blurb', { color: zoneColor(zone) }));
+                dispatch(logInline(blurb, 'terrain-blurb', { color: zoneColor(zone) }, 'logFlash'));
             }
             break;
         }

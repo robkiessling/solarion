@@ -14,6 +14,7 @@ import {INFINITE_CHARGE} from "../../dev/skips";
 export type SquadEvent =
     | (BattleOverEvent & { poiId: string; battle: Battle; fromCoord?: Coord; level: number })
     | { type: 'enteredPoi'; poiId: string; fromCoord: Coord }
+    | { type: 'crossedTunnel'; poiId: string }
     | { type: 'enteredZone'; zone: SquadZone }
     | { type: 'onGrid' }
     | { type: 'fieldWiped'; unitsLost: number; multiplier: number; cargoLost: ResourceAmounts };
@@ -25,6 +26,14 @@ export interface SquadFighting {
     contactMs?: number;
     /** which of the settlement's levels this fight is (0 = surface; absent on saves that predate levels) */
     level?: number;
+}
+
+/** An open tunnel being crossed: the squad is held at the near mouth for the contact beat (the map plays it
+ * shrinking in), then reappears at exitCoord */
+export interface SquadCrossing {
+    poiId: string;
+    exitCoord: Coord;
+    contactMs: number;
 }
 
 /** The player-driven squad (see createSquad below) */
@@ -48,6 +57,8 @@ export interface Squad {
     /** per-unit hull */
     droidHp: number[];
     fighting: SquadFighting | null;
+    /** absent on saves that predate tunnels */
+    crossing?: SquadCrossing | null;
 }
 
 /**
@@ -176,6 +187,7 @@ export function squadCrossMs(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
  *       lib/battle/sim.ts; `fromCoord` is where a retreat falls back to)
  *   { type: 'enteredPoi', poiId, fromCoord } (stepped onto an available POI: resolve it. fromCoord is the
  *       tile just left, which a settlement assault holds onto so a retreat can walk back out)
+ *   { type: 'crossedTunnel', poiId }        (the crossing's contact beat ran out: the squad is at the far mouth)
  *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)
  *   { type: 'fieldWiped', unitsLost, multiplier, cargoLost } (reserve-power hull burn killed the last
  *       unit; the returned squad is null and the caller settles the loss)
@@ -186,8 +198,8 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
 
     if (squad.fighting) {
         // The descent. For CONTACT_MS after stepping in, the battle is held at its opening frame while the
-        // map plays the squad dropping into the settlement and the popup stays shut, so the player sees the cause
-        // before the consequence. A save written before this existed has no counter: treat it as landed.
+        // map plays the squad dropping into the settlement, so the arena stands set before the first shot. A save
+        // written before this existed has no counter: treat it as landed.
         const contactMs = squad.fighting.contactMs === undefined ? CONTACT_MS :
             Math.min(squad.fighting.contactMs + moveAmountMs, CONTACT_MS);
         if (contactMs < CONTACT_MS) {
@@ -212,6 +224,23 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
     const reveal = ([r, c]: Coord) => {
         if (map[r][c].status === STATUSES.unknown.key) reveals.add(`${r},${c}`);
     };
+
+    if (squad.crossing) {
+        // The crossing. The squad holds at the near mouth for CONTACT_MS (movement is locked; the map plays
+        // it shrinking into the tile), then stands at the far mouth, looking around from it the way any step
+        // reveals ground. Arriving there raises nothing (the far mouth is not stepped onto), so the squad
+        // walks off it freely; the caller logs the crossing on the event.
+        const contactMs = Math.min(squad.crossing.contactMs + moveAmountMs, CONTACT_MS);
+        if (contactMs < CONTACT_MS) {
+            return { squad: {...squad, crossing: {...squad.crossing, contactMs}}, reveals: [], events };
+        }
+        coord = squad.crossing.exitCoord;
+        reveal(coord);
+        getVisibleCoords(map, coord).forEach(reveal);
+        events.push({ type: 'crossedTunnel', poiId: squad.crossing.poiId });
+        return { squad: {...squad, coord, path: [], moveProgress: 0, crossing: null},
+            reveals: [...reveals].map(parseCoordKey), events };
+    }
 
     while (path.length > 0) {
         const next = path[0];

@@ -123,14 +123,15 @@ class Log extends React.Component {
         this.playingId = null;
     }
 
-    // One-off text (logInline): lands at once. log-inline spaces it a blank line's worth from what precedes it
-    // (scripted sequences handle their own spacing with leading blank lines).
+    // One-off text (logInline): lands at once, with its clip if it asked for one. log-inline spaces it a blank
+    // line's worth from what precedes it (scripted sequences handle their own spacing with leading blank lines).
     playText(head) {
         const className = ['log-inline', head.className].filter(Boolean).join(' ');
         batch(() => {
             this.props.dispatch(printLine(head.text, { className, style: head.style }));
             this.finish(head, null);
         });
+        if (head.sound) { playSfx(head.sound); }
     }
 
     playSequence(head) {
@@ -250,12 +251,13 @@ class Log extends React.Component {
             if (line.flash) { classes.push('flash'); }
         }
 
-        // An explicit colour (terrain notes in their zone's map colour) replaces both ends of the settle
-        // animation rather than being overridden by it
+        // An explicit colour (terrain notes in their zone's map colour) lands at full strength and settles to a
+        // translucent tint of itself, the same way the receipt lines dim in log.scss, so old notes still read
+        // as their zone without competing with fresh ones
         let style = line.style || undefined;
         if (style && style.color) {
             const { color, ...rest } = style;
-            style = { ...rest, '--fresh': color, '--rest': color };
+            style = { ...rest, '--fresh': color, '--rest': `color-mix(in srgb, ${color} 55%, transparent)` };
         }
 
         return <p key={line.id} className={classes.filter(Boolean).join(' ') || undefined} style={style}>{text}</p>;

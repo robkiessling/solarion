@@ -8,8 +8,8 @@ export const SQUAD_GLYPH = '@';
 // snappy (flatland 0.5s * 0.8 = 400ms/tile, ~2.5 tiles/sec).
 export const SQUAD_SPEED_FACTOR = 0.8;
 
-// The contact beat between stepping onto a settlement and the fight being shown: the squad shrinks into the
-// settlement (components/planet/globe.jsx draws it), the battle sim holds its opening frame, and the encounter popup waits.
+// The contact beat after committing to a fight: the squad shrinks into the settlement (components/planet/globe.jsx
+// draws it) and the battle sim holds its opening frame, both under the encounter popup, which opens at once.
 // Doubles as the climb-back-out duration when the fight ends.
 export const CONTACT_MS = 400;
 

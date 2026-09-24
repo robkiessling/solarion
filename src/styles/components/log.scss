@@ -43,7 +43,7 @@ $log-settle-fade: 2.5s; // how long the fade to the scrollback colour takes
     // Line colour has two ends: --fresh when it lands, --rest once it has settled into scrollback. A line printed
     // this session gets .arriving while it animates in and .landed once it is fully on screen; .landed runs the
     // settle animation (hold, then fade). Restored history has neither and sits at --rest from the start.
-    // Lines with an explicit colour (terrain notes) set both ends inline, so they simply keep it.
+    // Lines with an explicit colour (terrain notes) set both ends inline: the colour, then a translucent tint of it.
     --fresh: #fff;
     --rest: #999;
     color: var(--rest);
@@ -63,8 +63,8 @@ $log-settle-fade: 2.5s; // how long the fade to the scrollback colour takes
     }
 
     // Expedition report lines (log.logInline entries)
-    &.report-success { --fresh: #9be29b; --rest: #9be29b; }
-    &.report-failure { --fresh: #ff6b6b; --rest: #ff6b6b; }
+    &.report-success { --fresh: #9be29b; --rest: #{rgba(#9be29b, 0.55)}; }
+    &.report-failure { --fresh: #ff6b6b; --rest: #{rgba(#ff6b6b, 0.55)}; }
 
     // Ledger receipts (AUTH 0004 BLAST SHIELD: GRANTED): the interface stamping the operator's signature, not the
     // machine talking, so they take the UI blue. Same land-then-fade rhythm as other lines, in tint.

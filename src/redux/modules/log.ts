@@ -28,7 +28,7 @@ export type LogVars = { [placeholder: string]: string | number } | null;
 
 export type QueueEntry =
     | { id: number; sequence: LogId; vars?: LogVars; progress: number }
-    | { id: number; text: string; className?: string; style?: LineStyle | null };
+    | { id: number; text: string; className?: string; style?: LineStyle | null; sound?: string };
 
 export interface LogState {
     lines: PrintedLine[];
@@ -46,7 +46,7 @@ export const FINISH_HEAD = 'log/FINISH_HEAD' as const;
 
 export type LogAction =
     | { type: typeof PRINT_LINE; payload: { text: string; className?: string; style?: LineStyle | null; flash?: boolean } }
-    | { type: typeof ENQUEUE; payload: { sequence: LogId; vars?: LogVars } | { text: string; className?: string; style?: LineStyle | null } }
+    | { type: typeof ENQUEUE; payload: { sequence: LogId; vars?: LogVars } | { text: string; className?: string; style?: LineStyle | null; sound?: string } }
     | { type: typeof FINISH_HEAD; payload: { id: number } };
 
 // Initial State
@@ -107,9 +107,11 @@ export function startLogSequence(sequence: LogId, vars: LogVars = null): LogActi
 }
 
 // Queues a one-off line of dynamic text (expedition telemetry, dev skips): printed instantly once whatever is
-// ahead of it has finished. style: optional inline CSS (e.g. a colour taken from the map palette).
-export function logInline(text: string, className = '', style: LineStyle | null = null): LogAction {
-    return { type: ENQUEUE, payload: { text, className, style } };
+// ahead of it has finished. style: optional inline CSS (e.g. a colour taken from the map palette). sound: an
+// audio clip name (singletons/audio) played as the line lands; silent by default, since most inline lines
+// arrive as a consequence of something the player just did and saw.
+export function logInline(text: string, className = '', style: LineStyle | null = null, sound?: string): LogAction {
+    return { type: ENQUEUE, payload: { text, className, style, ...(sound ? { sound } : {}) } };
 }
 
 // Used by the player only: commits a line to history (and counts it towards the head sequence's progress).

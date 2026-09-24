@@ -231,12 +231,11 @@ class EncounterPopup extends React.Component {
     }
 
     render() {
-        // Held shut through the contact beat: the squad is still visibly dropping into the settlement on the map,
-        // and the battle behind this hasn't started ticking yet (see advanceSquad's descent).
-        const descending = this.props.squad && this.props.squad.fighting &&
-            this.props.squad.fighting.contactMs !== undefined &&
-            this.props.squad.fighting.contactMs < CONTACT_MS;
-        const fighting = !descending && this.props.squad && this.props.squad.fighting;
+        // Opens the moment the fight is committed to. The contact beat (the squad dropping into the settlement on
+        // the map, the battle held at its opening frame) plays out behind and inside it: the beat is too short for
+        // the eye to find the glyph on the map, and the arena standing still for it before the first shot reads
+        // better than a blank gap between the approach card and the fight.
+        const fighting = this.props.squad && this.props.squad.fighting;
         const prompt = this.props.prompt;
         // A sprung approach card (a camp, an ambush) holds shut through the contact beat too: the map is
         // playing the squad's glyph blinking on the tile it was caught on.

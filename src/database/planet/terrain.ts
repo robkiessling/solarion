@@ -41,7 +41,8 @@ const EXPLORATION_TIME_FACTOR = 0.5;
 /**
  * crossTime: ms for a droid to cross one tile of this terrain (the movement cost / terrain weight).
  * crossUpgrade: research key that must be unlocked before the terrain can be crossed at all; until then it is impassable,
- *   but still revealed by line-of-sight so you can see the barrier.
+ *   but still revealed by line-of-sight so you can see the barrier. Only the shallows' key is ever granted (Amphibious
+ *   Tracks); mountains, ice and the sea carry keys nothing researches, so they are walls for good.
  * blocksVision (optional): the tile stops sight. It is revealed itself, but nothing behind it is (see
  *   getVisibleCoords). Independent of passability: a ridge you can climb with Mountaineering still hides
  *   what is on the far side.
@@ -59,9 +60,9 @@ export const TERRAINS: Record<TerrainKey, TerrainDef> = {
     // (nothing produces here until replication builds on it). Never painted; a settlement with `site` leaves
     // one behind when it falls.
     outpost: { key: 'outpost', display: '▣', label: 'Site', crossTime: EXPLORATION_TIME_FACTOR },
-    mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
+    mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // A permanent wall (the crossUpgrade is never granted); also hides what is behind it
     // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
-    ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
+    ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // A permanent wall like the mountains (the crossUpgrade is never granted), in ice
     // A strait shallow enough to wade: a wall until Amphibious Tracks are researched, then slow going. Never land
     // (not surveyed, not developable), so the crossing stays a crossing.
     shallows: { key: 'shallows', display: '=', label: 'Shallows', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'amphibious' },
@@ -101,15 +102,27 @@ export const SURVEY_HALO_RADIUS = 7;
 // or 'held' inside settlement territory, or 'grid' back on powered ground. Printed once per zone change, in
 // the zone's map color, so the terminal carries the sense of place the ASCII map can't. Not repeated for a
 // zone noted within TERRAIN_BLURB_REPEAT_MS: skirting a settlement edge or a coastline flips zones every step,
-// and the same line three times in a row kills the atmosphere it's there for.
+// and a round trip to a nearby site and back would otherwise replay the whole cycle; the same line three times
+// in a row kills the atmosphere it's there for.
 // PLACEHOLDER copy until the content pass. Zones without an entry (replicating land) print nothing.
 export const TERRAIN_BLURBS: Partial<Record<SquadZone, string>> = {
     grid: 'Powered ground. Cells topping up.',
     flatland: 'Open flatland. Dust and a long horizon.',
     mountain: 'Into the mountains. Slow going; the ridges hide what lies beyond.',
     shallows: 'Shallows. Treads in the surf; the far shore is a line.',
-    water: 'The shore. Dead water to the horizon; the treads stop here.',
     ice: 'Ice sheet. Wind, glare, and nothing else.',
     held: 'Hostile territory. Thermal signatures: multiple, moving.'
 };
-export const TERRAIN_BLURB_REPEAT_MS = 45000;
+export const TERRAIN_BLURB_REPEAT_MS = 120000;
+
+// The note for a deliberate step into ground the squad can't cross (a tap into a wall; held keys bump silently),
+// keyed by the wall's terrain and printed in its map color like the notes above. Where the terrain's crossUpgrade
+// is a capability the player can earn, the line goes on to name it (see reportBlockedTerrain in
+// redux/modules/squad.ts); the permanent walls say only what they are. Same repeat window as the zone notes.
+// PLACEHOLDER copy until the content pass.
+export const TERRAIN_BLOCKED_BLURBS: Partial<Record<TerrainKey, string>> = {
+    mountain: 'Sheer rock. No line up; the ridge stands.',
+    ice: 'Ice sheet. The treads find no grip.',
+    shallows: 'Shallows. Too deep for the treads.',
+    water: 'The shore. Dead water to the horizon; the treads stop here.'
+};
