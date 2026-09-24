@@ -1,6 +1,6 @@
 /**
  * Terrain records: what each kind of ground is, how it draws, how it crosses, and what the terminal says on
- * entering it. The map module (lib/planet_map.ts) reads these; the painted map (database/planet/map.txt)
+ * entering it. The map module (lib/planet/map.ts) reads these; the painted map (database/planet/map.txt)
  * names terrains by glyph.
  */
 
@@ -10,7 +10,7 @@ export type TerrainKey = 'home' | 'outpost' | 'flatland' | 'developing' | 'devel
 /** How much of a tile the player has seen (the keys of STATUSES below) */
 export type SectorStatus = 'unknown' | 'exploring' | 'explored';
 
-/** The ground a squad stands on as the driver feels it (squadZone in lib/squad.ts): settlement territory, the
+/** The ground a squad stands on as the driver feels it (squadZone in lib/planet/squad.ts): settlement territory, the
  * powered grid, or the bare terrain. Keys the terrain notes below and the map frame's tint. */
 export type SquadZone = TerrainKey | 'held' | 'grid';
 
@@ -46,7 +46,7 @@ const EXPLORATION_TIME_FACTOR = 0.5;
  *   getVisibleCoords). Independent of passability: a ridge you can climb with Mountaineering still hides
  *   what is on the far side.
  * variants / variantShare: a few tiles draw a variant glyph instead of the legend one (terrainGlyph in
- *   lib/planet_map.ts); the share defaults to VARIANT_SHARE there.
+ *   lib/planet/map.ts); the share defaults to VARIANT_SHARE there.
  * exploreLength: legacy per-tile explore cost used by the old sector-exploration model; removed once droids land.
  */
 export const TERRAINS: Record<TerrainKey, TerrainDef> = {

@@ -2,7 +2,7 @@ import type {HostileFormation, TerrainLayoutId} from "../../lib/battle";
 
 /**
  * Field events: the concealed encounters seeded across open ground at map generation (placeEvents in
- * lib/pois.ts). They are POIs of type 'fieldEvent' that stay hidden even after their tile is scouted,
+ * lib/planet/pois.ts). They are POIs of type 'fieldEvent' that stay hidden even after their tile is scouted,
  * and go off when the squad steps on them: an ambush raises its approach card and fights on Continue, anything
  * else raises the encounter popup with its choices. Camps are the held-ground counterpart (database/planet/pois.ts); they are the settlement's
  * own people and stay on its manifest.

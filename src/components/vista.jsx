@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {buildVista, headingName} from "../lib/vista";
+import {buildVista, headingName} from "../lib/planet/vista";
 import {PLANET_COLORS} from "../database/planet/colors";
 
 // Off while other sense-of-place ideas are tried: as a live driving panel the vista changed too much per
@@ -10,7 +10,7 @@ const SHOW_VISTA = false;
 
 /**
  * The view out the front window: an ASCII skyline of the ground ahead of the deployed squad, in the
- * direction it last pushed (see lib/vista.ts). Sits at the top of the Expedition panel while a team is out.
+ * direction it last pushed (see lib/planet/vista.ts). Sits at the top of the Expedition panel while a team is out.
  */
 class Vista extends React.Component {
     render() {

@@ -1,8 +1,8 @@
-import { getRandomFromArray } from "./helpers";
-import { MinHeap } from "./min_heap";
-import { getAdjacentCoords } from "./planet_geometry";
-import {getCrossTime, GRID_TERRAINS, isScoutPassable, type PlanetMap, type Unlocks} from "./planet_map";
-import {STATUSES} from "../database/planet/terrain";
+import { getRandomFromArray } from "../helpers";
+import { MinHeap } from "../min_heap";
+import { getAdjacentCoords } from "./geometry";
+import {getCrossTime, GRID_TERRAINS, isScoutPassable, type PlanetMap, type Unlocks} from "./map";
+import {STATUSES} from "../../database/planet/terrain";
 
 /** Options for the scout lookout searches */
 export interface LookoutOptions {

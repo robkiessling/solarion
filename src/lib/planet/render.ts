@@ -3,11 +3,11 @@
  * onto an AsciiCanvas. The palette (PLANET_COLORS) and ping looks are records in database/planet/colors.ts.
  */
 
-import {PLANET_COLS} from "./planet_geometry";
-import {drawStarField} from "./star_field";
-import type AsciiCanvas from "./ascii_canvas";
-import type {DisplayCell, HaloEdges, Ping} from "./planet_map";
-import {PING_VARIANTS, PLANET_COLORS, type PlanetColorKey} from "../database/planet/colors";
+import {PLANET_COLS} from "./geometry";
+import {drawStarField} from "../star_field";
+import type AsciiCanvas from "../ascii_canvas";
+import type {DisplayCell, HaloEdges, Ping} from "./image";
+import {PING_VARIANTS, PLANET_COLORS, type PlanetColorKey} from "../../database/planet/colors";
 
 const HALO_EDGE_ALPHA = 0.45; // how faint the survey-range boundary line is
 

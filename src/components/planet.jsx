@@ -1,19 +1,14 @@
 import React from 'react';
 import {connect} from "react-redux";
 import AsciiCanvas from "../lib/ascii_canvas";
-import {
-    generateImage,
-    coordToImageCell,
-    imageCellToCoord,
-    isDisplayCellVisible,
-    getGridHalo
-} from "../lib/planet_map";
-import {NUM_PLANET_ROWS, DISPLAY_COLS, PLANET_COLS} from "../lib/planet_geometry";
+import {getGridHalo} from "../lib/planet/map";
+import {generateImage, coordToImageCell, imageCellToCoord, isDisplayCellVisible} from "../lib/planet/image";
+import {NUM_PLANET_ROWS, DISPLAY_COLS, PLANET_COLS} from "../lib/planet/geometry";
 import {mod} from "../lib/helpers";
-import {drawPlanetImage, drawSky} from "../lib/planet_render";
+import {drawPlanetImage, drawSky} from "../lib/planet/render";
 import {PLANET_COLORS, zoneColor} from "../database/planet/colors";
 import {FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, SITE_GLYPH} from "../database/planet/poi_types";
-import {stepInDirection, squadCrossMs, squadZone} from "../lib/squad";
+import {stepInDirection, squadCrossMs, squadZone} from "../lib/planet/squad";
 import {CONTACT_MS, SQUAD_GLYPH} from "../database/squad/tuning";
 import {EQUIPMENT_ORDER} from "../database/squad/equipment";
 import {
@@ -54,7 +49,7 @@ const BEACON_PING_PERIOD_MS = 2600; // slow locator pulse on the placed beacon
 // being evaluated; the terminal's terrain notes and the HUD's terrain line carry it alone. Grid ground wears
 // no rim: returning to it reads as "back to normal".
 const SHOW_ZONE_RIM = false;
-// The sky behind the planet: stars panning opposite to the ground (see planet_render's drawSky)
+// The sky behind the planet: stars panning opposite to the ground (see drawSky in lib/planet/render.ts)
 const SHOW_SKY = true;
 // How many times the squad glyph blinks on the tile where an ambush springs (over the contact beat)
 const AMBUSH_BLINKS = 2;
@@ -470,7 +465,7 @@ class Planet extends React.Component {
                 ...(peeking ? { alpha: 0.5 } : {}),
                 // No selfLit: sites are things on the ground, not lights, and vanish into the night like the
                 // ground they sit on (only the powered grid and units carry lights)
-                // Radar ping on the hovered marker: 0..1 through the expand-and-fade cycle (drawn in planet_render)
+                // Radar ping on the hovered marker: 0..1 through the expand-and-fade cycle (drawn in lib/planet/render.ts)
                 ping: hovered ?
                     { fraction: (this.props.elapsedTime % POI_PING_PERIOD_MS) / POI_PING_PERIOD_MS, variant: 'hover' } :
                     undefined

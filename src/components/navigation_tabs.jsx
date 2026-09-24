@@ -1,8 +1,8 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import { NAV_TAB_TITLES, updateSetting } from "../redux/modules/game";
-import { isOnGrid, squadBatteryCapacity, squadDrainPerTile, squadHp } from "../lib/squad";
-import { getCrossTime, getTerrain } from "../lib/planet_map";
+import { isOnGrid, squadBatteryCapacity, squadDrainPerTile, squadHp } from "../lib/planet/squad";
+import {getCrossTime, getTerrain} from "../lib/planet/map";
 import { TERRAINS } from "../database/planet/terrain";
 import { PLANET_COLORS } from "../database/planet/colors";
 

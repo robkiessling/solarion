@@ -1,7 +1,7 @@
 import React from 'react';
 import {connect} from "react-redux";
 import {retreatFromFight, squadDescend, squadEngage, squadInteract, squadLeaveApproach, squadLeavePrompt, squadWithdraw, useEquipment} from "../redux/modules/planet";
-import {actionLabelFor, approachTextFor, estimateDifficultyRange, formatResourceList, isGarrisoned, poiLevels, promptTextFor} from "../lib/pois";
+import {actionLabelFor, approachTextFor, estimateDifficultyRange, formatResourceList, isGarrisoned, poiLevels, promptTextFor} from "../lib/planet/pois";
 import {CAPABILITY_LABELS, POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../database/planet/poi_types";
 import {STORY_TEXTS} from "../database/planet/story_sites";
 import {PLANET_COLORS} from "../database/planet/colors";

@@ -7,7 +7,7 @@ import type {StoryId} from "./story_sites";
 /**
  * The POI vocabulary: the kinds of thing that can sit on a map tile, how each behaves when the squad
  * arrives, and how it draws. The content manifest (database/planet/pois.ts) is written in these terms; the
- * placement pass (generatePois in lib/pois.ts) and the encounter flow (redux/modules/planet.ts) interpret them.
+ * placement pass (generatePois in lib/planet/pois.ts) and the encounter flow (redux/modules/planet.ts) interpret them.
  * A new POI TYPE is a code change (contact rules, resolution, a legend row); a new combination of the
  * fields below is content.
  */
@@ -87,7 +87,7 @@ export interface TunnelDef {
 // Per-type encounter popup behavior; individual definitions override. `result` decides what accepting does:
 // 'auto' resolves and closes the popup (the map change is the feedback), 'narrate' holds it open on a result
 // phase (story text, salvage, losses) until the player continues or drives away. `promptText` is the offer
-// line ({loot} expands to the rolled reward, see promptTextFor in lib/pois.ts). Garrisoned sites don't
+// line ({loot} expands to the rolled reward, see promptTextFor in lib/planet/pois.ts). Garrisoned sites don't
 // offer; they raise the approach card instead (`approachText`, with the ground line and the threat estimate),
 // which commits to the fight on Continue. A site the squad chose to walk into can be left from that card; a
 // concealed one (a camp, an ambush) cannot: it is sprung. `clearedLabel` heads the popup's result line after

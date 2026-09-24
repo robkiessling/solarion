@@ -1,14 +1,14 @@
-import {NUM_PLANET_ROWS, parseCoordKey, PLANET_COLS} from "./planet_geometry";
-import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, type PlanetMap, type Unlocks} from "./planet_map";
-import {STATUSES, type SquadZone} from "../database/planet/terrain";
-import {CONTACT_MS, RESERVE_HP_PER_TILE, SQUAD_BATTERY_CAPACITY, SQUAD_DRAIN_PER_TILE, SQUAD_SPEED_FACTOR} from "../database/squad/tuning";
-import {mapObject, mod, typedEntries} from "./helpers";
+import {NUM_PLANET_ROWS, parseCoordKey, PLANET_COLS} from "./geometry";
+import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, type PlanetMap, type Unlocks} from "./map";
+import {STATUSES, type SquadZone} from "../../database/planet/terrain";
+import {CONTACT_MS, RESERVE_HP_PER_TILE, SQUAD_BATTERY_CAPACITY, SQUAD_DRAIN_PER_TILE, SQUAD_SPEED_FACTOR} from "../../database/squad/tuning";
+import {mapObject, mod, typedEntries} from "../helpers";
 
-import {advanceBattle, type Battle, type BattleOverEvent, fullDroidHp} from "./battle";
-import {EQUIPMENT_DEFS, type EquipmentCharges} from "../database/squad/equipment";
-import {DROID_BASE_STATS, type DroidStats} from "../database/battle/units";
+import {advanceBattle, type Battle, type BattleOverEvent, fullDroidHp} from "../battle";
+import {EQUIPMENT_DEFS, type EquipmentCharges} from "../../database/squad/equipment";
+import {DROID_BASE_STATS, type DroidStats} from "../../database/battle/units";
 import type {Poi} from "./pois";
-import {INFINITE_CHARGE} from "../dev/skips";
+import {INFINITE_CHARGE} from "../../dev/skips";
 
 /** What advanceSquad reports back to the caller; resolved by resolveSquadEvent in redux/modules/planet.ts */
 export type SquadEvent =
@@ -65,7 +65,7 @@ export interface Squad {
 // Tuning (glyph, pace, battery, reserve burn) is in database/squad/tuning.ts.
 
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
-export {isOnGrid} from "./planet_map";
+export {isOnGrid} from "./map";
 
 // The kind of ground a coord is, as far as the driver feels it: settlement territory first (it overrides the
 // terrain), then powered grid, then the terrain itself. Zone changes drive the terminal's terrain notes and

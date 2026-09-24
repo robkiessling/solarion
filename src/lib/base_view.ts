@@ -331,7 +331,7 @@ const SUN_RADIUS = '60vh'
 
 // The base view faces south (home sits in the northern hemisphere, so the sun's whole arc is in the southern
 // sky): the sun rises on the left (east), peaks top-centre at noon, and sets on the right (west), the same
-// west-to-east spin as planet_map's subsolarFraction. On screen the arc runs left -> top -> right.
+// west-to-east spin as subsolarFraction in lib/planet/image.ts. On screen the arc runs left -> top -> right.
 function sunPosition(fractionOfDay: number) {
     // `radians` represents how far along a unit circle we are (starts at 0, ends at 2pi).
     // Our circle is going counter-clockwise so we multiply by -1.

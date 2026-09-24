@@ -4,7 +4,7 @@ import * as fromGame from '../../redux/modules/game';
 import * as fromPlanet from '../../redux/modules/planet';
 import * as fromLog from "../../redux/modules/log";
 import {kickoffDoomsday} from "../../redux/reducer";
-import {COOK_TIME} from "../../lib/planet_map";
+import {COOK_TIME} from "../../lib/planet/image";
 import type {LogRecord} from "./index";
 
 export default {

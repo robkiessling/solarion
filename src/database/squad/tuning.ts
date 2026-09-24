@@ -1,5 +1,5 @@
 /**
- * Squad tuning: the driven team's range, pace and glyph. The movement sim (lib/squad.ts) reads these.
+ * Squad tuning: the driven team's range, pace and glyph. The movement sim (lib/planet/squad.ts) reads these.
  */
 
 export const SQUAD_GLYPH = '@';

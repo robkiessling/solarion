@@ -3,7 +3,7 @@ import {
     mod,
     roundToDecimal,
     typedKeys,
-} from "./helpers";
+} from "../helpers";
 /**
  * This module owns the SHAPE of the planet and the spatial relationships between tiles (adjacency, distance).
  * It holds no game state, terrain, or rendering.

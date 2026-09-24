@@ -1,11 +1,11 @@
-import {NUM_PLANET_ROWS, PLANET_COLS} from "./planet_geometry";
-import {getTerrain, type PlanetMap, type Sector} from "./planet_map";
-import {STATUSES, TERRAINS, type TerrainKey} from "../database/planet/terrain";
-import {mod} from "./helpers";
-import {POI_COLOR_KEYS, POI_GLYPHS} from "../database/planet/poi_types";
+import {NUM_PLANET_ROWS, PLANET_COLS} from "./geometry";
+import {getTerrain, type PlanetMap, type Sector} from "./map";
+import {STATUSES, TERRAINS, type TerrainKey} from "../../database/planet/terrain";
+import {mod} from "../helpers";
+import {POI_COLOR_KEYS, POI_GLYPHS} from "../../database/planet/poi_types";
 import type {Poi} from "./pois";
 import type {Squad} from "./squad";
-import type {PlanetColorKey} from "../database/planet/colors";
+import type {PlanetColorKey} from "../../database/planet/colors";
 
 /**
  * The vista: a driver's-eye skyline of the ground ahead of the squad, drawn from the map tiles in the

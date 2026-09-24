@@ -4,7 +4,7 @@ import type {PoiDef, TunnelDef} from "./poi_types";
  * The content manifest: WHAT exists on the planet. One POI_DEFS entry per placed POI, each naming the painted
  * zone or point of database/planet/map.txt it lands in, and one TUNNEL_DEFS entry per painted tunnel digit.
  * The vocabulary these are written in (types, per-type behavior, glyphs) is database/planet/poi_types.ts; the
- * placement pass (generatePois in lib/pois.ts) owns the mechanics: zone/point lookup, reachability, territory
+ * placement pass (generatePois in lib/planet/pois.ts) owns the mechanics: zone/point lookup, reachability, territory
  * stamping.
  *
  * Names, texts, difficulties, and rewards are PLACEHOLDERS until the content pass; this file is what that

@@ -1,34 +1,19 @@
 import update from 'immutability-helper';
 import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, ownedEquipment, recalculateState, surveyAutomationUnlocked, withRecalculation} from "../reducer";
-import {
-    centeringRotation,
-    COOK_TIME,
-    generatePlanetMap,
-    getCrossTime,
-    getCurrentDevelopmentArea,
-    getGridHalo,
-    getHomeBasePosition,
-    getNextDevelopmentArea,
-    getVisibleCoords,
-    isPassable,
-    NUM_SECTORS,
-    numSectorsMatching,
-    sunTrackingRotation,
-    type PlanetMap,
-    type Unlocks,
-} from "../../lib/planet_map";
+import {generatePlanetMap, getCrossTime, getCurrentDevelopmentArea, getGridHalo, getHomeBasePosition, getNextDevelopmentArea, getVisibleCoords, isPassable, NUM_SECTORS, numSectorsMatching, type PlanetMap, type Unlocks} from "../../lib/planet/map";
+import {centeringRotation, COOK_TIME, sunTrackingRotation} from "../../lib/planet/image";
 import {SCOUT_VISION_HOPS, STATUSES, SURVEY_HALO_RADIUS, TERRAINS, TERRAIN_BLURBS, TERRAIN_BLURB_REPEAT_MS, type SquadZone} from "../../database/planet/terrain";
-import {getApproxDistance, getCoordsWithinHops, parseCoordKey} from "../../lib/planet_geometry";
+import {getApproxDistance, getCoordsWithinHops, parseCoordKey} from "../../lib/planet/geometry";
 import {typedEntries} from "../../lib/helpers";
 import {
     findNearestLookout,
     findNearestLookoutFromGrid,
     findPathToGrid,
     isExplorationComplete
-} from "../../lib/planet_pathing";
-import {formatResourceList, generatePois, isGarrisoned, levelPayout, poiLevels, resultBehaviorFor, type Poi} from "../../lib/pois";
+} from "../../lib/planet/pathing";
+import {formatResourceList, generatePois, isGarrisoned, levelPayout, poiLevels, resultBehaviorFor, type Poi} from "../../lib/planet/pois";
 import {applyEquipment, createBattle, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle";
-import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent} from "../../lib/squad";
+import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent} from "../../lib/planet/squad";
 import {logInline} from "./log";
 import {EXPLORE_EVERYTHING} from "../../dev/skips";
 import {zoneColor} from "../../database/planet/colors";
@@ -145,7 +130,7 @@ export const UNLOCK_TERRAIN = 'planet/UNLOCK_TERRAIN' as const;
 export const START_COOK = 'planet/START_COOK' as const;
 export const INCREMENT_COOK = 'planet/INCREMENT_COOK' as const;
 
-// The player-driven squad (see lib/squad.ts)
+// The player-driven squad (see lib/planet/squad.ts)
 export const SQUAD_ASSIGN_DROID = 'planet/SQUAD_ASSIGN_DROID' as const;
 export const SQUAD_REMOVE_DROID = 'planet/SQUAD_REMOVE_DROID' as const;
 export const DEPLOY_SQUAD = 'planet/DEPLOY_SQUAD' as const;
@@ -248,7 +233,7 @@ const initialState: PlanetState = {
     numExplored: 0, // Number of revealed sectors
     maxDevelopedLand: 0,
 
-    // POIs and the driven squad (see lib/pois.ts and lib/squad.ts for domain logic and shapes)
+    // POIs and the driven squad (see lib/planet/pois.ts and lib/planet/squad.ts for domain logic and shapes)
     pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
     squad: null, // the player-driven squad (see createSquad): { coord, path, moveProgress, battery,
                  // assignedDroids, multiplier, squadSize (effective units), cargo, equipment, droidHp, fighting }
