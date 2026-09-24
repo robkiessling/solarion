@@ -5,7 +5,7 @@ import type {UpgradeId} from './upgrades';
  * Decisions: the terminal asking the operator something, answered in the decision popup (components/decision_popup.jsx).
  * The machine never takes the screen to ask. A request lands as a marked row on the owning structure's card (yellow
  * until opened, grey once seen and left); the player opens it when they choose, so nothing they were doing is
- * blocked. Escape or ✕ just closes the popup and the row stays. Picking an option resolves it: the row goes away and
+ * blocked. Close (the last numbered button) or ✕ just closes the popup and the row stays. Picking an option resolves it: the row goes away and
  * the wall's trigger re-arms so it can ask again later with whatever remedies remain.
  *
  * Records are static content; anything that depends on the game state is a function of it, evaluated while the

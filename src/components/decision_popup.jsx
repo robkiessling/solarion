@@ -10,8 +10,10 @@ import ResourceAmounts from "./ui/resource_amounts";
  * The decision popup: the terminal asking the operator something (database/base/decisions.ts). Opened by the player
  * from a request row on a structure card (structures/decision_row.jsx), never by the game. Viewport-centered on
  * the shared PopupFrame chrome, sibling to the special panels (same overlay, same z-index rule: below the settings
- * modal). Title, optional ascii block, body paragraphs, then the options stacked as buttons numbered 1..N. Escape,
- * ✕, or the backdrop close it without answering; the request stays on its card.
+ * modal). Title, optional ascii block, body paragraphs, then the options stacked as buttons numbered 1..N, with
+ * Close as the last number (the same rule as the encounter popup: numbered left to right, the way out last, no
+ * Esc; see lib/planet/prompt_actions.ts). Close, ✕, or the backdrop close it without answering; the request
+ * stays on its card.
  *
  * Keys are captured on window in the capture phase and stopped there while a decision is open, so nothing under
  * the popup (the planet's squad driving, the panel host's Escape) sees them.
@@ -33,17 +35,13 @@ class DecisionPopup extends React.Component {
         if (!this.props.record) return;
         event.stopPropagation();
 
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            if (!event.repeat) this.props.closeDecision();
-            return;
-        }
         if (!/^[1-9]$/.test(event.key)) return;
 
         event.preventDefault();
         const index = parseInt(event.key, 10) - 1;
-        if (event.repeat || index >= this.props.options.length) return;
-        this.props.chooseOption(index);
+        if (event.repeat) return;
+        if (index === this.props.options.length) this.props.closeDecision();
+        else if (index < this.props.options.length) this.props.chooseOption(index);
     }
 
     render() {
@@ -77,6 +75,12 @@ class DecisionPopup extends React.Component {
                                 </button>
                             );
                         })}
+                        <button onClick={() => this.props.closeDecision()}>
+                            <kbd>{options.length + 1}</kbd>
+                            <span className="option-text">
+                                <span className="option-label">Close</span>
+                            </span>
+                        </button>
                     </div>
                 </PopupFrame>
             </div>

@@ -1,4 +1,5 @@
 @use '../variables' as *;
+@use '../mixins' as *;
 
 // The decision popup (components/decision_popup.jsx): the terminal asking the operator something. Chrome is the
 // shared PopupFrame (popup.scss); it mounts in a .panel-overlay like the special panels (panels.scss) and reads
@@ -8,9 +9,8 @@
   width: 30rem;
   max-width: 92vw;
   max-height: 84vh;
-  padding: 1.3rem 1.2rem 1rem;
-  // No overflow on the surface: the legend-style title hangs above its top edge and would be clipped (same rule as
-  // .special-panel). A long body scrolls on its own inside the column.
+  padding: 1.2rem 1.2rem 1rem;
+  // A long body scrolls on its own inside the column; the header and the options stay put
   display: flex;
   flex-direction: column;
 
@@ -29,12 +29,10 @@
     min-height: 0;
     overflow-y: auto;
     margin-bottom: 1rem;
-    p {
-      margin: 0 0 0.6rem;
-      &:last-child { margin-bottom: 0; }
-    }
   }
 
+  // The options as a stacked list of the shared popup buttons (popup.scss), each a full-width row: the label
+  // line in the button's command style, its detail and cost beneath in plain case
   .popup-actions {
     flex: 0 0 auto;
     display: flex;
@@ -44,47 +42,27 @@
     button {
       display: flex;
       align-items: baseline;
-      gap: 0.6rem;
       width: 100%;
-      padding: 0.45rem 0.6rem;
-      background: none;
-      border: 1px solid $ui-border;
-      font-family: inherit;
-      font-size: 1em;
       text-align: left;
-      color: $ui-text;
-      cursor: pointer;
+      // The brackets go on the label line (below), not around the whole row with its detail and cost
+      &::before, &::after { content: none; }
 
-      &:hover:not(:disabled) {
-        border-color: $ui-text-dim;
-      }
-      // Visible but unearned (database/base/decisions.ts `available`): the player can see the door is there
-      &:disabled {
-        color: $ui-text-dim;
-        opacity: 0.5;
-        cursor: default;
-      }
-
-      // Hotkey chip, same look as the encounter popup's action row (planet.scss)
-      kbd {
-        flex: 0 0 auto;
-        font-family: inherit;
-        font-size: 0.75em;
-        line-height: 1;
-        padding: 1px 3px;
-        border: 1px solid #999;
-        background: #e2e2e2;
-        color: #333;
-      }
+      // A disabled option is visible but unearned (database/base/decisions.ts `available`): the player can see the
+      // door is there (the shared style fades it)
 
       .option-text {
         display: flex;
         flex-direction: column;
         gap: 0.15rem;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .option-label {
+        @include bracketed-label;
       }
       .option-detail {
         font-size: 0.85em;
-        color: $ui-text-dim;
+        opacity: 0.75;
       }
       // What a research option spends, and its research time
       .option-cost {
@@ -92,7 +70,7 @@
         align-items: baseline;
         gap: 0.6rem;
         font-size: 0.85em;
-        color: $ui-text-dim;
+        opacity: 0.75;
       }
     }
   }

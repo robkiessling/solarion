@@ -1,5 +1,20 @@
 @use './variables' as *;
 
+// A filled button's label reads as a terminal command: {OVERCLOCK}. The brackets are pseudo-elements, so the
+// element is made a flex row: that is what lets the gap space them off the label (gap does nothing on an
+// inline or block element), and what lets a caller order a hotkey chip ahead of the opening bracket.
+@mixin bracketed-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+
+  &::before { content: '{'; }
+  &::after { content: '}'; }
+}
+
 // Button tiers. Filled (the ability / Deploy look below) is for a panel's one main action, so it has to stay
 // rare to keep its weight. Everything that repeats on every card (droid steppers, Build) is outlined: a quiet
 // frame that lights on hover, never a white slab brighter than the numbers beside it. Minor or reversible
@@ -25,11 +40,28 @@
   }
 }
 
-// A filled button's label reads as a terminal command: [ OVERCLOCK ]
-@mixin bracketed-label {
-  text-transform: uppercase;
-  letter-spacing: 1px;
+// The filled button (Disband, the popup actions, a structure's ability): a green slab with a cream frame, its
+// label a command. Callers set the fill for the warm variant (Deploy and the abilities use the ability orange).
+// Hover brightens rather than underlines. A real <button> is disabled by :disabled; the ability is a div and
+// carries .disabled instead (progress_button.jsx), with its own faded look under .progress-button.
+@mixin filled-button {
+  @include bracketed-label;
+  padding: 0.5rem 1rem;
+  background: $progress-button-bg;
+  border: 1px solid $progress-button-border;
+  font-family: inherit;
+  font-size: 0.9em;
+  color: $progress-button-text;
+  cursor: pointer;
 
-  //&::before { content: '[ '; }
-  //&::after { content: ' ]'; }
+  &:hover {
+    text-decoration: none;
+  }
+  &:hover:not(:disabled):not(.disabled) {
+    filter: brightness(1.15);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
 }

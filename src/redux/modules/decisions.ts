@@ -88,7 +88,7 @@ export function openDecision(id: DecisionId): DecisionsAction {
     return { type: OPEN_DECISION, payload: { id } };
 }
 
-/** Escape / ✕: closes the popup without answering; the request stays pending */
+/** Close / ✕: closes the popup without answering; the request stays pending */
 export function closeDecision(): DecisionsAction {
     return { type: CLOSE_DECISION };
 }

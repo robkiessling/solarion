@@ -1,4 +1,5 @@
 @use '../variables' as *;
+@use '../mixins' as *;
 
 // Special upgrade panels (schematic index etc.): structure-owned popups. The chrome
 // (backdrop/surface/title/✕) is the shared PopupFrame (ui/popup_frame.jsx + popup.scss);
@@ -27,19 +28,15 @@
   padding: 1.2rem 1.1rem 0.9rem;
 }
 
-// The opener button on a structure card ("▤ SCHEMATIC INDEX")
+// The opener button on a structure card ("▤ SCHEMATIC INDEX"): the cards' outline button, letter-spaced
 button.panel-opener {
+  @include outline-button;
   display: block;
   margin: 0.3rem 0;
   padding: 2px 8px;
-  background: none;
-  border: 1px solid $ui-border;
-  font-family: inherit;
   font-size: 0.85em;
   letter-spacing: 1px;
-  color: $ui-text-dim;
   cursor: pointer;
-  &:hover { color: $ui-text; border-color: $ui-text-dim; }
 
   // Something in the panel deserves a visit (new row, or an affordable unsigned one)
   &.attention {
@@ -171,24 +168,19 @@ button.panel-opener {
         color: $structure-quantity-color;
       }
 
+      // The filled button, squeezed to the card's width; unaffordable it goes dark rather than faded, so
+      // the card still reads as a form with a signature line
       button.authorize {
+        @include filled-button;
         margin-top: 0.45rem;
         padding: 3px 0;
         width: 100%;
-        background: $progress-button-bg;
-        border: 1px solid $progress-button-border;
-        font-family: inherit;
-        font-size: 0.9em;
-        letter-spacing: 1px;
-        color: $progress-button-text;
-        cursor: pointer;
 
-        &:hover:not(:disabled) { filter: brightness(1.25); }
         &:disabled {
+          opacity: 1;
           background: $black-muted;
           border-color: $ui-border;
           color: $ui-text-dim;
-          cursor: default;
         }
       }
     }

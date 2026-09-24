@@ -1,12 +1,13 @@
 import React from 'react';
 import {connect} from "react-redux";
 import {retreatFromFight, squadDescend, squadEngage, squadInteract, squadLeaveApproach, squadLeavePrompt, squadWithdraw, useEquipment} from "../../redux/modules/squad";
-import {actionLabelFor, approachTextFor, estimateDifficultyRange, formatResourceList, isGarrisoned, poiLevels, promptTextFor} from "../../lib/planet/pois";
+import {approachTextFor, estimateDifficultyRange, formatResourceList, isGarrisoned, poiLevels, promptTextFor} from "../../lib/planet/pois";
 import {CAPABILITY_LABELS, POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../../database/planet/poi_types";
 import {STORY_TEXTS} from "../../database/planet/story_sites";
 import {PLANET_COLORS} from "../../database/planet/colors";
 import {ARENA_W, battleBlurb, countSpawners, countUnits} from "../../lib/battle/sim";
-import {CONTACT_MS} from "../../database/squad/tuning";
+import {CONTACT_MS, POPUP_INPUT_LOCK_MS} from "../../database/squad/tuning";
+import {promptActions} from "../../lib/planet/prompt_actions";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../../database/squad/equipment";
 import {APPROACH_GROUND} from "../../database/battle/blurbs";
 import BattleCanvas from "./canvas";
@@ -20,10 +21,12 @@ import PopupFrame from "../ui/popup_frame";
  * or fighting -- the live battle arena with the equipment action row. Offer/result are views of
  * planet.prompt (planet-level, so a wipe's popup outlives the squad); the battle is a view of
  * squad.fighting. The world stays live behind the backdrop dim (nothing pauses), but the popup blocks
- * squad movement. Keyboard mapping (1..N actions, Enter/Space accept, Esc leave/retreat) lives in the
- * planet component's input layer; the buttons mirror it. Connected on its own so updates aren't gated by
- * the canvas's FPS-throttled shouldComponentUpdate. Chrome (backdrop/surface/title) is the shared
- * PopupFrame; no dismissal props are passed -- leaving is an explicit action, never a stray click.
+ * squad movement. Every button carries its one key: numbered 1..N left to right with the way out last, and
+ * Esc on a fight's Retreat only (lib/planet/prompt_actions.ts has the rule and the phase lists; the planet
+ * component's input layer fires the same lists). A freshly opened phase ignores clicks for
+ * POPUP_INPUT_LOCK_MS, the same beat the input layer holds its number keys. Connected on its own so
+ * updates aren't gated by the canvas's FPS-throttled shouldComponentUpdate. Chrome (backdrop/surface/title)
+ * is the shared PopupFrame; no dismissal props are passed -- leaving is an explicit action, never a stray click.
  */
 // Layout constants mirrored from the stylesheets: the top bar's min-height (app.scss) and the deployed HUD
 // strip's clearance within the planet frame ($hud-clearance, base_view.scss). Big fights anchor the popup
@@ -32,6 +35,37 @@ const TOP_BAR_REM = 3.2;
 const HUD_CLEARANCE_REM = 6.5;
 
 class EncounterPopup extends React.Component {
+    constructor(props) {
+        super(props);
+        this.openedAt = -Infinity; // performance.now() of the last phase opening (the click lock's start)
+    }
+
+    componentDidUpdate(prevProps) {
+        const fightStarted = this.props.squad && this.props.squad.fighting && !(prevProps.squad && prevProps.squad.fighting);
+        if ((this.props.prompt && this.props.prompt !== prevProps.prompt) || fightStarted) {
+            this.openedAt = performance.now();
+        }
+    }
+
+    // A button's click, dropped while the phase's input lock holds (the buttons don't grey out for it: a
+    // quarter-second flash of disabled styling on every popup would read as a glitch)
+    guarded(run) {
+        return () => { if (performance.now() - this.openedAt >= POPUP_INPUT_LOCK_MS) run(); };
+    }
+
+    // The phase's answers as its button row, numbered in list order
+    renderPromptActions(poi, prompt) {
+        return (
+            <div className="popup-actions">
+                {promptActions(poi, prompt).map((action, i) => (
+                    <button key={i} onClick={this.guarded(() => action.run(this.props))}>
+                        <kbd>{i + 1}</kbd>{action.label}
+                    </button>
+                ))}
+            </div>
+        );
+    }
+
     // Force fractions, alive/starting (escapees count as alive: off the field, not dead). Mirrored:
     // labels sit at the outer edges. The hostile denominator is the field's high-water mark (hostilesPeak),
     // so spawner reinforcements raise the ceiling instead of overflowing it, and spawner fights add
@@ -58,32 +92,18 @@ class EncounterPopup extends React.Component {
         );
     }
 
-    renderOffer(poi) {
-        // A field event offers its own answers (1..N, mirrored by the planet component's input layer); every
-        // other site has the one take-it action
-        const choices = poi.choices || [{ label: actionLabelFor(poi) }];
+    renderOffer(poi, prompt) {
         return (
             <React.Fragment>
                 <div className="popup-body">{promptTextFor(poi)}</div>
-                <div className="popup-actions">
-                    {choices.map((choice, i) => (
-                        <button key={i} onClick={() => this.props.squadInteract(i)}>
-                            <kbd>{i + 1}</kbd>{choice.label}
-                        </button>
-                    ))}
-                    <button onClick={() => this.props.squadLeavePrompt()}>
-                        <kbd>Esc</kbd>Leave
-                    </button>
-                </div>
+                {this.renderPromptActions(poi, prompt)}
             </React.Fragment>
         );
     }
 
     // The approach card: what the sensors make of the site from outside (the authored line, the ground ahead, the
-    // threat as a band until a fight has shown the true count), and the choice. Continue is never on a number key
-    // (those fire equipment mid-fight, and no number press should ever start a battle). A concealed site (a camp,
-    // an ambush) was sprung on the squad, so it offers no Leave.
-    renderApproach(poi) {
+    // threat as a band until a fight has shown the true count), and the choice.
+    renderApproach(poi, prompt) {
         const level = poiLevels(poi)[0];
         const ground = level && APPROACH_GROUND[level.terrain || 'open'];
         let threat = null;
@@ -98,20 +118,13 @@ class EncounterPopup extends React.Component {
                     {ground && <span className="result-line">{ground}</span>}
                     {threat && <span className="outcome-line">{threat}</span>}
                 </div>
-                <div className="popup-actions">
-                    <button onClick={() => this.props.squadEngage()}>
-                        <kbd>Enter</kbd>Continue
-                    </button>
-                    {!poi.concealed &&
-                        <button onClick={() => this.props.squadLeaveApproach()}>
-                            <kbd>Esc</kbd>Leave
-                        </button>}
-                </div>
+                {this.renderPromptActions(poi, prompt)}
             </React.Fragment>
         );
     }
 
-    renderResult(poi, result) {
+    renderResult(poi, prompt) {
+        const result = prompt.result;
         const story = result.storyId ? STORY_TEXTS[result.storyId] : null;
         // Battle results hold the field's final frame (frozen, nothing ticks it) with a verdict banner
         // over it, so the fight's ending stays on screen instead of snapping down to the small prompt;
@@ -158,24 +171,7 @@ class EncounterPopup extends React.Component {
                     </span>}
             </div>
         );
-        // The descent is never on a number key: those fire equipment mid-fight, and a press landing just
-        // after the last kill must not commit the squad to another battle.
-        const actions = descent ? (
-            <div className="popup-actions">
-                <button onClick={() => this.props.squadDescend()}>
-                    <kbd>Enter</kbd>{tunnel ? 'Press on' : 'Descend'}
-                </button>
-                <button onClick={() => this.props.squadWithdraw()}>
-                    <kbd>Esc</kbd>Withdraw
-                </button>
-            </div>
-        ) : (
-            <div className="popup-actions">
-                <button onClick={() => this.props.squadLeavePrompt()}>
-                    <kbd>1</kbd>Continue
-                </button>
-            </div>
-        );
+        const actions = this.renderPromptActions(poi, prompt);
         if (!finalBattle) {
             return <React.Fragment>{body}{actions}</React.Fragment>;
         }
@@ -216,7 +212,7 @@ class EncounterPopup extends React.Component {
                             <React.Fragment key={id}>
                                 <button data-tip data-for={`battle-item-${id}-tip`}
                                         disabled={!(equipment[id] > 0)}
-                                        onClick={() => this.props.useEquipment(id)}>
+                                        onClick={this.guarded(() => this.props.useEquipment(id))}>
                                     <kbd>{i + 1}</kbd>{EQUIPMENT_DEFS[id].name}{' '}
                                     {'●'.repeat(equipment[id]) + '○'.repeat(Math.max(0, EQUIPMENT_DEFS[id].charges - equipment[id]))}
                                 </button>
@@ -279,28 +275,24 @@ class EncounterPopup extends React.Component {
             }
         }
 
-        // Which level of a multi-level settlement this is. An announced site counts from the start ("LEVEL 1 OF 3");
+        // Which level of a multi-level settlement this is. An announced site counts from the start ("Level 1 of 3");
         // an unannounced one says nothing on the surface (that would give away that there is more) and
         // only numbers the levels once the squad is below it.
         let levelLabel = '';
         const level = fighting ? fighting.level : prompt && prompt.result && prompt.result.level;
         if (isGarrisoned(poi) && level != null && poiLevels(poi).length > 1) {
-            if (poi.levelsShown) levelLabel = ` · LEVEL ${level + 1} OF ${poiLevels(poi).length}`;
-            else if (level > 0) levelLabel = ` · LEVEL ${level + 1}`;
+            if (poi.levelsShown) levelLabel = ` · Level ${level + 1} of ${poiLevels(poi).length}`;
+            else if (level > 0) levelLabel = ` · Level ${level + 1}`;
         }
 
-        // Site name with the POI glyph in its map color, embedded in the border
-        const title = (
-            <React.Fragment>
-                <span style={{color: PLANET_COLORS[POI_COLOR_KEYS[poi.type]]}}>{POI_GLYPHS[poi.type]}</span>
-                {' '}{poi.name.toUpperCase()}{levelLabel}
-            </React.Fragment>
-        );
+        // Glyph and site name as the popup's header, in the site's map color
+        const title = <React.Fragment>{POI_GLYPHS[poi.type]} {poi.name}{levelLabel}</React.Fragment>;
         return (
-            <PopupFrame className={`encounter-popup${battleView ? ' battle' : ''}`} style={style} title={title}>
+            <PopupFrame className={`encounter-popup${battleView ? ' battle' : ''}`} style={style} title={title}
+                        accent={PLANET_COLORS[POI_COLOR_KEYS[poi.type]]}>
                 {fighting ? this.renderBattle(poi, fighting) :
-                    prompt.phase === 'result' ? this.renderResult(poi, prompt.result) :
-                    prompt.phase === 'approach' ? this.renderApproach(poi) : this.renderOffer(poi)}
+                    prompt.phase === 'result' ? this.renderResult(poi, prompt) :
+                    prompt.phase === 'approach' ? this.renderApproach(poi, prompt) : this.renderOffer(poi, prompt)}
             </PopupFrame>
         );
     }

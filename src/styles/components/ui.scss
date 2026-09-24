@@ -26,17 +26,9 @@
   position: relative;
 
   &.ability {
-    @include bracketed-label;
+    @include filled-button;
     background: $progress-button-ability-bg;
-    font-size: 0.9em;
-
-    // Brightens rather than underlines (an underline would run under the brackets too)
-    &:hover {
-      text-decoration: none;
-    }
-    &:not(.disabled):hover {
-      filter: brightness(1.15);
-    }
+    padding: 0.5rem;
   }
 
   // Upgrade rows: icon in its own column, vertically centered against the label and (while researching) the

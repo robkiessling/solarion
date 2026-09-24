@@ -13,6 +13,12 @@ export const SQUAD_SPEED_FACTOR = 0.8;
 // Doubles as the climb-back-out duration when the fight ends.
 export const CONTACT_MS = 400;
 
+// How long a freshly opened popup phase (an offer, an approach card, a result, a fight) ignores its number keys
+// and buttons. The same number answers consecutive phases (Continue on the approach card is 1, so is the first
+// equipment slot; Descend is 1 right after the last kill), so a press aimed at the phase just closed must not
+// land on the next. Esc (a fight's Retreat) is never locked: leaving early is never the costly mistake.
+export const POPUP_INPUT_LOCK_MS = 250;
+
 // Battery model: drains per tile entered while off the powered grid, snaps to full capacity on the
 // grid. At zero the squad runs on reserve power: every unit burns hull each tile, so hull is the
 // overdraft on range; overextend far enough and the squad dies in the field (cargo and all). Speed is

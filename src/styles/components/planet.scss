@@ -111,54 +111,41 @@ $hud-clearance: 6.5rem;
 
   // The encounter popup: centered over the canvas (slightly high, clear of the legend). The shared
   // PopupFrame supplies the backdrop dim + surface + title chrome (popup.scss); the world stays live
-  // behind the dim, and the popup blocks squad movement until answered (accept or Esc).
+  // behind the dim, and the popup blocks squad movement until answered (a numbered button).
   .encounter-popup {
     position: absolute;
     left: 50%;
     top: 46%;
     transform: translate(-50%, -50%);
-    width: 21rem;
-    padding: 1rem 0.9rem 0.7rem;
+    width: 25rem;
+    padding: 1rem 1.1rem 0.9rem;
     background: rgba(13, 17, 23, 0.93); // slightly clearer than the shared surface: the map shows through
     border-color: rgba(32, 217, 255, 0.45); // the squad's cyan channel
 
     .popup-body {
-      margin-bottom: 0.7rem;
+      margin-bottom: 0.9rem;
 
       .story-text {
         display: block;
         font-style: italic;
-        margin-bottom: 0.5rem;
       }
 
       // Plain narration (e.g. the losses line); gains use .outcome-line green
       .result-line {
         display: block;
-        font-size: 0.9em;
       }
 
       .outcome-line {
         display: block;
-        font-size: 0.9em;
         color: #9be29b; // report-success green
       }
     }
 
+    // Actions numbered 1..N with the way out last; a fight's Retreat shows Esc (the buttons themselves are the
+    // shared popup.scss style)
     .popup-actions {
       display: flex;
       gap: 0.5rem;
-
-      // Hotkey chip inside the button: actions are numbered 1..N, leave/dismiss shows Esc
-      kbd {
-        font-family: inherit;
-        font-size: 0.75em;
-        line-height: 1;
-        padding: 1px 3px;
-        margin-right: 5px;
-        border: 1px solid #999;
-        background: #e2e2e2;
-        color: #333;
-      }
     }
 
     // Battle mode: the popup grows into the arena window (the live per-unit fight plays inside it).
@@ -471,28 +458,12 @@ $hud-clearance: 6.5rem;
       min-height: 1.75rem;
 
       button {
-        @include bracketed-label;
-        padding: 0.5rem 1rem;
-        border: 1px solid $progress-button-border;
-        font-family: inherit;
-        font-size: 0.9em;
-        color: $progress-button-text;
+        @include filled-button;
         text-align: center;
-        cursor: pointer;
 
         // Distinct at a glance despite the similar words: Deploy is the warm go-do-it action (the
         // ability-button orange), Disband the quiet administrative one (the standard button green)
         &.deploy { background: $progress-button-ability-bg; }
-        &.disband { background: $progress-button-bg; }
-
-        &:hover:not(:disabled) {
-          filter: brightness(1.15);
-        }
-
-        &:disabled {
-          opacity: 0.5;
-          cursor: default;
-        }
       }
     }
 

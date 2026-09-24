@@ -9,7 +9,8 @@ import {drawPlanetImage, drawSky} from "../../lib/planet/render";
 import {PLANET_COLORS, zoneColor} from "../../database/planet/colors";
 import {FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, SITE_GLYPH} from "../../database/planet/poi_types";
 import {stepInDirection, squadCrossMs, squadZone} from "../../lib/planet/squad";
-import {CONTACT_MS, SQUAD_GLYPH} from "../../database/squad/tuning";
+import {CONTACT_MS, POPUP_INPUT_LOCK_MS, SQUAD_GLYPH} from "../../database/squad/tuning";
+import {promptActions} from "../../lib/planet/prompt_actions";
 import {EQUIPMENT_ORDER} from "../../database/squad/equipment";
 import {setBeaconAt, setRotation, setRotationMode} from "../../redux/modules/planet";
 import {retreatFromFight, squadFace, squadInteract, squadDescend, squadEngage, squadLeaveApproach, squadLeavePrompt, squadWithdraw, squadStepInto, useEquipment} from "../../redux/modules/squad";
@@ -81,6 +82,7 @@ class Planet extends React.Component {
         this.didPan = false;
 
         this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.popupOpenedAt = -Infinity; // performance.now() of the last popup phase opening (the input lock's start)
         this.handleKeyUp = this.handleKeyUp.bind(this);
         this.handleCanvasClick = this.handleCanvasClick.bind(this);
         this.handleCanvasMouseDown = this.handleCanvasMouseDown.bind(this);
@@ -136,6 +138,12 @@ class Planet extends React.Component {
         if (this.insideSettlement(prevProps) && this.props.squad && !this.insideSettlement(this.props)) {
             this.emergedAt = this.props.elapsedTime;
         }
+        // A popup phase just opened (a prompt set or replaced, a fight begun): its number keys are dead for
+        // POPUP_INPUT_LOCK_MS, see handleKeyDown
+        const fightStarted = this.props.squad && this.props.squad.fighting && !(prevProps.squad && prevProps.squad.fighting);
+        if ((this.props.prompt && this.props.prompt !== prevProps.prompt) || fightStarted) {
+            this.popupOpenedAt = performance.now();
+        }
         this.maybeContinueMovement(prevProps);
         this.drawPlanet();
     }
@@ -157,67 +165,37 @@ class Planet extends React.Component {
     handleKeyDown(event) {
         if (!this.props.visible) return;
 
-        // Encounter popup hotkeys: 1/Enter/Space fire the primary action (accept the offer, or Continue past
-        // the result), Esc leaves. The popup blocks movement -- the player must choose -- but movement keys
-        // still track into heldKeys, so holding a direction while pressing Esc walks off without a re-press.
+        // Popup hotkeys, one rule everywhere: the buttons are numbered 1..N left to right and the last number is
+        // always the way out; Esc is a fight's Retreat and nothing else (lib/planet/prompt_actions.ts has the
+        // reasoning). A freshly opened phase ignores its numbers for POPUP_INPUT_LOCK_MS: the same number answers
+        // consecutive phases, so a press aimed at the phase just closed must not land on this one. The popup blocks
+        // movement -- the player must choose -- but movement keys still track into heldKeys, so holding a
+        // direction while answering walks off without a re-press.
         // Handled before the squad guard: a wipe's result popup has no squad left, but still needs dismissing.
         const prompt = this.props.prompt;
+        const slot = parseInt(event.key, 10);
+        const locked = performance.now() - this.popupOpenedAt < POPUP_INPUT_LOCK_MS;
         if (prompt) {
-            // Between a settlement's levels the result is a choice: Enter/Space descends, Esc withdraws. '1' is
-            // swallowed there: it fires equipment mid-fight, so a press landing just after the last kill
-            // must not start the next battle.
-            const descent = prompt.phase === 'result' && prompt.result && prompt.result.nextLevel != null;
-            // The approach card commits to a fight, so like the descent it is never on '1'
-            const approach = prompt.phase === 'approach';
-            if (event.key === 'Enter' || event.key === ' ' || event.key === '1') {
+            if (slot >= 1 && slot <= 9) {
                 event.preventDefault();
-                if (!event.repeat) {
-                    if (descent) { if (event.key !== '1') this.props.squadDescend(); }
-                    else if (approach) { if (event.key !== '1') this.props.squadEngage(); }
-                    else if (prompt.phase === 'result') this.props.squadLeavePrompt();
-                    else this.props.squadInteract(0);
-                }
+                const poi = this.props.pois[prompt.poiId];
+                const action = poi && promptActions(poi, prompt)[slot - 1];
+                if (action && !event.repeat && !locked) action.run(this.props);
                 return;
             }
-            // A field event's further answers sit on 2..N (the popup's buttons carry the same numbers)
-            const choiceSlot = parseInt(event.key, 10);
-            if (prompt.phase === 'offer' && choiceSlot >= 2) {
-                const offered = this.props.pois[prompt.poiId];
-                if (offered && offered.choices && choiceSlot <= offered.choices.length) {
-                    event.preventDefault();
-                    if (!event.repeat) this.props.squadInteract(choiceSlot - 1);
-                    return;
-                }
-            }
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                if (!event.repeat) {
-                    if (descent) this.props.squadWithdraw();
-                    else if (approach) this.props.squadLeaveApproach(); // refuses on a sprung site
-                    else this.props.squadLeavePrompt();
-                }
-                return;
-            }
-            const dir = KEY_DIRS[event.key];
-            if (dir) {
-                event.preventDefault();
-                if (!event.repeat) {
-                    this.heldKeys = this.heldKeys.filter(held => held.key !== event.key).concat({ key: event.key, dir });
-                }
-            }
+            this.trackHeldKey(event);
             return;
         }
 
         if (!this.props.squad) return;
 
-        // Mid-battle hotkeys: number keys fire equipment (1..N in carried order, mirrored by the popup's
-        // action row), Esc orders the retreat. Movement keys still track into heldKeys so a held direction
-        // resumes driving the moment the battle ends.
+        // Mid-battle: number keys fire equipment (1..N in carried order, mirrored by the popup's action row),
+        // Esc orders the retreat (never locked: leaving early is never the costly mistake). Movement keys still
+        // track into heldKeys so a held direction resumes driving the moment the battle ends.
         if (this.props.squad.fighting) {
-            const slot = parseInt(event.key, 10);
             if (slot >= 1 && slot <= this.props.equipmentOrder.length) {
                 event.preventDefault();
-                if (!event.repeat) this.props.useEquipment(this.props.equipmentOrder[slot - 1]);
+                if (!event.repeat && !locked) this.props.useEquipment(this.props.equipmentOrder[slot - 1]);
                 return;
             }
             if (event.key === 'Escape') {
@@ -225,13 +203,7 @@ class Planet extends React.Component {
                 if (!event.repeat) this.props.retreatFromFight();
                 return;
             }
-            const dir = KEY_DIRS[event.key];
-            if (dir) {
-                event.preventDefault();
-                if (!event.repeat) {
-                    this.heldKeys = this.heldKeys.filter(held => held.key !== event.key).concat({ key: event.key, dir });
-                }
-            }
+            this.trackHeldKey(event);
             return;
         }
 
@@ -252,6 +224,17 @@ class Planet extends React.Component {
 
     handleKeyUp(event) {
         this.heldKeys = this.heldKeys.filter(held => held.key !== event.key);
+    }
+
+    // A movement key pressed while the squad can't move (a popup is up, a fight is on): remembered as held, so
+    // driving resumes on the key the moment the squad is free
+    trackHeldKey(event) {
+        const dir = KEY_DIRS[event.key];
+        if (!dir) return;
+        event.preventDefault();
+        if (!event.repeat) {
+            this.heldKeys = this.heldKeys.filter(held => held.key !== event.key).concat({ key: event.key, dir });
+        }
     }
 
     // When the squad becomes free again (arrival, fight resolved, prompt answered), continue: a buffered tap
