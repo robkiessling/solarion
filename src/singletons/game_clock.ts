@@ -15,7 +15,7 @@ import {saveState} from "../lib/local_storage";
 import {formatNumber, typedEntries} from "../lib/helpers";
 
 const CLOCK_FPS = 30;
-export const OUTSIDE_FPS = 10;
+export const BASE_VIEW_FPS = 10;
 export const STAR_FPS = 30;
 export const PLANET_FPS = 30;
 export const ENERGY_BUTTON_FPS = 60;

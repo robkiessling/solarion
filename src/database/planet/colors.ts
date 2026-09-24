@@ -1,5 +1,5 @@
 /**
- * The planet view's palette. Colors used to live in outside.scss as tile classNames; the canvas needs them
+ * The planet view's palette. Colors used to live in base_view.scss as tile classNames; the canvas needs them
  * in JS, so this is the source of truth (the DOM legend, the HUD and the terminal's terrain notes read it too).
  */
 import type {SquadZone} from "./terrain";

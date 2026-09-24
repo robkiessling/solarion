@@ -12,7 +12,7 @@ export type QueueItem =
 /** Decides whether a draw call is queued (true) or drawn now; see addQueueFilter */
 export type QueueFilter = (item: QueueItem) => boolean | undefined;
 export type XY = { x: number, y: number };
-/** A cell of an outside/base image: [char, color], or empty for a blank cell */
+/** A cell of an base-view image: [char, color], or empty for a blank cell */
 export type ImageCell = [string, string] | [];
 
 export interface AsciiCanvasOptions {

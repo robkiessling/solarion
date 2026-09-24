@@ -2,7 +2,7 @@
 import React from 'react';
 import AsciiCanvas from "../lib/ascii_canvas";
 import {connect} from "react-redux";
-import {NUM_COLS, NUM_ROWS} from "../lib/outside";
+import {NUM_COLS, NUM_ROWS} from "../lib/base_view";
 import {drawStarAndProbes, setupCache} from "../lib/star";
 import {getQuantity, getResource} from "../redux/modules/resources";
 import {STAR_FPS} from "../singletons/game_clock";

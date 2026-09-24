@@ -60,7 +60,7 @@ class PlanetStatus extends React.Component {
 
 const mapStateToProps = state => {
     return {
-        visible: state.game.showPlanetStatus,// && state.game.currentNavTab === 'outside',
+        visible: state.game.showPlanetStatus,// && state.game.currentNavTab === 'base',
         dayLength: dayLength(state.clock),
         dayNumber: dayNumber(state.clock),
         fractionOfDay: fractionOfDay(state.clock),

@@ -26,7 +26,7 @@ import PopupFrame from "./ui/popup_frame";
  * PopupFrame; no dismissal props are passed -- leaving is an explicit action, never a stray click.
  */
 // Layout constants mirrored from the stylesheets: the top bar's min-height (app.scss) and the deployed HUD
-// strip's clearance within the planet frame ($hud-clearance, outside.scss). Big fights anchor the popup
+// strip's clearance within the planet frame ($hud-clearance, base_view.scss). Big fights anchor the popup
 // to the viewport and must keep below the HUD by hand.
 const TOP_BAR_REM = 3.2;
 const HUD_CLEARANCE_REM = 6.5;

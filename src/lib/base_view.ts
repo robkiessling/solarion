@@ -10,7 +10,7 @@ import {structures, doodads, Frame, Animation, type DoodadId, type StructureAnim
 import type {StructureAnimationData} from '../redux/modules/structures';
 import type {ImageCell} from './ascii_canvas';
 
-type OutsideImage = ImageCell[][];
+type BaseViewImage = ImageCell[][];
 type StructurePosition = { row: number, col: number, animationId?: StructureAnimationId };
 type DoodadPosition = { row: number, col: number, animationId?: DoodadId };
 // A position group is normally a sprite id; 'rocks' is a mixed bag whose entries each name their own sprite
@@ -181,7 +181,7 @@ const DOODAD_LASER_POSITIONS_5: DoodadPositions = {
 const ANIMATION_DELAYS = [0.33, 0.51, 0.91, 0.37, 0.77, 0.15, 0.63, 0.49, 0.88]
 
 export function generateImage(structureAnimationData: StructureAnimationData,
-                              elapsedTime: number, fractionOfDay: number, burnOutside: number): OutsideImage {
+                              elapsedTime: number, fractionOfDay: number, burnBase: number): BaseViewImage {
     /**
      * INPUT:
      *
@@ -211,10 +211,10 @@ export function generateImage(structureAnimationData: StructureAnimationData,
      * each color sequentially
      */
 
-    const result: OutsideImage = createArray(NUM_ROWS, () => createArray<ImageCell>(NUM_COLS, () => []));
+    const result: BaseViewImage = createArray(NUM_ROWS, () => createArray<ImageCell>(NUM_COLS, () => []));
     const clockParams: ClockParams = [elapsedTime, fractionOfDay]
 
-    if (!burnOutside) {
+    if (!burnBase) {
         renderBackground(result, backgrounds.stars, 0, 0, clockParams);
     }
     renderBackground(result, backgrounds.planet, 10, 0, clockParams); // todo rename terrain?
@@ -230,21 +230,21 @@ export function generateImage(structureAnimationData: StructureAnimationData,
 
     queueDoodads(DOODAD_POSITIONS, renderingQueue, clockParams);
 
-    if (burnOutside) {
+    if (burnBase) {
         queueDoodads(DOODAD_LASER_POSITIONS, renderingQueue, clockParams);
         // An alternative late-burn look, once tried: past 0.55 draw only two laserBeam60 doodads (rows 0, cols -61
         // and 0) instead of the staged sets below.
         // else {
-            if (burnOutside > 0.3) {
+            if (burnBase > 0.3) {
                 queueDoodads(DOODAD_LASER_POSITIONS_2, renderingQueue, clockParams);
             }
-            if (burnOutside > 0.5) {
+            if (burnBase > 0.5) {
                 queueDoodads(DOODAD_LASER_POSITIONS_3, renderingQueue, clockParams);
             }
-            if (burnOutside > 0.7) {
+            if (burnBase > 0.7) {
                 queueDoodads(DOODAD_LASER_POSITIONS_4, renderingQueue, clockParams);
             }
-            if (burnOutside > 0.9) {
+            if (burnBase > 0.9) {
                 queueDoodads(DOODAD_LASER_POSITIONS_5, renderingQueue, clockParams);
             }
         // }
@@ -265,7 +265,7 @@ function queueDoodads(doodadPositions: DoodadPositions, renderingQueue: Renderin
 }
 
 // Backgrounds line up with the top of the page, but get centered horizontally
-function renderBackground(result: OutsideImage, background: { background: string[], color: string | ((elapsedTime: number, fractionOfDay: number) => string) },
+function renderBackground(result: BaseViewImage, background: { background: string[], color: string | ((elapsedTime: number, fractionOfDay: number) => string) },
                           rowOffset: number, colOffset: number, clockParams: ClockParams) {
     const backgroundWidth = Math.max(...background.background.map(row => row.length));
     colOffset += Math.floor(NUM_COLS / 2) - Math.floor(backgroundWidth / 2); // centers background horizontally
@@ -303,7 +303,7 @@ function queueDoodad(renderingQueue: RenderingQueue, doodadId: DoodadGroup, posi
 }
 
 // Adds a frame (array of ascii strings) to the result
-function renderImage(result: OutsideImage, rowOffset: number, colOffset: number, charArray: string[], color: string) {
+function renderImage(result: BaseViewImage, rowOffset: number, colOffset: number, charArray: string[], color: string) {
     charArray.forEach((row, rowIndex) => {
         row.split('').forEach((char, colIndex) => {
             const row = rowIndex + rowOffset;

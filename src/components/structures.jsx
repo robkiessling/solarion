@@ -70,7 +70,7 @@ const mapStateToProps = (state, ownProps) => {
     let structureIds = [];
 
     switch(state.game.currentNavTab) {
-        case 'outside':
+        case 'base':
             switch(state.game.currentStructureTab) {
                 case 'all':
                     structureIds = getVisibleIds(state.structures)
@@ -95,8 +95,8 @@ const mapStateToProps = (state, ownProps) => {
     structureIds = structureIds.filter(structureId => structureId !== 'commandCenter');
 
     return {
-        visible: ['outside', 'star'].includes(state.game.currentNavTab),
-        showStructureTabs: state.game.showStructureTabs && state.game.currentNavTab === 'outside',
+        visible: ['base', 'star'].includes(state.game.currentNavTab),
+        showStructureTabs: state.game.showStructureTabs && state.game.currentNavTab === 'base',
         currentStructureTab: state.game.currentStructureTab,
         structureIds: structureIds,
         showStructuresList: state.game.showStructuresList,

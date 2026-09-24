@@ -46,23 +46,23 @@ export default {
         ],
         onFinish: dispatch => {
             dispatch(fromPlanet.startCooking());
-            dispatch(fromLog.startLogSequence('finalSequence_outside1'))
+            dispatch(fromLog.startLogSequence('finalSequence_base1'))
         }
     },
-    finalSequence_outside1: {
+    finalSequence_base1: {
         text: [
             ['', COOK_TIME] // cook planet animation
         ],
         onFinish: dispatch => {
             dispatch(fromPlanet.startCooking());
-            dispatch(fromGame.updateSetting('burnOutside', true));
-            dispatch(fromGame.updateSetting('currentNavTab', 'outside'))
-            dispatch(fromLog.startLogSequence('finalSequence_outside2'))
+            dispatch(fromGame.updateSetting('burnBase', true));
+            dispatch(fromGame.updateSetting('currentNavTab', 'base'))
+            dispatch(fromLog.startLogSequence('finalSequence_base2'))
         }
     },
-    finalSequence_outside2: {
+    finalSequence_base2: {
         text: [
-            ['', 5000] // cook outside animation
+            ['', 5000] // cook base-view animation
         ],
         onFinish: dispatch => {
             // dispatch(fromGame.updateSetting('hideCanvas', true));
@@ -70,7 +70,7 @@ export default {
             dispatch(fromLog.startLogSequence('finalSequence_gameOver'))
         }
     },
-    finalSequence_outside3: {
+    finalSequence_base3: {
         text: [
             ['', 8000] // wait for canvas to hide
         ],

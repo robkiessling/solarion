@@ -1,10 +1,10 @@
 
 import React from 'react';
 import AsciiCanvas from "../lib/ascii_canvas";
-import {OUTSIDE_FPS} from "../singletons/game_clock";
+import {BASE_VIEW_FPS} from "../singletons/game_clock";
 import {fractionOfDay} from "../redux/modules/clock";
 import {connect} from "react-redux";
-import {generateImage, getSkyColorAndOpacity, NUM_COLS, NUM_ROWS} from "../lib/outside";
+import {generateImage, getSkyColorAndOpacity, NUM_COLS, NUM_ROWS} from "../lib/base_view";
 import {animationData} from "../redux/modules/structures";
 
 // Decorative damage on the closed blast shield; slides away with the shutter when it opens
@@ -28,7 +28,7 @@ import {animationData} from "../redux/modules/structures";
 // `░▒░░  ▒░
 //  ▒░░▒`;
 
-class Outside extends React.Component {
+class BaseView extends React.Component {
     constructor(props) {
         super(props);
 
@@ -36,7 +36,7 @@ class Outside extends React.Component {
         this.canvas = React.createRef();
         this.skyCanvas = React.createRef();
 
-        this.waitTimeMs = 1000.0 / OUTSIDE_FPS; // how long to wait between rendering
+        this.waitTimeMs = 1000.0 / BASE_VIEW_FPS; // how long to wait between rendering
     }
 
     componentDidMount() {
@@ -72,7 +72,7 @@ class Outside extends React.Component {
             this.props.structureAnimationData,
             this.props.elapsedTime / 1000,
             this.props.fractionOfDay,
-            this.props.burnOutside
+            this.props.burnBase
         );
         this.canvasManager.clearAll();
         this.canvasManager.drawImage(image, 0, 0);
@@ -84,17 +84,17 @@ class Outside extends React.Component {
         let containerClass = '';
         containerClass += (this.props.visible ? '' : ' hidden');
         containerClass += (this.props.shuttersOpen ? ' shutters-open' : ' shutters-closed');
-        containerClass += (this.props.burnOutside ? ' burning' : '');
+        containerClass += (this.props.burnBase ? ' burning' : '');
 
         return (
-            <div id="outside-container" ref={this.canvasContainer} className={containerClass}>
+            <div id="base-view-container" ref={this.canvasContainer} className={containerClass}>
                 <div id="shutters">
                     {/*<pre className="shutter-decor crack-main">{SHUTTER_CRACK_MAIN}</pre>*/}
                     {/*<pre className="shutter-decor crack-small">{SHUTTER_CRACK_SMALL}</pre>*/}
                     {/*<pre className="shutter-decor shutter-scrape">{SHUTTER_SCRAPE}</pre>*/}
                 </div>
                 <canvas id="sky-color" ref={this.skyCanvas} style={{background: skyColor, opacity: skyOpacity}}/>
-                <canvas id="outside-canvas" ref={this.canvas}></canvas>
+                <canvas id="base-view-canvas" ref={this.canvas}></canvas>
             </div>
         );
     }
@@ -103,16 +103,16 @@ class Outside extends React.Component {
 
 const mapStateToProps = state => {
     return {
-        visible: state.game.currentNavTab === 'outside',
+        visible: state.game.currentNavTab === 'base',
         shuttersOpen: state.game.shuttersOpen,
         fractionOfDay: fractionOfDay(state.clock),
         elapsedTime: state.clock.elapsedTime,
         structureAnimationData: animationData(state.structures),
-        burnOutside: state.game.burnOutside ? state.planet.cookedPct : false,
+        burnBase: state.game.burnBase ? state.planet.cookedPct : false,
     }
 };
 
 export default connect(
     mapStateToProps,
     {}
-)(Outside);
+)(BaseView);

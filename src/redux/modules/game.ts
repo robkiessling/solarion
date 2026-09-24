@@ -26,7 +26,7 @@ export interface GameState {
     endGameSequenceStarted: boolean;
     rapidlyRecalcEnergy: boolean;
     blockPointerEvents: boolean;
-    burnOutside: boolean;
+    burnBase: boolean;
     hideUI: boolean;
     hideCanvas: boolean;
     gameOver: boolean;
@@ -47,7 +47,7 @@ export type GameSliceAction =
 // Constants
 export type NavTab = keyof typeof NAV_TAB_TITLES;
 export const NAV_TAB_TITLES = {
-    outside: 'Base',
+    base: 'Base',
     planet: 'Planet',
     star: 'Solarion',
 }
@@ -62,7 +62,7 @@ const initialState: GameState = {
     typingSoundEnabled: true,
 
     visibleNavTabs: [],
-    currentNavTab: 'outside',
+    currentNavTab: 'base',
     showStructureTabs: false,
     currentStructureTab: 'all',
 
@@ -83,7 +83,7 @@ const initialState: GameState = {
     endGameSequenceStarted: false,
     rapidlyRecalcEnergy: false,
     blockPointerEvents: false,
-    burnOutside: false,
+    burnBase: false,
     hideUI: false,
     hideCanvas: false,
     gameOver: false,

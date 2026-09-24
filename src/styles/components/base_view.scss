@@ -647,7 +647,7 @@ $hud-clearance: 6.5rem;
 }
 
 
-#outside-container {
+#base-view-container {
   flex: 1;
   position: relative;
   overflow: hidden; // sides (left/right) can get truncated based on screen size
@@ -738,7 +738,7 @@ $hud-clearance: 6.5rem;
 
 }
 
-#outside-canvas {
+#base-view-canvas {
   //background: red;
   //background: $black;
 }

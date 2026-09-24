@@ -1180,7 +1180,7 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
 
             dispatch(generateMap());
 
-            dispatch(fromGame.addNavTab('outside'));
+            dispatch(fromGame.addNavTab('base'));
             dispatch(fromGame.addNavTab('planet'));
 
             dispatch(fromLog.startLogSequence('globeUnlocked'));

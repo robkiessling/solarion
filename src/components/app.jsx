@@ -1,7 +1,6 @@
 import React from 'react';
 
-// import Outside from "./outside";
-import Outside from "./outside";
+import BaseView from "./base_view";
 import Structures from "./structures";
 import ResourceBar from "./resource_bar";
 import Log from "./log";
@@ -215,7 +214,7 @@ class App extends React.Component {
                         <pre className="ascii-decor decor-left">{DECOR_DEAD_MONITOR}</pre>
                     </div>
                     <div className="center-column">
-                        <Outside/>
+                        <BaseView/>
                         <Planet/>
                         <Star/>
                         <NavigationTabs/>

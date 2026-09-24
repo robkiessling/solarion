@@ -65,7 +65,7 @@ const mapStateToProps = (state, ownProps) => {
   const charge = getAbility(state.abilities, 'commandCenter_charge');
 
   return {
-    // visible: state.game.currentNavTab === 'outside',
+    // visible: state.game.currentNavTab === 'base',
     elapsedTime: state.clock.elapsedTime,
     energyBtnAnimations: charge.animations
   };

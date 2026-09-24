@@ -14,7 +14,7 @@ const formatStat = (n) => Number.isInteger(n) ? n : n.toFixed(1);
  * into the two meters, and the ground underfoot reads on a line beneath. That both locks the player onto the planet until the squad is home (Base isn't
  * reachable mid-expedition) and puts the numbers you actually watch while driving in the widest, most
  * peripherally legible slot on the screen instead of the sidebar. It stays up through fights (that's when
- * squad health moves most); the encounter popup keeps below it (see $hud-clearance in outside.scss).
+ * squad health moves most); the encounter popup keeps below it (see $hud-clearance in base_view.scss).
  */
 class NavigationTabs extends React.Component {
     constructor(props) {
