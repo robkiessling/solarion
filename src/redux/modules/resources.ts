@@ -7,7 +7,7 @@ import * as fromUpgrades from "./upgrades";
 import * as fromAbilities from "./abilities";
 import * as fromPlanet from "./planet";
 import {withRecalculation} from "../reducer";
-import {STATUSES, TERRAINS} from "../../lib/planet_map";
+import {STATUSES, TERRAINS} from "../../database/planet/terrain";
 
 export interface ResourcesState {
     byId: Partial<Record<ResourceId, Resource>>;

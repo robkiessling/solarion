@@ -1,10 +1,10 @@
-import type {HostileFormation, TerrainLayoutId} from "../lib/battle";
+import type {HostileFormation, TerrainLayoutId} from "../../lib/battle";
 
 /**
  * Field events: the concealed encounters seeded across open ground at map generation (placeEvents in
- * lib/expeditions.ts). They are POIs of type 'fieldEvent' that stay hidden even after their tile is scouted,
+ * lib/pois.ts). They are POIs of type 'fieldEvent' that stay hidden even after their tile is scouted,
  * and go off when the squad steps on them: an ambush raises its approach card and fights on Continue, anything
- * else raises the encounter popup with its choices. Camps are the held-ground counterpart (database/pois.ts); they are the settlement's
+ * else raises the encounter popup with its choices. Camps are the held-ground counterpart (database/planet/pois.ts); they are the settlement's
  * own people and stay on its manifest.
  *
  * Seeded once per save, so a walked route is learnable: the map does not roll dice under the squad's feet
@@ -35,8 +35,9 @@ export interface FieldEventDef {
     /** the offer line ({loot} expands to the rolled reward of the FIRST choice) */
     promptText?: string;
     choices?: FieldEventChoiceDef[];
-    /** an ambush: fought on entry; its difficulty comes from AMBUSH_DIFFICULTY by distance from home */
-    fight?: { formation: HostileFormation; terrain?: TerrainLayoutId };
+    /** an ambush: fought on entry; its difficulty comes from AMBUSH_DIFFICULTY by distance from home, and its
+     * loot is `lootPerDefender` (a [lo, hi] range of minerals) times that difficulty */
+    fight?: { formation: HostileFormation; terrain?: TerrainLayoutId; lootPerDefender: [number, number] };
     /** an ambush's approach card line (the type default if unset) */
     approachText?: string;
 }
@@ -67,7 +68,7 @@ export const FIELD_EVENT_DEFS = {
     ambush: {
         name: 'Ambush',
         weight: 4,
-        fight: { formation: 'surround' },
+        fight: { formation: 'surround', lootPerDefender: [50, 100] },
         approachText: 'Nearby sounds detected. Movement closing.'
     },
     salvage: {

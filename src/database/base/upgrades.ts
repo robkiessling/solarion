@@ -1,90 +1,22 @@
-import _ from 'lodash';
+import * as fromResources from "../../redux/modules/resources";
+import * as fromStructures from "../../redux/modules/structures";
+import * as fromLog from "../../redux/modules/log"
+import * as fromAbilities from "../../redux/modules/abilities";
 
-import * as fromResources from "../redux/modules/resources";
-import * as fromStructures from "../redux/modules/structures";
-import * as fromLog from "../redux/modules/log"
-import * as fromAbilities from "../redux/modules/abilities";
-
-import * as fromGame from "../redux/modules/game";
-import * as fromPanels from "../redux/modules/panels";
-import * as fromPlanet from "../redux/modules/planet";
-import {generateMap} from "../redux/modules/planet";
-import * as fromStar from "../redux/modules/star";
-import type {Effect, EffectAffects} from "../lib/effect";
-import type {DeepPartial} from "../lib/helpers";
+import * as fromGame from "../../redux/modules/game";
+import * as fromPanels from "../../redux/modules/panels";
+import * as fromPlanet from "../../redux/modules/planet";
+import {generateMap} from "../../redux/modules/planet";
+import * as fromStar from "../../redux/modules/star";
 import type {AbilityId} from "./abilities";
-import type {SfxName} from "../singletons/audio";
-
-/** An upgrade's research lifecycle, in order */
-export type UpgradeState = 'hidden' | 'discovered' | 'researching' | 'paused' | 'researched';
-
-export interface DiscoverWhen {
-    /** lifetime resource totals that must be reached */
-    resources?: ResourceAmounts;
-    /** upgrade ids that must already be researched (UpgradeId, but naming it here would make the table's type circular) */
-    upgrades?: string[];
-    /** structure build counts that must be reached */
-    structures?: Partial<Record<StructureId, number>>;
-}
-
-export interface UpgradeRecord {
-    name: string;
-    description: string;
-    /** seconds; 0 researches instantly */
-    researchTime: number;
-    state: UpgradeState;
-    cost: ResourceAmounts;
-    discoverWhen?: DiscoverWhen;
-    effect?: Effect;
-    affects: EffectAffects;
-    /** the structure whose card offers this upgrade (absent for squad upgrades) */
-    structure?: StructureId;
-    /** expedition-only upgrade, offered in the Expedition panel's Outfitting section */
-    squad?: boolean;
-    standalone?: boolean;
-    /**
-     * Sounds (clip names from singletons/audio.ts, or false for none). Timed research (researchTime > 0) plays
-     * researchStartSound when the player commits and researchFinishSound when the tick completes it. Instant
-     * research has no start moment: it plays researchFinishSound on the click and ignores researchStartSound.
-     */
-    researchStartSound: SfxName | false;
-    researchFinishSound: SfxName | false;
-}
+import {upgrade, type UpgradeRecord} from "./upgrade_record";
+import {SQUAD_UPGRADES} from "../squad/upgrades";
+export type {DiscoverWhen, UpgradeRecord, UpgradeState} from "./upgrade_record";
 
 export interface Upgrade extends UpgradeRecord {
     id: UpgradeId;
     /** ms of research done so far */
     researchProgress?: number;
-}
-
-const base: UpgradeRecord = {
-    name: 'Unknown',
-    description: "",
-    researchTime: 0, // if 0, research will occur instantly
-    state: 'hidden',
-    cost: {},
-
-    // Possible options -- discoverWhen: { resources: { x/y/z }, upgrades: [], structures: { x/y/z} }
-    // If resources is defined, the upgrade will be automatically discovered once lifetime resource totals pass these values
-    // If structures is defined, the upgrade will be automatically discovered once structure build count pass these values
-    // If upgrades is defined, those upgrades need to be already researched before this will be discovered
-    discoverWhen: undefined,
-    
-    effect: undefined,
-    affects: {
-        type: 'structure'
-        // No default id necessary; if blank it is assumed to be the upgrade's structure
-    },
-
-    researchStartSound: 'researchStart',
-    researchFinishSound: 'researchFinish',
-}
-
-// TODO don't hardcode values into description, e.g. "Increase energy production by {{ multiplier * 100 }}% ..."
-// Note: 'effect' keys correspond to structure calculated variables
-/** A table entry: the overrides merged over `base` (deep, so a nested field can be overridden on its own) */
-function upgrade(overrides: DeepPartial<UpgradeRecord>): UpgradeRecord {
-    return _.merge({}, base, overrides);
 }
 
 const database = {
@@ -1116,111 +1048,8 @@ const database = {
             castTime: { add: -15 }
         }
     }),
-    // Squad equipment: one-time acquisitions (see database/equipment.ts). Researching one permanently
-    // outfits every future squad with the piece; its charges spend in battle and reload on the grid.
-    // Story salvage can grant these later by researchForFree-ing the same ids.
-    // No discoverWhen on the first tier: each is discovered by the planet-tab trigger that matches the moment the
-    // player first wants it (battery half spent, settlement sighted, first fight over; see database/triggers.ts).
-    // `squad: true` (here and on the combat/battery upgrades below) instead of a `structure`: these only
-    // affect expeditions, so they're offered in the Expedition panel's Outfitting section, not on any
-    // structure's card. (Ids keep the droidFactory_ prefix; saves and equipment.ts reference them.)
-    droidFactory_demoLauncher: upgrade({
-        squad: true,
-        name: "Demo Launcher",
-        description: 'Squad equipment: lobs a demolition charge onto the densest knot of hostiles. ' +
-            'One shot per grid visit; reloads on powered ground.',
-        cost: {
-            ore: 4000,
-            refinedMinerals: 800
-        },
-        affects: {
-            type: 'misc'
-        },
-    }),
-    droidFactory_repairRig: upgrade({
-        squad: true,
-        name: "Repair Rig",
-        description: 'Squad equipment: field-patches every damaged droid (does not rebuild the destroyed). ' +
-            'One use per grid visit; reloads on powered ground.',
-        cost: {
-            ore: 2500,
-            refinedMinerals: 500
-        },
-        affects: {
-            type: 'misc'
-        },
-    }),
-    droidFactory_overchargeCell: upgrade({
-        squad: true,
-        name: "Overcharge Cell",
-        description: 'Squad equipment: overdrives droid weapons for a short burst. ' +
-            'One discharge per grid visit; recharges on powered ground.',
-        cost: {
-            ore: 3000,
-            refinedMinerals: 600
-        },
-        affects: {
-            type: 'misc'
-        },
-    }),
-
-    // Droid combat upgrades: 'misc' effects on the expedition droids' unit stats
-    // (hp/damage/attackMs/speed), applied by getDroidStats in redux/reducer.ts and snapshotted onto the
-    // squad at deploy. Refits apply to the next deployment, not squads already in the field.
-    droidFactory_reinforcedPlating: upgrade({
-        squad: true,
-        name: "Reinforced Plating",
-        description: 'Thicker hull plating for expedition droids: +3 max health each. Refits apply to the next deployed squad.',
-        cost: {
-            ore: 3000,
-            refinedMinerals: 600
-        },
-        affects: {
-            type: 'misc'
-        },
-        effect: {
-            hp: { add: 3 }
-        }
-    }),
-    droidFactory_weaponCalibration: upgrade({
-        squad: true,
-        name: "Weapon Calibration",
-        description: 'Recalibrated arc cutters: expedition droids hit 50% harder. Refits apply to the next deployed squad.',
-        discoverWhen: {
-            upgrades: ['droidFactory_reinforcedPlating'],
-            resources: {
-                refinedMinerals: 1000
-            }
-        },
-        cost: {
-            ore: 6000,
-            refinedMinerals: 1500
-        },
-        affects: {
-            type: 'misc'
-        },
-        effect: {
-            damage: { multiply: 1.5 }
-        }
-    }),
-    // Squad battery upgrade: applied by getBatteryCapacity in redux/reducer.ts (squad-level, not per-droid)
-    // and snapshotted at deploy like the combat stats above.
-    droidFactory_extendedCells: upgrade({
-        squad: true,
-        name: "Extended Cells",
-        description: 'Higher-density battery cells for the expedition squad: +50 battery capacity. ' +
-            'Refits apply to the next deployed squad.',
-        cost: {
-            ore: 5000,
-            refinedMinerals: 1000
-        },
-        affects: {
-            type: 'misc'
-        },
-        effect: {
-            batteryCapacity: { add: 50 }
-        }
-    }),
+    // Squad outfitting (equipment, combat stats, battery): database/squad/upgrades.ts
+    ...SQUAD_UPGRADES,
 
     droidFactory_fasterExplore: upgrade({
         name: "Research: Jet Propulsion",
@@ -1370,7 +1199,7 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     },
     droidFactory_amphibiousTracks: {
         onFinish: (dispatch) => {
-            dispatch(fromPlanet.unlockTerrain('amphibious')); // shallows' crossUpgrade (see TERRAINS in lib/planet_map.ts)
+            dispatch(fromPlanet.unlockTerrain('amphibious')); // shallows' crossUpgrade (see TERRAINS in database/planet/terrain.ts)
         }
     },
     droidFactory_surveyAutomation: {

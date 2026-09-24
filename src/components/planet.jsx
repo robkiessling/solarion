@@ -10,16 +10,12 @@ import {
 } from "../lib/planet_map";
 import {NUM_PLANET_ROWS, DISPLAY_COLS, PLANET_COLS} from "../lib/planet_geometry";
 import {mod} from "../lib/helpers";
-import {drawPlanetImage, drawSky, PLANET_COLORS, zoneColor} from "../lib/planet_render";
-import {
-    FIGHT_EFFECT_CHARS,
-    POI_COLOR_KEYS,
-    POI_GLYPHS,
-    POI_LABELS,
-    SITE_GLYPH,
-} from "../lib/expeditions";
-import {stepInDirection, squadCrossMs, squadZone, CONTACT_MS, SQUAD_GLYPH} from "../lib/squad";
-import {EQUIPMENT_ORDER} from "../database/equipment";
+import {drawPlanetImage, drawSky} from "../lib/planet_render";
+import {PLANET_COLORS, zoneColor} from "../database/planet/colors";
+import {FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, SITE_GLYPH} from "../database/planet/poi_types";
+import {stepInDirection, squadCrossMs, squadZone} from "../lib/squad";
+import {CONTACT_MS, SQUAD_GLYPH} from "../database/squad/tuning";
+import {EQUIPMENT_ORDER} from "../database/squad/equipment";
 import {
     retreatFromFight,
     setBeaconAt,

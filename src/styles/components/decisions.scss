@@ -58,7 +58,7 @@
       &:hover:not(:disabled) {
         border-color: $ui-text-dim;
       }
-      // Visible but unearned (database/decisions.ts `available`): the player can see the door is there
+      // Visible but unearned (database/base/decisions.ts `available`): the player can see the door is there
       &:disabled {
         color: $ui-text-dim;
         opacity: 0.5;

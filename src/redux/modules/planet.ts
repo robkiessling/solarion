@@ -13,13 +13,11 @@ import {
     isPassable,
     NUM_SECTORS,
     numSectorsMatching,
-    SCOUT_VISION_HOPS,
-    STATUSES, sunTrackingRotation,
-    SURVEY_HALO_RADIUS,
-    TERRAINS,
+    sunTrackingRotation,
     type PlanetMap,
     type Unlocks,
 } from "../../lib/planet_map";
+import {SCOUT_VISION_HOPS, STATUSES, SURVEY_HALO_RADIUS, TERRAINS, TERRAIN_BLURBS, TERRAIN_BLURB_REPEAT_MS, type SquadZone} from "../../database/planet/terrain";
 import {getApproxDistance, getCoordsWithinHops, parseCoordKey} from "../../lib/planet_geometry";
 import {typedEntries} from "../../lib/helpers";
 import {
@@ -28,26 +26,19 @@ import {
     findPathToGrid,
     isExplorationComplete
 } from "../../lib/planet_pathing";
-import {
-    CAPABILITY_LABELS,
-    formatResourceList,
-    generatePois,
-    isGarrisoned,
-    levelPayout,
-    poiLevels,
-    resultBehaviorFor,
-    type Poi,
-} from "../../lib/expeditions";
-import {applyEquipment, createBattle, DROID_BASE_STATS, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle";
-import {advanceSquad, CONTACT_MS, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent, type SquadZone} from "../../lib/squad";
+import {formatResourceList, generatePois, isGarrisoned, levelPayout, poiLevels, resultBehaviorFor, type Poi} from "../../lib/pois";
+import {applyEquipment, createBattle, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle";
+import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent} from "../../lib/squad";
 import {logInline} from "./log";
 import {EXPLORE_EVERYTHING} from "../../dev/skips";
-import {zoneColor} from "../../lib/planet_render";
-import {TERRAIN_BLURBS} from "../../database/terrain_blurbs";
-import type {DroidStats} from "../../database/battle";
-import type {EquipmentCharges, EquipmentId} from "../../database/equipment";
-import type {Capability, PoiReward, StoryId} from "../../database/pois";
-import type {DroidAssignment} from "../../database/structures";
+import {zoneColor} from "../../database/planet/colors";
+import {CONTACT_MS} from "../../database/squad/tuning";
+import {CAPABILITY_LABELS, type Capability, type PoiReward} from "../../database/planet/poi_types";
+import type {StoryId} from "../../database/planet/story_sites";
+import {TELEMETRY, unitNoun} from "../../database/planet/telemetry";
+import {DROID_BASE_STATS, type DroidStats} from "../../database/battle/units";
+import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
+import type {DroidAssignment} from "../../database/base/structures";
 import {batch} from "react-redux";
 import * as fromClock from "./clock";
 
@@ -135,10 +126,8 @@ export interface PlanetState {
     squadsReturned: number;
 }
 
-// Terrain notes: elapsed game time each zone was last noted (session-only; not worth persisting), and the
-// window inside which re-entering that zone stays quiet
+// Terrain notes: elapsed game time each zone was last noted (session-only; not worth persisting)
 const lastBlurbAt: Partial<Record<SquadZone, number>> = {};
-const BLURB_REPEAT_MS = 45000;
 
 // Actions
 export const GENERATE_MAP = 'planet/GENERATE_MAP' as const;
@@ -259,7 +248,7 @@ const initialState: PlanetState = {
     numExplored: 0, // Number of revealed sectors
     maxDevelopedLand: 0,
 
-    // Expedition system (see lib/expeditions.ts for domain logic and shapes)
+    // POIs and the driven squad (see lib/pois.ts and lib/squad.ts for domain logic and shapes)
     pois: {},     // by poiId; seeded at GENERATE_MAP, discovered (hidden -> available) as scouting reveals their tiles
     squad: null, // the player-driven squad (see createSquad): { coord, path, moveProgress, battery,
                  // assignedDroids, multiplier, squadSize (effective units), cargo, equipment, droidHp, fighting }
@@ -916,7 +905,7 @@ export function planetTick(timeDelta: number) {
 
 function sealedText(poi: Poi) {
     const tool = poi.requires ? (CAPABILITY_LABELS[poi.requires] || poi.requires) : 'an unknown tool';
-    return `${poi.name} is sealed — requires ${tool}.`;
+    return TELEMETRY.sealed(poi.name, tool);
 }
 
 // Assigning to / removing from the team standing by at base (see squadDroidData). The reducer.ts wrappers check
@@ -965,14 +954,12 @@ export function disbandSquad() {
             type: DISBAND_SQUAD,
             payload: { droidsReturned, cargo: squad.cargo || {} }
         }));
-        const delivered = squad.cargo && Object.keys(squad.cargo).length > 0 ?
-            ` Delivered ${formatResourceList(squad.cargo)}.` : '';
+        const delivered = squad.cargo && Object.keys(squad.cargo).length > 0 ? formatResourceList(squad.cargo) : null;
         const mult = squad.multiplier || 1;
         const roster = mult > 1 ?
-            `${squad.squadSize} of ${(squad.assignedDroids || squad.squadSize) * mult} units — ` +
-                `${droidsReturned} of ${squad.assignedDroids} droids recovered` :
-            `${droidsReturned} droids`;
-        dispatch(logInline(`Team returned to base (${roster}).${delivered}`));
+            TELEMETRY.rosterMultiplied(squad.squadSize, (squad.assignedDroids || squad.squadSize) * mult, droidsReturned, squad.assignedDroids) :
+            TELEMETRY.rosterPlain(droidsReturned);
+        dispatch(logInline(TELEMETRY.teamReturned(roster, delivered)));
     }
 }
 
@@ -1100,11 +1087,11 @@ function revealNearestConcealed(dispatch: Dispatch, getState: GetState, from: Po
         if (distance < nearestDistance) { nearest = poi; nearestDistance = distance; }
     });
     if (!nearest) {
-        dispatch(logInline('Signal traced: no source within range.'));
+        dispatch(logInline(TELEMETRY.signalTracedNone()));
         return;
     }
     dispatch({ type: REVEAL_POI, payload: { poiId: (nearest as Poi).id } });
-    dispatch(logInline(`Signal traced: ${(nearest as Poi).name.toLowerCase()} marked on the map.`));
+    dispatch(logInline(TELEMETRY.signalTraced((nearest as Poi).name)));
 }
 
 // Player declines the offer (or continues past a result); the popup's only exits besides accepting.
@@ -1200,7 +1187,7 @@ export function squadWithdraw() {
 
         const poi = planet.pois[prompt.poiId];
         dispatch({ type: SQUAD_LEAVE_PROMPT });
-        if (poi) dispatch(logInline(`Team withdrew from ${poi.name} with level ${prompt.result.nextLevel} cleared.`));
+        if (poi) dispatch(logInline(TELEMETRY.teamWithdrew(poi.name, prompt.result.nextLevel)));
         if (prompt.fromCoord) dispatch(squadStep(prompt.fromCoord));
         return true;
     }
@@ -1316,14 +1303,14 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                     } } });
                 // The site has fallen: the classifier's one line on what else was in there
                 if (poi.discardedKg) {
-                    dispatch(logInline(`ORGANIC MATERIAL: ${poi.discardedKg.toLocaleString()} kg. NO VALUE. DISCARDED.`));
+                    dispatch(logInline(TELEMETRY.organicDiscarded(poi.discardedKg)));
                 }
                 if (reward && reward.capability) {
                     dispatch(unlockTerrain(reward.capability));
                 }
                 if (poi.type === 'tunnel') revealFromSquad(dispatch, getState); // it came out the far mouth
                 if (poi.site != null) {
-                    dispatch(logInline(`Site ${poi.site} secured. Power tap: live. Production: none.`));
+                    dispatch(logInline(TELEMETRY.siteSecured(poi.site)));
                     // The ground under the squad just became powered: it gets what a step onto the grid gives
                     // (refill, repair, reload, cargo banked) without having to step off and back on
                     const standing = getState().planet.squad;
@@ -1342,14 +1329,12 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                     result: { wiped: true, squadSize: squad.squadSize,
                         multiplier: squad.multiplier || 1, cargoLost,
                         finalBattle: event.battle } } });
-                dispatch(logInline(`Team lost ${poi.type === 'tunnel' ? 'in' : 'assaulting'} ${poi.name}.` +
-                    (cargoLost ? ` Cargo lost: ${formatResourceList(cargoLost)}.` : '')));
+                dispatch(logInline(TELEMETRY.teamLost(poi.name, poi.type === 'tunnel', cargoLost ? formatResourceList(cargoLost) : null)));
             }
             else { // retreated
                 dispatch({ type: SQUAD_RETREATED, payload: { poiId: event.poiId, survivors: event.survivors,
                     droidHp: event.droidHp } });
-                dispatch(logInline(`Team fell back from ${poi.name} — ${event.survivors} of ` +
-                    `${squad.squadSize} ${(squad.multiplier || 1) > 1 ? 'units' : 'droids'} escaped.`));
+                dispatch(logInline(TELEMETRY.teamFellBack(poi.name, event.survivors, squad.squadSize, unitNoun(squad.multiplier || 1))));
                 // Falling back is a real move off the settlement tile, animated and paid for like any other step
                 // (a failed assault costs a tile of battery each way). Saves written before fromCoord existed
                 // have none, in which case the squad just holds the ground it took.
@@ -1384,7 +1369,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                 dispatch({ type: SQUAD_CROSS_TUNNEL, payload: { poiId: entered.id, exitCoord: entered.exitCoord,
                     cost: (entered.crossTiles || 0) * squadDrainPerTile() } });
                 revealFromSquad(dispatch, getState);
-                dispatch(logInline(`Team crossed ${entered.name}.`));
+                dispatch(logInline(TELEMETRY.teamCrossed(entered.name)));
                 break;
             }
             // Walked onto a cache/story tile: movement stops and the interaction prompt opens (the player
@@ -1397,20 +1382,17 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
             // returned a null squad (applied via ADVANCE_SQUAD), so there's nothing to delete -- no popup
             // either (no site to anchor one; the map showed the squad go dark); the terminal keeps the record.
             const cargoLost = event.cargoLost && Object.keys(event.cargoLost).length > 0 ? event.cargoLost : null;
-            dispatch(logInline(`Team lost in the field — battery spent, all ${event.unitsLost} ` +
-                `${event.multiplier > 1 ? 'units' : 'droids'} gone dark.` +
-                (cargoLost ? ` Cargo lost: ${formatResourceList(cargoLost)}.` : '')));
+            dispatch(logInline(TELEMETRY.teamLostInField(event.unitsLost, unitNoun(event.multiplier), cargoLost ? formatResourceList(cargoLost) : null)));
             dispatch(recalculateState());
             break;
         }
         case 'enteredZone': {
-            // Crossed into different ground: a one-line note in the zone's color (see database/terrain_blurbs.ts).
-            // Not repeated for a zone the terminal noted recently: skirting a settlement edge or a coastline flips
-            // zones every step, and the same line three times in a row kills the atmosphere it's there for.
+            // Crossed into different ground: a one-line note in the zone's color, not repeated for a zone the
+            // terminal noted recently (TERRAIN_BLURBS in database/planet/terrain.ts)
             const now = getState().clock.elapsedTime;
             const zone: SquadZone = event.zone;
             const blurb = TERRAIN_BLURBS[zone];
-            if (blurb && !(now - (lastBlurbAt[zone] || -Infinity) < BLURB_REPEAT_MS)) {
+            if (blurb && !(now - (lastBlurbAt[zone] || -Infinity) < TERRAIN_BLURB_REPEAT_MS)) {
                 lastBlurbAt[zone] = now;
                 dispatch(logInline(blurb, 'terrain-blurb', { color: zoneColor(zone) }));
             }
@@ -1421,7 +1403,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
             const current = getState().planet.squad;
             if (current && current.cargo && Object.keys(current.cargo).length > 0) {
                 dispatch({ type: SQUAD_DELIVER_CARGO, payload: { cargo: current.cargo } });
-                dispatch(logInline(`Cargo banked: ${formatResourceList(current.cargo)}.`));
+                dispatch(logInline(TELEMETRY.cargoBanked(formatResourceList(current.cargo))));
                 dispatch(recalculateState());
             }
             break;

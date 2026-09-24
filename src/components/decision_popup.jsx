@@ -1,13 +1,13 @@
 import React from 'react';
 import {connect} from "react-redux";
-import database from "../database/decisions";
+import database from "../database/base/decisions";
 import {bodyLines, chooseOption, closeDecision, isAvailable, researchCost, researchTime, visibleOptions} from "../redux/modules/decisions";
 import {highlightCosts} from "../redux/modules/resources";
 import PopupFrame from "./ui/popup_frame";
 import ResourceAmounts from "./ui/resource_amounts";
 
 /**
- * The decision popup: the terminal asking the operator something (database/decisions.ts). Opened by the player
+ * The decision popup: the terminal asking the operator something (database/base/decisions.ts). Opened by the player
  * from a request row on a structure card (structures/decision_row.jsx), never by the game. Viewport-centered on
  * the shared PopupFrame chrome, sibling to the special panels (same overlay, same z-index rule: below the settings
  * modal). Title, optional ascii block, body paragraphs, then the options stacked as buttons numbered 1..N. Escape,

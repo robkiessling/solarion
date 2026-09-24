@@ -1,12 +1,12 @@
 import update from 'immutability-helper';
 import {batch} from 'react-redux';
-import database, {type DecisionId, type DecisionOption, type DecisionRecord} from '../../database/decisions';
+import database, {type DecisionId, type DecisionOption, type DecisionRecord} from '../../database/base/decisions';
 import * as fromLog from './log';
 import * as fromUpgrades from './upgrades';
 import * as fromResources from './resources';
 import * as fromPanels from './panels';
 import {rearmTrigger} from './triggers';
-import upgradesDatabase from '../../database/upgrades';
+import upgradesDatabase from '../../database/base/upgrades';
 import type {TriggerId} from '../../database/triggers';
 
 // Ids in the state are plain strings (DecisionId in practice): typing them would make the decisions and triggers

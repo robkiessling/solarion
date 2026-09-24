@@ -2,7 +2,7 @@ import _ from 'lodash';
 import React from 'react';
 import {connect} from "react-redux";
 import ResourceAmounts from "../ui/resource_amounts";
-import {CHASSIS_PANEL, CHASSIS_ROWS, STAT_LABELS} from "../../database/chassis";
+import {CHASSIS_PANEL, CHASSIS_ROWS, STAT_LABELS} from "../../database/squad/chassis";
 import {authorizeChassis, canAuthorizeChassis, getAuthorizedRecord, isChassisRowUnlocked} from "../../redux/modules/panels";
 import {highlightCosts} from "../../redux/modules/resources";
 import 'overlayscrollbars/styles/overlayscrollbars.css';
@@ -14,7 +14,7 @@ import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
  * truthful source hint (the "shell"). Authorized rows collapse to one line with their
  * authorization number; a fork's declined variant stays greyed beneath with a RETOOL button.
  * Rows flagged postIndex render below "END OF INDEX", unnumbered (the AI's own late designs).
- * Content lives in database/chassis.ts; state in redux/modules/panels.ts.
+ * Content lives in database/squad/chassis.ts; state in redux/modules/panels.ts.
  */
 
 // One "hull +3" / "attack +50%" line per operation in an option's effect. Improvements read

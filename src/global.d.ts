@@ -14,7 +14,7 @@ declare global {
 
     /** The ids of the resource and structure tables (derived from the tables themselves) */
     type ResourceId = import('./database/resources').ResourceId;
-    type StructureId = import('./database/structures').StructureId;
+    type StructureId = import('./database/base/structures').StructureId;
 
     /** { resourceId: amount }, used for costs, consumption, production, capacity */
     type ResourceAmounts = Partial<Record<ResourceId, number>>;

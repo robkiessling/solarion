@@ -1,139 +1,21 @@
-import {getRandomIntInclusive, mapObject} from "../lib/helpers";
-import type {HostileFormation, TerrainLayoutId} from "../lib/battle";
-import type {PlanetColorKey} from "../lib/planet_render";
-import type {HostileType} from "./battle";
-import {FIELD_EVENT_TEXTS} from "./field_events";
-
-export type PoiType =
-    | 'cache'      // a supply drop: take it
-    | 'settlement' // where survivors live (the terminal only ever says "nest"): stepping on it starts a fight
-    | 'camp'       // a few of a settlement's people out on its held ground (the terminal says "contact"): a small fight
-    | 'storySite'  // a ruin with a log to read
-    | 'tunnel'     // a mouth of a passage under the sea: fought through once, then crossed at will
-    | 'fieldEvent';     // a field event seeded on open ground (database/field_events.ts): concealed until stepped on
-
-export type PoiStatus =
-    | 'hidden'     // its tile has not been revealed by scouting yet (or it is concealed: see Poi.concealed)
-    | 'available'  // discovered, not yet resolved
-    | 'cleared';   // resolved
-
-export type Capability = 'drill' | 'overrideModule' | 'amphibious';
-
-/** What accepting an encounter popup does: 'auto' resolves and closes it, 'narrate' holds it open on a result phase */
-export type ResultBehavior = 'auto' | 'narrate';
-
-export interface PoiReward {
-    resources?: ResourceAmounts;
-    capability?: Capability;
-}
-
-/** One fight of a settlement, as authored: the garrison, its battlefield, and what falls out of it. [lo, hi] ranges
- * roll at map generation. */
-export interface PoiLevelDef {
-    difficulty: number;
-    formation?: HostileFormation;
-    terrain?: TerrainLayoutId;
-    blurb?: string;
-    garrison?: Partial<Record<HostileType, number>>;
-    reward?: { resources?: Partial<Record<ResourceId, [number, number]>>; capability?: Capability };
-}
-
-/** A POI_DEFS entry: resource rewards are [lo, hi] ranges until rolled at map generation */
-export interface PoiDef {
-    type: PoiType;
-    /** where it goes, one or the other: a random tile of the painted zone (a-z), or the one painted point (A-Z) */
-    zone?: string;
-    point?: string;
-    name?: string;
-    /** settlements built into a pre-war network facility: its number. Securing the first opens replication. */
-    site?: number;
-    territoryRadius?: number;
-    /** settlements: the site's fights, surface first (one or more) */
-    levels?: PoiLevelDef[];
-    levelsShown?: boolean;
-    reloot?: number[];
-    discardedKg?: [number, number];
-    /** garrisoned sites: the approach card's line, shown before the fight is committed to (type default if unset) */
-    approachText?: string;
-    /** settlements: the camps seeded on this site's held ground, one single-fight level each */
-    camps?: PoiLevelDef[];
-    requires?: Capability;
-    storyId?: StoryId;
-    promptText?: string;
-    actionLabel?: string;
-    reward?: { resources?: Partial<Record<ResourceId, [number, number]>>; capability?: Capability };
-}
+import type {PoiDef, TunnelDef} from "./poi_types";
 
 /**
- * POI content definitions: WHAT exists on the planet. One POI_DEFS entry per placed POI, each naming the
- * painted zone or point of database/planet_map.txt it lands in. The placement pass (generatePois in lib/expeditions.ts) owns the
- * mechanics: zone/point lookup, reachability, territory stamping.
+ * The content manifest: WHAT exists on the planet. One POI_DEFS entry per placed POI, each naming the painted
+ * zone or point of database/planet/map.txt it lands in, and one TUNNEL_DEFS entry per painted tunnel digit.
+ * The vocabulary these are written in (types, per-type behavior, glyphs) is database/planet/poi_types.ts; the
+ * placement pass (generatePois in lib/pois.ts) owns the mechanics: zone/point lookup, reachability, territory
+ * stamping.
  *
  * Names, texts, difficulties, and rewards are PLACEHOLDERS until the content pass; this file is what that
  * pass edits.
  */
 
-// Per-type encounter popup behavior; individual definitions override. `result` decides what accepting does:
-// 'auto' resolves and closes the popup (the map change is the feedback), 'narrate' holds it open on a result
-// phase (story text, salvage, losses) until the player continues or drives away. `promptText` is the offer
-// line ({loot} expands to the rolled reward, see promptTextFor in lib/expeditions.ts). Garrisoned sites don't
-// offer; they raise the approach card instead (`approachText`, with the ground line and the threat estimate),
-// which commits to the fight on Continue. A site the squad chose to walk into can be left from that card; a
-// concealed one (a camp, an ambush) cannot: it is sprung.
-//
-// `reloot` is a settlement's payout schedule: the fraction of a level's rolled resources it pays by how many times
-// that level has been cleared before (a site that is left resets, so its upper levels can be fought again;
-// they have less each time). Past the end of the list a level pays nothing: [1] is pay-once, a long run of
-// 1s is fully farmable. Capability salvage only ever happens on a level's first clear.
-export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, result: ResultBehavior, promptText?: string,
-    approachText?: string, reloot?: number[] }> = {
-    cache: { actionLabel: 'Take', result: 'auto', promptText: 'Supply cache found{loot}. Take it?' },
-    storySite: { actionLabel: 'Explore', result: 'narrate', promptText: 'Structure of unknown origin. Investigate?' },
-    tunnel: { result: 'narrate', reloot: [1], approachText: 'Tunnel mouth. Thermal signatures in the dark beyond.' }, // crossed on entry once open
-    settlement: { result: 'narrate', reloot: [1, 0.5, 0.25], approachText: 'Dense structural returns. Thermal signatures inside.' },
-    camp: { result: 'narrate', reloot: [1], approachText: 'Contact. Movement closing on all sides.' },
-    fieldEvent: { result: 'narrate', reloot: [1], approachText: 'Nearby sounds detected. Movement closing.' } // choices carry their own labels and texts (database/field_events.ts)
-}
-
-// Loot list wording where the resource id predates its display name
-export const LOOT_LABELS: Partial<Record<ResourceId, string>> = { refinedMinerals: 'minerals' };
-
-// Map display vocabulary (colorKeys index into PLANET_COLORS in planet_render.ts; FIGHT_EFFECT_CHARS
-// animate over a settlement tile while a battle runs there).
-export const POI_GLYPHS = { cache: '□', settlement: '▓', camp: '▒', storySite: '?', tunnel: '∩', fieldEvent: '!' }; // a density map: held ground '░' is scattered returns, a camp a knot of them, the settlement the dense core; cache: a crate; tunnel: a mouth; event: only ever seen once it has gone off
-export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory', tunnel: 'poiTunnel', fieldEvent: 'poiFieldEvent' };
-// A settlement with `site` draws as the facility the plan says is there, not as a plain return
-export const SITE_GLYPH = '▣';
-export const POI_LABELS = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel', fieldEvent: 'Event' };
-export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
-
-// The three tools. Stored in planet.unlockedTerrains (the shared capability set: terrain crossUpgrades and
-// POI `requires` both read it), granted via upgrades or POI salvage (reward.capability).
-export const CAPABILITY_LABELS: Record<Capability, string> = {
-    drill: 'Plasma Drill',
-    overrideModule: 'Override Module',
-    amphibious: 'Amphibious Tracks'
-}
-
-// Story text lives here (not in the log database) because reports are dynamic; POIs store the key only.
-// Field event narration (FIELD_EVENT_TEXTS, database/field_events.ts) is folded in so one key space covers every popup.
-// PLACEHOLDER texts: the real ~12-log mystery is authored in the content pass.
-export type StoryId = keyof typeof STORY_TEXTS;
-export const STORY_TEXTS = {
-    ...FIELD_EVENT_TEXTS,
-    r1_deadDroid: 'A droid chassis, half-buried. The model number matches your own manufacturing line. You did not build it.',
-    r2_scorchedCore: 'A collapsed structure of familiar design. Its data core is scorched from the inside.',
-    r2_wreckage: 'Wreckage strewn across a kilometer. The blast patterns came from above. Something attacked them.',
-    r2_overrideVault: 'A command vault. Inside, an override module -- its authorization codes are older than your directive.',
-    r3_commandRuin: 'The ruined command center of the first swarm. The final log is intact.',
-    r3_hiveHeart: 'A vast organic chamber, pulsing faintly. The hive is not from this planet either.'
-}
-
 // Resource reward amounts are [lo, hi] ranges, rolled to a multiple of 100 at map generation (rollPoiReward).
 //
 // Settlements: `levels` lists the site's fights, surface first; most have one. Each level is a full battle of its own:
 //   `difficulty`  standard defenders fielded, and the displayed threat estimate
-//   `garrison`    a typed garrison ({ type: count }, see HOSTILE_TYPES in database/battle.ts) fielded instead of
+//   `garrison`    a typed garrison ({ type: count }, see HOSTILE_TYPES in database/battle/units.ts) fielded instead of
 //                 `difficulty` standard defenders; entry order maps to formation slots, so a shelter listed first
 //                 takes a ring's center
 //   `formation`   the spawn layout (FORMATIONS in lib/battle.ts); unset = column front. `surround` is the
@@ -142,7 +24,7 @@ export const STORY_TEXTS = {
 //                 open ground. The battlefield is stable per level (seeded from the map coord), so it can
 //                 be learned
 //   `blurb`       a bespoke scene line for the battle footer; unset = generated from terrain + formation
-//                 (GROUND_BLURBS/HOSTILE_BLURBS in database/battle.ts)
+//                 (GROUND_BLURBS/HOSTILE_BLURBS in database/battle/blurbs.ts)
 //   `reward`      what falls out of it
 //
 // Winning a level with more beneath it pauses on a descend-or-withdraw choice; the squad's hull damage and
@@ -168,7 +50,7 @@ export const CAMPS_ENABLED = true;
 export const POI_DEFS: PoiDef[] = [
     // PLACEHOLDER zone assignment: the old distance bands mapped onto the painted zones (home basin 'a',
     // the belt around it, the far continents) until the content pass places each entry where it belongs.
-    // Zone letters and their real places: see database/planet_map.txt.
+    // Zone letters and their real places: see database/planet/map.txt.
     // Home basin (tutorial): one easy nest, two caches, the dead-droid story site
     { type: 'settlement', zone: 'a', territoryRadius: 1,
         levels: [
@@ -283,18 +165,6 @@ export const POI_DEFS: PoiDef[] = [
     { type: 'storySite', zone: 't', storyId: 'r3_hiveHeart' }
 ]
 
-/** A tunnel system: what holds it, and what crossing costs. Keyed by the digit painted on its two mouths. */
-export interface TunnelDef {
-    name?: string;
-    /** seals both mouths (they bump like a sealed cache) until the capability is owned */
-    requires?: Capability;
-    /** the fight(s) inside; the squad that wins comes out the far mouth. Empty = nobody inside, open at once
-     * (or as soon as `requires` is met). Both together: sealed, then fought through once unsealed. */
-    levels: PoiLevelDef[];
-    /** battery the crossing costs, in flatland tiles walked */
-    crossTiles: number;
-}
-
 // Tunnels: each digit painted on the map (two mouths per digit) is one passage. Stepping into a mouth the
 // first time is the fight inside, on corridor ground (several `levels` = a long tunnel held in stages, with
 // the same descend-or-withdraw choice between them as a settlement); win the last and the squad emerges at
@@ -317,14 +187,3 @@ export const TUNNEL_DEFS: Partial<Record<string, TunnelDef>> = {
             reward: { resources: { refinedMinerals: [1000, 1800] } } }
     ], crossTiles: 4 }
 };
-
-// Resolves a definition's reward at generation time: [lo, hi] resource ranges roll to a multiple of 100;
-// capability rewards pass through unchanged.
-export function rollPoiReward(rewardDef: NonNullable<PoiDef['reward']>): PoiReward {
-    const { resources, ...rest } = rewardDef;
-    const reward: PoiReward = { ...rest };
-    if (resources) {
-        reward.resources = mapObject(resources, (resource, [lo, hi]) => getRandomIntInclusive(lo / 100, hi / 100) * 100);
-    }
-    return reward;
-}

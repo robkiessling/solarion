@@ -1,7 +1,8 @@
 import React from 'react';
-import {ARENA_H, ARENA_W, HOSTILE_TYPES, FX_TTL_MS, TERRAIN_CELL_H, TERRAIN_CELL_W} from "../lib/battle";
-import {TERRAIN_PIECES} from "../database/battle_terrain";
-import {PLANET_COLORS} from "../lib/planet_render";
+import {ARENA_H, ARENA_W, FX_TTL_MS, TERRAIN_CELL_H, TERRAIN_CELL_W} from "../lib/battle";
+import {HOSTILE_TYPES} from "../database/battle/units";
+import {TERRAIN_PIECES} from "../database/battle/terrain_art";
+import {PLANET_COLORS} from "../database/planet/colors";
 
 /**
  * The battle arena inside the encounter popup: draws every unit of the live sim as a shape sprite (or a

@@ -1,7 +1,8 @@
-import {EQUIPMENT_DEFS, type EquipmentId} from "../database/equipment";
+import {EQUIPMENT_DEFS, type EquipmentId} from "../database/squad/equipment";
 import {typedEntries} from "./helpers";
-import {TERRAIN_PIECES, type TerrainPieceId} from "../database/battle_terrain";
-import {HOSTILE_TYPES, DROID_BASE_STATS, GROUND_BLURBS, HOSTILE_BLURBS, type HostileType, type DroidStats, type UnitStats, type UnitType} from "../database/battle";
+import {TERRAIN_PIECES, type TerrainPieceId} from "../database/battle/terrain_art";
+import {HOSTILE_TYPES, DROID_BASE_STATS, type HostileType, type DroidStats, type UnitStats, type UnitType} from "../database/battle/units";
+import {GROUND_BLURBS, HOSTILE_BLURBS, RING_SPAWNER_BLURBS} from "../database/battle/blurbs";
 
 /** Spawn layouts: the keys of FORMATIONS */
 export type FormationId = keyof typeof FORMATIONS;
@@ -33,7 +34,7 @@ export interface BattleUnit {
 
 export interface BattleFx { type: 'hit' | 'death' | 'heal' | 'bomb' | 'spawn'; x: number; y: number; t: number }
 
-/** A placed obstacle: `art` names a TERRAIN_PIECES entry (database/battle_terrain.ts) */
+/** A placed obstacle: `art` names a TERRAIN_PIECES entry (database/battle/terrain_art.ts) */
 export interface BattleTerrainPiece { art: TerrainPieceId; col: number; row: number }
 
 export type BattlePhase = 'active' | 'withdrawing';
@@ -71,8 +72,7 @@ export interface BattleOverEvent {
 
 export type BattleEvent = BattleOverEvent;
 
-// Content records (stats, scene text) live in database/battle.ts; this module is the engine.
-export {HOSTILE_TYPES, DROID_BASE_STATS} from "../database/battle";
+// Content records (unit stats, scene text, arena art) live in database/battle/; this module is the engine.
 
 /**
  * Real-time per-unit battle sim: the skirmish that plays out in the encounter popup when the squad attacks
@@ -93,7 +93,7 @@ export {HOSTILE_TYPES, DROID_BASE_STATS} from "../database/battle";
  * and their catch-up replays stay cheap.
  *
  * Terrain: settlements may declare an obstacle layout (poi.terrain -> TERRAIN_LAYOUTS), which stamps ASCII
- * pieces (database/battle_terrain.ts) onto a coarse cell grid at battle creation. Blocked cells are
+ * pieces (database/battle/terrain_art.ts) onto a coarse cell grid at battle creation. Blocked cells are
  * impassable to both sides: bodies collide with them, target acquisition demands line of sight, the
  * flow field and the withdrawal route path around them, and spawn positions that land inside are
  * relocated to the nearest reachable ground. Since frontage is already physical, walls and chokepoints
@@ -120,7 +120,7 @@ const ARENA_BASELINE_UNITS = 320;  // a 160v160 fills the baseline arena at desi
 const FRONT_GAP = 44;              // spawn distance between the two front lines, at any arena size
 
 // --- Tuning ---
-// The unit stat blocks (DROID_BASE_STATS, HOSTILE_TYPES) are content records in database/battle.ts; the
+// The unit stat blocks (DROID_BASE_STATS, HOSTILE_TYPES) are content records in database/battle/units.ts; the
 // dials below are engine mechanics.
 const ATTACK_RANGE = 3;
 const UNIT_RADIUS = 1.2;        // hard collision radius, both sides: pairs closer than 2R get pushed apart,
@@ -370,7 +370,7 @@ export const FORMATIONS = {
 const COUNTER_FORMATIONS: Partial<Record<HostileFormation, FormationId>> = { surround: 'center' };
 
 /**
- * Terrain: impassable obstacle cells stamped from ASCII pieces (database/battle_terrain.ts; the art is
+ * Terrain: impassable obstacle cells stamped from ASCII pieces (database/battle/terrain_art.ts; the art is
  * the collision map, non-space char = blocked cell). Cells match the renderer's glyph metrics (a body
  * width wide, a glyph tall), so a piece is a fixed size in BODIES at any arena scale; a choke that
  * admits three droids admits three droids in every fight. battle.terrain stores only the placed piece
@@ -744,7 +744,7 @@ export const TERRAIN_LAYOUTS = {
 } satisfies Record<string, (arenaW: number, arenaH: number, salt: number) => BattleTerrainPiece[]>;
 
 // One-line scene description for the battle footer: ground clause + the garrison's opening (text records
-// in database/battle.ts), matching what the arena actually shows. Pure presentation (derived at render
+// in database/battle/blurbs.ts), matching what the arena actually shows. Pure presentation (derived at render
 // time, nothing reads it back), so existing mid-fight saves get it too.
 export function battleBlurb(battle: Battle, formation?: HostileFormation): string {
     const ground = GROUND_BLURBS[battle.terrain ? battle.terrain.id : 'open'] || GROUND_BLURBS.open;
@@ -752,7 +752,7 @@ export function battleBlurb(battle: Battle, formation?: HostileFormation): strin
     // The ring's center slot is where a garrison's leading shelter stands (see createBattle); name the
     // objective when it's really there
     if (formation === 'ring' && battle.startingSpawners > 0) {
-        hostiles = `hostiles circle tight around their ${battle.startingSpawners > 1 ? 'sources' : 'source'}`;
+        hostiles = battle.startingSpawners > 1 ? RING_SPAWNER_BLURBS.many : RING_SPAWNER_BLURBS.one;
     }
     return `${ground}; ${hostiles}.`;
 }

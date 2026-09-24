@@ -1,24 +1,14 @@
 import React from 'react';
 import {connect} from "react-redux";
 import {retreatFromFight, squadDescend, squadEngage, squadInteract, squadLeaveApproach, squadLeavePrompt, squadWithdraw, useEquipment} from "../redux/modules/planet";
-import {
-    actionLabelFor,
-    approachTextFor,
-    CAPABILITY_LABELS,
-    estimateDifficultyRange,
-    formatResourceList,
-    isGarrisoned,
-    poiLevels,
-    POI_COLOR_KEYS,
-    POI_GLYPHS,
-    promptTextFor,
-    STORY_TEXTS
-} from "../lib/expeditions";
-import {PLANET_COLORS} from "../lib/planet_render";
+import {actionLabelFor, approachTextFor, estimateDifficultyRange, formatResourceList, isGarrisoned, poiLevels, promptTextFor} from "../lib/pois";
+import {CAPABILITY_LABELS, POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../database/planet/poi_types";
+import {STORY_TEXTS} from "../database/planet/story_sites";
+import {PLANET_COLORS} from "../database/planet/colors";
 import {ARENA_W, battleBlurb, countSpawners, countUnits} from "../lib/battle";
-import {CONTACT_MS} from "../lib/squad";
-import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/equipment";
-import {APPROACH_GROUND} from "../database/battle";
+import {CONTACT_MS} from "../database/squad/tuning";
+import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/squad/equipment";
+import {APPROACH_GROUND} from "../database/battle/blurbs";
 import BattleCanvas from "./battle_canvas";
 import Tooltip from "./ui/tooltip";
 import PopupFrame from "./ui/popup_frame";
@@ -145,7 +135,7 @@ class EncounterPopup extends React.Component {
                     </span>}
                 {result.losses != null &&
                     <span className="result-line">
-                        {descent ? `Level ${result.level + 1} cleared` : poi.type === 'camp' ? 'Contact cleared' : poi.type === 'fieldEvent' ? 'Ambush repelled' : poi.type === 'tunnel' ? 'Tunnel cleared' : 'Nest cleared'} — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
+                        {descent ? `Level ${result.level + 1} cleared` : POI_TYPE_DEFAULTS[poi.type].clearedLabel} — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
                     </span>}
                 {result.landCredit > 0 &&
                     <span className="outcome-line">Reclaimed {result.landCredit} land.</span>}

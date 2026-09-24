@@ -2,7 +2,7 @@ import React from 'react';
 import {connect} from "react-redux";
 import {closePanel} from "../../redux/modules/panels";
 import SchematicIndex from "./schematic_index";
-import {CHASSIS_PANEL} from "../../database/chassis";
+import {CHASSIS_PANEL} from "../../database/squad/chassis";
 import PopupFrame from "../ui/popup_frame";
 
 /**

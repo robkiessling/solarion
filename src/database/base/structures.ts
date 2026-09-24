@@ -3,19 +3,19 @@ import {
     getRunningRate, getStructure,
     hasInsufficientResources,
     isRunning
-} from "../redux/modules/structures";
-import {getUpgrade, isResearched} from "../redux/modules/upgrades";
-import {daylightPercent, windSpeed} from "../redux/modules/clock";
-import {getCapacity, getIconSpan, getQuantity, getResource} from "../redux/modules/resources";
+} from "../../redux/modules/structures";
+import {getUpgrade, isResearched} from "../../redux/modules/upgrades";
+import {daylightPercent, windSpeed} from "../../redux/modules/clock";
+import {getCapacity, getIconSpan, getQuantity, getResource} from "../../redux/modules/resources";
 import _ from "lodash";
-import {getAbility, isCasting} from "../redux/modules/abilities";
-import {formatInteger, INFINITY, redText, type DeepPartial} from "../lib/helpers";
-import type {SfxName} from "../singletons/audio";
+import {getAbility, isCasting} from "../../redux/modules/abilities";
+import {formatInteger, INFINITY, redText, type DeepPartial} from "../../lib/helpers";
+import type {SfxName} from "../../singletons/audio";
 import {upgradesAffectingStructure, type UpgradeId} from "./upgrades";
 import {abilitiesAffectingStructure} from "./abilities";
-import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations, type Variables} from "../lib/effect";
-import {energyBeamStrengthEnergy, energyBeamStrengthPct, type CalculatorSet} from "../redux/reducer";
-import {isTargetingPlanet} from "../redux/modules/star";
+import {applyOperationsToVariables, applySingleEffect, initOperations, mergeEffectIntoOperations, type Variables} from "../../lib/effect";
+import {energyBeamStrengthEnergy, energyBeamStrengthPct, type CalculatorSet} from "../../redux/reducer";
+import {isTargetingPlanet} from "../../redux/modules/star";
 
 /** Whether a structure could afford its last tick's consumption */
 export type StructureStatus = 'normal' | 'insufficient';

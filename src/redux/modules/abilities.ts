@@ -1,5 +1,5 @@
 import update, {Spec} from 'immutability-helper';
-import database, {callbacks, calculators, type Ability, type AbilityId} from "../../database/abilities";
+import database, {callbacks, calculators, type Ability, type AbilityId} from "../../database/base/abilities";
 import {canCastAbility, recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {play as playSfx} from "../../singletons/audio";

@@ -1,13 +1,14 @@
 import _ from 'lodash';
 import {NUM_PLANET_ROWS, PLANET_COLS} from './planet_geometry';
 import {typedEntries} from './helpers';
-import structuresDatabase from '../database/structures';
+import structuresDatabase from '../database/base/structures';
 import resourcesDatabase from '../database/resources';
-import upgradesDatabase from '../database/upgrades';
-import abilitiesDatabase from '../database/abilities';
+import upgradesDatabase from '../database/base/upgrades';
+import abilitiesDatabase from '../database/base/abilities';
 import triggersDatabase from '../database/triggers';
 import logsDatabase from '../database/logs';
-import {DROID_BASE_STATS, fullDroidHp} from './battle';
+import {fullDroidHp} from './battle';
+import {DROID_BASE_STATS} from '../database/battle/units';
 import {SAVE_FORMAT_VERSION} from './save_version';
 import type {EncounterPrompt} from '../redux/modules/planet';
 import type {Squad} from './squad';

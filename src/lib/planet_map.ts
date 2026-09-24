@@ -1,7 +1,8 @@
 import _ from 'lodash';
 import {createArray, getIntermediateColor, getRandomFromArray, getRandomIntInclusive, mod, floor} from "./helpers";
-import type {PlanetColorKey} from "./planet_render";
-import AUTHORED_MAP_TEXT from "../database/planet_map.txt?raw";
+import AUTHORED_MAP_TEXT from "../database/planet/map.txt?raw";
+import {HELD_GLYPH, STATUSES, TERRAINS, VISION_HOPS, type SectorStatus, type SectorStatusDef, type TerrainDef, type TerrainKey} from "../database/planet/terrain";
+import type {PingVariantId, PlanetColorKey} from "../database/planet/colors";
 import {
     DISPLAY_COLS,
     getAdjacentCoords,
@@ -11,31 +12,8 @@ import {
     PLANET_COLS,
 } from "./planet_geometry";
 
-/** TERRAINS[x].key (the debug meridians add `meridian_<n>` keys at runtime; they never reach a save) */
-export type TerrainKey = 'home' | 'outpost' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'shallows' | 'water';
-
-/** How much of a tile the player has seen (the keys of STATUSES below) */
-export type SectorStatus = 'unknown' | 'exploring' | 'explored';
-
-export interface TerrainDef {
-    key: TerrainKey;
-    display: string;
-    variants?: string[];
-    variantShare?: number;
-    label?: string;
-    /** seconds for a droid to cross one tile of this terrain */
-    crossTime: number;
-    /** capability required before the terrain can be crossed at all */
-    crossUpgrade?: string;
-    blocksVision?: boolean;
-    exploreLength?: number;
-}
-
-export interface SectorStatusDef {
-    key: SectorStatus;
-    display?: string;
-    label: string;
-}
+// Terrain and status records (TERRAINS, STATUSES, the glyphs) are content in database/planet/terrain.ts;
+// this module parses the painted map into sectors of them and answers questions about the result.
 
 /** One tile on the planet map */
 export interface Sector {
@@ -66,9 +44,8 @@ export type PlanetMap = Sector[][];
 /** The set of unlocked crossing capabilities, e.g. { drill: true } */
 export type Unlocks = { [capability: string]: boolean };
 
-/** A radar ping around a cell or marker: where in its cycle it is, and which look (see PING_VARIANTS in planet_render) */
+/** A radar ping around a cell or marker: where in its cycle it is, and which look (PING_VARIANTS in database/planet/colors.ts) */
 export interface Ping { variant?: PingVariantId; fraction: number }
-export type PingVariantId = 'hover' | 'squad' | 'beacon';
 /** Which of a cell's edges carry a survey-boundary segment */
 export interface HaloEdges { top?: boolean; bottom?: boolean; left?: boolean; right?: boolean }
 /** A marker that slides between tiles on its own offsets (the squad), drawn over the tile's own glyph */
@@ -167,49 +144,8 @@ function daylightAt(deltaTurns: number) {
     return 0.5 + 0.5 * Math.cos(Math.PI * t); // cosine ease, so the terminator has no visible edges
 }
 
-
-const EXPLORATION_TIME_FACTOR = 0.5; // The fastest area takes this amount of time to explore
 const START_WITH_ADJ_EXPLORED = true;
 
-/**
- * crossTime: ms for a droid to cross one tile of this terrain (the movement cost / terrain weight).
- * crossUpgrade: research key that must be unlocked before the terrain can be crossed at all; until then it is impassable,
- *   but still revealed by line-of-sight so you can see the barrier.
- * blocksVision (optional): the tile stops sight. It is revealed itself, but nothing behind it is (see
- *   getVisibleCoords). Independent of passability: a ridge you can climb with Mountaineering still hides
- *   what is on the far side.
- * exploreLength: legacy per-tile explore cost used by the old sector-exploration model; removed once droids land.
- */
-export const TERRAINS: Record<TerrainKey, TerrainDef> = {
-    home: { key: 'home', display: '#', label: 'Command Center', crossTime: EXPLORATION_TIME_FACTOR },
-    flatland: { key: 'flatland', display: ',', variants: ['.'], variantShare: 0.15, label: 'Flatland', crossTime: EXPLORATION_TIME_FACTOR, exploreLength: EXPLORATION_TIME_FACTOR }, // Can be developed for mining. Dust and pebbles: deliberately the quietest glyphs on the map, so features stand out against the ground
-    developing: { key: 'developing', display: '+', label: 'Replicating', crossTime: EXPLORATION_TIME_FACTOR },
-    developed: { key: 'developed', display: '+', label: 'Replicated', crossTime: EXPLORATION_TIME_FACTOR },
-    // A secured network site: its pre-war power tap is live, so it is powered ground for the squad (recharge,
-    // repair, cargo banks, scouts dock) and the survey halo reaches out from it, but it is not replicated land
-    // (nothing produces here until replication builds on it). Never painted; a settlement with `site` leaves
-    // one behind when it falls.
-    outpost: { key: 'outpost', display: '▣', label: 'Site', crossTime: EXPLORATION_TIME_FACTOR },
-    mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'mountaineering', blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross; also hides what is behind it
-    // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
-    ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, crossUpgrade: 'iceCrossing', exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // Blocked until researched, then slow to cross. White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
-    // A strait shallow enough to wade: a wall until Amphibious Tracks are researched, then slow going. Never land
-    // (not surveyed, not developable), so the crossing stays a crossing.
-    shallows: { key: 'shallows', display: '=', label: 'Shallows', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'amphibious' },
-    // Open water: a permanent wall like ice (the crossUpgrade is never granted). The authored map's oceans; the
-    // only ways across are the land the map leaves and, later, tunnels.
-    water: { key: 'water', display: '~', variants: ['≈'], variantShare: 0.2, label: 'Sea', crossTime: EXPLORATION_TIME_FACTOR * 2, crossUpgrade: 'seafaring' },
-}
-
-// Held flatland (sector.heldBy) gets its own glyph, not just a tint (a tint alone is impossible
-// to tell on the night side): a shaded zone spreading out from the settlement's '▓', the ground its
-// people work and watch, the lightest shade of the same family as the camp's '▒'. (Not '·': that is the fog
-// glyph, and the two would be one shape in the dark.)
-// A neutral survey mark on purpose, and it holds still: anything drawn here must be literally true of a settlement's
-// land (the terminal omits, it never shows a falsehood), and marks that move or glow on a tile read as
-// something to walk onto. Only flatland is ever stamped held (see generatePois), so no other terrain loses
-// its glyph to this.
-export const HELD_GLYPH = '░';
 // City lights: the powered grid is lit at night the way a city looks from orbit. The command center is the
 // hub: full running-lights brightness (planet_render's SELF_LIT_ALPHA) plus the same lantern pool as the
 // squad. Replicated land is a field of warm points that never spill onto the ground around them and vary
@@ -251,13 +187,6 @@ export function terrainGlyph(terrainKey: TerrainKey, row: number, col: number) {
     return attributes.variants[Math.floor((hash / share) * attributes.variants.length)];
 }
 
-export const STATUSES: Record<SectorStatus, SectorStatusDef> = {
-    unknown: { key: 'unknown', display: '·', label: 'Unknown' },
-    exploring: { key: 'exploring', label: 'Exploring' },
-    explored: { key: 'explored', label: 'Explored' }
-}
-
-
 export const COOK_TIME = 8000;
 const COOKED_CHAR = '}'
 
@@ -291,7 +220,7 @@ const LASER_BEAM_STREAKS: Record<number, number> = { // some beams make a streak
 
 /**
  * --- The authored map ---
- * The planet is hand-drawn (database/planet_map.txt: NUM_PLANET_ROWS lines of PLANET_COLS chars, an
+ * The planet is hand-drawn (database/planet/map.txt: NUM_PLANET_ROWS lines of PLANET_COLS chars, an
  * equirectangular grid, so col = (lon + 180) / 3 and row = (90 - lat) / 6). One char per tile:
  *   .      flatland
  *   a-z    flatland in placement zone <letter> (sector.zone): a POI def naming the zone lands on a random tile of it
@@ -453,10 +382,6 @@ export function isOnGrid(map: PlanetMap, coord: Coord): boolean {
     return GRID_TERRAINS.has(map[coord[0]][coord[1]].terrain);
 }
 
-// Halo radius at Survey Automation unlock (in hops; the design's R). Comms upgrades will raise the live
-// value (planet state's haloRadius) later; this is just its starting point.
-export const SURVEY_HALO_RADIUS = 7;
-
 /**
  * The grid halo: every tile within `radius` hops of any powered tile, via
  * multi-source BFS on pure topology (terrain is ignored -- the halo is uplink range, not walkability).
@@ -523,14 +448,6 @@ export function isPassable(map: PlanetMap, coord: Coord | null, unlocks: Unlocks
     if (coord === null) { return false; }
     return getCrossTime(map[coord[0]][coord[1]].terrain, unlocks) < Infinity;
 }
-
-// Line-of-sight range of the driven squad, in hops. Sight walks the 4-neighbor adjacency graph, so an
-// unobstructed blob is a diamond (12 tiles at 2 hops), not a square. Also the starting clearing around home.
-export const VISION_HOPS = 3;
-// Reveal range of a scout droid from the tile it stands on, in hops (same line-of-sight walk, so mountains
-// wall off a scout's view too). Their lookout targeting uses the same range, so a scout never walks to a
-// tile it has already fully revealed from a distance.
-export const SCOUT_VISION_HOPS = 1;
 
 export function blocksVision(terrainKey: TerrainKey): boolean {
     return !!TERRAINS[terrainKey].blocksVision;

@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import update from 'immutability-helper';
-import database, {callbacks, type DiscoverWhen, type Upgrade, type UpgradeId, type UpgradeRecord, type UpgradeState} from "../../database/upgrades";
+import database, {callbacks, type DiscoverWhen, type Upgrade, type UpgradeId, type UpgradeRecord, type UpgradeState} from "../../database/base/upgrades";
 import {recalculateState, withRecalculation} from "../reducer";
 import {batch} from "react-redux";
 import {hasLifetimeQuantities} from "./resources";

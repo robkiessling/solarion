@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import {mod} from "../lib/helpers";
+import {mod} from "../../lib/helpers";
 
 /** Base-view sprite ids: the keys of the animation tables below */
 export type DoodadId = keyof typeof doodads;

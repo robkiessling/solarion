@@ -13,7 +13,7 @@ import Upgrades from "./upgrades";
 import Abilities from "./abilities";
 import DroidCount from "./droid_count";
 import {getIcon, getQuantity, getResource, highlightCosts} from "../../redux/modules/resources";
-import {droidPerformanceBoost} from "../../database/structures";
+import {droidPerformanceBoost} from "../../database/base/structures";
 
 class Structure extends React.Component {
     constructor(props) {

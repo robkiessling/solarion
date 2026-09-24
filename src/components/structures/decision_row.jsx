@@ -1,10 +1,10 @@
 import React from 'react';
 import {connect} from 'react-redux';
-import database from '../../database/decisions';
+import database from '../../database/base/decisions';
 import {openDecision} from '../../redux/modules/decisions';
 
 /**
- * A pending decision request on a structure card: the terminal has something to ask (database/decisions.ts) and
+ * A pending decision request on a structure card: the terminal has something to ask (database/base/decisions.ts) and
  * put it on the desk instead of taking the screen. Sits in the card's upgrade list with a marker that is yellow
  * until the popup has been opened for it, grey after (the request is still there; the player has just looked and
  * left). Click opens the decision popup.

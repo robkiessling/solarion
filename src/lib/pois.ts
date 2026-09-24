@@ -1,12 +1,15 @@
 import {getRandomFromArray, getRandomIntInclusive, mapObject, shuffleArray} from "./helpers";
-import {getCrossTime, getHomeBasePosition, STATUSES, TERRAINS, VISION_HOPS, type PlanetMap, type Sector} from "./planet_map";
+import {getCrossTime, getHomeBasePosition, type PlanetMap, type Sector} from "./planet_map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./planet_geometry";
-import {ambushDifficulty, FIELD_EVENT_DEFS, FIELD_EVENT_SEEDING, type FieldEventChoiceDef, type FieldEventDef, type FieldEventKind} from "../database/field_events";
-import {CAMPS_ENABLED, LOOT_LABELS, POI_DEFS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, TUNNEL_DEFAULT, TUNNEL_DEFS, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior, type StoryId} from "../database/pois";
-import type {HostileType} from "../database/battle";
+import {STATUSES, TERRAINS, VISION_HOPS} from "../database/planet/terrain";
+import {ambushDifficulty, FIELD_EVENT_DEFS, FIELD_EVENT_SEEDING, type FieldEventChoiceDef, type FieldEventDef, type FieldEventKind} from "../database/planet/field_events";
+import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Capability, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type ResultBehavior} from "../database/planet/poi_types";
+import {CAMPS_ENABLED, POI_DEFS, TUNNEL_DEFAULT, TUNNEL_DEFS} from "../database/planet/pois";
+import type {StoryId} from "../database/planet/story_sites";
+import type {HostileType} from "../database/battle/units";
 import type {HostileFormation, TerrainLayoutId} from "./battle";
 
-/** One fight of a placed settlement (see PoiLevelDef in database/pois.ts), rewards rolled. `timesCleared` counts
+/** One fight of a placed settlement (see PoiLevelDef in database/planet/poi_types.ts), rewards rolled. `timesCleared` counts
  * wins on this level across assaults: it indexes the site's reloot schedule. */
 export interface PoiLevel {
     difficulty: number;
@@ -18,7 +21,7 @@ export interface PoiLevel {
     timesCleared: number;
 }
 
-/** One answer to a field event, rewards rolled (see FieldEventChoiceDef in database/field_events.ts) */
+/** One answer to a field event, rewards rolled (see FieldEventChoiceDef in database/planet/field_events.ts) */
 export interface FieldEventChoice {
     label: string;
     storyId?: StoryId;
@@ -68,13 +71,10 @@ export interface Poi {
 
 /**
  * This module owns the point-of-interest (POI) domain logic: POI placement mechanics, encounter resolution
- * math, and report text. WHAT gets placed (counts, rewards, story text) is data in database/pois.ts; squad
- * movement/driving lives in squad.ts (the squad is player-driven).
+ * math, and prompt text. WHAT gets placed (counts, rewards, story text) is data in database/planet/pois.ts,
+ * written in the vocabulary of database/planet/poi_types.ts; squad movement/driving lives in squad.ts (the
+ * squad is player-driven).
  */
-
-// POI content records (types, texts, labels, glyphs) live in database/pois.ts; re-exported here so
-// consumers keep one import site.
-export {CAPABILITY_LABELS, FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, SITE_GLYPH, STORY_TEXTS} from "../database/pois";
 
 /**
  * The placement pass: each POI_DEFS entry lands in the zone (a random tile of it) or on the point (one exact
@@ -267,8 +267,9 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         const extras: Partial<Poi> = { name: def.name, fieldEvent: kind, concealed: true };
         if (def.fight) {
             const difficulty = ambushDifficulty(sector.graphDistanceHome);
+            const [lootLo, lootHi] = def.fight.lootPerDefender;
             extras.levels = [rollLevel({ difficulty, formation: def.fight.formation, terrain: def.fight.terrain,
-                reward: { resources: { refinedMinerals: [difficulty * 50, difficulty * 100] } } })];
+                reward: { resources: { refinedMinerals: [difficulty * lootLo, difficulty * lootHi] } } })];
         }
         if (def.promptText) extras.promptText = def.promptText;
         if (def.approachText) extras.approachText = def.approachText;
@@ -363,7 +364,7 @@ export function formatResourceList(resources: ResourceAmounts): string {
 
 /**
  * Encounter popup content accessors: definition field if present, else the type default (POI_TYPE_DEFAULTS
- * in database/pois.ts). Prompt texts are templates; {loot} expands to the POI's rolled reward.
+ * in database/planet/poi_types.ts). Prompt texts are templates; {loot} expands to the POI's rolled reward.
  */
 
 export function promptTextFor(poi: Poi): string {

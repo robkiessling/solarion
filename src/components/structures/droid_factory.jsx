@@ -3,7 +3,7 @@ import {connect} from "react-redux";
 import Structure from "./structure";
 import {getStructure} from "../../redux/modules/structures";
 import {chassisIndexRevealed, chassisNeedsAttention, openPanel} from "../../redux/modules/panels";
-import {CHASSIS_PANEL} from "../../database/chassis";
+import {CHASSIS_PANEL} from "../../database/squad/chassis";
 
 // The droid factory card: the generic structure card plus the opener for its special panel,
 // the schematic index (chassis design corpus — components/panels/schematic_index.jsx).

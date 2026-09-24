@@ -1,25 +1,14 @@
 import {NUM_PLANET_ROWS, parseCoordKey, PLANET_COLS} from "./planet_geometry";
-import {
-    getCrossTime,
-    getTerrain,
-    getVisibleCoords,
-    isOnGrid,
-    type PlanetMap,
-    STATUSES,
-    type TerrainKey,
-    type Unlocks
-} from "./planet_map";
+import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, type PlanetMap, type Unlocks} from "./planet_map";
+import {STATUSES, type SquadZone} from "../database/planet/terrain";
+import {CONTACT_MS, RESERVE_HP_PER_TILE, SQUAD_BATTERY_CAPACITY, SQUAD_DRAIN_PER_TILE, SQUAD_SPEED_FACTOR} from "../database/squad/tuning";
 import {mapObject, mod, typedEntries} from "./helpers";
 
-import {advanceBattle, type Battle, type BattleOverEvent, DROID_BASE_STATS, fullDroidHp} from "./battle";
-import {EQUIPMENT_DEFS, type EquipmentCharges} from "../database/equipment";
-import type {DroidStats} from "../database/battle";
-import type {Poi} from "./expeditions";
+import {advanceBattle, type Battle, type BattleOverEvent, fullDroidHp} from "./battle";
+import {EQUIPMENT_DEFS, type EquipmentCharges} from "../database/squad/equipment";
+import {DROID_BASE_STATS, type DroidStats} from "../database/battle/units";
+import type {Poi} from "./pois";
 import {INFINITE_CHARGE} from "../dev/skips";
-
-/** The ground a squad stands on as the driver feels it (see squadZone): settlement territory, the powered
- * grid, or the bare terrain. Keys the terrain notes and the map frame's tint. */
-export type SquadZone = TerrainKey | 'held' | 'grid';
 
 /** What advanceSquad reports back to the caller; resolved by resolveSquadEvent in redux/modules/planet.ts */
 export type SquadEvent =
@@ -38,7 +27,7 @@ export interface SquadFighting {
     level?: number;
 }
 
-/** The player-driven squad (see createSquad in lib/squad.js) */
+/** The player-driven squad (see createSquad below) */
 export interface Squad {
     coord: Coord;
     path: Coord[];
@@ -73,28 +62,7 @@ export interface Squad {
  * on the contact event and held in `fighting` for the duration).
  */
 
-export const SQUAD_GLYPH = '@';
-
-// Movement pace. crossTime is seconds-per-tile for scouts; the squad multiplies it down so driving feels
-// snappy (flatland 0.5s * 0.8 = 400ms/tile, ~2.5 tiles/sec).
-export const SQUAD_SPEED_FACTOR = 0.8;
-
-// Battery model: drains per tile entered while off the powered grid, snaps to full capacity on the
-// grid. At zero the squad runs on reserve power: every unit burns hull each tile, so hull is the
-// overdraft on range -- overextend far enough and the squad dies in the field (cargo and all). Speed is
-// unaffected (the bleed is per tile, so slowness would only stretch the dying in real time, not raise
-// the stakes).
-// Drain is flat per tile, whatever the team size: range is a property of the rig (cells plus upgrades), not
-// of who rides it, so a lone scout and a full army have the same legs. Force sizing costs droids pulled off
-// the base, not range.
-// The contact beat between stepping onto a settlement and the fight being shown: the squad shrinks into the settlement
-// (planet.jsx draws it), the battle sim holds its opening frame, and the encounter popup waits. Doubles as
-// the climb-back-out duration when the fight ends.
-export const CONTACT_MS = 400;
-
-export const SQUAD_BATTERY_CAPACITY = 100;
-export const SQUAD_DRAIN_PER_TILE = 2;    // battery per tile entered off the grid, any team size
-export const RESERVE_HP_PER_TILE = 1;     // hull every unit burns per tile on reserve power
+// Tuning (glyph, pace, battery, reserve burn) is in database/squad/tuning.ts.
 
 // isOnGrid lives in planet_map (the halo shares it); re-exported so squad consumers keep one import site.
 export {isOnGrid} from "./planet_map";

@@ -1,16 +1,16 @@
 import _ from 'lodash';
-import {getQuantity, getResource} from "../redux/modules/resources";
-import {numStandardDroids, type CalculatorSet} from "../redux/reducer";
-import * as fromAbilities from "../redux/modules/abilities";
-import * as fromPlanet from "../redux/modules/planet";
+import {getQuantity, getResource} from "../../redux/modules/resources";
+import {numStandardDroids, type CalculatorSet} from "../../redux/reducer";
+import * as fromAbilities from "../../redux/modules/abilities";
+import * as fromPlanet from "../../redux/modules/planet";
 import {upgradesAffectingAbility} from "./upgrades";
-import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations, type Effect, type EffectAffects, type Variables} from "../lib/effect";
-import {getUpgrade, isResearched} from "../redux/modules/upgrades";
+import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations, type Effect, type EffectAffects, type Variables} from "../../lib/effect";
+import {getUpgrade, isResearched} from "../../redux/modules/upgrades";
 import {STANDARD_COST_EXP} from "./structures";
-import {countAllStructuresBuilt} from "../redux/modules/structures";
-import {typedKeys, type DeepPartial} from "../lib/helpers";
-import {CLICK_ENERGY_OVERRIDE} from "../dev/skips";
-import type {SfxName} from "../singletons/audio";
+import {countAllStructuresBuilt} from "../../redux/modules/structures";
+import {typedKeys, type DeepPartial} from "../../lib/helpers";
+import {CLICK_ENERGY_OVERRIDE} from "../../dev/skips";
+import type {SfxName} from "../../singletons/audio";
 
 /** An ability's cast lifecycle (cooldown starts after the cast finishes) */
 export type AbilityState = 'ready' | 'casting' | 'cooldown';

@@ -2,8 +2,9 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { NAV_TAB_TITLES, updateSetting } from "../redux/modules/game";
 import { isOnGrid, squadBatteryCapacity, squadDrainPerTile, squadHp } from "../lib/squad";
-import { getCrossTime, getTerrain, TERRAINS } from "../lib/planet_map";
-import { PLANET_COLORS } from "../lib/planet_render";
+import { getCrossTime, getTerrain } from "../lib/planet_map";
+import { TERRAINS } from "../database/planet/terrain";
+import { PLANET_COLORS } from "../database/planet/colors";
 
 const formatStat = (n) => Number.isInteger(n) ? n : n.toFixed(1);
 

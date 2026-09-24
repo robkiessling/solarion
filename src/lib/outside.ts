@@ -5,8 +5,8 @@ import {
     mod,
     typedEntries
 } from "./helpers";
-import backgrounds from "../database/backgrounds";
-import {structures, doodads, Frame, Animation, type DoodadId, type StructureAnimationId} from '../database/animations'
+import backgrounds from "../database/base/backgrounds";
+import {structures, doodads, Frame, Animation, type DoodadId, type StructureAnimationId} from '../database/base/animations'
 import type {StructureAnimationData} from '../redux/modules/structures';
 import type {ImageCell} from './ascii_canvas';
 

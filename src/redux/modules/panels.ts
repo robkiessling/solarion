@@ -1,6 +1,6 @@
 import update from 'immutability-helper';
 import {batch} from "react-redux";
-import {CHASSIS_ROWS_BY_ID, getChassisOption, type ChassisRow} from "../../database/chassis";
+import {CHASSIS_ROWS_BY_ID, getChassisOption, type ChassisRow} from "../../database/squad/chassis";
 import {canConsume, consumeUnsafe} from "./resources";
 import {logInline} from "./log";
 import * as fromLog from "./log";
@@ -20,7 +20,7 @@ export interface PanelsState {
 /**
  * Special upgrade panels: full-screen popups owned by a structure, each with its own bespoke UI
  * and content database (vs. the generic one-button upgrades on structure cards). First panel is
- * the droid factory's schematic index ('chassis', database/chassis.ts). Future panels (e.g. a
+ * the droid factory's schematic index ('chassis', database/squad/chassis.ts). Future panels (e.g. a
  * solar circuitry board) add: a content database, a component registered in
  * components/panels/panel_host.jsx, their own state key + action handling below, and an opener
  * button on their structure's card. openPanelId / authorizationCount are shared machinery.

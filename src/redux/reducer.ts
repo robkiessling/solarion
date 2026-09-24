@@ -19,14 +19,13 @@ import {getQuantity, getResource, type ResourcesState} from "./modules/resources
 import {aimMirrors, startEnergyBeam} from "./modules/star";
 import {HYPER_BEAM_CHARGE_TIME} from "../lib/star";
 import {getStructure, type StructuresState} from "./modules/structures";
-import {DROID_BASE_STATS} from "../lib/battle";
-import {SQUAD_BATTERY_CAPACITY} from "../lib/squad";
-import {EQUIPMENT_DEFS, EQUIPMENT_ORDER, type EquipmentCharges} from "../database/equipment";
+import {DROID_BASE_STATS, type DroidStats} from "../database/battle/units";
+import {SQUAD_BATTERY_CAPACITY} from "../database/squad/tuning";
+import {EQUIPMENT_DEFS, EQUIPMENT_ORDER, type EquipmentCharges} from "../database/squad/equipment";
 import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations, type Variables} from "../lib/effect";
-import type {Ability, AbilityId} from "../database/abilities";
-import type {DroidStats} from "../database/battle";
-import type {DroidAssignment, Structure, StructureStatus} from "../database/structures";
-import type {Upgrade, UpgradeId} from "../database/upgrades";
+import type {Ability, AbilityId} from "../database/base/abilities";
+import type {DroidAssignment, Structure, StructureStatus} from "../database/base/structures";
+import type {Upgrade, UpgradeId} from "../database/base/upgrades";
 import type {AbilitiesState} from "./modules/abilities";
 import type {LogState} from "./modules/log";
 import type {PanelsState} from "./modules/panels";
@@ -212,7 +211,7 @@ export function getStructureUpgradeIds(state: RootState, structure: Structure) {
     })
 }
 
-// Expedition-only upgrades (`squad: true` in database/upgrades.ts, no structure): equipment, combat stats,
+// Expedition-only upgrades (`squad: true`, database/squad/upgrades.ts, no structure): equipment, combat stats,
 // battery. Offered in the Expedition panel's Outfitting section, not on any structure's card.
 export function getSquadUpgradeIds(state: RootState) {
     return fromUpgrades.visibleIds(state.upgrades).filter(upgradeId => state.upgrades.byId[upgradeId]?.squad);

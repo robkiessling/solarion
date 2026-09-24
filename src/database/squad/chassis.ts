@@ -45,7 +45,7 @@
  * retooling re-pays that option's cost and runs its downtime again. No per-droid chassis: the
  * fleet always runs the currently authorized spec.
  */
-import type {Effect} from '../lib/effect';
+import type {Effect} from '../../lib/effect';
 
 export interface ChassisOption {
     id: string;

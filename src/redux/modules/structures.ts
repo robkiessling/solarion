@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import update from 'immutability-helper';
-import database, {calculators, type Structure, type StructureStatus, type StructureType} from '../../database/structures';
+import database, {calculators, type Structure, type StructureStatus, type StructureType} from '../../database/base/structures';
 import {recalculateState, withRecalculation} from "../reducer";
 import {typedEntries} from "../../lib/helpers";
 

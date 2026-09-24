@@ -38,7 +38,7 @@ import {getStructureStatistic} from "../redux/reducer";
 import {SLOW_TICK_MS, TICK_MS, tickGame} from "./game_tick";
 import {setSuppressed as suppressSfx} from "../singletons/audio";
 import {mapObject, typedEntries} from "./helpers";
-import type {Ability} from "../database/abilities";
+import type {Ability} from "../database/base/abilities";
 
 export interface StoreLike { dispatch: Dispatch; getState: GetState }
 

@@ -2,7 +2,7 @@ import React from 'react';
 import {connect} from "react-redux";
 import Slider from "rc-slider";
 import {setRotation, setRotationMode} from "../redux/modules/planet";
-import {SQUAD_GLYPH} from "../lib/squad";
+import {SQUAD_GLYPH} from "../database/squad/tuning";
 
 // The two camera follow modes: [mode, glyph, label]. Manual isn't a third button: it's the state you fall
 // into by dragging the slider (or the globe), or by switching the active mode off again. Team wears the

@@ -15,7 +15,7 @@ import * as fromLog from '../redux/modules/log';
 import * as fromClock from '../redux/modules/clock';
 import {addTrigger} from '../redux/modules/triggers';
 import {kickoffDoomsday} from '../redux/reducer';
-import type {UpgradeId} from '../database/upgrades';
+import type {UpgradeId} from '../database/base/upgrades';
 
 const NORMAL_BOOTUP = 'normalBootup'; // Standard campaign start
 const SKIP_START = 'skipStart';

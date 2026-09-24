@@ -1,4 +1,4 @@
-import type {LogId} from './logs';
+import type {LogId} from '../logs';
 import type {UpgradeId} from './upgrades';
 
 /**
