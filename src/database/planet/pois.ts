@@ -18,9 +18,9 @@ import type {PoiDef, TunnelDef} from "./poi_types";
 //   `garrison`    a typed garrison ({ type: count }, see HOSTILE_TYPES in database/battle/units.ts) fielded instead of
 //                 `difficulty` standard defenders; entry order maps to formation slots, so a shelter listed first
 //                 takes a ring's center
-//   `formation`   the spawn layout (FORMATIONS in lib/battle.ts); unset = column front. `surround` is the
+//   `formation`   the spawn layout (FORMATIONS in lib/battle/layouts.ts); unset = column front. `surround` is the
 //                 ambush opening: the garrison starts in all four corners with the squad encircled
-//   `terrain`     impassable obstacles scattered over the arena (TERRAIN_LAYOUTS in lib/battle.ts); unset =
+//   `terrain`     impassable obstacles scattered over the arena (TERRAIN_LAYOUTS in lib/battle/layouts.ts); unset =
 //                 open ground. The battlefield is stable per level (seeded from the map coord), so it can
 //                 be learned
 //   `blurb`       a bespoke scene line for the battle footer; unset = generated from terrain + formation

@@ -1,5 +1,5 @@
 import {getRandomIntInclusive, mapObject} from "../../lib/helpers";
-import type {HostileFormation, TerrainLayoutId} from "../../lib/battle";
+import type {HostileFormation, TerrainLayoutId} from "../../lib/battle/layouts";
 import type {PlanetColorKey} from "./colors";
 import type {HostileType} from "../battle/units";
 import type {StoryId} from "./story_sites";

@@ -1,5 +1,5 @@
 /**
- * Battle unit records: the stat blocks battles run on. The engine (lib/battle.ts) interprets these;
+ * Battle unit records: the stat blocks battles run on. The engine (lib/battle/sim.ts) interprets these;
  * settlement definitions (database/planet/pois.ts) reference the unit types by id.
  *
  * The dividing line between database/ and lib/: if a content pass would edit it, it's a record here;
@@ -8,7 +8,7 @@
  *   - database/battle/blurbs.ts   the scene text (arena footer, approach card ground line)
  *   - database/battle/terrain_art.ts  the arena obstacle art (ASCII pieces)
  * The formation and terrain-layout ids those records reference (column/ring/surround...,
- * rocks/ruins/canyon) are registries of placement algorithms in lib/battle.ts (FORMATIONS,
+ * rocks/ruins/canyon) are registries of placement algorithms in lib/battle/layouts.ts (FORMATIONS,
  * TERRAIN_LAYOUTS): new ids mean new code there, new combinations of ids are records here.
  */
 

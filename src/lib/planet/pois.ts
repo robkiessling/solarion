@@ -7,7 +7,7 @@ import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type Capabili
 import {CAMPS_ENABLED, POI_DEFS, TUNNEL_DEFAULT, TUNNEL_DEFS} from "../../database/planet/pois";
 import type {StoryId} from "../../database/planet/story_sites";
 import type {HostileType} from "../../database/battle/units";
-import type {HostileFormation, TerrainLayoutId} from "../battle";
+import type {HostileFormation, TerrainLayoutId} from "../battle/layouts";
 
 /** One fight of a placed settlement (see PoiLevelDef in database/planet/poi_types.ts), rewards rolled. `timesCleared` counts
  * wins on this level across assaults: it indexes the site's reloot schedule. */

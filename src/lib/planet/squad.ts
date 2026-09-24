@@ -4,7 +4,7 @@ import {STATUSES, type SquadZone} from "../../database/planet/terrain";
 import {CONTACT_MS, RESERVE_HP_PER_TILE, SQUAD_BATTERY_CAPACITY, SQUAD_DRAIN_PER_TILE, SQUAD_SPEED_FACTOR} from "../../database/squad/tuning";
 import {mapObject, mod, typedEntries} from "../helpers";
 
-import {advanceBattle, type Battle, type BattleOverEvent, fullDroidHp} from "../battle";
+import {advanceBattle, type Battle, type BattleOverEvent, fullDroidHp} from "../battle/sim";
 import {EQUIPMENT_DEFS, type EquipmentCharges} from "../../database/squad/equipment";
 import {DROID_BASE_STATS, type DroidStats} from "../../database/battle/units";
 import type {Poi} from "./pois";
@@ -53,7 +53,7 @@ export interface Squad {
 /**
  * The player-driven squad that IS act-2 exploration. Owns the
  * pure movement/charge/reveal simulation plus routing, and ticks the live battle sim while fighting; input
- * handling lives in the planet component and redux thunks. The battle itself (per-unit combat) is lib/battle.ts.
+ * handling lives in the planet component and redux thunks. The battle itself (per-unit combat) is lib/battle/sim.ts.
  *
  * Contact model: every uncleared POI is walkable and resolves on entry -- caches and story sites raise their
  * prompt, a settlement starts the fight. Only capability-gated sites are impassable, bumping like a wall until the
@@ -125,7 +125,7 @@ export function createSquad(homeCoord: Coord, assignedDroids = 1, multiplier = 1
         equipment,               // carried gear charges { itemId: chargesLeft }; spend in battle, reload on the grid
         droidStats,              // effective unit stats (base + upgrades), snapshotted at deploy: refit at base
         droidHp: fullDroidHp(numUnits, droidStats.hp), // per-unit hull; wounds persist in the field, repaired on the grid
-        fighting: null           // null | { poiId, battle } -- live per-unit sim (see lib/battle.ts)
+        fighting: null           // null | { poiId, battle } -- live per-unit sim (see lib/battle/sim.ts)
     };
 }
 
@@ -173,7 +173,7 @@ export function squadCrossMs(map: PlanetMap, coord: Coord, unlocks: Unlocks) {
  * revealed this tick (still-unknown tiles only), and events for the caller to resolve:
  *   { type: 'battleOver', poiId, result, survivors, hostilesRemaining, battle, fromCoord }  (live fight ended;
  *       `battle` is the final field state, kept so the result popup can hold the last frame, see
- *       lib/battle.ts; `fromCoord` is where a retreat falls back to)
+ *       lib/battle/sim.ts; `fromCoord` is where a retreat falls back to)
  *   { type: 'enteredPoi', poiId, fromCoord } (stepped onto an available POI: resolve it. fromCoord is the
  *       tile just left, which a settlement assault holds onto so a retreat can walk back out)
  *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)

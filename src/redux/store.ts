@@ -52,7 +52,7 @@ function readSetting(state: RootState, setting: keyof GameState) {
 // solarionBattle exposes the battle factory so e2e scripts can stage arbitrary fights via SQUAD_START_FIGHT.
 if (import.meta.env.DEV) {
     window.solarionStore = store;
-    import('../lib/battle').then(battle => { window.solarionBattle = battle; });
+    import('../lib/battle/sim').then(battle => { window.solarionBattle = battle; });
 }
 
 export default store;

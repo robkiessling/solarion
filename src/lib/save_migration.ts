@@ -7,7 +7,7 @@ import upgradesDatabase from '../database/base/upgrades';
 import abilitiesDatabase from '../database/base/abilities';
 import triggersDatabase from '../database/triggers';
 import logsDatabase from '../database/logs';
-import {fullDroidHp} from './battle';
+import {fullDroidHp} from './battle/sim';
 import {DROID_BASE_STATS} from '../database/battle/units';
 import {SAVE_FORMAT_VERSION} from './save_version';
 import type {EncounterPrompt} from '../redux/modules/planet';

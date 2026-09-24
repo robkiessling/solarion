@@ -5,7 +5,7 @@ import {actionLabelFor, approachTextFor, estimateDifficultyRange, formatResource
 import {CAPABILITY_LABELS, POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../database/planet/poi_types";
 import {STORY_TEXTS} from "../database/planet/story_sites";
 import {PLANET_COLORS} from "../database/planet/colors";
-import {ARENA_W, battleBlurb, countSpawners, countUnits} from "../lib/battle";
+import {ARENA_W, battleBlurb, countSpawners, countUnits} from "../lib/battle/sim";
 import {CONTACT_MS} from "../database/squad/tuning";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../database/squad/equipment";
 import {APPROACH_GROUND} from "../database/battle/blurbs";

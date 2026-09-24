@@ -12,7 +12,7 @@ import {
     isExplorationComplete
 } from "../../lib/planet/pathing";
 import {formatResourceList, generatePois, isGarrisoned, levelPayout, poiLevels, resultBehaviorFor, type Poi} from "../../lib/planet/pois";
-import {applyEquipment, createBattle, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle";
+import {applyEquipment, createBattle, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle/sim";
 import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent} from "../../lib/planet/squad";
 import {logInline} from "./log";
 import {EXPLORE_EVERYTHING} from "../../dev/skips";
@@ -410,7 +410,7 @@ export default function reducer(state: PlanetState = initialState, action: GameA
                 prompt: { $set: null }
             });
         case SQUAD_START_FIGHT:
-            // Standing on the settlement: the live battle sim starts NOW (see lib/battle.ts) and plays out in the
+            // Standing on the settlement: the live battle sim starts NOW (see lib/battle/sim.ts) and plays out in the
             // encounter popup. Movement locks until it resolves. Watching the field reveals the true strength.
             // fromCoord rides along so a retreat can fall back to the tile the squad came in from.
             return update(state, {
@@ -1111,7 +1111,7 @@ export function squadLeaveApproach() {
     }
 }
 
-// Walking onto an uncleared settlement starts the fight: a live per-unit battle (lib/battle.ts) against the settlement's
+// Walking onto an uncleared settlement starts the fight: a live per-unit battle (lib/battle/sim.ts) against the settlement's
 // current garrison, played out in the encounter popup. `fromCoord` is the tile the squad stepped in from,
 // held for the duration so a retreat can walk back out the way it came. `level` picks which of the settlement's
 // fights this is: 0 on entry, deeper via squadDescend.

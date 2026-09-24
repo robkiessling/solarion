@@ -1,4 +1,4 @@
-import type {HostileFormation, TerrainLayoutId} from "../../lib/battle";
+import type {HostileFormation, TerrainLayoutId} from "../../lib/battle/layouts";
 
 /**
  * Field events: the concealed encounters seeded across open ground at map generation (placeEvents in
