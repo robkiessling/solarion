@@ -16,26 +16,32 @@
 }
 
 // Button tiers. Filled (the ability / Deploy look below) is for a panel's one main action, so it has to stay
-// rare to keep its weight. Everything that repeats on every card (droid steppers, Build) is outlined: a quiet
-// frame that lights on hover, never a white slab brighter than the numbers beside it. Minor or reversible
-// actions are text links. Corners are square throughout, like the rest of the terminal.
+// rare to keep its weight. Everything that repeats on every card (droid steppers, Build) is outlined: a framed
+// chip with a faint fill, never a white slab brighter than the numbers beside it. An enabled one has to read as
+// pressable at rest (cream label, olive frame, tinted fill), and a disabled one has to look clearly different
+// from it (no fill, dim frame, faded), or the two blur into decoration and nobody clicks. Hover brightens the
+// frame to the filled tier's cream. Minor or reversible actions are text links. Corners are square
+// throughout, like the rest of the terminal.
 @mixin outline-button {
-  background: none;
-  border: 1px solid $ui-border;
+  background: rgba($ui-border, 0.45);
+  border: 1px solid $ui-text-dim;
   border-radius: 0;
   font-family: inherit;
-  color: $ui-text-dim;
+  color: $ui-text;
+  cursor: pointer;
 
   &:hover:not(:disabled) {
-    color: $ui-text;
-    border-color: $ui-text-dim;
+    background: rgba($ui-border, 0.75);
+    border-color: $progress-button-border;
   }
   &:active:not(:disabled) {
     background: $ui-border;
   }
   &:disabled {
     background: none;
-    opacity: 0.4;
+    border-color: $ui-border;
+    color: $ui-text-dim;
+    opacity: 0.45;
     cursor: default;
   }
 }
