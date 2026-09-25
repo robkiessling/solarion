@@ -1,5 +1,6 @@
 import type {EncounterPrompt} from "../../redux/modules/squad";
-import {poiChoices, type Poi} from "./pois";
+import {poiChoices, sealChoices, type Poi, type PoiChoice} from "./pois";
+import {EQUIPMENT_DEFS, type EquipmentCharges} from "../../database/squad/equipment";
 
 /**
  * The encounter popup's answers for each phase of a prompt, in button order. One list feeds both the buttons
@@ -16,6 +17,7 @@ import {poiChoices, type Poi} from "./pois";
 /** The bound thunks an answer runs through (the connected props of the components above) */
 export interface PromptDispatchers {
     squadInteract: (choiceIndex: number) => unknown;
+    squadClearSeal: (choiceIndex: number) => unknown;
     squadLeavePrompt: () => unknown;
     squadEngage: () => unknown;
     squadLeaveApproach: () => unknown;
@@ -28,11 +30,25 @@ export interface PromptAction {
     run: (via: PromptDispatchers) => void;
 }
 
-export function promptActions(poi: Poi, prompt: EncounterPrompt): PromptAction[] {
+// An answer's button text: its label, and the gear it spends when it spends any (the one place the piece is
+// named, and only to a squad that carries it)
+function choiceLabel(choice: PoiChoice): string {
+    return choice.equipment ? `${choice.label} (${EQUIPMENT_DEFS[choice.equipment].name})` : choice.label;
+}
+
+/** `equipment` is the fielded squad's charges: an answer that spends a charge is only listed while one is held */
+export function promptActions(poi: Poi, prompt: EncounterPrompt, equipment: EquipmentCharges): PromptAction[] {
     switch (prompt.phase) {
+        case 'seal': {
+            // A blocked site: the ways through the squad can afford, then Leave (the squad stays at the door)
+            return [
+                ...sealChoices(poi, equipment).map((choice, i) => ({ label: choiceLabel(choice), run: (via: PromptDispatchers) => { via.squadClearSeal(i); } })),
+                { label: 'Leave', run: via => { via.squadLeavePrompt(); } }
+            ];
+        }
         case 'offer': {
             return [
-                ...poiChoices(poi).map((choice, i) => ({ label: choice.label, run: (via: PromptDispatchers) => { via.squadInteract(i); } })),
+                ...poiChoices(poi, equipment).map((choice, i) => ({ label: choiceLabel(choice), run: (via: PromptDispatchers) => { via.squadInteract(i); } })),
                 { label: 'Leave', run: via => { via.squadLeavePrompt(); } }
             ];
         }

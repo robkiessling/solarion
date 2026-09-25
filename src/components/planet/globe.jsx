@@ -13,7 +13,7 @@ import {CONTACT_MS, POPUP_INPUT_LOCK_MS, SQUAD_GLYPH} from "../../database/squad
 import {promptActions} from "../../lib/planet/prompt_actions";
 import {EQUIPMENT_ORDER} from "../../database/squad/equipment";
 import {setBeaconAt, setRotation, setRotationMode} from "../../redux/modules/planet";
-import {retreatFromFight, squadFace, squadInteract, squadDescend, squadEngage, squadLeaveApproach, squadLeavePrompt, squadWithdraw, squadStepInto, useEquipment} from "../../redux/modules/squad";
+import {retreatFromFight, squadClearSeal, squadFace, squadInteract, squadDescend, squadEngage, squadLeaveApproach, squadLeavePrompt, squadWithdraw, squadStepInto, useEquipment} from "../../redux/modules/squad";
 import {SHOW_CONCEALED_POIS} from "../../dev/skips";
 import EncounterPopup from "../battle/encounter_popup";
 import CameraStrip from "./camera_strip";
@@ -184,7 +184,7 @@ class Planet extends React.Component {
             if (slot >= 1 && slot <= 9) {
                 event.preventDefault();
                 const poi = this.props.pois[prompt.poiId];
-                const action = poi && promptActions(poi, prompt)[slot - 1];
+                const action = poi && promptActions(poi, prompt, (this.props.squad && this.props.squad.equipment) || {})[slot - 1];
                 if (action && !event.repeat && !locked) action.run(this.props);
                 return;
             }
@@ -710,6 +710,6 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadStepInto, squadFace, squadInteract, squadLeavePrompt, squadEngage, squadLeaveApproach, squadDescend, squadWithdraw, useEquipment, retreatFromFight,
+    { squadStepInto, squadFace, squadInteract, squadClearSeal, squadLeavePrompt, squadEngage, squadLeaveApproach, squadDescend, squadWithdraw, useEquipment, retreatFromFight,
       setBeaconAt, setRotation, setRotationMode }
 )(Planet);

@@ -2,9 +2,10 @@ import {getRandomFromArray, getRandomIntInclusive, mapObject} from "../helpers";
 import {getCrossTime, getHomeBasePosition, type PlanetMap, type Sector} from "./map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./geometry";
 import {STATUSES, TERRAINS, VISION_HOPS} from "../../database/planet/terrain";
-import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, type FightDef, type GroundDef, type PoiChoiceDef, type PoiReward, type PoiStatus, type PoiType, type RewardDef, type Rollable, type SettlementDef, type TunnelDef} from "../../database/planet/poi_types";
+import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, type FightDef, type GroundDef, type PoiChoiceDef, type PoiReward, type PoiStatus, type PoiType, type RewardDef, type Rollable, type SealDef, type SettlementDef, type TunnelDef} from "../../database/planet/poi_types";
 import {CAMPS_ENABLED, FIELD_EVENT_SPACING, POI_DEFS} from "../../database/planet/pois";
-import type {Capabilities, Capability} from "../../database/planet/capabilities";
+import type {Capabilities} from "../../database/planet/capabilities";
+import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
 import type {HostileType} from "../../database/battle/units";
 import type {HostileFormation, TerrainLayoutId} from "../battle/layouts";
 
@@ -27,6 +28,13 @@ export interface PoiChoice {
     battery?: number;
     units?: number;
     revealNearest?: boolean;
+    equipment?: EquipmentId;
+}
+
+/** A placed seal (see SealDef): the site raises this prompt until one of its answers has cleared it */
+export interface PoiSeal {
+    promptText: string;
+    choices: PoiChoice[];
 }
 
 /** A placed POI in planet.pois */
@@ -37,7 +45,8 @@ export interface Poi {
     name: string;
     status: PoiStatus;
     distance: number;
-    requires: Capability | null;
+    /** the blocker in front of the site; gone once cleared (a tunnel's goes from both mouths at once) */
+    seal?: PoiSeal;
     /** a fight here has shown the true signature count (the approach card shows a band until then) */
     signaturesKnown: boolean;
     reward: PoiReward;
@@ -151,7 +160,6 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             // A concealed one is found by stepping on it, so it starts hidden regardless.
             status: sector.status === STATUSES.explored.key && !extras.concealed ? 'available' : 'hidden',
             distance: sector.graphDistanceHome, // cached for display/sorting (static once the map is generated)
-            requires: null,
             signaturesKnown: false,
             reward: {},
             ...extras
@@ -178,7 +186,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
 
             const poi = add('settlement', sector, { territoryRadius, levels: def.levels.map(rollFight), approachText: def.approachText,
                 levelsShown: def.levelsShown, reloot: def.reloot, ...(def.site != null ? { site: def.site } : {}),
-                ...(def.name ? { name: def.name } : {}), ...(def.requires ? { requires: def.requires } : {}) });
+                ...(def.name ? { name: def.name } : {}), ...(def.seal ? { seal: rollSeal(def.seal) } : {}) });
             if (def.discardedKg) poi.discardedKg = getRandomIntInclusive(def.discardedKg[0] / 10, def.discardedKg[1] / 10) * 10;
             const held: Sector[] = [];
             [sector.coord, ...getCoordsWithinHops(sector.coord, territoryRadius)].forEach(([r, c]) => {
@@ -221,9 +229,9 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         delete mouths[def.digit];
         ends.forEach((sector, i) => {
             usedKeys.add(`${sector.coord[0]},${sector.coord[1]}`);
-            // No levels = nobody inside: open from the start (a `requires` seal is the only barrier then)
+            // No levels = nobody inside: open from the start (a seal is the only barrier then)
             add('tunnel', sector, { tunnel: def.digit, exitCoord: ends[1 - i].coord, open: def.levels.length === 0, approachText: def.approachText,
-                crossTiles: def.crossTiles, requires: def.requires || null,
+                crossTiles: def.crossTiles, ...(def.seal ? { seal: rollSeal(def.seal) } : {}),
                 levels: def.levels.map(rollFight), ...(def.name ? { name: def.name } : {}) });
         });
     };
@@ -236,10 +244,12 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         ...(choice.reward ? { reward: rollReward(choice.reward) } : {}),
         ...(choice.battery != null ? { battery: choice.battery } : {}),
         ...(choice.units != null ? { units: choice.units } : {}),
-        ...(choice.revealNearest ? { revealNearest: true } : {})
+        ...(choice.revealNearest ? { revealNearest: true } : {}),
+        ...(choice.equipment ? { equipment: choice.equipment } : {})
     }));
+    const rollSeal = (def: SealDef): PoiSeal => ({ promptText: def.promptText, choices: rollChoices(def.choices) });
     const placeOne = (def: Exclude<GroundDef, SettlementDef>, sector: Sector) => {
-        const base: Partial<Poi> = { ...(def.name ? { name: def.name } : {}), ...(def.requires ? { requires: def.requires } : {}) };
+        const base: Partial<Poi> = { ...(def.name ? { name: def.name } : {}), ...(def.seal ? { seal: rollSeal(def.seal) } : {}) };
         switch (def.type) {
             case 'cache':
                 add('cache', sector, { ...base, promptText: def.promptText, reward: rollReward(def.reward) });
@@ -342,7 +352,7 @@ export function levelPayout(poi: Poi, levelIndex: number): PoiReward {
 // their zones take content now, ahead of the tunnel mechanics). Keys are "row,col".
 function squadReachableSet(map: PlanetMap): Set<string> {
     const home = getHomeBasePosition(map).coord;
-    const allTools: Capabilities = { drill: true, overrideModule: true, amphibious: true };
+    const allTools: Capabilities = { overrideModule: true, amphibious: true };
 
     const mouths: Record<string, Coord[]> = {};
     map.forEach(row => row.forEach(sector => {
@@ -392,10 +402,23 @@ export function approachTextFor(poi: Poi): string {
     return poi.approachText || '';
 }
 
+// The answers a squad can take from a list: one that spends equipment is not listed unless the squad holds a charge
+// of it right now (the gear is never named as a requirement; carrying it is how the player learns what it opens).
+// Every reader of a choice list goes through here, so the buttons, the number keys and the thunk that resolves an
+// index all agree on which answer is which.
+function offeredChoices(choices: PoiChoice[], equipment: EquipmentCharges): PoiChoice[] {
+    return choices.filter(choice => !choice.equipment || (equipment[choice.equipment] || 0) > 0);
+}
+
 // The popup's answers: the authored list, or the one take-it answer a POI without choices gets (the type's
 // label, paying the POI's own reward, closing the popup since it has no narration)
-export function poiChoices(poi: Poi): PoiChoice[] {
-    return poi.choices || [{ label: POI_TYPE_DEFAULTS[poi.type].actionLabel || 'Take' }];
+export function poiChoices(poi: Poi, equipment: EquipmentCharges): PoiChoice[] {
+    return offeredChoices(poi.choices || [{ label: POI_TYPE_DEFAULTS[poi.type].actionLabel || 'Take' }], equipment);
+}
+
+// A sealed site's answers: the ways through the blocker the squad can afford right now
+export function sealChoices(poi: Poi, equipment: EquipmentCharges): PoiChoice[] {
+    return poi.seal ? offeredChoices(poi.seal.choices, equipment) : [];
 }
 
 // The signature count shown as a band until a squad has made contact (first fight reveals the exact number). The band is

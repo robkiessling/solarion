@@ -264,9 +264,15 @@ export const POI_DEFS: PoiDef[] = [
             { hostiles: { defender: 6 }, formation: 'clusters', reward: { resources: { refinedMinerals: [400, 800] } } }
         ]
     },
-    // Pre-war stores behind rubble: bump until the drill is held (PLACEHOLDER: which vaults are sealed)
+    // Pre-war stores behind rubble: a seal (see SealDef) the squad has to work out how to clear. The seal line hints at
+    // the answer without naming it; the answer only shows to a squad carrying the charge (PLACEHOLDER: which vaults
+    // are sealed)
     {
-        type: 'cache', zone: 'k', name: 'Sealed Vault', requires: 'drill',
+        type: 'cache', zone: 'k', name: 'Sealed Vault',
+        seal: {
+            promptText: 'A vault door under a rockfall. The slab is cracked through; something with a real kick would finish it.',
+            choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
+        },
         promptText: 'The rubble is through. Pre-war stores, palletised and dry{loot}. Take it?',
         reward: { resources: { ore: [5000, 9000] } }
     },
@@ -370,7 +376,11 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
     {
-        type: 'cache', zone: 'l', name: 'Sealed Vault', requires: 'drill',
+        type: 'cache', zone: 'l', name: 'Sealed Vault',
+        seal: {
+            promptText: 'A vault door under a rockfall. The slab is cracked through; something with a real kick would finish it.',
+            choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
+        },
         promptText: 'Behind the rubble, a strongroom. Refined stock, stamped and racked{loot}. Take it?',
         reward: { resources: { refinedMinerals: [5000, 8000] } }
     },
@@ -431,13 +441,17 @@ export const POI_DEFS: PoiDef[] = [
         levels: [{ hostiles: { defender: 8 }, terrain: 'corridor', reward: { resources: { refinedMinerals: [200, 400] } } }],
         crossTiles: 3
     },
-    // '2' and '3' are rubble-sealed: both mouths bump until the drill is held, then they are fought through
-    // like any other. '1' stays open as the first crossing the squad meets (PLACEHOLDER: which tunnels are sealed).
+    // '2' and '3' are rubble-sealed: both mouths raise the seal prompt until the squad clears it (a demolition charge,
+    // which the seal line hints at and never names), then they are fought through like any other. '1' stays open
+    // as the first crossing the squad meets (PLACEHOLDER: which tunnels are sealed).
     // '2' runs under the strait between Iberia and Morocco: the tunnel garrison, then the fortified far mouth
     {
         type: 'tunnel', digit: '2',
-        approachText: 'The strait tunnel. Rubble cleared, and behind it a garrison that heard the drill.',
-        requires: 'drill',
+        seal: {
+            promptText: 'The strait tunnel, choked with rubble to the roof. Old blast scoring on the rock: it was brought down on purpose.',
+            choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
+        },
+        approachText: 'The strait tunnel. Rubble cleared, and behind it a garrison that heard the blast.',
         levels: [
             { hostiles: { defender: 16 }, terrain: 'corridor', reward: { resources: { refinedMinerals: [600, 1000] } } },
             { hostiles: { defender: 20 }, terrain: 'corridor', formation: 'surround', reward: { resources: { refinedMinerals: [800, 1400] } } }
@@ -446,8 +460,11 @@ export const POI_DEFS: PoiDef[] = [
     },
     {
         type: 'tunnel', digit: '3',
+        seal: {
+            promptText: 'A tunnel mouth behind broken rock. The fall is loose, held by one keystone slab.',
+            choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
+        },
         approachText: 'A tunnel mouth behind broken rock. Signatures, and the sound of water.',
-        requires: 'drill',
         levels: [{ hostiles: { defender: 20 }, terrain: 'corridor', reward: { resources: { refinedMinerals: [800, 1400] } } }],
         crossTiles: 4
     },

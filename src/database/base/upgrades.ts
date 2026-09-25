@@ -949,24 +949,6 @@ const database = {
             type: 'misc'
         },
     }),
-    droidFactory_drill: upgrade({
-        name: "Plasma Drill",
-        structure: 'droidFactory',
-        description: 'A vehicle-mounted plasma drill. Cuts through rockfall the squad cannot cross.',
-        discoverWhen: {
-            upgrades: ['droidFactory_longerComm'],
-            resources: {
-                refinedMinerals: 400
-            }
-        },
-        cost: {
-            ore: 2000,
-            refinedMinerals: 800,
-        },
-        affects: {
-            type: 'misc'
-        },
-    }),
     // Autocast for droid production: the first standing authorization the player signs on the factory, and a
     // little faster besides
     droidFactory_assemblyOrder: upgrade({
@@ -996,7 +978,7 @@ const database = {
         structure: 'droidFactory',
         description: 'Sealed drivetrain and flotation skirts. The squad drives through shallows it could not cross before.',
         discoverWhen: {
-            upgrades: ['droidFactory_drill'],
+            upgrades: ['droidFactory_longerComm'],
             resources: {
                 refinedMinerals: 1500
             }
@@ -1184,12 +1166,6 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
             dispatch(fromGame.addNavTab('planet'));
 
             dispatch(fromLog.startLogSequence('globeUnlocked'));
-        }
-    },
-    droidFactory_drill: {
-        onFinish: (dispatch) => {
-            // satisfies a sealed tunnel's `requires`
-            dispatch(fromPlanet.grantCapability('drill'));
         }
     },
     droidFactory_assemblyOrder: {

@@ -16,7 +16,7 @@ export const TELEMETRY = {
     rosterMultiplied: (unitsAlive: number, unitsFielded: number, droidsRecovered: number, droidsSent: number) =>
         `${unitsAlive} of ${unitsFielded} units — ${droidsRecovered} of ${droidsSent} droids recovered`,
     rosterPlain: (droidsRecovered: number) => `${droidsRecovered} droids`,
-    sealed: (name: string, tool: string) => `${name} is sealed — requires ${tool}.`,
+    sealCleared: (name: string) => `${name}: way through cleared.`,
     signalTracedNone: () => 'Signal traced: no source within range.',
     signalTraced: (name: string) => `Signal traced: ${name.toLowerCase()} marked on the map.`,
     teamWithdrew: (name: string, levelsCleared: number) =>

@@ -186,7 +186,7 @@ function skipToRobotics(dispatch: Dispatch) {
 // Long-range Communication just researched, ten droids built and all standing by on the expedition team (ready
 // to deploy from the Planet tab; none on structures or scouting), the map generated but unexplored.
 // Counts, upgrades and resources are from that run at that moment; the next tier (Feedback Loop, Kinetic Engines,
-// Perovskite Solar Cells, Ultra-Dense Matrices, Hyper-Alloy Synthesizer, Plasma Drill) was still on offer.
+// Perovskite Solar Cells, Ultra-Dense Matrices, Hyper-Alloy Synthesizer) was still on offer.
 export function skipToGlobe(dispatch: Dispatch) {
     dispatch(fromLog.logInline('Skipping to globe'));
     dispatch(skipClockToDay(28, 22));

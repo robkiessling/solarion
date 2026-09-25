@@ -4,7 +4,7 @@ import {getVisibleCoords, isPassable} from "../../lib/planet/map";
 import {STATUSES, TERRAINS, TERRAIN_BLOCKED_BLURBS, TERRAIN_BLURBS, TERRAIN_BLURB_REPEAT_MS, type SquadZone, type TerrainKey} from "../../database/planet/terrain";
 import {getApproxDistance, getCoordsWithinHops} from "../../lib/planet/geometry";
 import {typedEntries} from "../../lib/helpers";
-import {formatResourceList, isGarrisoned, levelPayout, poiChoices, poiLevels, type Poi} from "../../lib/planet/pois";
+import {formatResourceList, isGarrisoned, levelPayout, poiChoices, poiLevels, sealChoices, type Poi, type PoiChoice} from "../../lib/planet/pois";
 import {applyEquipment, createBattle, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle/sim";
 import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent} from "../../lib/planet/squad";
 import {logInline} from "./log";
@@ -42,9 +42,10 @@ export interface EncounterResult {
     text?: string | null;
     capability?: Capability | null;
     loaded?: ResourceAmounts | null;
-    /** field event answers: battery gained or spent, units added to the roster */
+    /** field event answers: battery gained or spent, units added to the roster, a charge of equipment spent */
     battery?: number;
     unitsGained?: number;
+    equipmentSpent?: EquipmentId;
     /** fights in a multi-level settlement: the level just won (0 = surface), and the site's level count when it is known
      * (announced up front, or learned by reaching the bottom) */
     level?: number;
@@ -55,10 +56,11 @@ export interface EncounterResult {
 
 export interface EncounterPrompt {
     poiId: string;
-    /** offer: a site's take-it choice; approach: a garrisoned site's card before the fight; result: what happened */
-    phase: 'offer' | 'approach' | 'result';
+    /** seal: a blocked site's ways through; offer: a site's take-it choice; approach: a garrisoned site's card before
+     * the fight; result: what happened */
+    phase: 'seal' | 'offer' | 'approach' | 'result';
     result?: EncounterResult | null;
-    /** approach, and between a settlement's levels: the tile the squad entered from, where leaving walks back to */
+    /** seal, approach, and between a settlement's levels: the tile the squad entered from, where leaving walks back to */
     fromCoord?: Coord;
     /** approach on a concealed site: elapsed game time it was sprung; the card holds for the contact beat while
      * the map plays the squad's glyph blinking on the tile */
@@ -89,6 +91,7 @@ export const SQUAD_USE_EQUIPMENT = 'planet/SQUAD_USE_EQUIPMENT' as const;
 export const SQUAD_PROMPT = 'planet/SQUAD_PROMPT' as const;
 export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT' as const;
 export const SQUAD_RESOLVE_POI = 'planet/SQUAD_RESOLVE_POI' as const;
+export const SQUAD_CLEAR_SEAL = 'planet/SQUAD_CLEAR_SEAL' as const;
 export const REVEAL_POI = 'planet/REVEAL_POI' as const;
 export const SQUAD_CROSS_TUNNEL = 'planet/SQUAD_CROSS_TUNNEL' as const;
 export const SQUAD_DELIVER_CARGO = 'planet/SQUAD_DELIVER_CARGO' as const;
@@ -112,17 +115,35 @@ export type SquadAction =
     | { type: typeof SQUAD_RETREATED; payload: { poiId: string; survivors: number; droidHp: number[] } }
     | { type: typeof SQUAD_RETREAT_ORDERED }
     | { type: typeof SQUAD_USE_EQUIPMENT; payload: { itemId: EquipmentId } }
-    | { type: typeof SQUAD_PROMPT; payload: { poiId: string; phase?: 'offer' | 'approach'; fromCoord?: Coord; sprungAt?: number } }
+    | { type: typeof SQUAD_PROMPT; payload: { poiId: string; phase?: 'seal' | 'offer' | 'approach'; fromCoord?: Coord; sprungAt?: number } }
     | { type: typeof SQUAD_LEAVE_PROMPT }
-    /** battery is a delta on the squad (clamped to capacity); units join the roster at full hull */
+    /** battery is a delta on the squad (clamped to capacity); units join the roster at full hull; equipment is a
+     * charge spent */
     | { type: typeof SQUAD_RESOLVE_POI; payload: { poiId: string; reward: PoiReward; result: EncounterResult | null;
-        battery?: number; units?: number } }
+        battery?: number; units?: number; equipment?: EquipmentId } }
+    /** a seal cleared (from every mouth of a tunnel) at the answer's cost; the popup closes and the site's own
+     * arrival follows (raised by the thunk) */
+    | { type: typeof SQUAD_CLEAR_SEAL; payload: { poiId: string; battery?: number; equipment?: EquipmentId } }
     /** a concealed POI found (stepped on, or traced by a signal): it shows from here on, its tile marked */
     | { type: typeof REVEAL_POI; payload: { poiId: string } }
     /** an open tunnel entered: the squad holds at the near mouth for the contact beat, then reappears at the far
      * mouth (see advanceSquad's crossing); the battery is lighter by `cost` from the start */
     | { type: typeof SQUAD_CROSS_TUNNEL; payload: { poiId: string; exitCoord: Coord; cost: number } }
     | { type: typeof SQUAD_DELIVER_CARGO; payload: { cargo: ResourceAmounts } };
+
+// What an answer costs the squad itself, applied into a reducer's update spec: a battery delta (clamped to capacity)
+// and a charge of equipment spent
+function applyChoiceCosts(updates: Record<string, any>, state: PlanetState, costs: { battery?: number; equipment?: EquipmentId }) {
+    if (!state.squad) return;
+    updates.squad = updates.squad || {};
+    if (costs.battery) {
+        const capacity = squadBatteryCapacity(state.squad);
+        updates.squad.battery = { $apply: (battery: number) => Math.max(0, Math.min(capacity, battery + costs.battery!)) };
+    }
+    if (costs.equipment) {
+        updates.squad.equipment = { [costs.equipment]: { $apply: (charges: number) => Math.max(0, (charges || 0) - 1) } };
+    }
+}
 
 // Reducer: the squad's cases of the planet reducer (called from its default branch)
 export function squadReducer(state: PlanetState, action: GameAction): PlanetState {
@@ -186,8 +207,8 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
                 prompt: { $set: null }
             });
         case SQUAD_PROMPT:
-            // Standing on a cache/story tile (offer) or a garrisoned site (approach): movement locks until the
-            // player answers
+            // Standing on a sealed site (seal), a cache/story tile (offer) or a garrisoned site (approach): movement
+            // locks until the player answers
             return update(state, {
                 squad: {
                     path: { $set: [] },
@@ -316,18 +337,28 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
                 prompt: { $set: action.payload.result ?
                     { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } : null }
             };
-            // A field event's answer can touch the squad itself: cells found (or spent), a droid recovered
-            if (action.payload.battery && state.squad) {
-                const capacity = squadBatteryCapacity(state.squad);
-                updates.squad.battery = { $apply: (battery: number) =>
-                    Math.max(0, Math.min(capacity, battery + action.payload.battery!)) };
-            }
+            // A field event's answer can touch the squad itself: cells found (or spent), a charge spent, a droid recovered
+            applyChoiceCosts(updates, state, action.payload);
             if (action.payload.units && state.squad) {
                 const maxHp = (state.squad.droidStats || DROID_BASE_STATS).hp;
                 updates.squad.squadSize = { $apply: (size: number) => size + action.payload.units! };
                 updates.squad.droidHp = { $apply: (droidHp: number[]) =>
                     [...(droidHp || fullDroidHp(state.squad!.squadSize, maxHp)), ...fullDroidHp(action.payload.units!, maxHp)] };
             }
+            return update(state, updates);
+        }
+        case SQUAD_CLEAR_SEAL: {
+            // The blocker is gone: from this site, and from the far mouth too when it is a tunnel (one passage, one
+            // blockage). The popup closes; the thunk raises the site's own arrival next.
+            const cleared = state.pois[action.payload.poiId];
+            if (!cleared) return state;
+            updates = { pois: {}, prompt: { $set: null } };
+            Object.values(state.pois).forEach(poi => {
+                if (poi.id === cleared.id || (cleared.type === 'tunnel' && poi.type === 'tunnel' && poi.tunnel === cleared.tunnel)) {
+                    updates.pois[poi.id] = { $unset: ['seal'] };
+                }
+            });
+            applyChoiceCosts(updates, state, action.payload);
             return update(state, updates);
         }
         case REVEAL_POI: {
@@ -401,13 +432,8 @@ export function advanceSquadTick(dispatch: Dispatch, getState: GetState, state: 
  * (which it renders as a bump).
  */
 
-// Ambient expedition telemetry (cargo banked, sealed sites, disband summaries) goes to the main terminal as
-// inline lines; anything the player is standing in front of narrates through the encounter popup instead.
-
-function sealedText(poi: Poi) {
-    const tool = poi.requires ? (CAPABILITY_LABELS[poi.requires] || poi.requires) : 'an unknown tool';
-    return TELEMETRY.sealed(poi.name, tool);
-}
+// Ambient expedition telemetry (cargo banked, disband summaries) goes to the main terminal as inline lines;
+// anything the player is standing in front of narrates through the encounter popup instead.
 
 // Assigning to / removing from the team standing by at base (see squadDroidData). The reducer.ts wrappers check
 // the idle pool and that no squad is fielded.
@@ -466,7 +492,7 @@ export function disbandSquad() {
 
 // Keyboard step onto an adjacent tile. Stepping into an unknown impassable tile reveals it (you probed the
 // wall and learned something) but does not move -- the caller shows a bump either way on `false`.
-// POI blocking (settlements, sealed sites) is the component's concern: it decides bump-vs-attack per input rules.
+// POI blocking (settlements) is the component's concern: it decides bump-vs-attack per input rules.
 // Turn the squad to look along dir ([dx, dy] in screen space, see KEY_DIRS in the planet component)
 export function squadFace(dir: [number, number]): SquadAction {
     return { type: SQUAD_FACE, payload: { facing: dir } };
@@ -513,10 +539,10 @@ export function squadStep(coord: Coord) {
  *
  * Contact rules: an available settlement is walked ONTO -- tapped or held (running headlong into a settlement is a
  * fight, Pokemon-grass style; the posted signature count was your warning) -- and the fight starts on arrival,
- * the same way a cache raises its prompt on arrival. Sealed sites and impassable terrain bump, and every bump
- * reports what stopped the squad (a held key doesn't re-step after a bump, so a report per bump can't spam).
- * Hidden blocking POIs reveal on the bump, same as probing an unknown wall -- you discover the danger, and the
- * NEXT step in commits.
+ * the same way a cache raises its prompt on arrival and a sealed site raises its seal prompt. Only impassable
+ * terrain bumps, and every bump reports what stopped the squad (a held key doesn't re-step after a bump, so a
+ * report per bump can't spam). Hidden blocking POIs reveal on the bump, same as probing an unknown wall -- you
+ * discover the danger, and the NEXT step in commits.
  */
 export function squadStepInto(coord: Coord) {
     return function(dispatch: Dispatch, getState: GetState) {
@@ -527,8 +553,7 @@ export function squadStepInto(coord: Coord) {
         // A concealed POI still hidden is never a wall: the step onto it is how it is found (see advanceSquad)
         const blockingPoi = Object.values(planet.pois).find(poi =>
             poi.status !== 'cleared' && !(poi.status === 'hidden' && poi.concealed) &&
-            poi.coord[0] === coord[0] && poi.coord[1] === coord[1] &&
-            (isGarrisoned(poi) || (poi.requires && !planet.capabilities[poi.requires]))
+            poi.coord[0] === coord[0] && poi.coord[1] === coord[1] && isGarrisoned(poi)
         );
 
         if (blockingPoi) {
@@ -537,10 +562,6 @@ export function squadStepInto(coord: Coord) {
                 // Defensive: the squad's own line of sight reveals every tile it can step into, so this
                 // shouldn't be reachable unless vision shrinks below one hop.
                 dispatch({ type: ADVANCE_SQUAD, payload: { squad, reveals: [coord], revealedFlatland: 0 } });
-                return 'blocked';
-            }
-            if (blockingPoi.requires && !planet.capabilities[blockingPoi.requires]) {
-                dispatch(logInline(sealedText(blockingPoi)));
                 return 'blocked';
             }
             // An available settlement or camp falls through: it is walkable, and arriving on it starts the fight
@@ -564,8 +585,9 @@ export function squadInteract(choiceIndex = 0) {
             return false;
         }
 
-        // An answer with its own reward pays that, otherwise the POI's (a cache's crate)
-        const choice = poiChoices(poi)[choiceIndex];
+        // An answer with its own reward pays that, otherwise the POI's (a cache's crate). The index is into the
+        // list the squad was shown (an answer it cannot afford was never listed).
+        const choice = poiChoices(poi, squad.equipment || {})[choiceIndex];
         if (!choice) return false;
         const reward: PoiReward = choice.reward || poi.reward;
 
@@ -576,17 +598,45 @@ export function squadInteract(choiceIndex = 0) {
             capability: reward.capability || null,
             loaded: reward.resources || null,
             ...(choice.battery ? { battery: choice.battery } : {}),
-            ...(choice.units ? { unitsGained: choice.units } : {})
+            ...(choice.units ? { unitsGained: choice.units } : {}),
+            ...(choice.equipment ? { equipmentSpent: choice.equipment } : {})
         } : null;
 
-        dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward, result,
-            ...(choice.battery ? { battery: choice.battery } : {}),
+        dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward, result, ...choiceCosts(choice),
             ...(choice.units ? { units: choice.units } : {}) } });
         if (reward.capability) {
             dispatch(grantCapability(reward.capability)); // salvaged tool: permanent, instant (not cargo)
         }
         if (choice.revealNearest) revealNearestConcealed(dispatch, getState, poi);
         if (choice.units) dispatch(recalculateState());
+        return true;
+    }
+}
+
+// The costs an answer puts on the squad, as the payload fields the reducers spend
+function choiceCosts(choice: PoiChoice): { battery?: number; equipment?: EquipmentId } {
+    return { ...(choice.battery ? { battery: choice.battery } : {}), ...(choice.equipment ? { equipment: choice.equipment } : {}) };
+}
+
+// Player takes one of a sealed site's ways through (by index into the list it was shown): the seal goes at the
+// answer's cost, and the site opens as if just stepped onto (a cache's offer, a garrisoned tunnel's approach card, an
+// empty tunnel's crossing), still from the tile the squad came in from so Leave there walks back out.
+export function squadClearSeal(choiceIndex = 0) {
+    return function(dispatch: Dispatch, getState: GetState) {
+        const planet = getState().planet;
+        const squad = planet.squad;
+        const prompt = planet.prompt;
+        if (!squad || !prompt || prompt.phase !== 'seal') return false;
+        const poi = planet.pois[prompt.poiId];
+        if (!poi || !poi.seal || poi.status === 'cleared') {
+            dispatch({ type: SQUAD_LEAVE_PROMPT });
+            return false;
+        }
+        const choice = sealChoices(poi, squad.equipment || {})[choiceIndex];
+        if (!choice) return false;
+        dispatch({ type: SQUAD_CLEAR_SEAL, payload: { poiId: poi.id, ...choiceCosts(choice) } });
+        dispatch(logInline(TELEMETRY.sealCleared(poi.name)));
+        arriveAtPoi(dispatch, getState, poi.id, prompt.fromCoord || squad.coord);
         return true;
     }
 }
@@ -653,11 +703,7 @@ export function squadAttack(poiId: string, fromCoord: Coord, level = 0) {
         const poi = planet.pois[poiId];
 
         if (!squad || squad.fighting) return false;
-        if (!poi || poi.status === 'cleared') return false;
-        if (poi.requires && !planet.capabilities[poi.requires]) {
-            dispatch(logInline(sealedText(poi)));
-            return false;
-        }
+        if (!poi || poi.status === 'cleared' || poi.seal) return false;
         // Must be standing ON it -- this fires from the arrival event, not from an adjacent tile
         if (squad.coord[0] !== poi.coord[0] || squad.coord[1] !== poi.coord[1]) return false;
 
@@ -749,6 +795,42 @@ export function retreatFromFight() {
         dispatch({ type: SQUAD_RETREAT_ORDERED });
         return true;
     }
+}
+
+// What standing on a site does, the moment the squad arrives on it (or the moment its seal is cleared while
+// standing there): a sealed site raises its seal prompt; a garrisoned one its approach card; an open tunnel is
+// crossed; anything else offers. `fromCoord` is the tile the squad came in from, which Leave and a retreat walk back to.
+function arriveAtPoi(dispatch: Dispatch, getState: GetState, poiId: string, fromCoord: Coord) {
+    const entered = getState().planet.pois[poiId];
+    if (!entered) return;
+    if (entered.seal) {
+        // Blocked: the seal's own prompt (what the squad can see of it, and whatever ways through it can afford).
+        // Nothing here names a tool; the site opens only once an answer has cleared it (squadClearSeal).
+        dispatch({ type: SQUAD_PROMPT, payload: { poiId, phase: 'seal', fromCoord } });
+        return;
+    }
+    if (isGarrisoned(entered)) {
+        // Walked onto a garrisoned site: the approach card comes up (what is ahead, the threat estimate)
+        // and the fight starts on Continue, here on the tile; Leave walks back to fromCoord. A
+        // concealed site was sprung: its card holds through the contact beat while the map plays the
+        // glyph blinking on the tile, and offers no Leave.
+        dispatch({ type: SQUAD_PROMPT, payload: { poiId, phase: 'approach', fromCoord,
+            ...(entered.concealed ? { sprungAt: getState().clock.elapsedTime } : {}) } });
+        return;
+    }
+    if (entered.type === 'tunnel' && entered.exitCoord) {
+        // An open tunnel: stepping into the mouth IS the crossing, no prompt. Paid in battery as so many
+        // tiles walked (never hull: the passage is the shortcut the squad already fought for). The
+        // squad holds at this mouth for the contact beat and comes out the far one (advanceSquad's
+        // crossing, resolved on crossedTunnel).
+        if (!getState().planet.squad) return;
+        dispatch({ type: SQUAD_CROSS_TUNNEL, payload: { poiId, exitCoord: entered.exitCoord,
+            cost: (entered.crossTiles || 0) * squadDrainPerTile() } });
+        return;
+    }
+    // Walked onto a cache/story tile: movement stops and the interaction prompt opens (the player
+    // chooses to take/explore via squadInteract, or leaves via squadLeavePrompt)
+    dispatch({ type: SQUAD_PROMPT, payload: { poiId } });
 }
 
 // Applies advanceSquad's contact/fight events (dispatched from planetTick).
@@ -866,29 +948,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                 // fight or prompt follows like any other contact.
                 dispatch({ type: REVEAL_POI, payload: { poiId: entered.id } });
             }
-            if (entered && isGarrisoned(entered)) {
-                // Walked onto a garrisoned site: the approach card comes up (what is ahead, the threat estimate)
-                // and the fight starts on Continue, here on the tile; Leave walks back to event.fromCoord. A
-                // concealed site was sprung: its card holds through the contact beat while the map plays the
-                // glyph blinking on the tile, and offers no Leave.
-                dispatch({ type: SQUAD_PROMPT, payload: { poiId: event.poiId, phase: 'approach', fromCoord: event.fromCoord,
-                    ...(entered.concealed ? { sprungAt: getState().clock.elapsedTime } : {}) } });
-                break;
-            }
-            if (entered && entered.type === 'tunnel' && entered.exitCoord) {
-                // An open tunnel: stepping into the mouth IS the crossing, no prompt. Paid in battery as so many
-                // tiles walked (never hull: the passage is the shortcut the squad already fought for). The
-                // squad holds at this mouth for the contact beat and comes out the far one (advanceSquad's
-                // crossing, resolved below on crossedTunnel).
-                const current = getState().planet.squad;
-                if (!current) break;
-                dispatch({ type: SQUAD_CROSS_TUNNEL, payload: { poiId: entered.id, exitCoord: entered.exitCoord,
-                    cost: (entered.crossTiles || 0) * squadDrainPerTile() } });
-                break;
-            }
-            // Walked onto a cache/story tile: movement stops and the interaction prompt opens (the player
-            // chooses to take/explore via squadInteract, or leaves via squadLeavePrompt)
-            dispatch({ type: SQUAD_PROMPT, payload: { poiId: event.poiId } });
+            arriveAtPoi(dispatch, getState, event.poiId, event.fromCoord);
             break;
         }
         case 'crossedTunnel': {

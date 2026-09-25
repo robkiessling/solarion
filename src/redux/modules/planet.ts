@@ -44,7 +44,7 @@ export interface PlanetState {
     droidData: DroidAssignment;
     squadDroidData: DroidAssignment;
     droids: ScoutDroid[];
-    /** the tools held (see database/planet/capabilities.ts); gates terrain crossing and sealed POIs */
+    /** the tools held (see database/planet/capabilities.ts); gates terrain crossing */
     capabilities: Capabilities;
     haloRadius: number;
     beaconCoord: Coord | null;

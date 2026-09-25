@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from "react-redux";
-import {retreatFromFight, squadDescend, squadEngage, squadInteract, squadLeaveApproach, squadLeavePrompt, squadWithdraw, useEquipment} from "../../redux/modules/squad";
+import {retreatFromFight, squadClearSeal, squadDescend, squadEngage, squadInteract, squadLeaveApproach, squadLeavePrompt, squadWithdraw, useEquipment} from "../../redux/modules/squad";
 import {approachTextFor, estimateSignatureRange, formatResourceList, isGarrisoned, fightSignatures, poiLevels, promptTextFor} from "../../lib/planet/pois";
 import {POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../../database/planet/poi_types";
 import {CAPABILITY_LABELS} from "../../database/planet/capabilities";
@@ -15,10 +15,11 @@ import Tooltip from "../ui/tooltip";
 import PopupFrame from "../ui/popup_frame";
 
 /**
- * The centered encounter popup over the planet canvas, in one of four modes: the squad is standing on a
+ * The centered encounter popup over the planet canvas, in one of five modes: the squad is standing at a
+ * sealed site working out a way through (seal phase: only the answers its gear affords are listed), on a
  * site awaiting a choice (offer phase), on a garrisoned site deciding whether to fight (approach phase: the
  * card that commits to the battle), reading what happened there (result phase, including a wipe's ending),
- * or fighting -- the live battle arena with the equipment action row. Offer/result are views of
+ * or fighting -- the live battle arena with the equipment action row. Seal/offer/result are views of
  * planet.prompt (planet-level, so a wipe's popup outlives the squad); the battle is a view of
  * squad.fighting. The world stays live behind the backdrop dim (nothing pauses), but the popup blocks
  * squad movement. Every button carries its one key: numbered 1..N left to right with the way out last, and
@@ -57,7 +58,7 @@ class EncounterPopup extends React.Component {
     renderPromptActions(poi, prompt) {
         return (
             <div className="popup-actions">
-                {promptActions(poi, prompt).map((action, i) => (
+                {promptActions(poi, prompt, (this.props.squad && this.props.squad.equipment) || {}).map((action, i) => (
                     <button key={i} onClick={this.guarded(() => action.run(this.props))}>
                         <kbd>{i + 1}</kbd>{action.label}
                     </button>
@@ -96,6 +97,16 @@ class EncounterPopup extends React.Component {
         return (
             <React.Fragment>
                 <div className="popup-body">{promptTextFor(poi)}</div>
+                {this.renderPromptActions(poi, prompt)}
+            </React.Fragment>
+        );
+    }
+
+    // The seal card: what the squad can see of the blocker (the line hints at what would clear it, never names it)
+    renderSeal(poi, prompt) {
+        return (
+            <React.Fragment>
+                <div className="popup-body">{poi.seal ? poi.seal.promptText : ''}</div>
                 {this.renderPromptActions(poi, prompt)}
             </React.Fragment>
         );
@@ -162,6 +173,8 @@ class EncounterPopup extends React.Component {
                     <span className="outcome-line">Battery {result.battery > 0 ? '+' : ''}{result.battery}.</span>}
                 {result.unitsGained > 0 &&
                     <span className="outcome-line">Recovered {result.unitsGained} {result.unitsGained > 1 ? 'droids' : 'droid'}.</span>}
+                {result.equipmentSpent &&
+                    <span className="outcome-line">{EQUIPMENT_DEFS[result.equipmentSpent].name} spent.</span>}
                 {descent &&
                     <span className="result-line">
                         {result.levelsTotal ?
@@ -291,7 +304,8 @@ class EncounterPopup extends React.Component {
                         accent={PLANET_COLORS[POI_COLOR_KEYS[poi.type]]}>
                 {fighting ? this.renderBattle(poi, fighting) :
                     prompt.phase === 'result' ? this.renderResult(poi, prompt) :
-                    prompt.phase === 'approach' ? this.renderApproach(poi, prompt) : this.renderOffer(poi, prompt)}
+                    prompt.phase === 'approach' ? this.renderApproach(poi, prompt) :
+                    prompt.phase === 'seal' ? this.renderSeal(poi, prompt) : this.renderOffer(poi, prompt)}
             </PopupFrame>
         );
     }
@@ -308,5 +322,5 @@ const mapStateToProps = state => {
 
 export default connect(
     mapStateToProps,
-    { squadInteract, squadLeavePrompt, squadEngage, squadLeaveApproach, squadDescend, squadWithdraw, useEquipment, retreatFromFight }
+    { squadInteract, squadClearSeal, squadLeavePrompt, squadEngage, squadLeaveApproach, squadDescend, squadWithdraw, useEquipment, retreatFromFight }
 )(EncounterPopup);

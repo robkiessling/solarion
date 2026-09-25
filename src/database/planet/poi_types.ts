@@ -2,6 +2,7 @@ import type {HostileFormation, TerrainLayoutId} from "../../lib/battle/layouts";
 import type {PlanetColorKey} from "./colors";
 import type {HostileType} from "../battle/units";
 import type {Capability} from "./capabilities";
+import type {EquipmentId} from "../squad/equipment";
 
 /**
  * The POI vocabulary: the kinds of thing that can sit on a map tile, how each behaves when the squad
@@ -71,6 +72,20 @@ export interface PoiChoiceDef {
     units?: number;
     /** flips the nearest concealed POI (camp, event or ambush) to available and marks its tile */
     revealNearest?: boolean;
+    /** spends one charge of a piece of squad equipment (database/squad/equipment.ts). The answer is NOT LISTED unless
+     * the fielded squad holds a charge of it right now: nothing names the gear, the player finds out what it is for by
+     * carrying it. Charges reload on powered ground, so one spent here is one not lobbed in the next fight. */
+    equipment?: EquipmentId;
+}
+
+/** A blocker in front of a site (rubble in a tunnel mouth, a vault door): stepping onto the site raises this prompt
+ * instead, and the site proper (a cache's offer, a garrisoned tunnel's approach card) opens only once one of these
+ * answers has cleared it. Every answer clears it; what differs is what it costs (a charge, battery). An answer that
+ * spends equipment is hidden until the squad carries it, so a sealed site is a puzzle the `promptText` hints at, never
+ * a named requirement. Leave is added as always. */
+export interface SealDef {
+    promptText: string;
+    choices: Pick<PoiChoiceDef, 'label' | 'equipment' | 'battery'>[];
 }
 
 /**
@@ -87,8 +102,8 @@ interface PlacedDef {
     count?: number;
     /** the map label (type default if unset) */
     name?: string;
-    /** sealed until the capability is owned: the squad bumps off it */
-    requires?: Capability;
+    /** a blocker to clear before the site opens */
+    seal?: SealDef;
 }
 /** A supply drop, visible once scouted: one Take */
 export interface CacheDef extends PlacedDef {
@@ -151,10 +166,10 @@ export interface TunnelDef {
     name?: string;
     /** the approach card's line at either mouth while the passage is still held */
     approachText: string;
-    /** seals both mouths (they bump like a sealed cache) until the capability is owned */
-    requires?: Capability;
+    /** a blocker on both mouths (clearing either clears the passage) */
+    seal?: SealDef;
     /** the fight(s) inside; the squad that wins comes out the far mouth. Empty = nobody inside, open at once
-     * (or as soon as `requires` is met). Both together: sealed, then fought through once unsealed. */
+     * (or as soon as the seal is cleared). Both together: sealed, then fought through once unsealed. */
     levels: FightDef[];
     /** battery the crossing costs, in flatland tiles walked */
     crossTiles: number;

@@ -68,8 +68,8 @@ export interface Squad {
  * handling lives in the planet component and redux thunks. The battle itself (per-unit combat) is lib/battle/sim.ts.
  *
  * Contact model: every uncleared POI is walkable and resolves on entry -- caches and story sites raise their
- * prompt, a settlement starts the fight. Only capability-gated sites are impassable, bumping like a wall until the
- * tool is researched. Assaulting a settlement is therefore a real step onto its tile: win and the squad is already
+ * prompt, a settlement starts the fight, a sealed site raises its seal prompt (no site is ever a wall; only
+ * capability-gated terrain is). Assaulting a settlement is therefore a real step onto its tile: win and the squad is already
  * through, standing on cleared ground; retreat and it walks back to the tile it came from (fromCoord, carried
  * on the contact event and held in `fighting` for the duration).
  */
