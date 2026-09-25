@@ -4,7 +4,7 @@ import {getVisibleCoords, isPassable} from "../../lib/planet/map";
 import {STATUSES, TERRAINS, TERRAIN_BLOCKED_BLURBS, TERRAIN_BLURBS, TERRAIN_BLURB_REPEAT_MS, type SquadZone, type TerrainKey} from "../../database/planet/terrain";
 import {getApproxDistance, getCoordsWithinHops} from "../../lib/planet/geometry";
 import {typedEntries} from "../../lib/helpers";
-import {formatResourceList, isGarrisoned, levelPayout, poiChoices, poiLevels, sealChoices, type Poi, type PoiChoice} from "../../lib/planet/pois";
+import {formatResourceList, isGarrisoned, levelPayout, poiChoices, poiLevels, relocateAmbush, sealChoices, type Poi, type PoiChoice} from "../../lib/planet/pois";
 import {applyEquipment, createBattle, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle/sim";
 import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent} from "../../lib/planet/squad";
 import {logInline} from "./log";
@@ -87,6 +87,7 @@ export const SQUAD_LEVEL_WON = 'planet/SQUAD_LEVEL_WON' as const;
 export const SQUAD_WIPED = 'planet/SQUAD_WIPED' as const;
 export const SQUAD_RETREATED = 'planet/SQUAD_RETREATED' as const;
 export const SQUAD_RETREAT_ORDERED = 'planet/SQUAD_RETREAT_ORDERED' as const;
+export const AMBUSH_MOVED = 'planet/AMBUSH_MOVED' as const;
 export const SQUAD_USE_EQUIPMENT = 'planet/SQUAD_USE_EQUIPMENT' as const;
 export const SQUAD_PROMPT = 'planet/SQUAD_PROMPT' as const;
 export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT' as const;
@@ -114,6 +115,8 @@ export type SquadAction =
     | { type: typeof SQUAD_WIPED; payload: { poiId: string; result: EncounterResult } }
     | { type: typeof SQUAD_RETREATED; payload: { poiId: string; survivors: number; droidHp: number[] } }
     | { type: typeof SQUAD_RETREAT_ORDERED }
+    /** a sprung ambush the squad did not clear lies up on a new tile, concealed again (see relocateAmbush) */
+    | { type: typeof AMBUSH_MOVED; payload: { poiId: string; coord: Coord; distance: number } }
     | { type: typeof SQUAD_USE_EQUIPMENT; payload: { itemId: EquipmentId } }
     | { type: typeof SQUAD_PROMPT; payload: { poiId: string; phase?: 'seal' | 'offer' | 'approach'; fromCoord?: Coord; sprungAt?: number } }
     | { type: typeof SQUAD_LEAVE_PROMPT }
@@ -318,6 +321,12 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
         case SQUAD_RETREAT_ORDERED:
             return update(state, {
                 squad: { fighting: { battle: { $apply: startWithdrawal } } }
+            });
+        case AMBUSH_MOVED:
+            // The party broke contact: same fight (its signature count stays known), new tile, hidden until stepped on
+            return update(state, {
+                pois: { [action.payload.poiId]: { coord: { $set: action.payload.coord }, distance: { $set: action.payload.distance },
+                    status: { $set: 'hidden' } } }
             });
         case SQUAD_USE_EQUIPMENT:
             return update(state, {
@@ -833,6 +842,20 @@ function arriveAtPoi(dispatch: Dispatch, getState: GetState, poiId: string, from
     dispatch({ type: SQUAD_PROMPT, payload: { poiId } });
 }
 
+// A sprung ambush the squad did not clear (fell back from, or was wiped by) moves on: it goes back to hidden on a
+// fresh tile of its zone (see relocateAmbush). Silently: its old tile just shows nothing, the party left. Not an
+// ambush, or no tile left for it: it stays where it sprang. `avoid` is ground the squad holds.
+function moveAmbushOn(dispatch: Dispatch, getState: GetState, poi: Poi, avoid: Coord[]) {
+    if (poi.type !== 'ambush') return;
+    const planet = getState().planet;
+    const tile = relocateAmbush(planet.map, planet.pois, poi, avoid);
+    if (!tile) { // a dev line, like placement's: an ambush that cannot move is an authoring (or stale save) question
+        console.warn(`${poi.id}: ambush stays at ${poi.coord} (${poi.zones ? `no free flatland left in zone ${poi.zones.join('/')}` : 'no zones on the POI: a save from before ambushes relocated?'})`);
+        return;
+    }
+    dispatch({ type: AMBUSH_MOVED, payload: { poiId: poi.id, coord: tile.coord, distance: tile.graphDistanceHome } });
+}
+
 // Applies advanceSquad's contact/fight events (dispatched from planetTick).
 function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad | null, event: SquadEvent) {
     const pois = getState().planet.pois;
@@ -928,6 +951,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                         multiplier: squad.multiplier || 1, cargoLost,
                         finalBattle: event.battle } } });
                 dispatch(logInline(TELEMETRY.teamLost(poi.name, poi.type === 'tunnel', cargoLost ? formatResourceList(cargoLost) : null)));
+                moveAmbushOn(dispatch, getState, poi, []);
             }
             else { // retreated
                 dispatch({ type: SQUAD_RETREATED, payload: { poiId: event.poiId, survivors: event.survivors,
@@ -937,6 +961,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                 // (a failed assault costs a tile of battery each way). Saves written before fromCoord existed
                 // have none, in which case the squad just holds the ground it took.
                 if (event.fromCoord) dispatch(squadStep(event.fromCoord));
+                moveAmbushOn(dispatch, getState, poi, [event.fromCoord || squad.coord]);
             }
             dispatch(recalculateState());
             break;

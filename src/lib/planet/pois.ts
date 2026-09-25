@@ -66,6 +66,9 @@ export interface Poi {
     concealed?: boolean;
     /** the popup's answers, if authored (see poiChoices); an ambush has `levels` instead */
     choices?: PoiChoice[];
+    /** ambushes: the zone letters it was authored into, where it lies up again after a failed contact (see
+     * relocateAmbush); unset (placed on a point) it never moves */
+    zones?: string[];
     /** tunnels: the painted digit, the far mouth, whether the passage has been fought through, crossing cost */
     tunnel?: string;
     exitCoord?: Coord;
@@ -265,8 +268,9 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
                 break;
             }
             case 'ambush': // found by stepping on it, and sprung: encircled unless it names a formation. The def carries
-                // its one fight's fields flat
-                add('ambush', sector, { ...base, approachText: def.approachText, levels: [rollFight({ formation: 'surround', ...def })], concealed: true });
+                // its one fight's fields flat. It remembers its zone(s): a failed contact moves it within them.
+                add('ambush', sector, { ...base, approachText: def.approachText, levels: [rollFight({ formation: 'surround', ...def })], concealed: true,
+                    ...(def.zone ? { zones: Array.isArray(def.zone) ? def.zone : [def.zone] } : {}) });
                 break;
         }
     };
@@ -344,6 +348,39 @@ export function levelPayout(poi: Poi, levelIndex: number): PoiReward {
     }
     if (level.reward.capability && level.timesCleared === 0) reward.capability = level.reward.capability;
     return reward;
+}
+
+/**
+ * Where a sprung ambush the squad failed to clear (fell back from, or was wiped by) lies up next. The party breaks
+ * contact and moves, concealed again, so a fled ambush is not a free reveal to path around forever: the belt keeps
+ * the threats it was authored with. The tile is drawn the way placement drew the first one: flatland of the zone(s)
+ * the ambush was authored into (flatland only, so ground the grid has replicated over since is out), reachable,
+ * beyond home's starting clearing, off held ground and every other POI's tile, FIELD_EVENT_SPACING hops clear of the
+ * tile it sprang on (a hop over would read as a cheat), and off `avoid` (where the squad stands, where it fell back
+ * to). From the field events and ambushes still standing it only keeps off the adjacent tiles: placement's full
+ * spacing is for the authored spread, and with a belt's events already down plus its settlement's held ground it
+ * would leave only the zone's rim (a fleeing party packs in tighter). Null when the zone has no such tile left: the
+ * ambush then holds where it sprang, in the open. A point-placed ambush has no zone and never moves.
+ */
+export function relocateAmbush(map: PlanetMap, pois: Record<string, Poi>, poi: Poi, avoid: Coord[]): Sector | null {
+    if (poi.type !== 'ambush' || !poi.zones || poi.zones.length === 0) return null;
+    const zones = poi.zones;
+    const key = (coord: Coord) => `${coord[0]},${coord[1]}`;
+    const reachable = squadReachableSet(map);
+    const others = Object.values(pois).filter(other => other.id !== poi.id);
+    const taken = new Set([...others.map(other => key(other.coord)), ...avoid.map(key)]);
+    getCoordsWithinHops(poi.coord, FIELD_EVENT_SPACING).forEach(coord => taken.add(key(coord)));
+    others.filter(other => other.status !== 'cleared' && (other.type === 'fieldEvent' || other.type === 'ambush'))
+        .forEach(other => getCoordsWithinHops(other.coord, 1).forEach(coord => taken.add(key(coord))));
+    const pool: Sector[] = [];
+    map.forEach(row => row.forEach(sector => {
+        if (sector.terrain === TERRAINS.flatland.key && sector.zone != null && zones.includes(sector.zone) &&
+            !sector.heldBy && sector.graphDistanceHome > VISION_HOPS &&
+            reachable.has(key(sector.coord)) && !taken.has(key(sector.coord))) {
+            pool.push(sector);
+        }
+    }));
+    return pool.length > 0 ? getRandomFromArray(pool) : null;
 }
 
 // Every tile a fully-tooled squad can reach from home: BFS over terrain crossable with all capabilities

@@ -10,7 +10,8 @@ export const CAMPS_ENABLED = true;
 
 /** Field events and ambushes never land closer than this many hops to each other, so a belt's ambushes spread
  * out over it instead of clumping. Placement is once per new game, so a walked route is learnable: the map does not roll
- * dice under the squad's feet (same rule as the battle sim). */
+ * dice under the squad's feet (same rule as the battle sim). The one re-roll is an ambush the squad fled or died to: it
+ * lies up again on a fresh tile of its zone(s), this far from where it sprang (see relocateAmbush), so fleeing is not a reveal. */
 export const FIELD_EVENT_SPACING = 2;
 
 /**
