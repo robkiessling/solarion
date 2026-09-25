@@ -330,7 +330,7 @@ function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number }[],
 /**
  * `droids` is a per-droid hp list (wounds persist between fights in the field, so the droid that got
  * mauled last time really is the fragile one now); a plain count means a fresh squad at full health.
- * `hostiles` is a composition { hostileType: count } (a plain count means standard defenders). Hostiles always spawn at
+ * `hostiles` is a composition { hostileType: count }. Hostiles always spawn at
  * full strength: settlements reset completely between engagements (each side heals at home), so every assault
  * faces the full garrison and must be decisive.
  * `droidStats` is the squad's effective stat block (base + researched upgrades), snapshotted onto the
@@ -346,15 +346,13 @@ function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number }[],
  * from `terrainSalt`. Callers pass a salt derived from the settlement's map position, so the same settlement always
  * fights on the same ground; unset = open field.
  */
-export function createBattle(droids: number | number[], hostiles: number | Partial<Record<HostileType, number>>,
+export function createBattle(droids: number | number[], hostiles: Partial<Record<HostileType, number>>,
                              droidStats: DroidStats = DROID_BASE_STATS, hostileFormation: HostileFormation = 'column',
                              terrainId: TerrainLayoutId | null = null, terrainSalt = 0): Battle {
     const droidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
-    const composition: Partial<Record<HostileType, number>> = typeof hostiles === 'number' ? { defender: hostiles } : hostiles;
-
     const stats: Record<UnitType, UnitStats> = { droid: droidStats, ...HOSTILE_TYPES };
     const hostileRoster: { type: HostileType, hp?: number }[] = [];
-    typedEntries(composition).forEach(([type, n]) => {
+    typedEntries(hostiles).forEach(([type, n]) => {
         for (let i = 0; i < n; i++) hostileRoster.push({ type });
     });
 

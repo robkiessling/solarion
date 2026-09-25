@@ -182,7 +182,7 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
                         fromCoord: action.payload.fromCoord, level: action.payload.level,
                         contactMs: action.payload.level > 0 || state.pois[action.payload.poiId]?.concealed ? CONTACT_MS : 0 } }
                 },
-                pois: { [action.payload.poiId]: { difficultyKnown: { $set: true } } },
+                pois: { [action.payload.poiId]: { signaturesKnown: { $set: true } } },
                 prompt: { $set: null }
             });
         case SQUAD_PROMPT:
@@ -512,7 +512,7 @@ export function squadStep(coord: Coord) {
  * render it: 'moved' | 'blocked' (bump) | 'busy' (no squad / mid-fight / mid-crossing: ignore silently).
  *
  * Contact rules: an available settlement is walked ONTO -- tapped or held (running headlong into a settlement is a
- * fight, Pokemon-grass style; the posted difficulty was your warning) -- and the fight starts on arrival,
+ * fight, Pokemon-grass style; the posted signature count was your warning) -- and the fight starts on arrival,
  * the same way a cache raises its prompt on arrival. Sealed sites and impassable terrain bump, and every bump
  * reports what stopped the squad (a held key doesn't re-step after a bump, so a report per bump can't spam).
  * Hidden blocking POIs reveal on the bump, same as probing an unknown wall -- you discover the danger, and the
@@ -664,14 +664,14 @@ export function squadAttack(poiId: string, fromCoord: Coord, level = 0) {
         const poiLevel = poiLevels(poi)[level];
         if (!poiLevel) return false;
 
-        // Garrison composition: a level may declare a typed mix (garrison), a spawn formation, and an
-        // obstacle layout (terrain); plain levels field `difficulty` standard defenders in a column front on open
-        // ground. The squad fights with its deploy-time stat snapshot. The terrain salt derives from the
+        // A level declares who holds it (hostiles, a count per type), and may add a spawn formation and an obstacle
+        // layout (terrain); unset, they field in a column front on open ground. The squad fights with its
+        // deploy-time stat snapshot. The terrain salt derives from the
         // settlement's map coord and the level, so every assault on this level fights on the same ground.
         dispatch({ type: SQUAD_START_FIGHT,
             payload: { poiId, fromCoord, level, battle: createBattle(
                 squad.droidHp || squad.squadSize,
-                poiLevel.garrison || poiLevel.difficulty || 0,
+                poiLevel.hostiles,
                 squad.droidStats || undefined,
                 poiLevel.formation || undefined,
                 poiLevel.terrain || undefined,

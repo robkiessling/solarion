@@ -31,23 +31,26 @@ export interface PoiReward {
     capability?: Capability;
 }
 
-/** A reward as authored: resource [lo, hi] ranges (rolled to a multiple of 100 at map generation) and/or a capability */
+/** A reward as authored: resource [lo, hi] ranges (rolled in steps of 100 at map generation) and/or a capability */
 export interface RewardDef {
     resources?: Partial<Record<ResourceId, [number, number]>>;
     capability?: Capability;
 }
 
-/** One fight of a settlement, as authored: the garrison, its battlefield, and what falls out of it. [lo, hi] ranges
- * roll at map generation. */
-export interface PoiLevelDef {
-    /** standard defenders fielded (and the threat estimate's basis): a number, or a [lo, hi] range rolled at map
-     * generation, so copies of a counted entry come out at mixed strengths. A level with a typed `garrison` fields
-     * that roster instead and only shows this number, so give it a plain one. */
-    difficulty: number | [number, number];
+/** The hostiles a fight fields, as authored: a count per type (HOSTILE_TYPES in database/battle/units.ts), each a
+ * number or a [lo, hi] range rolled at map generation, so copies of a counted entry come out at mixed strengths.
+ * Entry order maps to formation slots, so a shelter listed first takes a ring's center. */
+export type HostilesDef = Partial<Record<HostileType, number | [number, number]>>;
+
+/** One fight, as authored (a settlement level, a camp, an ambush, a tunnel): who holds it, its battlefield, and what
+ * falls out of it. Every fight-bearing POI is written in this shape. */
+export interface FightDef {
+    /** who is fielded. The approach card's signature count is the sum, so the scan reports bodies, not threat: a
+     * shelter counts once however many defenders it releases during the fight. */
+    hostiles: HostilesDef;
     formation?: HostileFormation;
     terrain?: TerrainLayoutId;
     blurb?: string;
-    garrison?: Partial<Record<HostileType, number>>;
     reward?: RewardDef;
 }
 
@@ -100,7 +103,7 @@ export interface StorySiteDef extends PlacedDef {
     reward?: RewardDef;
 }
 /** A camp: one fight on its settlement's held ground */
-export interface CampDef extends PoiLevelDef {
+export interface CampDef extends FightDef {
     /** this camp's approach line; unset = the settlement's `campApproachText` */
     approachText?: string;
 }
@@ -112,7 +115,7 @@ export type SettlementDef = PlacedDef & {
     approachText: string;
     territoryRadius: number;
     /** the site's fights, surface first (one or more) */
-    levels: PoiLevelDef[];
+    levels: FightDef[];
     /** built into a pre-war network facility: its number. Securing the first opens replication. */
     site?: number;
     levelsShown?: boolean;
@@ -130,12 +133,11 @@ export interface EventDef extends PlacedDef {
     promptText: string;
     choices: PoiChoiceDef[];
 }
-/** A fight on open ground, found by stepping on it and sprung at once */
-export interface AmbushDef extends PlacedDef {
+/** A fight on open ground, found by stepping on it and sprung at once: one fight's fields written flat, like a camp's */
+export interface AmbushDef extends PlacedDef, FightDef {
     type: 'ambush';
     /** the approach card's line */
     approachText: string;
-    level: PoiLevelDef;
 }
 export type PoiDef = CacheDef | StorySiteDef | SettlementDef | EventDef | AmbushDef;
 
@@ -148,7 +150,7 @@ export interface TunnelDef {
     requires?: Capability;
     /** the fight(s) inside; the squad that wins comes out the far mouth. Empty = nobody inside, open at once
      * (or as soon as `requires` is met). Both together: sealed, then fought through once unsealed. */
-    levels: PoiLevelDef[];
+    levels: FightDef[];
     /** battery the crossing costs, in flatland tiles walked */
     crossTiles: number;
 }
@@ -187,7 +189,8 @@ export const SITE_GLYPH = '▣';
 export const POI_LABELS: Record<PoiType, string> = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel', fieldEvent: 'Event', ambush: 'Ambush' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
 
-// Resolves a definition's reward at generation time: [lo, hi] resource ranges roll to a multiple of 100;
+// Resolves a definition's reward at generation time: [lo, hi] resource ranges roll in steps of 100 (500 to 1000 lands
+// on 500, 600, ... 1000);
 // capability rewards pass through unchanged.
 export function rollPoiReward(rewardDef: RewardDef): PoiReward {
     const { resources, ...rest } = rewardDef;

@@ -2,20 +2,19 @@ import {getRandomFromArray, getRandomIntInclusive, mapObject} from "../helpers";
 import {getCrossTime, getHomeBasePosition, type PlanetMap, type Sector} from "./map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./geometry";
 import {STATUSES, TERRAINS, VISION_HOPS} from "../../database/planet/terrain";
-import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type PoiChoiceDef, type PoiLevelDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type SettlementDef} from "../../database/planet/poi_types";
+import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type PoiChoiceDef, type FightDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type SettlementDef} from "../../database/planet/poi_types";
 import {CAMPS_ENABLED, FIELD_EVENT_SPACING, POI_DEFS, TUNNEL_DEFAULT, TUNNEL_DEFS} from "../../database/planet/pois";
 import type {Capabilities, Capability} from "../../database/planet/capabilities";
 import type {HostileType} from "../../database/battle/units";
 import type {HostileFormation, TerrainLayoutId} from "../battle/layouts";
 
-/** One fight of a placed settlement (see PoiLevelDef in database/planet/poi_types.ts), rewards rolled. `timesCleared` counts
- * wins on this level across assaults: it indexes the site's reloot schedule. */
-export interface PoiLevel {
-    difficulty: number;
+/** One placed fight (see FightDef in database/planet/poi_types.ts), hostile counts and rewards rolled. `timesCleared`
+ * counts wins on this level across assaults: it indexes the site's reloot schedule. */
+export interface PoiFight {
+    hostiles: Partial<Record<HostileType, number>>;
     formation?: HostileFormation;
     terrain?: TerrainLayoutId;
     blurb?: string;
-    garrison?: Partial<Record<HostileType, number>>;
     reward: PoiReward;
     timesCleared: number;
 }
@@ -39,13 +38,14 @@ export interface Poi {
     status: PoiStatus;
     distance: number;
     requires: Capability | null;
-    difficultyKnown: boolean;
+    /** a fight here has shown the true signature count (the approach card shows a band until then) */
+    signaturesKnown: boolean;
     reward: PoiReward;
     territoryRadius?: number;
     promptText?: string;
     approachText?: string;
     /** settlements: the site's fights, surface first (one or more) */
-    levels?: PoiLevel[];
+    levels?: PoiFight[];
     levelsShown?: boolean;
     reloot?: number[];
     discardedKg?: number;
@@ -152,7 +152,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             status: sector.status === STATUSES.explored.key && !extras.concealed ? 'available' : 'hidden',
             distance: sector.graphDistanceHome, // cached for display/sorting (static once the map is generated)
             requires: null,
-            difficultyKnown: false,
+            signaturesKnown: false,
             reward: {},
             ...extras
         };
@@ -176,7 +176,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
                 continue;
             }
 
-            const poi = add('settlement', sector, { territoryRadius, levels: def.levels.map(rollLevel), approachText: def.approachText,
+            const poi = add('settlement', sector, { territoryRadius, levels: def.levels.map(rollFight), approachText: def.approachText,
                 levelsShown: def.levelsShown, reloot: def.reloot, ...(def.site != null ? { site: def.site } : {}),
                 ...(def.name ? { name: def.name } : {}), ...(def.requires ? { requires: def.requires } : {}) });
             if (def.discardedKg) poi.discardedKg = getRandomIntInclusive(def.discardedKg[0] / 10, def.discardedKg[1] / 10) * 10;
@@ -198,7 +198,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
                 const tile = getRandomFromArray(free);
                 usedKeys.add(`${tile.coord[0]},${tile.coord[1]}`);
                 const { approachText, ...level } = campDef;
-                add('camp', tile, { levels: [rollLevel({ formation: 'surround', ...level })], parentId: poi.id,
+                add('camp', tile, { levels: [rollFight({ formation: 'surround', ...level })], parentId: poi.id,
                     concealed: true, approachText: approachText || def.campApproachText });
             });
             return;
@@ -222,7 +222,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             // No levels = nobody inside: open from the start (a `requires` seal is the only barrier then)
             add('tunnel', sector, { tunnel: digit, exitCoord: ends[1 - i].coord, open: def.levels.length === 0, approachText: def.approachText,
                 crossTiles: def.crossTiles, requires: def.requires || null,
-                levels: def.levels.map(rollLevel), ...(def.name ? { name: def.name } : {}) });
+                levels: def.levels.map(rollFight), ...(def.name ? { name: def.name } : {}) });
         });
     });
 
@@ -253,8 +253,8 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
                 add('fieldEvent', sector, { ...base, promptText: def.promptText, choices, reward: choices[0].reward || {}, concealed: true });
                 break;
             }
-            case 'ambush': // found by stepping on it, and sprung
-                add('ambush', sector, { ...base, approachText: def.approachText, levels: [rollLevel(def.level)], concealed: true });
+            case 'ambush': // found by stepping on it, and sprung; the def carries its one fight's fields flat
+                add('ambush', sector, { ...base, approachText: def.approachText, levels: [rollFight(def)], concealed: true });
                 break;
         }
     };
@@ -281,14 +281,21 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     return pois;
 }
 
-function rollLevel(def: PoiLevelDef): PoiLevel {
-    const difficulty = Array.isArray(def.difficulty) ? getRandomIntInclusive(def.difficulty[0], def.difficulty[1]) : def.difficulty;
-    return { difficulty, formation: def.formation, terrain: def.terrain,
-        blurb: def.blurb, garrison: def.garrison, reward: def.reward ? rollPoiReward(def.reward) : {}, timesCleared: 0 };
+// Rolls one fight's [lo, hi] hostile counts and reward. Takes any def carrying a fight's fields (an ambush def has
+// them flat beside its placement fields) and copies only the fight's own.
+function rollFight(def: FightDef): PoiFight {
+    const hostiles = mapObject(def.hostiles, (type, n) => Array.isArray(n) ? getRandomIntInclusive(n[0], n[1]) : n);
+    return { hostiles, formation: def.formation, terrain: def.terrain,
+        blurb: def.blurb, reward: def.reward ? rollPoiReward(def.reward) : {}, timesCleared: 0 };
+}
+
+// The signature count a scan of a fight reports: every hostile fielded, whatever its type
+export function fightSignatures(level: PoiFight): number {
+    return Object.values(level.hostiles).reduce((n, count) => n + (count || 0), 0);
 }
 
 // A settlement's fights, surface first; a camp's single one (empty for other POI types)
-export function poiLevels(poi: Poi): PoiLevel[] {
+export function poiLevels(poi: Poi): PoiFight[] {
     return poi.levels || [];
 }
 
@@ -374,16 +381,16 @@ export function poiChoices(poi: Poi): PoiChoice[] {
     return poi.choices || [{ label: POI_TYPE_DEFAULTS[poi.type].actionLabel || 'Take' }];
 }
 
-// Difficulty shown as a band until a squad has made contact (first fight reveals the exact number). The band is
+// The signature count shown as a band until a squad has made contact (first fight reveals the exact number). The band is
 // a cell of a fixed grid, not a spread around the true value (a centered spread would give the number away as
 // its midpoint), and the grid coarsens with magnitude so the fuzz stays about a third wide from a handful of
 // defenders to thousands: the step is the largest rung of the ladder at or under a third of the value.
 // 6 -> 4 to 6, 45 -> 41 to 50, 1500 -> 1001 to 1500.
 const ESTIMATE_STEPS = [3, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
-export function estimateDifficultyRange(difficulty: number): [number, number] {
+export function estimateSignatureRange(signatures: number): [number, number] {
     let step = ESTIMATE_STEPS[0];
-    ESTIMATE_STEPS.forEach(rung => { if (rung <= difficulty / 3) step = rung; });
-    const lo = Math.floor((difficulty - 1) / step) * step + 1;
+    ESTIMATE_STEPS.forEach(rung => { if (rung <= signatures / 3) step = rung; });
+    const lo = Math.floor((signatures - 1) / step) * step + 1;
     return [lo, lo + step - 1];
 }
 

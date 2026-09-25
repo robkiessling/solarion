@@ -1,7 +1,7 @@
 import React from 'react';
 import {connect} from "react-redux";
 import {retreatFromFight, squadDescend, squadEngage, squadInteract, squadLeaveApproach, squadLeavePrompt, squadWithdraw, useEquipment} from "../../redux/modules/squad";
-import {approachTextFor, estimateDifficultyRange, formatResourceList, isGarrisoned, poiLevels, promptTextFor} from "../../lib/planet/pois";
+import {approachTextFor, estimateSignatureRange, formatResourceList, isGarrisoned, fightSignatures, poiLevels, promptTextFor} from "../../lib/planet/pois";
 import {POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../../database/planet/poi_types";
 import {CAPABILITY_LABELS} from "../../database/planet/capabilities";
 import {PLANET_COLORS} from "../../database/planet/colors";
@@ -108,8 +108,9 @@ class EncounterPopup extends React.Component {
         const ground = level && APPROACH_GROUND[level.terrain || 'open'];
         let threat = null;
         if (level) {
-            const [lo, hi] = estimateDifficultyRange(level.difficulty);
-            threat = poi.difficultyKnown ? `Signatures: ${level.difficulty}.` : `Signatures: ${lo} to ${hi}.`;
+            const signatures = fightSignatures(level);
+            const [lo, hi] = estimateSignatureRange(signatures);
+            threat = poi.signaturesKnown ? `Signatures: ${signatures}.` : `Signatures: ${lo} to ${hi}.`;
         }
         return (
             <React.Fragment>
