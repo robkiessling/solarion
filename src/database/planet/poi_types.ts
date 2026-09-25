@@ -154,6 +154,10 @@ export interface SiteDef extends PlacedDef {
     /** the fights inside, entrance first (one or more) */
     levels: FightDef[];
     levelsShown?: boolean;
+    /** listed in the network's records: the moment any site is secured, its last known position shows on the map (a
+     * grey mark on fogged ground, no signatures) until the squad's or a scout's own sensors reach the tile. Unset =
+     * not in the records, found only by exploring (the first site the player meets, and whatever the records lost). */
+    inRecords?: boolean;
 }
 /** A scene on open ground, found by stepping on it: the offer line and its answers */
 export interface EventDef extends PlacedDef {

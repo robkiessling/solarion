@@ -151,6 +151,7 @@ export const POI_DEFS: PoiDef[] = [
             { hostiles: { defender: 2, runner: 2 }, reward: { resources: { refinedMinerals: [100, 200] } } }
         ]
     },
+    // Not in the records: the first site is found by exploring, and securing it is what recovers the records
     {
         type: 'site', zone: 'c', number: 2, levelsShown: true,
         approachText: 'A pre-war compound on the valley floor, walls intact, gate shut. Dense returns behind the wall and nothing outside it. Fixed emitters on the wall line.',
@@ -256,8 +257,9 @@ export const POI_DEFS: PoiDef[] = [
     },
     {
         // PLACEHOLDER site: the real Site 3 goes on a Gobi point. A site holds no ground and seeds no camps (it is an
-        // installation, not a city), so its outer watch is gone: the levels inside are the whole fight.
-        type: 'site', zone: 'h', number: 3, levelsShown: true,
+        // installation, not a city), so its outer watch is gone: the levels inside are the whole fight. Listed in the
+        // records, so it shows as a grey mark once Site 2 falls.
+        type: 'site', zone: 'h', number: 3, levelsShown: true, inRecords: true,
         approachText: 'A facility dug into a canyon wall, stationary returns ringing it at intervals. Dense returns at the core, past counting from here.',
         levels: [
             { hostiles: { shelter: 1, defender: 18 }, formation: 'ring', terrain: 'canyon', reward: { resources: { refinedMinerals: [1500, 2500] } } },

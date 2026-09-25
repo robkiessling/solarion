@@ -29,6 +29,7 @@ export const PLANET_COLORS = {
     poiStory: '#c58fff',
     poiTunnel: '#e0c060',
     poiFieldEvent: '#ff9f40', // a field event that has gone off (or, with SHOW_CONCEALED_POIS, one still waiting): amber, between cache gold and battle orange
+    poiRecorded: '#c9d1dc', // a site known only from the network's records: pale grey, no signatures (red would claim returns the scan has not seen)
     poiHighlight: '#ffffff',
     squad: '#20d9ff',    // friendly cyan like home base; keeps the squad readable next to yellow scouts
     battle: '#ff6b35',

@@ -134,6 +134,11 @@ export type SquadAction =
     | { type: typeof SQUAD_CROSS_TUNNEL; payload: { poiId: string; exitCoord: Coord; cost: number } }
     | { type: typeof SQUAD_DELIVER_CARGO; payload: { cargo: ResourceAmounts } };
 
+// Sites the network's records list that are neither sighted nor yet shown from the records
+function unrecordedSites(planet: PlanetState): Poi[] {
+    return Object.values(planet.pois).filter(poi => poi.type === 'site' && poi.inRecords && !poi.recorded && poi.status === 'hidden');
+}
+
 // What an answer costs the squad itself, applied into a reducer's update spec: a battery delta (clamped to capacity)
 // and a charge of equipment spent
 function applyChoiceCosts(updates: Record<string, any>, state: PlanetState, costs: { battery?: number; equipment?: EquipmentId }) {
@@ -268,6 +273,9 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
                 updates.map[won.coord[0]] = updates.map[won.coord[0]] || {};
                 updates.map[won.coord[0]][won.coord[1]] = { ...(updates.map[won.coord[0]][won.coord[1]] || {}),
                     terrain: { $set: TERRAINS.outpost.key } };
+                // The network knows itself: a secured site's records put every listed sister still unsighted on the
+                // map as a recorded mark (the thunk prints the line once, for the ones newly shown)
+                unrecordedSites(state).forEach(poi => { updates.pois[poi.id] = { recorded: { $set: true } }; });
             }
 
             // A tunnel fought through: the squad comes out the far mouth, and both mouths stay on the map as
@@ -890,6 +898,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
             }
             else if (event.result === 'won') {
                 const reward = levelPayout(poi, event.level);
+                const newlyRecorded = poi.type === 'site' ? unrecordedSites(getState().planet).length : 0; // counted before the reducer marks them
 
                 // Reclaimed land: the stamp's already-revealed flatland credits NOW (counted before the reducer
                 // retracts the flags); still-unknown stamp tiles credit later through the normal reveal path.
@@ -932,6 +941,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                 if (poi.type === 'tunnel') revealFromSquad(dispatch, getState); // it came out the far mouth
                 if (poi.type === 'site' && poi.site != null) {
                     dispatch(logInline(TELEMETRY.siteSecured(poi.site)));
+                    if (newlyRecorded > 0) dispatch(logInline(TELEMETRY.recordsRecovered(newlyRecorded)));
                     // The ground under the squad just became powered: it gets what a step onto the grid gives
                     // (refill, repair, reload, cargo banked) without having to step off and back on
                     const standing = getState().planet.squad;

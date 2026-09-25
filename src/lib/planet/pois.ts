@@ -58,8 +58,11 @@ export interface Poi {
     levelsShown?: boolean;
     reloot?: number[];
     discardedKg?: number;
-    /** sites: the installation's number in the network */
+    /** sites: the installation's number in the network; whether the network's records list it; whether those records
+     * have been recovered (the mark shows on fogged ground until the tile is sighted, see Poi.status) */
     site?: number;
+    inRecords?: boolean;
+    recorded?: boolean;
     /** camps: the settlement whose held ground this sits on */
     parentId?: string;
     /** stays hidden when its tile is scouted; found by stepping on it (camps, field events, ambushes) */
@@ -222,7 +225,8 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         const sector = pick(def);
         if (!sector) return;
         add('site', sector, { site: def.number, name: def.name || `${POI_LABELS.site} ${def.number}`, levels: def.levels.map(rollFight),
-            approachText: def.approachText, levelsShown: def.levelsShown, ...(def.seal ? { seal: rollSeal(def.seal) } : {}) });
+            approachText: def.approachText, levelsShown: def.levelsShown, ...(def.inRecords ? { inRecords: true } : {}),
+            ...(def.seal ? { seal: rollSeal(def.seal) } : {}) });
     };
 
     // Tunnels first: a POI on each mouth painted with the entry's digit, both carrying the passage's fight and pointing

@@ -23,6 +23,7 @@ export const TELEMETRY = {
         `Team withdrew from ${name} with level ${levelsCleared} cleared.`,
     organicDiscarded: (kg: number) => `ORGANIC MATERIAL: ${kg.toLocaleString()} kg. NO VALUE. DISCARDED.`,
     siteSecured: (site: number) => `Site ${site} secured. Power tap: live. Production: none.`,
+    recordsRecovered: (count: number) => `Network records recovered. Last known position${count === 1 ? '' : 's'} of ${count} sister installation${count === 1 ? '' : 's'} displayed.`,
     teamLost: (name: string, inTunnel: boolean, cargoLost: string | null) =>
         `Team lost ${inTunnel ? 'in' : 'assaulting'} ${name}.${cargoLost ? ` Cargo lost: ${cargoLost}.` : ''}`,
     teamFellBack: (name: string, survivors: number, fielded: number, noun: string) =>

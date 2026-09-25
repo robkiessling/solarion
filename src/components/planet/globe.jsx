@@ -438,13 +438,17 @@ class Planet extends React.Component {
             // Concealed POIs (camps, field events) stay off the map until stepped on; the dev toggle shows
             // them dimmed so seeding and contact can be checked
             const peeking = SHOW_CONCEALED_POIS && poi.status === 'hidden' && poi.concealed;
-            if (poi.status !== 'available' && !peeking) return;
+            // A site known from the network's records but not yet sighted: its mark on fogged ground, grey (no
+            // signatures) and dim. It is drawn from a record, not seen, so night does not hide it.
+            const recorded = poi.status === 'hidden' && poi.recorded;
+            if (poi.status !== 'available' && !peeking && !recorded) return;
             const hovered = poi.id === this.props.hoveredPoiId;
             overlays[`${poi.coord[0]},${poi.coord[1]}`] = {
                 char: POI_GLYPHS[poi.type],
-                colorKey: hovered ? 'poiHighlight' : POI_COLOR_KEYS[poi.type],
-                ...(peeking ? { alpha: 0.5 } : {}),
-                // No selfLit: sites are things on the ground, not lights, and vanish into the night like the
+                colorKey: hovered ? 'poiHighlight' : recorded ? 'poiRecorded' : POI_COLOR_KEYS[poi.type],
+                ...(peeking || recorded ? { alpha: 0.5 } : {}),
+                ...(recorded ? { selfLit: true } : {}),
+                // No selfLit otherwise: sites are things on the ground, not lights, and vanish into the night like the
                 // ground they sit on (only the powered grid and units carry lights)
                 // Radar ping on the hovered marker: 0..1 through the expand-and-fade cycle (drawn in lib/planet/render.ts)
                 ping: hovered ?
