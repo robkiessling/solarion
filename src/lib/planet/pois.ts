@@ -2,8 +2,8 @@ import {getRandomFromArray, getRandomIntInclusive, mapObject} from "../helpers";
 import {getCrossTime, getHomeBasePosition, type PlanetMap, type Sector} from "./map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./geometry";
 import {STATUSES, TERRAINS, VISION_HOPS} from "../../database/planet/terrain";
-import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, rollPoiReward, type PoiChoiceDef, type FightDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type SettlementDef} from "../../database/planet/poi_types";
-import {CAMPS_ENABLED, FIELD_EVENT_SPACING, POI_DEFS, TUNNEL_DEFAULT, TUNNEL_DEFS} from "../../database/planet/pois";
+import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, type FightDef, type GroundDef, type PoiChoiceDef, type PoiReward, type PoiStatus, type PoiType, type RewardDef, type Rollable, type SettlementDef, type TunnelDef} from "../../database/planet/poi_types";
+import {CAMPS_ENABLED, FIELD_EVENT_SPACING, POI_DEFS} from "../../database/planet/pois";
 import type {Capabilities, Capability} from "../../database/planet/capabilities";
 import type {HostileType} from "../../database/battle/units";
 import type {HostileFormation, TerrainLayoutId} from "../battle/layouts";
@@ -73,10 +73,10 @@ export interface Poi {
 
 /**
  * The placement pass: each POI_DEFS entry lands in its zone (a random free tile of it, or of any zone in its
- * list) or on its point (one exact tile) painted in the authored map, `count` times; a tunnel POI on every
- * painted mouth; and a territory stamp around every settlement (sector.heldBy: scout-impassable, not
- * developable, squad-crossable; retracts when the settlement is cleared). Settlements go first whatever the
- * manifest's order, since a stamp must not swallow a tile something else already took; the rest follow in
+ * list) or on its point (one exact tile) painted in the authored map, `count` times; a tunnel entry on the two
+ * mouths painted with its digit; and a territory stamp around every settlement (sector.heldBy: scout-impassable, not
+ * developable, squad-crossable; retracts when the settlement is cleared). Tunnels go first, then settlements, whatever
+ * the manifest's order, since a stamp must not swallow a tile something else already took; the rest follow in
  * manifest order, and field events and ambushes keep FIELD_EVENT_SPACING hops from each other. An entry that cannot be
  * placed (in full) is reported on the console rather than dropped silently: the manifest is the content plan,
  * and a missing entry is a bug in the drawing or the manifest.
@@ -103,16 +103,16 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         });
     });
 
-    const describe = (def: PoiDef) => `${def.name || def.type}${def.point ? ` at point ${def.point}` :
+    const describe = (def: GroundDef) => `${def.name || def.type}${def.point ? ` at point ${def.point}` :
         ` in zone ${Array.isArray(def.zone) ? def.zone.join('/') : def.zone}`}${(def.count ?? 1) > 1 ? ` (x${def.count})` : ''}`;
 
     // A random free tile of the def's zone(s), or its point's tile. Territory never overlaps a placed POI
     // (a settlement rolled inside another's stamp would share ground; a cache under one would be unreachable
     // to scouts), so held tiles are out of the pool. Field events and ambushes also keep their spacing from each other.
     const eventKeys = new Set<string>();
-    const spaced = (def: PoiDef) => def.type === 'fieldEvent' || def.type === 'ambush';
+    const spaced = (def: GroundDef) => def.type === 'fieldEvent' || def.type === 'ambush';
     const rejected = new Set<string>(); // settlement picks turned down for their territory: not offered again, not obstacles
-    const pick = (def: PoiDef, report = true): Sector | null => {
+    const pick = (def: GroundDef, report = true): Sector | null => {
         let pool: Sector[];
         if (def.point) {
             pool = candidates.filter(sector => sector.point === def.point);
@@ -205,47 +205,48 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         }
     };
 
-    // Tunnels: a POI on each mouth, both carrying the passage's fight and pointing at the other. Mouths stay
-    // 'available' for good (the crossing is offered forever), so the map keeps showing them.
+    // Tunnels first: a POI on each mouth painted with the entry's digit, both carrying the passage's fight and pointing
+    // at the other, so settlement territory stays off the mouths. Mouths stay 'available' for good (the crossing is
+    // offered forever), so the map keeps showing them. A digit with no entry is plain ground, reported.
     const mouths: Record<string, Sector[]> = {};
     map.forEach(row => row.forEach(sector => {
         if (sector.tunnel) (mouths[sector.tunnel] = mouths[sector.tunnel] || []).push(sector);
     }));
-    Object.entries(mouths).forEach(([digit, ends]) => {
+    const addTunnel = (def: TunnelDef) => {
+        const ends = mouths[def.digit] || [];
         if (ends.length !== 2) {
-            console.warn(`Authored map: tunnel ${digit} has ${ends.length} mouths, expected 2; skipped`);
+            console.warn(`POI_DEFS: tunnel ${def.digit} has ${ends.length} painted mouths, expected 2; skipped`);
             return;
         }
-        const def = TUNNEL_DEFS[digit] || TUNNEL_DEFAULT;
+        delete mouths[def.digit];
         ends.forEach((sector, i) => {
             usedKeys.add(`${sector.coord[0]},${sector.coord[1]}`);
             // No levels = nobody inside: open from the start (a `requires` seal is the only barrier then)
-            add('tunnel', sector, { tunnel: digit, exitCoord: ends[1 - i].coord, open: def.levels.length === 0, approachText: def.approachText,
+            add('tunnel', sector, { tunnel: def.digit, exitCoord: ends[1 - i].coord, open: def.levels.length === 0, approachText: def.approachText,
                 crossTiles: def.crossTiles, requires: def.requires || null,
                 levels: def.levels.map(rollFight), ...(def.name ? { name: def.name } : {}) });
         });
-    });
+    };
 
     // Answers as placed: rewards rolled. A prompted POI's own reward, when its definition has none, is its first
     // answer's roll (the take-it one), which is also what the offer line's {loot} shows.
     const rollChoices = (defs: PoiChoiceDef[]): PoiChoice[] => defs.map(choice => ({
         label: choice.label,
         ...(choice.resultText ? { resultText: choice.resultText } : {}),
-        ...(choice.reward ? { reward: rollPoiReward(choice.reward) } : {}),
+        ...(choice.reward ? { reward: rollReward(choice.reward) } : {}),
         ...(choice.battery != null ? { battery: choice.battery } : {}),
         ...(choice.units != null ? { units: choice.units } : {}),
         ...(choice.revealNearest ? { revealNearest: true } : {})
     }));
-    const placeOne = (def: Exclude<PoiDef, SettlementDef>, sector: Sector) => {
+    const placeOne = (def: Exclude<GroundDef, SettlementDef>, sector: Sector) => {
         const base: Partial<Poi> = { ...(def.name ? { name: def.name } : {}), ...(def.requires ? { requires: def.requires } : {}) };
         switch (def.type) {
             case 'cache':
-                add('cache', sector, { ...base, promptText: def.promptText, reward: rollPoiReward(def.reward) });
+                add('cache', sector, { ...base, promptText: def.promptText, reward: rollReward(def.reward) });
                 break;
             case 'storySite': {
                 const choices = rollChoices(def.choices);
-                add('storySite', sector, { ...base, promptText: def.promptText, choices,
-                    reward: def.reward ? rollPoiReward(def.reward) : (choices[0].reward || {}) });
+                add('storySite', sector, { ...base, promptText: def.promptText, choices, reward: choices[0].reward || {} });
                 break;
             }
             case 'fieldEvent': { // found by stepping on it
@@ -253,20 +254,23 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
                 add('fieldEvent', sector, { ...base, promptText: def.promptText, choices, reward: choices[0].reward || {}, concealed: true });
                 break;
             }
-            case 'ambush': // found by stepping on it, and sprung; the def carries its one fight's fields flat
-                add('ambush', sector, { ...base, approachText: def.approachText, levels: [rollFight(def)], concealed: true });
+            case 'ambush': // found by stepping on it, and sprung: encircled unless it names a formation. The def carries
+                // its one fight's fields flat
+                add('ambush', sector, { ...base, approachText: def.approachText, levels: [rollFight({ formation: 'surround', ...def })], concealed: true });
                 break;
         }
     };
 
-    // The content manifest: each definition placed in its zone(s) `count` times. Settlements first (see above),
-    // then everything else in manifest order.
+    // The content manifest: tunnels on their mouths, then each ground definition placed in its zone(s) `count` times,
+    // settlements first (see above), then everything else in manifest order.
+    POI_DEFS.forEach(def => { if (def.type === 'tunnel') addTunnel(def); });
+    Object.keys(mouths).forEach(digit => console.warn(`Authored map: tunnel digit ${digit} has no POI_DEFS entry; its mouths are plain ground`));
     POI_DEFS.forEach(def => {
         if (def.type !== 'settlement') return;
         for (let i = 0; i < (def.count ?? 1); i++) addSettlement(def);
     });
     POI_DEFS.forEach(def => {
-        if (def.type === 'settlement') return;
+        if (def.type === 'settlement' || def.type === 'tunnel') return;
         const count = def.count ?? 1;
         for (let i = 0; i < count; i++) {
             const sector = pick(def, false);
@@ -281,12 +285,25 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     return pois;
 }
 
-// Rolls one fight's [lo, hi] hostile counts and reward. Takes any def carrying a fight's fields (an ambush def has
-// them flat beside its placement fields) and copies only the fight's own.
+// One authored number as placed: fixed, or a [lo, hi] range rolled once here. `step` rounds the roll to a grid
+// (resource amounts roll in steps of 100, so [500, 1000] lands on 500, 600, ... 1000).
+export function rollRange(value: Rollable, step = 1): number {
+    return Array.isArray(value) ? getRandomIntInclusive(value[0] / step, value[1] / step) * step : value;
+}
+
+// A reward as placed: resource amounts rolled in steps of 100; a capability passes through unchanged
+function rollReward(def: RewardDef): PoiReward {
+    const { resources, ...rest } = def;
+    const reward: PoiReward = { ...rest };
+    if (resources) reward.resources = mapObject(resources, (resource, amount) => rollRange(amount, 100));
+    return reward;
+}
+
+// Rolls one fight's hostile counts and reward. Takes any def carrying a fight's fields (an ambush def has them flat
+// beside its placement fields) and copies only the fight's own.
 function rollFight(def: FightDef): PoiFight {
-    const hostiles = mapObject(def.hostiles, (type, n) => Array.isArray(n) ? getRandomIntInclusive(n[0], n[1]) : n);
-    return { hostiles, formation: def.formation, terrain: def.terrain,
-        blurb: def.blurb, reward: def.reward ? rollPoiReward(def.reward) : {}, timesCleared: 0 };
+    return { hostiles: mapObject(def.hostiles, (type, count) => rollRange(count)), formation: def.formation, terrain: def.terrain,
+        blurb: def.blurb, reward: def.reward ? rollReward(def.reward) : {}, timesCleared: 0 };
 }
 
 // The signature count a scan of a fight reports: every hostile fielded, whatever its type

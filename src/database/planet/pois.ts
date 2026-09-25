@@ -1,4 +1,4 @@
-import type {PoiDef, TunnelDef} from "./poi_types";
+import type {PoiDef} from "./poi_types";
 
 /**
  * POI stands for "point of interest" - this manifest controls what exists on the planet surface.
@@ -14,8 +14,8 @@ export const CAMPS_ENABLED = true;
 export const FIELD_EVENT_SPACING = 2;
 
 /**
- * The placed POIs. Resource reward amounts are [lo, hi] ranges, rolled in steps of 100 at map generation
- * (rollPoiReward: [500, 1000] lands on 500, 600, ... 1000).
+ * The placed POIs. Any hostile count or resource amount is a number or a [lo, hi] range rolled once at map generation
+ * (rollRange in lib/planet/pois.ts); resource amounts roll in steps of 100, so [500, 1000] lands on 500, 600, ... 1000.
  *
  * The list reads by region, home outward, so a belt's settlement, camps, ambushes, finds and caches sit side by
  * side and tune as one. Order only matters among field events and ambushes (they take tiles in manifest order,
@@ -24,12 +24,12 @@ export const FIELD_EVENT_SPACING = 2;
  *
  * Settlements: `levels` lists the site's fights, surface first; most have one. Each level is a full battle of its own,
  * and every other fight (a camp, an ambush, a tunnel) is written in the same shape:
- *   `hostiles`    who holds it, a count per type ({ type: count }, see HOSTILE_TYPES in database/battle/units.ts);
- *                 each count a number or a [lo, hi] range rolled at map generation. The approach card's signature
- *                 count is the sum. Entry order maps to formation slots, so a shelter listed first takes a ring's
- *                 center
- *   `formation`   the spawn layout (FORMATIONS in lib/battle/layouts.ts); unset = column front. `surround` is the
- *                 ambush opening: the garrison starts in all four corners with the squad encircled
+ *   `hostiles`    who holds it, a count per type ({ type: count }, see HOSTILE_TYPES in database/battle/units.ts).
+ *                 The approach card's signature count is the sum. Entry order maps to formation slots, so a shelter
+ *                 listed first takes a ring's center
+ *   `formation`   the spawn layout (FORMATIONS in lib/battle/layouts.ts); unset = column front, except that a
+ *                 concealed fight (a camp, an ambush) opens `surround`: the hostiles start in all four corners
+ *                 with the squad encircled
  *   `terrain`     impassable obstacles scattered over the arena (TERRAIN_LAYOUTS in lib/battle/layouts.ts); unset =
  *                 open ground. The battlefield is stable per level (seeded from the map coord), so it can
  *                 be learned
@@ -53,8 +53,9 @@ export const FIELD_EVENT_SPACING = 2;
  * scatters.
  *
  * Field events and ambushes: concealed on open ground (never held ground: that is the camps' beat) and found
- * by stepping on them. An ambush is one fight, its fields written flat on the entry (like a camp's), and its
- * strength sits under the camps and settlements of the same belt; a field event is a scene with `choices`. `count` scatters the repeatable
+ * by stepping on them. An ambush is one fight, its fields written flat on the entry (like a camp's), encircling
+ * unless it names a formation, and its strength sits under the camps and settlements of the same belt; a field
+ * event is a scene with `choices`. `count` scatters the repeatable
  * ones, the one-offs are authored to their place so each says its own thing. Every prompted site writes its own
  * offer line and every garrisoned one its approach line (a camp's is its settlement's unless it writes its own).
  *
@@ -76,7 +77,7 @@ export const POI_DEFS: PoiDef[] = [
             { hostiles: { defender: 3 }, reward: { resources: { refinedMinerals: [100, 200] } } }
         ],
         camps: [
-            { hostiles: { defender: 1 }, reward: { resources: { refinedMinerals: [100, 100] } } }
+            { hostiles: { defender: 1 }, reward: { resources: { refinedMinerals: 100 } } }
         ]
     },
     {
@@ -113,8 +114,7 @@ export const POI_DEFS: PoiDef[] = [
     {
         type: 'ambush', zone: 'a',
         approachText: 'Sound from the rocks ahead. Then from behind.',
-        hostiles: { defender: 1 }, formation: 'surround',
-        reward: { resources: { refinedMinerals: [50, 100] } }
+        hostiles: { defender: 1 }, reward: { resources: { refinedMinerals: [50, 100] } }
     },
     {
         type: 'fieldEvent', zone: 'a', count: 2, name: 'Sighting',
@@ -211,14 +211,12 @@ export const POI_DEFS: PoiDef[] = [
     {
         type: 'ambush', zone: ['b', 'c', 'd'], count: 3,
         approachText: 'Signatures rising out of the ground on three sides. They were waiting.',
-        hostiles: { defender: 2 }, formation: 'surround',
-        reward: { resources: { refinedMinerals: [100, 200] } }
+        hostiles: { defender: 2 }, reward: { resources: { refinedMinerals: [100, 200] } }
     },
     {
         type: 'ambush', zone: ['d', 'e'], count: 3,
         approachText: 'The ridge line moves. It was never empty.',
-        hostiles: { defender: 3 }, formation: 'surround',
-        reward: { resources: { refinedMinerals: [150, 300] } }
+        hostiles: { defender: 3 }, reward: { resources: { refinedMinerals: [150, 300] } }
     },
     {
         type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Sighting',
@@ -280,9 +278,9 @@ export const POI_DEFS: PoiDef[] = [
         type: 'storySite', zone: 'h',
         promptText: 'A hardened door in a hillside, still powered. Investigate?',
         choices: [
-            { label: 'Explore', resultText: 'A command vault. Inside, an override module; its authorization codes are older than your directive.' }
-        ],
-        reward: { capability: 'overrideModule' }
+            { label: 'Explore', resultText: 'A command vault. Inside, an override module; its authorization codes are older than your directive.',
+                reward: { capability: 'overrideModule' } }
+        ]
     },
     {
         type: 'fieldEvent', zone: ['g', 'h'], name: 'Wreck',
@@ -316,14 +314,12 @@ export const POI_DEFS: PoiDef[] = [
     {
         type: 'ambush', zone: ['f', 'g', 'h', 'i'], count: 4,
         approachText: 'Contact on the flanks, closing fast. The column you saw was not the whole of them.',
-        hostiles: { defender: 5 }, formation: 'surround',
-        reward: { resources: { refinedMinerals: [250, 500] } }
+        hostiles: { defender: 5 }, reward: { resources: { refinedMinerals: [250, 500] } }
     },
     {
         type: 'ambush', zone: ['j', 'k'], count: 3,
         approachText: 'Dust plumes converging. They have done this before.',
-        hostiles: { defender: 7 }, formation: 'surround',
-        reward: { resources: { refinedMinerals: [350, 700] } }
+        hostiles: { defender: 7 }, reward: { resources: { refinedMinerals: [350, 700] } }
     },
     {
         type: 'fieldEvent', zone: ['f', 'g', 'h', 'i', 'j', 'k'], count: 3, name: 'Sighting',
@@ -401,14 +397,12 @@ export const POI_DEFS: PoiDef[] = [
     {
         type: 'ambush', zone: ['l', 'q', 't'], count: 4,
         approachText: 'They come out of the ruins in silence, from every doorway at once.',
-        hostiles: { defender: 10 }, formation: 'surround',
-        reward: { resources: { refinedMinerals: [500, 1000] } }
+        hostiles: { defender: 10 }, reward: { resources: { refinedMinerals: [500, 1000] } }
     },
     {
         type: 'ambush', zone: ['m', 'n', 'o', 'p', 'r', 's'], count: 3,
         approachText: 'Nothing on the optics until it is everywhere.',
-        hostiles: { defender: 8 }, formation: 'surround',
-        reward: { resources: { refinedMinerals: [400, 800] } }
+        hostiles: { defender: 8 }, reward: { resources: { refinedMinerals: [400, 800] } }
     },
     {
         type: 'fieldEvent', zone: ['l', 'm', 'n', 'q', 't'], count: 3, name: 'Sighting',
@@ -416,25 +410,15 @@ export const POI_DEFS: PoiDef[] = [
         choices: [
             { label: 'Observe', resultText: 'They are not hunting. They are tending something. Logged.' }
         ]
-    }
-]
+    },
 
-/** What a painted tunnel digit gets when TUNNEL_DEFS has no entry for it */
-export const TUNNEL_DEFAULT: TunnelDef = {
-    approachText: 'A tunnel mouth. Signatures in the dark beyond.',
-    levels: [{ hostiles: { defender: 12 }, terrain: 'corridor' }],
-    crossTiles: 4
-};
-
-/**
- * Tunnels: each digit painted on the map (two mouths per digit) is one passage. Stepping into a mouth the
- * first time is the fight inside, on corridor ground (several `levels` = a long tunnel held in stages, with
- * the same descend-or-withdraw choice between them as a settlement); win the last and the squad emerges at
- * the far mouth, fall back and it returns the way it came. After that, stepping into either mouth crosses
- * at once, for `crossTiles` of battery. PLACEHOLDER garrisons.
- */
-export const TUNNEL_DEFS: Partial<Record<string, TunnelDef>> = {
-    '1': {
+    // ---- Tunnels: each digit painted on the map (two mouths per digit) is one passage. Stepping into a mouth the
+    // first time is the fight inside, on corridor ground (several `levels` = a long tunnel held in stages, with
+    // the same descend-or-withdraw choice between them as a settlement); win the last and the squad emerges at
+    // the far mouth, fall back and it returns the way it came. After that, stepping into either mouth crosses
+    // at once, for `crossTiles` of battery. PLACEHOLDER hostiles.
+    {
+        type: 'tunnel', digit: '1',
         approachText: 'A tunnel mouth under the hill. Faint signatures, deep in.',
         levels: [{ hostiles: { defender: 8 }, terrain: 'corridor', reward: { resources: { refinedMinerals: [200, 400] } } }],
         crossTiles: 3
@@ -442,7 +426,8 @@ export const TUNNEL_DEFS: Partial<Record<string, TunnelDef>> = {
     // '2' and '3' are rubble-sealed: both mouths bump until the drill is held, then they are fought through
     // like any other. '1' stays open as the first crossing the squad meets (PLACEHOLDER: which tunnels are sealed).
     // '2' runs under the strait between Iberia and Morocco: the tunnel garrison, then the fortified far mouth
-    '2': {
+    {
+        type: 'tunnel', digit: '2',
         approachText: 'The strait tunnel. Rubble cleared, and behind it a garrison that heard the drill.',
         requires: 'drill',
         levels: [
@@ -451,13 +436,15 @@ export const TUNNEL_DEFS: Partial<Record<string, TunnelDef>> = {
         ],
         crossTiles: 4
     },
-    '3': {
+    {
+        type: 'tunnel', digit: '3',
         approachText: 'A tunnel mouth behind broken rock. Signatures, and the sound of water.',
         requires: 'drill',
         levels: [{ hostiles: { defender: 20 }, terrain: 'corridor', reward: { resources: { refinedMinerals: [800, 1400] } } }],
         crossTiles: 4
     },
-    '4': {
+    {
+        type: 'tunnel', digit: '4',
         approachText: 'A wide bore, engineered, held. Signatures in ranks.',
         levels: [
             { hostiles: { defender: 14 }, terrain: 'corridor', reward: { resources: { refinedMinerals: [500, 900] } } },
@@ -465,4 +452,4 @@ export const TUNNEL_DEFS: Partial<Record<string, TunnelDef>> = {
         ],
         crossTiles: 4
     }
-};
+]

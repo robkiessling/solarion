@@ -564,7 +564,7 @@ export function squadInteract(choiceIndex = 0) {
             return false;
         }
 
-        // An answer with its own reward pays that, otherwise the POI's (a cache's crate, a vault's module)
+        // An answer with its own reward pays that, otherwise the POI's (a cache's crate)
         const choice = poiChoices(poi)[choiceIndex];
         if (!choice) return false;
         const reward: PoiReward = choice.reward || poi.reward;

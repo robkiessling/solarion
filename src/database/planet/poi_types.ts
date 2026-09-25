@@ -1,4 +1,3 @@
-import {getRandomIntInclusive, mapObject} from "../../lib/helpers";
 import type {HostileFormation, TerrainLayoutId} from "../../lib/battle/layouts";
 import type {PlanetColorKey} from "./colors";
 import type {HostileType} from "../battle/units";
@@ -31,16 +30,20 @@ export interface PoiReward {
     capability?: Capability;
 }
 
-/** A reward as authored: resource [lo, hi] ranges (rolled in steps of 100 at map generation) and/or a capability */
+/** A tuning number as authored: fixed, or a [lo, hi] range rolled once at map generation (rollRange in
+ * lib/planet/pois.ts), so copies of a counted entry come out at mixed strengths */
+export type Rollable = number | [number, number];
+
+/** A reward as authored: resource amounts (rolled in steps of 100, so [500, 1000] lands on 500, 600, ... 1000) and/or
+ * a capability */
 export interface RewardDef {
-    resources?: Partial<Record<ResourceId, [number, number]>>;
+    resources?: Partial<Record<ResourceId, Rollable>>;
     capability?: Capability;
 }
 
-/** The hostiles a fight fields, as authored: a count per type (HOSTILE_TYPES in database/battle/units.ts), each a
- * number or a [lo, hi] range rolled at map generation, so copies of a counted entry come out at mixed strengths.
- * Entry order maps to formation slots, so a shelter listed first takes a ring's center. */
-export type HostilesDef = Partial<Record<HostileType, number | [number, number]>>;
+/** The hostiles a fight fields, as authored: a count per type (HOSTILE_TYPES in database/battle/units.ts). Entry order
+ * maps to formation slots, so a shelter listed first takes a ring's center. */
+export type HostilesDef = Partial<Record<HostileType, Rollable>>;
 
 /** One fight, as authored (a settlement level, a camp, an ambush, a tunnel): who holds it, its battlefield, and what
  * falls out of it. Every fight-bearing POI is written in this shape. */
@@ -60,8 +63,8 @@ export interface PoiChoiceDef {
     label: string;
     /** the result phase's narration; absent = the popup closes on the choice */
     resultText?: string;
-    /** the answer's own loot; absent = the POI's `reward` */
-    reward?: { resources?: Partial<Record<ResourceId, [number, number]>> };
+    /** what taking it pays (a story site's salvage rides on the answer that finds it); absent = the POI's `reward` */
+    reward?: RewardDef;
     /** battery change on the squad, clamped to [0, capacity] */
     battery?: number;
     /** units added to the fielded roster, at full hull */
@@ -94,13 +97,12 @@ export interface CacheDef extends PlacedDef {
     promptText: string;
     reward: RewardDef;
 }
-/** A ruin with a log, visible once scouted: its answers (usually one Explore that narrates the log) */
+/** A ruin with a log, visible once scouted: its answers (usually one Explore that narrates the log, and pays any
+ * salvage the site holds) */
 export interface StorySiteDef extends PlacedDef {
     type: 'storySite';
     promptText: string;
     choices: PoiChoiceDef[];
-    /** salvage on the site itself (a capability), paid by an answer without a reward of its own */
-    reward?: RewardDef;
 }
 /** A camp: one fight on its settlement's held ground */
 export interface CampDef extends FightDef {
@@ -133,16 +135,19 @@ export interface EventDef extends PlacedDef {
     promptText: string;
     choices: PoiChoiceDef[];
 }
-/** A fight on open ground, found by stepping on it and sprung at once: one fight's fields written flat, like a camp's */
+/** A fight on open ground, found by stepping on it and sprung at once: one fight's fields written flat, like a camp's.
+ * Opens encircled (surround) unless it names a formation. */
 export interface AmbushDef extends PlacedDef, FightDef {
     type: 'ambush';
     /** the approach card's line */
     approachText: string;
 }
-export type PoiDef = CacheDef | StorySiteDef | SettlementDef | EventDef | AmbushDef;
-
-/** A tunnel system: what holds it, and what crossing costs. Keyed by the digit painted on its two mouths. */
+/** A tunnel system: what holds it, and what crossing costs. Placed on the two mouths painted with its digit, not in a
+ * zone, so it carries no zone/point/count. */
 export interface TunnelDef {
+    type: 'tunnel';
+    /** the digit painted on both mouths in database/planet/map.txt */
+    digit: string;
     name?: string;
     /** the approach card's line at either mouth while the passage is still held */
     approachText: string;
@@ -154,6 +159,9 @@ export interface TunnelDef {
     /** battery the crossing costs, in flatland tiles walked */
     crossTiles: number;
 }
+export type PoiDef = CacheDef | StorySiteDef | SettlementDef | EventDef | AmbushDef | TunnelDef;
+/** The defs placed on painted ground (a zone or a point): every PoiDef but a tunnel */
+export type GroundDef = Exclude<PoiDef, TunnelDef>;
 
 // Per-type encounter popup mechanics (every line a popup shows is authored per site in the manifest). `actionLabel`
 // is the one answer a POI without `choices` gets (a cache's Take). Taking an answer with a resultText holds the
@@ -188,15 +196,3 @@ export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCach
 export const SITE_GLYPH = '▣';
 export const POI_LABELS: Record<PoiType, string> = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel', fieldEvent: 'Event', ambush: 'Ambush' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];
-
-// Resolves a definition's reward at generation time: [lo, hi] resource ranges roll in steps of 100 (500 to 1000 lands
-// on 500, 600, ... 1000);
-// capability rewards pass through unchanged.
-export function rollPoiReward(rewardDef: RewardDef): PoiReward {
-    const { resources, ...rest } = rewardDef;
-    const reward: PoiReward = { ...rest };
-    if (resources) {
-        reward.resources = mapObject(resources, (resource, [lo, hi]) => getRandomIntInclusive(lo / 100, hi / 100) * 100);
-    }
-    return reward;
-}
