@@ -25,7 +25,9 @@ export interface BattleUnit {
     strike?: { dx: number, dy: number, t: number };
 }
 
-export interface BattleFx { type: 'hit' | 'death' | 'heal' | 'bomb' | 'spawn'; x: number; y: number; t: number }
+/** A renderer marker at (x, y). A 'shot' is a ranged unit's tracer: (x, y) is the target, (x2, y2) the shooter.
+ * A 'blast' is a splash burst of radius r (the squad's bomb draws its own 'bomb' ring at the bomb's fixed size). */
+export interface BattleFx { type: 'hit' | 'death' | 'heal' | 'bomb' | 'spawn' | 'shot' | 'blast'; x: number; y: number; t: number; x2?: number; y2?: number; r?: number }
 
 /** A placed obstacle: `art` names a TERRAIN_PIECES entry (database/battle/terrain_art.ts) */
 export interface BattleTerrainPiece { art: TerrainPieceId; col: number; row: number }
@@ -617,7 +619,10 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
     const acquire = (unit: BattleUnit, nearGrid: UnitGrid, flow: FlowField) => {
         const near = nearestInGrid(nearGrid, unit.x, unit.y, maxDim, NEAR_RINGS);
         if (near && hasLOS(tGrid, unit.x, unit.y, near.x, near.y)) {
-            return { tx: near.x, ty: near.y, stop: ATTACK_RANGE };
+            // A ranged unit holds just inside its reach instead of closing to melee (NEAR_RINGS spans more
+            // than any declared range, so the exact search always covers it)
+            const range = battle.stats[unit.type].range;
+            return { tx: near.x, ty: near.y, stop: range && range > ATTACK_RANGE ? range * 0.9 : ATTACK_RANGE };
         }
         return flowSteer(flow, tGrid, unit);
     };
@@ -744,21 +749,53 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
         if (unit.side === 'droid' && withdrawing) continue;
         const stats = battle.stats[unit.type];
         if (stats.damage <= 0) continue; // spawners don't fight back; their threat is the spawn clock
-        // Ring cap 1: attacks only land within ATTACK_RANGE, and that's always inside the 3x3 cell
-        // block (range << cell size), so searching the whole arena for a target to then range-reject
-        // was pure waste. Within the cap the pick is exact, so hits land identically.
-        const target = nearestInGrid(targetGrids[unit.side], unit.x, unit.y, maxDim, 1);
+        // Reach is melee unless the type declares a range. The grid search is capped to the rings that can
+        // hold a target in reach: melee reach is always inside the 3x3 cell block (range << cell size), so
+        // searching the whole arena for a target to then range-reject was pure waste; a ranged unit scans as
+        // many rings as its reach spans. Within the cap the pick is exact, so hits land identically.
+        const range = stats.range ?? ATTACK_RANGE;
+        const ranged = range > ATTACK_RANGE;
+        const ringCap = ranged ? Math.ceil(range / TARGET_CELL) + 1 : 1;
+        const target = nearestInGrid(targetGrids[unit.side], unit.x, unit.y, maxDim, ringCap);
         if (!target) continue;
         const dx = target.x - unit.x, dy = target.y - unit.y;
-        if (dx * dx + dy * dy > ATTACK_RANGE * ATTACK_RANGE) continue;
-        // No stabbing through walls: melee reach slightly exceeds wall thickness at cell corners
+        if (dx * dx + dy * dy > range * range) continue;
+        // No stabbing (or shooting) through walls: melee reach slightly exceeds wall thickness at cell corners
         if (tGrid && !hasLOS(tGrid, unit.x, unit.y, target.x, target.y)) continue;
-        target.hp -= stats.damage;
         unit.cooldownMs = unit.side === 'droid' && overchargeActive ? stats.attackMs / rateMultiplier : stats.attackMs;
-        // Cosmetic strike cue: the renderer lunges the glyph along this direction, then springs back.
-        // The unit's real position never moves (range checks and determinism are untouched).
-        const reach = Math.sqrt(dx * dx + dy * dy) || 1;
-        unit.strike = { dx: dx / reach, dy: dy / reach, t: elapsedMs };
+        if (stats.splash) {
+            // The attack bursts: every enemy within the splash radius of the burst takes the full damage (the
+            // struck target included), each with its own hit or death mark under one blast ring. A ranged shot
+            // bursts on the target (with a tracer); a detonating unit bursts on itself and dies in the same step
+            // (the sweep below drops it), so its blast is the whole of its attack.
+            const bx = stats.detonates ? unit.x : target.x, by = stats.detonates ? unit.y : target.y;
+            const s2 = stats.splash * stats.splash;
+            if (ranged) fx.push({ type: 'shot', x: target.x, y: target.y, x2: unit.x, y2: unit.y, t: elapsedMs });
+            fx.push({ type: 'blast', x: bx, y: by, r: stats.splash, t: elapsedMs });
+            for (const victim of units) {
+                if (victim.side === unit.side || victim.hp <= 0) continue;
+                const vx = victim.x - bx, vy = victim.y - by;
+                if (vx * vx + vy * vy > s2) continue;
+                victim.hp -= stats.damage;
+                fx.push({ type: victim.hp <= 0 ? 'death' : 'hit', x: victim.x, y: victim.y, t: elapsedMs });
+            }
+            if (stats.detonates) {
+                unit.hp = 0;
+                fx.push({ type: 'death', x: unit.x, y: unit.y, t: elapsedMs });
+            }
+            continue;
+        }
+        target.hp -= stats.damage;
+        if (ranged) {
+            // A shot draws as a tracer from the shooter to the target; the shooter itself stays put
+            fx.push({ type: 'shot', x: target.x, y: target.y, x2: unit.x, y2: unit.y, t: elapsedMs });
+        }
+        else {
+            // Cosmetic strike cue: the renderer lunges the glyph along this direction, then springs back.
+            // The unit's real position never moves (range checks and determinism are untouched).
+            const reach = Math.sqrt(dx * dx + dy * dy) || 1;
+            unit.strike = { dx: dx / reach, dy: dy / reach, t: elapsedMs };
+        }
         fx.push({ type: target.hp <= 0 ? 'death' : 'hit', x: target.x, y: target.y, t: elapsedMs });
     }
 

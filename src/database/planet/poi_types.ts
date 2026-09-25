@@ -13,7 +13,7 @@ import type {Capability} from "./capabilities";
 
 export type PoiType =
     | 'cache'      // a supply drop: take it
-    | 'settlement' // where survivors live (the terminal only ever says "nest"): stepping on it starts a fight
+    | 'settlement' // where survivors live (the terminal only ever says "site"): stepping on it starts a fight
     | 'camp'       // a few of a settlement's people out on its held ground (the terminal says "contact"): a small fight
     | 'storySite'  // a ruin with a log to read
     | 'tunnel'     // a mouth of a passage under the sea: fought through once, then crossed at will
@@ -109,7 +109,7 @@ export interface CampDef extends FightDef {
     /** this camp's approach line; unset = the settlement's `campApproachText` */
     approachText?: string;
 }
-/** Where survivors live (the terminal says "nest"): the site's fights and its held ground. A site with camps
+/** Where survivors live (the terminal says "site"): the site's fights and its held ground. A site with camps
  * writes the line they approach with (the type enforces the pairing). */
 export type SettlementDef = PlacedDef & {
     type: 'settlement';
@@ -179,7 +179,7 @@ export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, reloot?:
     cache: { actionLabel: 'Take' },
     storySite: {},
     tunnel: { reloot: [1], clearedLabel: 'Tunnel cleared' }, // crossed on entry once open
-    settlement: { reloot: [1, 0.5, 0.25], clearedLabel: 'Nest cleared' },
+    settlement: { reloot: [1, 0.5, 0.25], clearedLabel: 'Site cleared' },
     camp: { reloot: [1], clearedLabel: 'Contact cleared' },
     fieldEvent: {},
     ambush: { reloot: [1], clearedLabel: 'Ambush repelled' }
@@ -194,5 +194,5 @@ export const POI_GLYPHS: Record<PoiType, string> = { cache: '□', settlement: '
 export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory', tunnel: 'poiTunnel', fieldEvent: 'poiFieldEvent', ambush: 'poiFieldEvent' };
 // A settlement with `site` draws as the facility the plan says is there, not as a plain return
 export const SITE_GLYPH = '▣';
-export const POI_LABELS: Record<PoiType, string> = { cache: 'Supply Cache', settlement: 'Nest', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel', fieldEvent: 'Event', ambush: 'Ambush' };
+export const POI_LABELS: Record<PoiType, string> = { cache: 'Supply Cache', settlement: 'Site', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel', fieldEvent: 'Event', ambush: 'Ambush' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];

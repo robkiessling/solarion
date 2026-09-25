@@ -6,9 +6,9 @@ import {TERRAIN_PIECES} from "../../database/battle/terrain_art";
 import {PLANET_COLORS} from "../../database/planet/colors";
 
 /**
- * The battle arena inside the encounter popup: draws every unit of the live sim as a shape sprite (or a
- * text glyph for TYPE_GLYPHS types) at its float position, plus the transient fx markers (hits, deaths,
- * heals, bomb blasts). Pure presentation; the sim is
+ * The battle arena inside the encounter popup: draws every unit of the live sim at its float position with
+ * the look UNIT_LOOKS gives its type (a cached shape sprite, or a text glyph), plus the transient fx markers
+ * (hits, deaths, heals, bomb blasts). Pure presentation; the sim is
  * ticked by planetTick and arrives here as the `battle` prop each frame. The arena coordinate space is fixed
  * (ARENA_W x ARENA_H); this component just scales it into however many pixels the popup gives it, which is
  * what lets the popup grow as armies scale.
@@ -17,12 +17,46 @@ import {PLANET_COLORS} from "../../database/planet/colors";
 const DROID_COLOR = PLANET_COLORS.squad;   // friendly cyan, same as the map glyph
 const HOSTILE_COLOR = PLANET_COLORS.battle;    // hostile orange, same as the map's fight effect
 
-// Rank-and-file units and fx marks draw as pre-rendered shape sprites (see sprite()): droids are cyan
-// diamonds, hostiles orange dots. TYPE_GLYPHS opts a type back into text rendering -- for the handful of
-// units worth a bespoke look (fixtures, and eventually bosses, which can grow into multi-char ASCII
-// art) where per-frame fillText cost doesn't matter.
-const TYPE_GLYPHS = { shelter: '◉' };
-const SPAWNER_SCALE = 1.7; // spawners draw this much larger: the hole reads as a fixture, not a trooper
+// Shape painters for UNIT_LOOKS: each returns a function that draws onto a sprite canvas centered at `mid`,
+// with `size` the sprite edge in pixels and the side's color already set as both fill and stroke.
+// Radii are fractions of the edge.
+const dot = (r) => (g, mid, size) => { g.beginPath(); g.arc(mid, mid, size * r, 0, 2 * Math.PI); g.fill(); };
+const ring = (r, width = 0.1) => (g, mid, size) => {
+    g.lineWidth = Math.max(1, size * width);
+    g.beginPath(); g.arc(mid, mid, size * r, 0, 2 * Math.PI); g.stroke();
+};
+const square = (r) => (g, mid, size) => { const h = size * r; g.fillRect(mid - h, mid - h, 2 * h, 2 * h); };
+const hollowSquare = (r, width = 0.12) => (g, mid, size) => {
+    g.lineWidth = Math.max(1, size * width);
+    const h = size * r; g.strokeRect(mid - h, mid - h, 2 * h, 2 * h);
+};
+const diamond = (r) => (g, mid, size) => {
+    const h = size * r;
+    g.beginPath(); g.moveTo(mid, mid - h); g.lineTo(mid + h, mid); g.lineTo(mid, mid + h); g.lineTo(mid - h, mid); g.fill();
+};
+const triangle = (r) => (g, mid, size) => { // points at the droid side (they come from the left)
+    const h = size * r;
+    g.beginPath(); g.moveTo(mid - h, mid); g.lineTo(mid + h * 0.8, mid - h); g.lineTo(mid + h * 0.8, mid + h); g.fill();
+};
+const bullseye = () => (g, mid, size) => { dot(0.14)(g, mid, size); ring(0.32)(g, mid, size); };
+
+// How each unit type draws, one row per row of the stat block (database/battle/units.ts). A `shape` rasterizes
+// once per pixel size into a cached sprite (see sprite()); a `glyph` renders as text every frame, for the few
+// fixtures worth a bespoke look (and eventually bosses, which can grow into multi-char ASCII art) where the
+// per-frame fillText cost doesn't matter. `scale` enlarges a glyph and its hp bar so a fixture reads as a
+// fixture, not a trooper. Droids are cyan, everything else the hostile orange (DROID_COLOR / HOSTILE_COLOR).
+const UNIT_LOOKS = {
+    droid:    { shape: diamond(0.42) },      // half-diagonal sized to touch at the sim's collision contact distance
+    defender: { shape: dot(0.34) },
+    runner:   { shape: dot(0.22) },          // smaller: quick and slight
+    heavy:    { shape: square(0.36) },       // a touch bigger than the dot: bulk
+    mounted:  { shape: triangle(0.4) },
+    launcher: { shape: hollowSquare(0.28) }, // a shape that keeps its distance
+    drone:    { shape: bullseye() },         // a thing that is mostly its payload
+    herd:     { shape: ring(0.28) },         // a signature with nothing behind it
+    sentry:   { glyph: '◈' },
+    shelter:  { glyph: '◉', scale: 1.7 }
+};
 
 // Terrain obstacles: weathered stone, deliberately neutral next to the two sides' colors
 const TERRAIN_COLOR = 'rgba(164, 152, 128, 0.85)';
@@ -85,7 +119,7 @@ export default class BattleCanvas extends React.Component {
         return c;
     }
 
-    // Pre-rendered marks, keyed by kind and pixel size. fillText (and shadowBlur for the overcharge
+    // Pre-rendered marks (unit shapes and fx marks), keyed by kind and pixel size. fillText (and shadowBlur for the overcharge
     // glow) are the expensive raster calls: at replicated-army scale (thousands of units) they froze
     // the tab, while stamping a cached bitmap with drawImage is ~10x cheaper. Each shape rasterizes
     // once per size (sizes only change on popup resize) and lives here for the component's lifetime.
@@ -93,24 +127,20 @@ export default class BattleCanvas extends React.Component {
         const key = `${kind}@${size}`;
         const cached = this.sprites.get(key);
         if (cached) return cached;
-        const pad = kind === 'droid-glow' ? size : 0; // halo bleeds past the glyph box
+        // Unit kinds are the stat block's type names; 'droid-glow' is the droid with the overcharge halo baked in
+        const glow = kind === 'droid-glow';
+        const look = UNIT_LOOKS[glow ? 'droid' : kind];
+        const pad = glow ? size : 0; // halo bleeds past the glyph box
         const c = document.createElement('canvas');
         c.width = c.height = size + 2 * pad;
         const g = c.getContext('2d');
         const mid = c.width / 2;
-        if (kind === 'droid' || kind === 'droid-glow') {
-            if (kind === 'droid-glow') { g.shadowColor = DROID_COLOR; g.shadowBlur = size * 0.7; }
-            const r = size * 0.42; // half-diagonal, sized to touch at the sim's collision contact distance
-            g.fillStyle = DROID_COLOR;
-            g.beginPath();
-            g.moveTo(mid, mid - r); g.lineTo(mid + r, mid); g.lineTo(mid, mid + r); g.lineTo(mid - r, mid);
-            g.fill();
-        }
-        else if (kind === 'hostile') {
-            g.fillStyle = HOSTILE_COLOR;
-            g.beginPath();
-            g.arc(mid, mid, size * 0.34, 0, 2 * Math.PI);
-            g.fill();
+        if (look) {
+            const color = kind === 'droid' || glow ? DROID_COLOR : HOSTILE_COLOR;
+            g.fillStyle = color;
+            g.strokeStyle = color;
+            if (glow) { g.shadowColor = DROID_COLOR; g.shadowBlur = size * 0.7; }
+            look.shape(g, mid, size);
         }
         else if (kind === 'death') { // ×
             g.strokeStyle = 'rgba(255, 255, 255, 0.9)';
@@ -200,7 +230,7 @@ export default class BattleCanvas extends React.Component {
 
         const fontSize = Math.max(8, py(3.2));
         const markPx = Math.round(fontSize); // sprite edge; quantized so the cache stays small
-        ctx.font = `${fontSize}px monospace`; // text path is only used by TYPE_GLYPHS units now
+        ctx.font = `${fontSize}px monospace`; // text path is only used by glyph units (see UNIT_LOOKS)
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
@@ -212,11 +242,26 @@ export default class BattleCanvas extends React.Component {
             const age = (battle.elapsedMs - fx.t) / FX_TTL_MS;
             if (age < 0 || age >= 1) return;
             const alpha = 1 - age;
-            if (fx.type === 'bomb') {
-                ctx.strokeStyle = `rgba(255, 190, 80, ${alpha})`;
+            if (fx.type === 'shot') {
+                // A tracer from shooter to target: bright and gone fast (it lives a third of the marker ttl),
+                // so a steady rate of fire reads as flashes, not a lingering web of lines
+                const life = age * 3;
+                if (life >= 1) return;
+                ctx.strokeStyle = `rgba(255, 230, 170, ${1 - life})`;
+                ctx.lineWidth = Math.max(1, py(0.25));
+                ctx.beginPath();
+                ctx.moveTo(px(fx.x2), py(fx.y2));
+                ctx.lineTo(px(fx.x), py(fx.y));
+                ctx.stroke();
+            }
+            else if (fx.type === 'bomb' || fx.type === 'blast') {
+                // An expanding ring: the squad's bomb at its fixed radius in the equipment's warm gold, a hostile
+                // splash at its own radius (fx.r) in the hostile orange
+                const radius = fx.type === 'bomb' ? 10 : fx.r;
+                ctx.strokeStyle = fx.type === 'bomb' ? `rgba(255, 190, 80, ${alpha})` : `rgba(255, 120, 60, ${alpha})`;
                 ctx.lineWidth = Math.max(1.5, py(0.5));
                 ctx.beginPath();
-                ctx.ellipse(px(fx.x), py(fx.y), px(10) * (0.4 + 0.6 * age), py(10) * (0.4 + 0.6 * age), 0, 0, Math.PI * 2);
+                ctx.ellipse(px(fx.x), py(fx.y), px(radius) * (0.4 + 0.6 * age), py(radius) * (0.4 + 0.6 * age), 0, 0, Math.PI * 2);
                 ctx.stroke();
             }
             else {
@@ -228,14 +273,14 @@ export default class BattleCanvas extends React.Component {
             }
         });
 
-        // Units: shape sprite (or glyph, for TYPE_GLYPHS types) at position (plus any mid-lunge offset)
-        // with a thin hp sliver above it. The bar carries the health information, so the marks stay
-        // full-strength colors.
+        // Units: the type's look (see UNIT_LOOKS) at position (plus any mid-lunge offset) with a thin hp
+        // sliver above it. The bar carries the health information, so the marks stay full-strength colors.
         const barH = Math.max(2, Math.round(HP_BAR_PX * dpr));
         const bigFight = battle.startingDroids + battle.startingHostiles > HP_BAR_FORCE_LIMIT;
         battle.units.forEach(unit => {
             const droid = unit.side === 'droid';
-            const spawner = !!battle.stats[unit.type].spawnEveryMs;
+            const look = UNIT_LOOKS[unit.type];
+            const scale = look.scale || 1;
             let x = unit.x, y = unit.y;
             if (unit.strike) {
                 const age = battle.elapsedMs - unit.strike.t;
@@ -245,16 +290,15 @@ export default class BattleCanvas extends React.Component {
                     y += unit.strike.dy * extension;
                 }
             }
-            const glyph = TYPE_GLYPHS[unit.type];
-            if (glyph) {
+            if (look.glyph) {
                 ctx.fillStyle = droid ? DROID_COLOR : HOSTILE_COLOR;
-                if (spawner) ctx.font = `${fontSize * SPAWNER_SCALE}px monospace`;
-                ctx.fillText(glyph, px(x), py(y));
-                if (spawner) ctx.font = `${fontSize}px monospace`;
+                if (scale !== 1) ctx.font = `${fontSize * scale}px monospace`;
+                ctx.fillText(look.glyph, px(x), py(y));
+                if (scale !== 1) ctx.font = `${fontSize}px monospace`;
             }
             else {
                 // Overcharged droids swap to the glow sprite (halo baked in: shadowBlur per unit is slow)
-                const mark = this.sprite(droid ? (overcharged ? 'droid-glow' : 'droid') : 'hostile', markPx);
+                const mark = this.sprite(droid && overcharged ? 'droid-glow' : unit.type, markPx);
                 ctx.drawImage(mark, px(x) - mark.width / 2, py(y) - mark.height / 2);
             }
 
@@ -265,10 +309,10 @@ export default class BattleCanvas extends React.Component {
             const elite = !droid && unit.maxHp > HOSTILE_TYPES.defender.hp;
             if (elite || (droid && !bigFight)) {
                 const fraction = unit.hp / unit.maxHp;
-                // A spawner's bar matches its oversized glyph (wider, lifted clear of the bigger sprite)
-                const barW = px(HP_BAR_W) * (spawner ? SPAWNER_SCALE : 1);
+                // A scaled glyph's bar matches it (wider, lifted clear of the bigger mark)
+                const barW = px(HP_BAR_W) * scale;
                 const barX = px(x) - barW / 2;
-                const barY = py(y - (spawner ? HP_BAR_LIFT + 1 : HP_BAR_LIFT));
+                const barY = py(y - (scale !== 1 ? HP_BAR_LIFT + 1 : HP_BAR_LIFT));
                 ctx.fillStyle = HP_TRACK;
                 ctx.fillRect(barX, barY, barW, barH);
                 ctx.fillStyle = hpColor(fraction);

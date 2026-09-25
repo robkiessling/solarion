@@ -10,6 +10,7 @@ import * as fromUpgrades from '../redux/modules/upgrades';
 import * as fromAbilities from '../redux/modules/abilities';
 import * as fromGame from '../redux/modules/game';
 import * as fromPlanet from '../redux/modules/planet';
+import * as fromSquad from '../redux/modules/squad';
 import * as fromStar from '../redux/modules/star';
 import * as fromLog from '../redux/modules/log';
 import * as fromClock from '../redux/modules/clock';
@@ -37,13 +38,13 @@ export const LOG_SPEED = 1;
 
 // A fresh map starts fully revealed (every tile explored, every site visible). Read by the planet module's
 // generateMap action, at call time, so the import cycle through the redux modules is harmless.
-export const EXPLORE_EVERYTHING = false;
-
-export const INFINITE_CHARGE = false; // testing toggle: the battery never drains off-grid (no reserve power, no field wipes)
+export const EXPLORE_EVERYTHING = true;
 
 // Draws every concealed POI (camps on held ground, field events on open ground) on the map before the squad
 // has found it, dimmed. Read by the planet component's overlay pass.
-export const SHOW_CONCEALED_POIS = false;
+export const SHOW_CONCEALED_POIS = true;
+
+export const INFINITE_CHARGE = false; // testing toggle: the battery never drains off-grid (no reserve power, no field wipes)
 
 export function runGameMode(dispatch: Dispatch) {
     switch (GAME_MODE) {
@@ -182,8 +183,8 @@ function skipToRobotics(dispatch: Dispatch) {
 }
 
 // Shortly after the planetary map came online (about day 28 of a real run; 11 days past the robotics skip):
-// Long-range Communication just researched, ten droids built and all deployed to structures (none scouting yet),
-// the map generated but unexplored.
+// Long-range Communication just researched, ten droids built and all standing by on the expedition team (ready
+// to deploy from the Planet tab; none on structures or scouting), the map generated but unexplored.
 // Counts, upgrades and resources are from that run at that moment; the next tier (Feedback Loop, Kinetic Engines,
 // Perovskite Solar Cells, Ultra-Dense Matrices, Hyper-Alloy Synthesizer, Plasma Drill) was still on offer.
 export function skipToGlobe(dispatch: Dispatch) {
@@ -245,17 +246,19 @@ export function skipToGlobe(dispatch: Dispatch) {
         'droidFactory_fasterBuild', 'droidFactory_improvedMaintenance', 'droidFactory_longerComm'
     ] satisfies UpgradeId[]).forEach(upgrade => dispatch(fromUpgrades.researchForFree(upgrade)));
 
-    // Ten droids built; assigning debits the idle pool, so all ten end up deployed (10 / 10)
+    // Ten droids built; assigning debits the idle pool, so all ten end up on the team standing by at base (10 / 10)
     dispatch(fromResources.produce({
         energy: 13275,
         ore: 31700,
         refinedMinerals: 3560,
         standardDroids: 10
     }));
-    dispatch(fromStructures.assignDroidUnsafe('harvester', 3));
-    dispatch(fromStructures.assignDroidUnsafe('refinery', 7));
+    dispatch(fromSquad.squadAssignDroidUnsafe(10));
 
     dispatch(addTrigger('startExploringMap'));
+
+    // The Planet tab exists by now (droidFactory_longerComm added it); open on it
+    dispatch(fromGame.updateSetting('currentNavTab', 'planet'));
 }
 
 function skipToStar(dispatch: Dispatch) {

@@ -59,6 +59,14 @@ export const FIELD_EVENT_SPACING = 2;
  * ones, the one-offs are authored to their place so each says its own thing. Every prompted site writes its own
  * offer line and every garrisoned one its approach line (a camp's is its settlement's unless it writes its own).
  *
+ * Approach lines are written at tile scale: a tile is a region hundreds of square miles across, so the line names
+ * the place, the regional population ("returns", a loose count) and what is moving, in the classifier's voice
+ * (returns, signatures, loads, groups; never what they are). The card's own "Signatures" band below it is the
+ * engagement, the fight's count, so the line never quotes that number: a site of hundreds meets the squad with
+ * a dozen, and the gap between the two is the truth the classifier is not spelling out. Lines never state a
+ * distance or a travel time: the squad crosses a tile far faster than the tile's size allows, an abstraction
+ * the base game shares, and it only shows when the text measures it.
+ *
  * Loot is what scavengers hold and what they are sitting on: worked metal on top (it classifies as minerals),
  * power cells further in, the old facility's stores at the core. Never ore; nothing out here mines.
  * Hostile counts, loot, level counts and event counts are PLACEHOLDER tuning, and the zone
@@ -67,17 +75,17 @@ export const FIELD_EVENT_SPACING = 2;
  * letters and their real places: see database/planet/map.txt.
  */
 export const POI_DEFS: PoiDef[] = [
-    // ---- Home basin (tutorial): one easy nest, two caches, the dead-droid story site, the first wreck (its log
+    // ---- Home basin (tutorial): one easy site, two caches, the dead-droid story site, the first wreck (its log
     // points home), scraps, one soft ambush
     {
         type: 'settlement', zone: 'a', territoryRadius: 1,
-        approachText: 'A low structure of scrap and cloth. Thermal signatures inside, few and still.',
-        campApproachText: 'Two of them, out from the shelter with sacks. They drop the sacks.',
+        approachText: 'Structures along a dry watercourse, a valley of them. Low hundreds of returns across the region, most of them still. A few are moving to meet you.',
+        campApproachText: 'A small group out from the valley, carrying loads. They set the loads down and turn toward you.',
         levels: [
             { hostiles: { defender: 3 }, reward: { resources: { refinedMinerals: [100, 200] } } }
         ],
         camps: [
-            { hostiles: { defender: 1 }, reward: { resources: { refinedMinerals: 100 } } }
+            { hostiles: { defender: 1, drone: 2 }, reward: { resources: { refinedMinerals: 100 } } }
         ]
     },
     {
@@ -114,7 +122,7 @@ export const POI_DEFS: PoiDef[] = [
     {
         type: 'ambush', zone: 'a',
         approachText: 'Sound from the rocks ahead. Then from behind.',
-        hostiles: { defender: 1 }, reward: { resources: { refinedMinerals: [50, 100] } }
+        hostiles: { defender: 1, runner: 2 }, reward: { resources: { refinedMinerals: [50, 100] } }
     },
     {
         type: 'fieldEvent', zone: 'a', count: 2, name: 'Sighting',
@@ -128,41 +136,41 @@ export const POI_DEFS: PoiDef[] = [
     // teaches the descend-or-withdraw rule)
     {
         type: 'settlement', zone: 'b', territoryRadius: 2,
-        approachText: 'Rock shelters cut into a scarp. Signatures moving between them.',
-        campApproachText: 'Foragers from the scarp, closing from the rocks.',
+        approachText: 'Shelters cut into a scarp that runs the length of the region. Returns in the hundreds along it, moving between them. The nearest are coming down.',
+        campApproachText: 'A group off the scarp, closing through the rocks. They were out here before you arrived.',
         levels: [
-            { hostiles: { defender: 6 }, terrain: 'rocks', reward: { resources: { refinedMinerals: [300, 600] } } }
+            { hostiles: { heavy: 1, launcher: 1, drone: 2, defender: 6 }, terrain: 'rocks', reward: { resources: { refinedMinerals: [300, 600] } } }
         ],
         camps: [
-            { hostiles: { defender: 2 }, reward: { resources: { refinedMinerals: [100, 200] } } }
+            { hostiles: { defender: 2, runner: 2 }, reward: { resources: { refinedMinerals: [100, 200] } } }
         ]
     },
     {
         type: 'settlement', zone: 'c', site: 2, territoryRadius: 0, levelsShown: true,
-        approachText: 'A pre-war compound, walls intact, gate shut. Dense returns behind it.',
+        approachText: 'A pre-war compound on the valley floor, walls intact, gate shut. Dense returns behind the wall and nothing outside it. Fixed emitters on the wall line.',
         levels: [
-            { hostiles: { shelter: 1, defender: 14 }, terrain: 'compound' }
+            { hostiles: { shelter: 1, sentry: 2, defender: 14 }, terrain: 'compound' }
         ]
     },
     {
         type: 'settlement', zone: 'd', territoryRadius: 2, levelsShown: true, discardedKg: [80, 160],
-        approachText: 'Terraces climbing a ridge, and shafts going down. Signatures on every level the optics reach.',
-        campApproachText: 'A watch post on the terraces. They saw you climbing.',
+        approachText: 'Terraces climbing a whole ridge, and shafts going down. Returns on every level the optics reach, in the hundreds. The upper ones are already moving.',
+        campApproachText: 'Stationary returns at the high points of the terraces. They saw you climbing, and now they are not stationary.',
         levels: [
-            { hostiles: { defender: 10 }, formation: 'scatter', terrain: 'rocks', reward: { resources: { refinedMinerals: [400, 800] } } },
-            { hostiles: { defender: 7 }, formation: 'clusters', terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000], energy: [1000, 2000] } } }
+            { hostiles: { mounted: 2, defender: 10 }, formation: 'scatter', terrain: 'rocks', reward: { resources: { refinedMinerals: [400, 800] } } },
+            { hostiles: { drone: 4, defender: 7 }, formation: 'clusters', terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000], energy: [1000, 2000] } } }
         ],
         camps: [
-            { hostiles: { defender: 3 }, reward: { resources: { refinedMinerals: [100, 300] } } },
+            { hostiles: { defender: 3, herd: 4 }, reward: { resources: { refinedMinerals: [100, 300] } } },
             { hostiles: { defender: 3 }, terrain: 'rocks', reward: { resources: { refinedMinerals: [100, 300] } } }
         ]
     },
     {
         type: 'settlement', zone: 'e', territoryRadius: 2,
-        approachText: 'A ruined town, half of it roofed again. Signatures clustered in the standing blocks.',
-        campApproachText: 'Scavengers from the town, more of them than the optics counted.',
+        approachText: 'A ruined town, half of it roofed again. Several hundred returns clustered in the standing blocks. More are moving toward the edge than the optics first counted.',
+        campApproachText: 'A group out from the town, more of them than the first count. They fan out as they close.',
         levels: [
-            { hostiles: { defender: 14 }, formation: 'clusters', terrain: 'ruins', reward: { resources: { refinedMinerals: [800, 1400] } } }
+            { hostiles: { heavy: 2, launcher: 2, defender: 14 }, formation: 'clusters', terrain: 'ruins', reward: { resources: { refinedMinerals: [800, 1400] } } }
         ],
         camps: [
             { hostiles: { defender: 4 }, reward: { resources: { refinedMinerals: [200, 400] } } },
@@ -229,8 +237,8 @@ export const POI_DEFS: PoiDef[] = [
     // ---- The far belt: the Override Module salvage, the red-herring wreckage, the first sealed vault
     {
         type: 'settlement', zone: 'g', territoryRadius: 2, discardedKg: [150, 300],
-        approachText: 'Earthworks in a ring, a dry canyon beyond. Signatures on the rim and none below it.',
-        campApproachText: 'Herders off the rim, and what they herd.',
+        approachText: 'Earthworks in a ring, a dry canyon beyond. Returns along the rim in the hundreds and none below it.',
+        campApproachText: 'A group off the rim with a mass of smaller returns moving with them. The larger ones turn toward you. The smaller do not.',
         levels: [
             { hostiles: { defender: 18 }, formation: 'surround', reward: { resources: { refinedMinerals: [1200, 2000] } } },
             { hostiles: { defender: 12 }, terrain: 'canyon', reward: { resources: { refinedMinerals: [1500, 2500], energy: [3000, 5000] } } }
@@ -243,8 +251,8 @@ export const POI_DEFS: PoiDef[] = [
     {
         // PLACEHOLDER site: the real Site 2 goes on a Gobi point
         type: 'settlement', zone: 'h', site: 2, territoryRadius: 2, levelsShown: true, discardedKg: [200, 400],
-        approachText: 'A facility dug into a canyon wall, ringed with watch posts. Dense returns at the core.',
-        campApproachText: 'A picket from the facility. They knew this ground before you did.',
+        approachText: 'A facility dug into a canyon wall, stationary returns ringing it at intervals. Dense returns at the core, past counting from here.',
+        campApproachText: 'A group posted well out from the facility. They knew this ground before you did.',
         levels: [
             { hostiles: { shelter: 1, defender: 18 }, formation: 'ring', terrain: 'canyon', reward: { resources: { refinedMinerals: [1500, 2500] } } },
             { hostiles: { defender: 16 }, formation: 'clusters', terrain: 'ruins', reward: { resources: { energy: [4000, 7000] } } },
@@ -334,8 +342,8 @@ export const POI_DEFS: PoiDef[] = [
     // the largest haul on the planet behind the weakest garrison, and the largest discard.
     {
         type: 'settlement', zone: 'q', territoryRadius: 2, discardedKg: [2300, 3500],
-        approachText: 'Ruins on the scale of a city, still inhabited. Signatures scattered thin across a wide front.',
-        campApproachText: 'A work party from the ruins, downing tools.',
+        approachText: 'Ruins on the scale of a city, still inhabited. Returns in the thousands, scattered thin across a wide front.',
+        campApproachText: 'A group in the ruins, stationary until you were seen. Then all of them moving at once.',
         levels: [
             { hostiles: { defender: 30 }, formation: 'scatter', terrain: 'ruins', reward: { resources: { refinedMinerals: [2000, 3500] } } },
             { hostiles: { defender: 22 }, formation: 'surround', terrain: 'ruins', reward: { resources: { refinedMinerals: [2500, 4000], energy: [6000, 10000] } } },
@@ -349,7 +357,7 @@ export const POI_DEFS: PoiDef[] = [
     },
     {
         type: 'settlement', zone: 't', territoryRadius: 2, levelsShown: true, discardedKg: [400, 700],
-        approachText: 'A fortress in a canyon mouth. Rings of signatures around something that does not move.',
+        approachText: 'A fortress in a canyon mouth. Rings of returns around something that does not move, hundreds deep.',
         campApproachText: 'An outer ring of the fortress, turning inward on you.',
         levels: [
             { hostiles: { shelter: 2, defender: 32 }, formation: 'ring', terrain: 'canyon', reward: { resources: { refinedMinerals: [3000, 5000] } } },
