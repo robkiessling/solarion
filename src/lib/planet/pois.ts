@@ -2,7 +2,7 @@ import {getRandomFromArray, getRandomIntInclusive, mapObject} from "../helpers";
 import {getCrossTime, getHomeBasePosition, type PlanetMap, type Sector} from "./map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./geometry";
 import {STATUSES, TERRAINS, VISION_HOPS} from "../../database/planet/terrain";
-import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, type FightDef, type GroundDef, type PoiChoiceDef, type PoiReward, type PoiStatus, type PoiType, type RewardDef, type Rollable, type SealDef, type SettlementDef, type TunnelDef} from "../../database/planet/poi_types";
+import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, type FightDef, type GroundDef, type PoiChoiceDef, type PoiReward, type PoiStatus, type PoiType, type RewardDef, type Rollable, type SealDef, type SettlementDef, type SiteDef, type TunnelDef} from "../../database/planet/poi_types";
 import {CAMPS_ENABLED, FIELD_EVENT_SPACING, POI_DEFS} from "../../database/planet/pois";
 import type {Capabilities} from "../../database/planet/capabilities";
 import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
@@ -58,7 +58,7 @@ export interface Poi {
     levelsShown?: boolean;
     reloot?: number[];
     discardedKg?: number;
-    /** settlements on a pre-war network facility: its number (see PoiDef.site) */
+    /** sites: the installation's number in the network */
     site?: number;
     /** camps: the settlement whose held ground this sits on */
     parentId?: string;
@@ -87,8 +87,8 @@ export interface Poi {
  * The placement pass: each POI_DEFS entry lands in its zone (a random free tile of it, or of any zone in its
  * list) or on its point (one exact tile) painted in the authored map, `count` times; a tunnel entry on the two
  * mouths painted with its digit; and a territory stamp around every settlement (sector.heldBy: scout-impassable, not
- * developable, squad-crossable; retracts when the settlement is cleared). Tunnels go first, then settlements, whatever
- * the manifest's order, since a stamp must not swallow a tile something else already took; the rest follow in
+ * developable, squad-crossable; retracts when the settlement is cleared). Tunnels go first, then sites, then
+ * settlements, whatever the manifest's order, since a stamp must not swallow a tile something else already took; the rest follow in
  * manifest order, and field events and ambushes keep FIELD_EVENT_SPACING hops from each other. An entry that cannot be
  * placed (in full) is reported on the console rather than dropped silently: the manifest is the content plan,
  * and a missing entry is a bug in the drawing or the manifest.
@@ -188,7 +188,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             }
 
             const poi = add('settlement', sector, { territoryRadius, levels: def.levels.map(rollFight), approachText: def.approachText,
-                levelsShown: def.levelsShown, reloot: def.reloot, ...(def.site != null ? { site: def.site } : {}),
+                levelsShown: def.levelsShown, reloot: def.reloot,
                 ...(def.name ? { name: def.name } : {}), ...(def.seal ? { seal: rollSeal(def.seal) } : {}) });
             if (def.discardedKg) poi.discardedKg = getRandomIntInclusive(def.discardedKg[0] / 10, def.discardedKg[1] / 10) * 10;
             const held: Sector[] = [];
@@ -214,6 +214,15 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             });
             return;
         }
+    };
+
+    // A site: one tile, named by its number ("Site 2"), no territory. Placed before settlements so their stamps keep
+    // clear of it (a settlement needs clean ground out to radius+1).
+    const addSite = (def: SiteDef) => {
+        const sector = pick(def);
+        if (!sector) return;
+        add('site', sector, { site: def.number, name: def.name || `${POI_LABELS.site} ${def.number}`, levels: def.levels.map(rollFight),
+            approachText: def.approachText, levelsShown: def.levelsShown, ...(def.seal ? { seal: rollSeal(def.seal) } : {}) });
     };
 
     // Tunnels first: a POI on each mouth painted with the entry's digit, both carrying the passage's fight and pointing
@@ -251,7 +260,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         ...(choice.equipment ? { equipment: choice.equipment } : {})
     }));
     const rollSeal = (def: SealDef): PoiSeal => ({ promptText: def.promptText, choices: rollChoices(def.choices) });
-    const placeOne = (def: Exclude<GroundDef, SettlementDef>, sector: Sector) => {
+    const placeOne = (def: Exclude<GroundDef, SettlementDef | SiteDef>, sector: Sector) => {
         const base: Partial<Poi> = { ...(def.name ? { name: def.name } : {}), ...(def.seal ? { seal: rollSeal(def.seal) } : {}) };
         switch (def.type) {
             case 'cache':
@@ -275,16 +284,17 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         }
     };
 
-    // The content manifest: tunnels on their mouths, then each ground definition placed in its zone(s) `count` times,
-    // settlements first (see above), then everything else in manifest order.
+    // The content manifest: tunnels on their mouths, then sites, then each ground definition placed in its zone(s)
+    // `count` times, settlements first (see above), then everything else in manifest order.
     POI_DEFS.forEach(def => { if (def.type === 'tunnel') addTunnel(def); });
     Object.keys(mouths).forEach(digit => console.warn(`Authored map: tunnel digit ${digit} has no POI_DEFS entry; its mouths are plain ground`));
+    POI_DEFS.forEach(def => { if (def.type === 'site') addSite(def); });
     POI_DEFS.forEach(def => {
         if (def.type !== 'settlement') return;
         for (let i = 0; i < (def.count ?? 1); i++) addSettlement(def);
     });
     POI_DEFS.forEach(def => {
-        if (def.type === 'settlement' || def.type === 'tunnel') return;
+        if (def.type === 'settlement' || def.type === 'site' || def.type === 'tunnel') return;
         const count = def.count ?? 1;
         for (let i = 0; i < count; i++) {
             const sector = pick(def, false);
@@ -333,7 +343,7 @@ export function poiLevels(poi: Poi): PoiFight[] {
 // POIs that are fought, not prompted: stepping onto one starts its battle. A tunnel is fought through
 // once; open, it prompts the crossing instead.
 export function isGarrisoned(poi: Poi): boolean {
-    return poi.type === 'settlement' || poi.type === 'camp' || poi.type === 'ambush' || (poi.type === 'tunnel' && !poi.open);
+    return poi.type === 'settlement' || poi.type === 'site' || poi.type === 'camp' || poi.type === 'ambush' || (poi.type === 'tunnel' && !poi.open);
 }
 
 // What winning a level pays on THIS clear: its rolled resources scaled by the site's reloot schedule (indexed by

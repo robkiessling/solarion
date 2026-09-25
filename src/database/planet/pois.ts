@@ -21,10 +21,15 @@ export const FIELD_EVENT_SPACING = 2;
  * The list reads by region, home outward, so a belt's settlement, camps, ambushes, finds and caches sit side by
  * side and tune as one. Order only matters among field events and ambushes (they take tiles in manifest order,
  * and the spacing between them can squeeze out whatever comes last), so within a region the one-offs are listed
- * before the counted ones. Settlements are placed first whatever their position here.
+ * before the counted ones. Sites and settlements are placed first whatever their position here.
  *
- * Settlements: `levels` lists the site's fights, surface first; most have one. Each level is a full battle of its own,
- * and every other fight (a camp, an ambush, a tunnel) is written in the same shape:
+ * Sites are the pre-war network installations, the same kind of thing as the player's base (the terminal numbers
+ * them: Site 2, Site 3; the base is the first). One tile, no territory, no camps: a facility to take for its power
+ * tap, not a city to clear. Securing one turns its tile into an outpost; securing the first opens replication.
+ *
+ * Settlements are the cities in the way (the terminal says "cluster"): `levels` lists the settlement's fights, surface
+ * first; most have one. Each level is a full battle of its own, and every other fight (a site's level, a camp, an
+ * ambush, a tunnel) is written in the same shape:
  *   `hostiles`    who holds it, a count per type ({ type: count }, see HOSTILE_TYPES in database/battle/units.ts).
  *                 The approach card's signature count is the sum. Entry order maps to formation slots, so a shelter
  *                 listed first takes a ring's center
@@ -86,7 +91,7 @@ export const POI_DEFS: PoiDef[] = [
             { hostiles: { defender: 3 }, reward: { resources: { refinedMinerals: [100, 200] } } }
         ],
         camps: [
-            { hostiles: { defender: 1, drone: 2 }, reward: { resources: { refinedMinerals: 100 } } }
+            { hostiles: { defender: 1, herd: 2 }, reward: { resources: { refinedMinerals: 100 } } }
         ]
     },
     {
@@ -133,7 +138,7 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
 
-    // ---- The near belt: Site 2 on a single tile, and the first two-level site with its count announced (it
+    // ---- The near belt: Site 2 on a single tile, and the first two-level cluster with its count announced (it
     // teaches the descend-or-withdraw rule)
     {
         type: 'settlement', zone: 'b', territoryRadius: 2,
@@ -147,7 +152,7 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
     {
-        type: 'settlement', zone: 'c', site: 2, territoryRadius: 0, levelsShown: true,
+        type: 'site', zone: 'c', number: 2, levelsShown: true,
         approachText: 'A pre-war compound on the valley floor, walls intact, gate shut. Dense returns behind the wall and nothing outside it. Fixed emitters on the wall line.',
         levels: [
             { hostiles: { shelter: 1, sentry: 2, defender: 14 }, terrain: 'compound' }
@@ -250,19 +255,14 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
     {
-        // PLACEHOLDER site: the real Site 2 goes on a Gobi point
-        type: 'settlement', zone: 'h', site: 2, territoryRadius: 2, levelsShown: true, discardedKg: [200, 400],
+        // PLACEHOLDER site: the real Site 3 goes on a Gobi point. A site holds no ground and seeds no camps (it is an
+        // installation, not a city), so its outer watch is gone: the levels inside are the whole fight.
+        type: 'site', zone: 'h', number: 3, levelsShown: true,
         approachText: 'A facility dug into a canyon wall, stationary returns ringing it at intervals. Dense returns at the core, past counting from here.',
-        campApproachText: 'A group posted well out from the facility. They knew this ground before you did.',
         levels: [
             { hostiles: { shelter: 1, defender: 18 }, formation: 'ring', terrain: 'canyon', reward: { resources: { refinedMinerals: [1500, 2500] } } },
             { hostiles: { defender: 16 }, formation: 'clusters', terrain: 'ruins', reward: { resources: { energy: [4000, 7000] } } },
             { hostiles: { defender: 14 }, formation: 'surround', reward: { resources: { refinedMinerals: [3000, 5000] } } }
-        ],
-        camps: [
-            { hostiles: { defender: 6 }, reward: { resources: { refinedMinerals: [400, 800] } } },
-            { hostiles: { defender: 6 }, terrain: 'rocks', reward: { resources: { refinedMinerals: [400, 800] } } },
-            { hostiles: { defender: 6 }, formation: 'clusters', reward: { resources: { refinedMinerals: [400, 800] } } }
         ]
     },
     // Pre-war stores behind rubble: a seal (see SealDef) the squad has to work out how to clear. The seal line hints at

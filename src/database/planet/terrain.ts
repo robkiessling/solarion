@@ -63,7 +63,7 @@ export const TERRAINS: Record<TerrainKey, TerrainDef> = {
     // repair, cargo banks, scouts dock) and the survey halo reaches out from it, but it is not replicated land
     // (nothing produces here until replication builds on it). Never painted; a settlement with `site` leaves
     // one behind when it falls.
-    outpost: { key: 'outpost', display: '▣', label: 'Site', crossTime: EXPLORATION_TIME_FACTOR },
+    outpost: { key: 'outpost', display: '#', label: 'Site', crossTime: EXPLORATION_TIME_FACTOR }, // the home glyph: a secured site is the same kind of installation as the base
     mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, impassable: true, blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // A permanent wall; also hides what is behind it
     // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, impassable: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
     ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, impassable: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // A permanent wall like the mountains, in ice

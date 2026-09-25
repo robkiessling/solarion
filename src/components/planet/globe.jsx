@@ -7,7 +7,7 @@ import {NUM_PLANET_ROWS, DISPLAY_COLS, PLANET_COLS} from "../../lib/planet/geome
 import {mod} from "../../lib/helpers";
 import {drawPlanetImage, drawSky} from "../../lib/planet/render";
 import {PLANET_COLORS, zoneColor} from "../../database/planet/colors";
-import {FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS, SITE_GLYPH} from "../../database/planet/poi_types";
+import {FIGHT_EFFECT_CHARS, POI_COLOR_KEYS, POI_GLYPHS, POI_LABELS} from "../../database/planet/poi_types";
 import {stepInDirection, squadCrossMs, squadZone} from "../../lib/planet/squad";
 import {CONTACT_MS, POPUP_INPUT_LOCK_MS, SQUAD_GLYPH} from "../../database/squad/tuning";
 import {promptActions} from "../../lib/planet/prompt_actions";
@@ -441,7 +441,7 @@ class Planet extends React.Component {
             if (poi.status !== 'available' && !peeking) return;
             const hovered = poi.id === this.props.hoveredPoiId;
             overlays[`${poi.coord[0]},${poi.coord[1]}`] = {
-                char: poi.site != null ? SITE_GLYPH : POI_GLYPHS[poi.type],
+                char: POI_GLYPHS[poi.type],
                 colorKey: hovered ? 'poiHighlight' : POI_COLOR_KEYS[poi.type],
                 ...(peeking ? { alpha: 0.5 } : {}),
                 // No selfLit: sites are things on the ground, not lights, and vanish into the night like the
@@ -652,7 +652,7 @@ class Planet extends React.Component {
         // POI legend entries only appear once relevant (any POI discovered)
         const anyPoiVisible = Object.values(this.props.pois || {}).some(poi => poi.status !== 'hidden');
         if (anyPoiVisible) {
-            ['cache', 'settlement', 'camp', 'storySite', 'tunnel', 'fieldEvent', 'ambush'].forEach(type => {
+            ['cache', 'settlement', 'site', 'camp', 'storySite', 'tunnel', 'fieldEvent', 'ambush'].forEach(type => {
                 markerLegend.push({ key: POI_COLOR_KEYS[type], display: POI_GLYPHS[type], label: POI_LABELS[type] });
             });
         }

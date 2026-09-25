@@ -14,7 +14,8 @@ import type {EquipmentId} from "../squad/equipment";
 
 export type PoiType =
     | 'cache'      // a supply drop: take it
-    | 'settlement' // where survivors live (the terminal only ever says "site"): stepping on it starts a fight
+    | 'settlement' // where survivors live, a city on the map (the terminal only ever says "cluster"): stepping on it starts a fight
+    | 'site'       // a pre-war network installation of the player's own kind, one tile, numbered: fought for, then powered ground
     | 'camp'       // a few of a settlement's people out on its held ground (the terminal says "contact"): a small fight
     | 'storySite'  // a ruin with a log to read
     | 'tunnel'     // a mouth of a passage under the sea: fought through once, then crossed at will
@@ -124,17 +125,15 @@ export interface CampDef extends FightDef {
     /** this camp's approach line; unset = the settlement's `campApproachText` */
     approachText?: string;
 }
-/** Where survivors live (the terminal says "site"): the site's fights and its held ground. A site with camps
- * writes the line they approach with (the type enforces the pairing). */
+/** Where survivors live (the terminal says "cluster"): a city in the way, with the fights inside it and the ground it
+ * holds around it. A settlement with camps writes the line they approach with (the type enforces the pairing). */
 export type SettlementDef = PlacedDef & {
     type: 'settlement';
     /** the approach card's line, shown before the fight is committed to */
     approachText: string;
     territoryRadius: number;
-    /** the site's fights, surface first (one or more) */
+    /** the settlement's fights, surface first (one or more) */
     levels: FightDef[];
-    /** built into a pre-war network facility: its number. Securing the first opens replication. */
-    site?: number;
     levelsShown?: boolean;
     reloot?: number[];
     discardedKg?: [number, number];
@@ -143,6 +142,19 @@ export type SettlementDef = PlacedDef & {
     { camps: CampDef[]; campApproachText: string } |
     { camps?: never; campApproachText?: never }
 );
+/** A pre-war network installation: the same kind of thing as the player's own base, which is why the squad has to go
+ * there (its power tap anchors replication; securing the first opens it). One tile, no territory, no camps, no discard
+ * line: it is a facility to take, not a city to clear. Its fights are the levels inside, and it pays once. */
+export interface SiteDef extends PlacedDef {
+    type: 'site';
+    /** the installation's number in the network (the player's base counts as the first) */
+    number: number;
+    /** the approach card's line, shown before the fight is committed to */
+    approachText: string;
+    /** the fights inside, entrance first (one or more) */
+    levels: FightDef[];
+    levelsShown?: boolean;
+}
 /** A scene on open ground, found by stepping on it: the offer line and its answers */
 export interface EventDef extends PlacedDef {
     type: 'fieldEvent';
@@ -174,7 +186,7 @@ export interface TunnelDef {
     /** battery the crossing costs, in flatland tiles walked */
     crossTiles: number;
 }
-export type PoiDef = CacheDef | StorySiteDef | SettlementDef | EventDef | AmbushDef | TunnelDef;
+export type PoiDef = CacheDef | StorySiteDef | SettlementDef | SiteDef | EventDef | AmbushDef | TunnelDef;
 /** The defs placed on painted ground (a zone or a point): every PoiDef but a tunnel */
 export type GroundDef = Exclude<PoiDef, TunnelDef>;
 
@@ -194,7 +206,8 @@ export const POI_TYPE_DEFAULTS: Record<PoiType, { actionLabel?: string, reloot?:
     cache: { actionLabel: 'Take' },
     storySite: {},
     tunnel: { reloot: [1], clearedLabel: 'Tunnel cleared' }, // crossed on entry once open
-    settlement: { reloot: [1, 0.5, 0.25], clearedLabel: 'Site cleared' },
+    settlement: { reloot: [1, 0.5, 0.25], clearedLabel: 'Cluster cleared' },
+    site: { reloot: [1], clearedLabel: 'Site secured' }, // the tile becomes an outpost; there is nothing to re-fight
     camp: { reloot: [1], clearedLabel: 'Contact cleared' },
     fieldEvent: {},
     ambush: { reloot: [1], clearedLabel: 'Ambush repelled' }
@@ -205,9 +218,7 @@ export const LOOT_LABELS: Partial<Record<ResourceId, string>> = { refinedMineral
 
 // Map display vocabulary (colorKeys index into PLANET_COLORS in database/planet/colors.ts; FIGHT_EFFECT_CHARS
 // animate over a settlement tile while a battle runs there).
-export const POI_GLYPHS: Record<PoiType, string> = { cache: '□', settlement: '▓', camp: '▒', storySite: '?', tunnel: '∩', fieldEvent: '!', ambush: '‼' }; // a density map: held ground '░' is scattered returns, a camp a knot of them, the settlement the dense core; cache: a crate; tunnel: a mouth; event and ambush: only ever seen once they have gone off
-export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory', tunnel: 'poiTunnel', fieldEvent: 'poiFieldEvent', ambush: 'poiFieldEvent' };
-// A settlement with `site` draws as the facility the plan says is there, not as a plain return
-export const SITE_GLYPH = '▣';
-export const POI_LABELS: Record<PoiType, string> = { cache: 'Supply Cache', settlement: 'Site', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel', fieldEvent: 'Event', ambush: 'Ambush' };
+export const POI_GLYPHS: Record<PoiType, string> = { cache: '□', settlement: '▓', site: '#', camp: '▒', storySite: '?', tunnel: '∩', fieldEvent: '!', ambush: '‼' }; // a density map: held ground '░' is scattered returns, a camp a knot of them, the settlement the dense core; site: the same mark as home (TERRAINS.home), in hostile red until it is secured and the outpost terrain carries it in the base's colour; cache: a crate; tunnel: a mouth; event and ambush: only ever seen once they have gone off
+export const POI_COLOR_KEYS: Record<PoiType, PlanetColorKey> = { cache: 'poiCache', settlement: 'poiSettlement', site: 'poiSettlement', camp: 'poiCamp', storySite: 'poiStory', tunnel: 'poiTunnel', fieldEvent: 'poiFieldEvent', ambush: 'poiFieldEvent' };
+export const POI_LABELS: Record<PoiType, string> = { cache: 'Supply Cache', settlement: 'Cluster', site: 'Site', camp: 'Contact', storySite: 'Ruins', tunnel: 'Tunnel', fieldEvent: 'Event', ambush: 'Ambush' };
 export const FIGHT_EFFECT_CHARS = ['×', '+', '*', '·'];

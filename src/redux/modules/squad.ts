@@ -263,7 +263,7 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
 
             // A network site secured: its tile becomes an outpost, powered ground of the player's own (see
             // TERRAINS.outpost). The cleared marker goes; the terrain carries the glyph from here on.
-            if (won && won.type === 'settlement' && won.site != null) {
+            if (won && won.type === 'site') {
                 updates.map = updates.map || {};
                 updates.map[won.coord[0]] = updates.map[won.coord[0]] || {};
                 updates.map[won.coord[0]][won.coord[1]] = { ...(updates.map[won.coord[0]][won.coord[1]] || {}),
@@ -930,7 +930,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                     dispatch(grantCapability(reward.capability));
                 }
                 if (poi.type === 'tunnel') revealFromSquad(dispatch, getState); // it came out the far mouth
-                if (poi.site != null) {
+                if (poi.type === 'site' && poi.site != null) {
                     dispatch(logInline(TELEMETRY.siteSecured(poi.site)));
                     // The ground under the squad just became powered: it gets what a step onto the grid gives
                     // (refill, repair, reload, cargo banked) without having to step off and back on

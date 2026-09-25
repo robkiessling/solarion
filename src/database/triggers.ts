@@ -92,10 +92,10 @@ const database = {
         condition: (battery) => battery != null && battery <= (store.getState().planet.squad?.batteryCapacity ?? 0) / 2,
         action: () => store.dispatch(fromUpgrades.discover('droidFactory_extendedCells'))
     }),
-    // Offense: a settlement is on the map, so there is something to aim a launcher at.
+    // Offense: a settlement or a site is on the map, so there is something to aim a launcher at.
     settlementSighted: trigger({
         selector: (state) => state.planet.pois,
-        condition: (pois) => Object.values(pois).some(poi => poi.type === 'settlement' && poi.status !== 'hidden'),
+        condition: (pois) => Object.values(pois).some(poi => (poi.type === 'settlement' || poi.type === 'site') && poi.status !== 'hidden'),
         action: () => {
             store.dispatch(fromUpgrades.discover('droidFactory_demoLauncher'));
             store.dispatch(fromUpgrades.discover('droidFactory_overchargeCell'));
@@ -116,7 +116,7 @@ const database = {
     firstSiteSecured: trigger({
         selector: (state) => state.planet.squadsReturned,
         condition: (returned) => returned > 0 && Object.values(store.getState().planet.pois)
-            .some(poi => poi.type === 'settlement' && poi.site != null && poi.status === 'cleared'),
+            .some(poi => poi.type === 'site' && poi.status === 'cleared'),
         action: () => store.dispatch(fromLog.startLogSequence('replicationOnline'))
     }),
     windTurbine_global: trigger({
