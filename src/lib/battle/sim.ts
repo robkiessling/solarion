@@ -418,11 +418,11 @@ export function countSpawners(battle: Battle): number {
  *
  * Targeting is two-tier: the exact ring search runs only out to NEAR_RINGS cells (everything that can
  * fight or is about to). Units farther than that from any enemy steer by a flow field instead -- a
- * multi-source BFS over the grid's cells seeded from every enemy-occupied cell -- because at
- * replicated-army scale (thousands per side on a giant arena) exact long-range searches made opening
- * ticks cost hundreds of ms. The field is still deterministic (seed order is grid insertion order =
- * units order; FIFO expansion breaks ties by queue position), just approximate: a marching unit heads
- * for its nearest enemy-occupied CELL, and precise nearest-unit targeting takes over as it closes in.
+ * multi-source shortest-path search over the terrain grid's cells seeded from every enemy-occupied
+ * cell -- because at replicated-army scale (thousands per side on a giant arena) exact long-range
+ * searches made opening ticks cost hundreds of ms. The field is still deterministic (seed order is
+ * units order; equal-cost expansion is FIFO), just approximate: a marching unit heads for its nearest
+ * enemy-occupied CELL, and precise nearest-unit targeting takes over as it closes in.
  */
 const TARGET_CELL = 12;                   // targeting cell size (arena units); coarse, rings expand as needed
 const NEAR_RINGS = 3;                     // exact-search radius in cells; beyond this the flow field steers
@@ -480,46 +480,67 @@ function nearestInGrid(grid: UnitGrid, x: number, y: number, maxDim: number, rin
 }
 
 // Long-range steering (see the two-tier note above): every cell learns which unit stands in its nearest
-// enemy-occupied cell, via multi-source BFS with each occupied cell seeded as its own source (its
+// enemy-occupied cell, via a multi-source Dijkstra with each occupied cell seeded as its own source (its
 // lowest-units-array-index occupant, the exact search's tie-break; seeds are found by iterating units in
 // array order). Runs on the terrain grid's cell metrics and refuses to expand through blocked cells, so
-// every cell also learns its BFS parent: one step along the (wall-respecting) path toward that enemy.
-// Units with line of sight to the cell's enemy charge it straight (identical to the old open-field
-// behavior); units without it steer to the parent cell instead, which is how armies round walls.
-// O(cells) per side per substep -- still cheap next to the per-unit work it replaces.
+// every cell also learns its parent: one step along the (wall-respecting) shortest path toward that
+// enemy. Units with line of sight to the cell's enemy charge it straight (identical to the old
+// open-field behavior); units without it steer to the parent cell instead, which is how armies round
+// walls.
+//
+// Steps are priced by real cell geometry rather than counted: a plain 8-connected BFS calls a diagonal
+// step as short as a straight one, so for an enemy dead ahead every zig-zag bulge ties the straight
+// line and the north-first neighbor order handed each cell a parent one row up. Both armies then
+// marched diagonally north for half the approach and back down for the rest. With a diagonal costing
+// more than a straight step the straight line is the unique optimum, so the ties (and the drift) are
+// gone. The costs are integers so a bucket queue (Dial's algorithm) keeps the search O(cells) per side
+// per substep with FIFO tie-breaking, still cheap next to the per-unit work it replaces.
+const FLOW_STEP_X = 5;    // cells are 2 wide by 3.2 tall, so a horizontal, vertical and diagonal step
+const FLOW_STEP_Y = 8;    // run 2 : 3.2 : 3.77, which 5 : 8 : 9 approximates
+const FLOW_STEP_DIAG = 9;
+
 function buildFlowField(units: BattleUnit[], side: BattleSide, terrainGrid: TerrainGrid | null, arenaW: number, arenaH: number) {
     const cols = terrainGrid ? terrainGrid.cols : Math.ceil(arenaW / TERRAIN_CELL_W);
     const rows = terrainGrid ? terrainGrid.rows : Math.ceil(arenaH / TERRAIN_CELL_H);
     const target = new Array(cols * rows).fill(null);
     const parent = new Int32Array(cols * rows).fill(-1);
-    const queue: number[] = [];
+    const cost = new Int32Array(cols * rows).fill(-1);  // best travel cost found so far; -1 = unreached
+    const buckets: number[][] = [[]];                   // cells to expand, indexed by their cost
     for (const unit of units) {
         if (unit.side !== side) continue;
         // Clamped: withdrawing droids can hold positions just off-field (x down to -2)
         const c = Math.min(cols - 1, Math.max(0, Math.floor(unit.x / TERRAIN_CELL_W)));
         const r = Math.min(rows - 1, Math.max(0, Math.floor(unit.y / TERRAIN_CELL_H)));
         const idx = r * cols + c;
-        if (target[idx] === null) { target[idx] = unit; queue.push(idx); }
+        if (target[idx] === null) { target[idx] = unit; cost[idx] = 0; buckets[0].push(idx); }
     }
     const blocked = terrainGrid ? terrainGrid.blocked : null;
-    for (let head = 0; head < queue.length; head++) {
-        const idx = queue[head];
-        const c = idx % cols, r = (idx - c) / cols;
-        for (let dr = -1; dr <= 1; dr++) {
-            for (let dc = -1; dc <= 1; dc++) {
-                if (!dc && !dr) continue;
-                const nc = c + dc, nr = r + dr;
-                if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
-                const nIdx = nr * cols + nc;
-                if (target[nIdx] !== null) continue;
-                if (blocked) {
-                    if (blocked.has(nIdx)) continue;
-                    // No corner cutting: a diagonal step needs both orthogonal cells open too
-                    if (dc && dr && (blocked.has(r * cols + nc) || blocked.has(nr * cols + c))) continue;
+    for (let d = 0; d < buckets.length; d++) {
+        const bucket = buckets[d];
+        if (!bucket) continue;
+        for (let head = 0; head < bucket.length; head++) {
+            const idx = bucket[head];
+            if (cost[idx] !== d) continue; // stale entry: the cell was reached cheaper after this push
+            const c = idx % cols, r = (idx - c) / cols;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (!dc && !dr) continue;
+                    const nc = c + dc, nr = r + dr;
+                    if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+                    const nIdx = nr * cols + nc;
+                    const nd = d + (dc && dr ? FLOW_STEP_DIAG : dc ? FLOW_STEP_X : FLOW_STEP_Y);
+                    if (cost[nIdx] >= 0 && cost[nIdx] <= nd) continue;
+                    if (blocked) {
+                        if (blocked.has(nIdx)) continue;
+                        // No corner cutting: a diagonal step needs both orthogonal cells open too
+                        if (dc && dr && (blocked.has(r * cols + nc) || blocked.has(nr * cols + c))) continue;
+                    }
+                    cost[nIdx] = nd;
+                    target[nIdx] = target[idx];
+                    parent[nIdx] = idx;
+                    if (!buckets[nd]) buckets[nd] = [];
+                    buckets[nd].push(nIdx);
                 }
-                target[nIdx] = target[idx];
-                parent[nIdx] = idx;
-                queue.push(nIdx);
             }
         }
     }
