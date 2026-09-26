@@ -94,13 +94,17 @@ export const POI_DEFS: PoiDef[] = [
             { hostiles: { defender: 1, herd: 2 }, reward: { resources: { refinedMinerals: 100 } } }
         ]
     },
+    // Caches: the map's category is Supply Cache (the scan sees regular geometry, nothing more); the popup title is the
+    // object the optics find. Near home the lines use drop vocabulary (seals intact, a chute), so they read as stores
+    // seeded for the mission; farther out they read as someone else's logistics, abandoned; the vaults say pre-war.
+    // Function words only (crate, pallet, depot, trailer): never a word that settles whose they are.
     {
-        type: 'cache', zone: 'a',
+        type: 'cache', zone: 'a', name: 'Supply Crate',
         promptText: 'A supply crate on its side, seals intact{loot}. Take it?',
         reward: { resources: { ore: [500, 1000] } }
     },
     {
-        type: 'cache', zone: 'a',
+        type: 'cache', zone: 'a', name: 'Drop Pallet',
         promptText: 'A drop pallet, chute still tangled in the frame{loot}. Take it?',
         reward: { resources: { refinedMinerals: [200, 400] } }
     },
@@ -185,12 +189,12 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
     {
-        type: 'cache', zone: 'c',
+        type: 'cache', zone: 'c', name: 'Ore Sacks',
         promptText: 'Ore sacks under a collapsed awning, never collected{loot}. Take it?',
         reward: { resources: { ore: [2000, 4000] } }
     },
     {
-        type: 'cache', zone: 'd',
+        type: 'cache', zone: 'd', name: 'Field Depot',
         promptText: 'A field depot, door forced from outside, shelves still full{loot}. Take it?',
         reward: { resources: { refinedMinerals: [1000, 2000] } }
     },
@@ -280,7 +284,7 @@ export const POI_DEFS: PoiDef[] = [
         reward: { resources: { ore: [5000, 9000] } }
     },
     {
-        type: 'cache', zone: 'j',
+        type: 'cache', zone: 'j', name: 'Convoy Trailer',
         promptText: 'A convoy trailer, uncoupled and left{loot}. Take it?',
         reward: { resources: { refinedMinerals: [2000, 4000] } }
     },
