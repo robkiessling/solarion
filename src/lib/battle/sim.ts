@@ -544,7 +544,26 @@ function buildFlowField(units: BattleUnit[], side: BattleSide, terrainGrid: Terr
             }
         }
     }
-    return { target, parent, cols, rows };
+    return { target, parent, cost, cols, rows };
+}
+
+// The exact ring search is skipped for a unit whose flow cost to the nearest enemy cell proves the
+// rings hold nobody. During an approach every unit is out of ring range, so without this every one
+// of them scanned all 49 cells, found nothing and steered by the field anyway; at army scale that
+// empty scan was most of the opening ticks (the fight itself is cheaper: hits come in the first ring
+// and the search exits on its bound). The threshold is the largest flow cost an enemy inside the
+// scan area could have, so the skip never changes a result: the rings reach (NEAR_RINGS + 1) target
+// cells in each axis, the field's cost per arena unit is at least the diagonal step's ratio, and the
+// unit and its enemy each sit anywhere within their flow cells (one cell diagonal of slack each).
+// An unreached cell (cost -1, sealed off) still scans, since the exact search ignores walls.
+const FLOW_NEAR_SKIP_COST = Math.ceil(
+    ((NEAR_RINGS + 1) * TARGET_CELL * Math.SQRT2 + 2 * Math.hypot(TERRAIN_CELL_W, TERRAIN_CELL_H)) *
+    Math.min(FLOW_STEP_X / TERRAIN_CELL_W, FLOW_STEP_Y / TERRAIN_CELL_H, FLOW_STEP_DIAG / Math.hypot(TERRAIN_CELL_W, TERRAIN_CELL_H)));
+
+function flowCostAt(field: FlowField, unit: BattleUnit) {
+    const c = Math.min(field.cols - 1, Math.max(0, Math.floor(unit.x / TERRAIN_CELL_W)));
+    const r = Math.min(field.rows - 1, Math.max(0, Math.floor(unit.y / TERRAIN_CELL_H)));
+    return field.cost[r * field.cols + c];
 }
 
 // Beyond this squared distance the LOS probe to the flow target is skipped and the parent chain steers
@@ -638,7 +657,8 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
     // flow field, which knows the way around walls. On open ground LOS is always clear, so this is
     // exactly the historical nearest-or-flow behavior.
     const acquire = (unit: BattleUnit, nearGrid: UnitGrid, flow: FlowField) => {
-        const near = nearestInGrid(nearGrid, unit.x, unit.y, maxDim, NEAR_RINGS);
+        const flowCost = flowCostAt(flow, unit);
+        const near = flowCost > FLOW_NEAR_SKIP_COST ? null : nearestInGrid(nearGrid, unit.x, unit.y, maxDim, NEAR_RINGS);
         if (near && hasLOS(tGrid, unit.x, unit.y, near.x, near.y)) {
             // A ranged unit holds just inside its reach instead of closing to melee (NEAR_RINGS spans more
             // than any declared range, so the exact search always covers it)
