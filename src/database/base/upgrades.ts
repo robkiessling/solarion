@@ -1050,6 +1050,74 @@ const database = {
         }
     }),
 
+
+    // ---- Site replication. A command center can only be copied onto a pre-war network installation (the poured
+    // foundations and power tap the base itself stands on), so each secured site offers one copy of the base, bought
+    // once. Developed land counts command centers (home is 1) and every production rate and the fielded squad scale
+    // by it, so the first site takes the base to x2, the second to x3, the third to x4. The third copy also opens
+    // land replication (the `replicate` ability, learned by the replicationOnline sequence): with three
+    // installations powered, surveyed flatland can carry copies too, and from there the ability doubles.
+    // Standalone (no structure): offered on the Planet card once the squad that took the site has come home (the
+    // siteReplication triggers in database/triggers.ts), in order, one record per secured site. Costs are
+    // PLACEHOLDER tuning, pitched at the act each site is taken in.
+    replication_site1: upgrade({
+        name: "Command Center II",
+        standalone: true,
+        description: "Copies the base onto the secured site's foundations: a second command center. Every production rate, and the fielded squad, ×2.",
+        researchTime: 15,
+        cost: {
+            energy: 3000,
+            ore: 8000,
+            refinedMinerals: 600
+        },
+        affects: {
+            type: 'misc'
+        }
+    }),
+    replication_site2: upgrade({
+        name: "Command Center III",
+        standalone: true,
+        description: "Copies the base onto the second secured site's foundations: a third command center. Every production rate, and the fielded squad, ×3.",
+        researchTime: 15,
+        cost: {
+            energy: 8000,
+            ore: 20000,
+            refinedMinerals: 2000
+        },
+        affects: {
+            type: 'misc'
+        }
+    }),
+    replication_site3: upgrade({
+        name: "Command Center IV",
+        standalone: true,
+        description: "Copies the base onto the third secured site's foundations: a fourth command center. Every production rate, and the fielded squad, ×4. " +
+            "With three installations powered, the network can carry copies of the base onto surveyed flatland: replication opens.",
+        researchTime: 15,
+        cost: {
+            energy: 20000,
+            ore: 50000,
+            refinedMinerals: 5000
+        },
+        affects: {
+            type: 'misc'
+        }
+    }),
+    replication_site4: upgrade({
+        name: "Command Center V",
+        standalone: true,
+        description: "Copies the base onto the fourth secured site's foundations: a fifth command center, one more copy of the base on the network's own ground.",
+        researchTime: 15,
+        cost: {
+            energy: 50000,
+            ore: 120000,
+            refinedMinerals: 12000
+        },
+        affects: {
+            type: 'misc'
+        }
+    }),
+
     probeFactory_exponentialGrowth: upgrade({
         name: "Exponential Growth",
         structure: 'probeFactory',
@@ -1079,6 +1147,13 @@ export type UpgradeId = keyof typeof database;
 
 export default database;
 
+
+// A command center copied onto a secured site: one more developed tile (the site's own, already an outpost on the
+// map, so nothing is painted), and the multiplier every rate and the squad scale by steps up by one.
+function commandCenterReplicated(dispatch: Dispatch) {
+    dispatch(fromResources.produce({ developedLand: 1 }));
+    dispatch(fromLog.logInline('Command center replicated onto the secured installation. Production and squad: scaled.'));
+}
 
 // Functions can't be stored in the state so storing them in this const
 export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispatch) => void }>> = {
@@ -1187,6 +1262,22 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
         onFinish: (dispatch) => {
             dispatch(fromPlanet.setExploreSpeed(5));
         }
+    },
+
+    replication_site1: {
+        onFinish: (dispatch) => commandCenterReplicated(dispatch)
+    },
+    replication_site2: {
+        onFinish: (dispatch) => commandCenterReplicated(dispatch)
+    },
+    replication_site3: {
+        onFinish: (dispatch) => {
+            commandCenterReplicated(dispatch);
+            dispatch(fromLog.startLogSequence('replicationOnline')); // learns the replicate ability
+        }
+    },
+    replication_site4: {
+        onFinish: (dispatch) => commandCenterReplicated(dispatch)
     },
 
     solarPanel_sunShield: {

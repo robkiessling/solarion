@@ -3,7 +3,9 @@ import {connect} from "react-redux";
 import {roundToDecimal} from "../../lib/helpers";
 import DroidCount from "../structures/droid_count";
 import Ability from "../structures/ability";
+import Upgrade from "../structures/upgrade";
 import {getAbility} from "../../redux/modules/abilities";
+import {getStandaloneIds} from "../../redux/modules/upgrades";
 import {getIcon, getQuantity, getResource} from "../../redux/modules/resources";
 import {clearBeacon, percentExplored} from "../../redux/modules/planet";
 import {planetDevelopmentProgress, showDroidsUI, surveyAutomationUnlocked} from "../../redux/reducer";
@@ -11,8 +13,8 @@ import {planetDevelopmentProgress, showDroidsUI, surveyAutomationUnlocked} from 
 /**
  * The Planet tab's left-slot status card, the counterpart of the Base tab's Command Center: how much of the
  * world is known and how far replication has spread. Rows appear as their systems unlock (sites once one is
- * found, land and replication once a settlement is cleared, beacon and scouts with Survey Automation) rather than
- * sitting under empty section headers.
+ * found, replication once a secured site offers a copy of the base, land with the replicate ability, beacon and
+ * scouts with Survey Automation) rather than sitting under empty section headers.
  */
 class PlanetCard extends React.Component {
     render() {
@@ -32,21 +34,33 @@ class PlanetCard extends React.Component {
                     </span>
                 }
                 {
-                    // Land is only ever spent on replication, so the pair arrives with the ability
+                    // Replication counts command centers: home, then each secured site the base is copied onto (the
+                    // offers below), then land copies once the replicate ability opens. The row arrives with the first
+                    // offer; land is only ever spent on the ability, so its pair arrives with that.
+                    this.props.replicationShown &&
+                    <span className="key-value-pair">
+                        <span>Replication:</span>
+                        <span className="replication-x">×{this.props.developedLand}</span>
+                    </span>
+                }
+                {
                     this.props.replicateAbility &&
-                    <React.Fragment>
-                        <span className="key-value-pair">
-                            <span>Available Land:</span>
-                            <span>
-                                {this.props.buildableLand}
-                                <span className={this.props.buildableLandIcon}></span>
-                            </span>
+                    <span className="key-value-pair">
+                        <span>Available Land:</span>
+                        <span>
+                            {this.props.buildableLand}
+                            <span className={this.props.buildableLandIcon}></span>
                         </span>
-                        <span className="key-value-pair">
-                            <span>Replication:</span>
-                            <span className="replication-x">×{this.props.developedLand}</span>
-                        </span>
-                    </React.Fragment>
+                    </span>
+                }
+                {
+                    // A secured site's one-time offer: copy the base onto its foundations (replication_site* in
+                    // database/base/upgrades.ts). Bought once each, so the list empties as they are taken.
+                    this.props.siteUpgradeIds.length > 0 &&
+                    <div className="site-replication">
+                        {this.props.siteUpgradeIds.map(id =>
+                            <Upgrade key={id} id={id} tooltipProps={{ place: 'align-left-column' }}/>)}
+                    </div>
                 }
                 {
                     // The growth beacon (ships with Survey Automation): replication grows toward it
@@ -79,13 +93,18 @@ class PlanetCard extends React.Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
+    const siteUpgradeIds = getStandaloneIds(state.upgrades); // the only standalone upgrades are the site copies
+    const developedLand = getQuantity(getResource(state.resources, 'developedLand'));
+    const replicateAbility = getAbility(state.abilities, 'replicate');
     return {
+        siteUpgradeIds,
+        replicationShown: siteUpgradeIds.length > 0 || developedLand > 1 || !!replicateAbility,
         percentExplored: percentExplored(state.planet),
         sitesFound: Object.values(state.planet.pois).filter(poi => poi.status !== 'hidden' && poi.type !== 'camp').length, // camps are contacts, not sites
         buildableLand: getQuantity(getResource(state.resources, 'buildableLand')),
         buildableLandIcon: getIcon('buildableLand'),
-        developedLand: getQuantity(getResource(state.resources, 'developedLand')),
-        replicateAbility: getAbility(state.abilities, 'replicate'),
+        developedLand,
+        replicateAbility,
         finishedReplicating: planetDevelopmentProgress(state) === 1.0,
         surveyUnlocked: surveyAutomationUnlocked(state),
         showDroidsUI: showDroidsUI(state),

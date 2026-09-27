@@ -108,17 +108,16 @@ const database = {
         condition: (fought) => fought >= 1,
         action: () => store.dispatch(fromLog.startLogSequence('firstBattleOver'))
     }),
-    // Replication: a network SITE has fallen (a settlement def with `site`, the pre-war facility whose
-    // foundations and power tap replication needs; ordinary villages don't count) and a squad has come home
-    // since. Waiting for the return keeps this beat apart from the battle's own, and Replicate is held while a
-    // squad is fielded anyway. A wipe is not a return: firing on "no squad" made a team lost on a later
-    // assault read as the site being cleared.
-    firstSiteSecured: trigger({
-        selector: (state) => state.planet.squadsReturned,
-        condition: (returned) => returned > 0 && Object.values(store.getState().planet.pois)
-            .some(poi => poi.type === 'site' && poi.status === 'cleared'),
-        action: () => store.dispatch(fromLog.startLogSequence('replicationOnline'))
-    }),
+    // Site replication: a network SITE has fallen (the pre-war facility whose foundations and power tap a command
+    // center can be copied onto; ordinary villages don't count) and a squad has come home since. Waiting for the
+    // return keeps this beat apart from the battle's own. A wipe is not a return: firing on "no squad" made a team
+    // lost on a later assault read as the site being cleared. One trigger per secured site, in order, each offering
+    // the next command-center copy (replication_site* in database/base/upgrades.ts); the first also explains the
+    // offer. Two sites taken on one trip fire two of these on the same return.
+    siteReplication1: siteReplicationTrigger(1, () => store.dispatch(fromLog.startLogSequence('siteReplicationOffered'))),
+    siteReplication2: siteReplicationTrigger(2, () => store.dispatch(fromUpgrades.discover('replication_site2'))),
+    siteReplication3: siteReplicationTrigger(3, () => store.dispatch(fromUpgrades.discover('replication_site3'))),
+    siteReplication4: siteReplicationTrigger(4, () => store.dispatch(fromUpgrades.discover('replication_site4'))),
     windTurbine_global: trigger({
         selector: (state) => state.resources.byId.developedLand,
         condition: (slice) => !!slice && slice.amount >= 100,
@@ -162,6 +161,16 @@ const database = {
 
 
 } satisfies Record<string, TriggerRecord>;
+
+// Fires on a squad's return once at least `sitesSecured` network sites have fallen (see the siteReplication entries)
+function siteReplicationTrigger(sitesSecured: number, action: () => void) {
+    return trigger({
+        selector: (state) => state.planet.squadsReturned,
+        condition: (returned) => returned > 0 && Object.values(store.getState().planet.pois)
+            .filter(poi => poi.type === 'site' && poi.status === 'cleared').length >= sitesSecured,
+        action
+    });
+}
 
 function solarFarmStanding() {
     const solar = store.getState().structures.byId.solarPanel;

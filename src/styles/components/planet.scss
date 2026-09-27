@@ -318,6 +318,25 @@ $hud-clearance: 6.5rem;
   .droid-count {
     font-size: inherit;
   }
+
+  // The command-center copies secured sites offer (components/planet/card.jsx): one upgrade per line, laid out
+  // like the Expedition panel's Outfitting list
+  .site-replication {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.25rem 0;
+
+    button {
+      margin: 0.25rem 0;
+      height: 2rem;
+
+      span {
+        display: flex;
+        align-items: center;
+      }
+    }
+  }
 }
 
 .expedition-status {

@@ -25,7 +25,8 @@ export const FIELD_EVENT_SPACING = 2;
  *
  * Sites are the pre-war network installations, the same kind of thing as the player's base (the terminal numbers
  * them: Site 2, Site 3; the base is the first). One tile, no territory, no camps: a facility to take for its power
- * tap, not a city to clear. Securing one turns its tile into an outpost; securing the first opens replication.
+ * tap, not a city to clear. Securing one turns its tile into an outpost and offers a one-time copy of the base onto
+ * it (replication_site* in database/base/upgrades.ts, on the Planet card); the third copy opens land replication.
  *
  * Settlements are the cities in the way (the terminal says "cluster"): `levels` lists the settlement's fights, surface
  * first; most have one. Each level is a full battle of its own, and every other fight (a site's level, a camp, an

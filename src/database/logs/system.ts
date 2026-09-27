@@ -402,7 +402,10 @@ export default {
             dispatch(addTrigger('squadBatteryHalf'));
             dispatch(addTrigger('settlementSighted'));
             dispatch(addTrigger('firstBattleOver'));
-            dispatch(addTrigger('firstSiteSecured'));
+            dispatch(addTrigger('siteReplication1'));
+            dispatch(addTrigger('siteReplication2'));
+            dispatch(addTrigger('siteReplication3'));
+            dispatch(addTrigger('siteReplication4'));
         }
     },
 
@@ -430,10 +433,24 @@ export default {
         }
     },
 
+    // The first secured site (the squad home since): the base can be copied onto its foundations, an offer on the
+    // Planet card (replication_site1; the later sites' offers arrive without the explanation)
+    siteReplicationOffered: {
+        text: [
+            ['', 0],
+            ['Site foundations surveyed. Layout matches the base.', 500, true],
+            ['Command center replication: OFFERED (see Planet).', 1000, true],
+        ],
+        onFinish: (dispatch) => {
+            dispatch(fromUpgrades.discover('replication_site1'));
+        }
+    },
+
+    // The third command-center copy (replication_site3): land replication opens
     replicationOnline: {
         text: [
             ['', 0],
-            ['Site secured. Foundations intact; power tap live.', 500, true],
+            ['Three installations on the network. Uplink: stable.', 500, true],
             ['Replication: AVAILABLE', 1000, true],
             ['Surveyed flatland can now carry copies of the base.', 1500, true],
         ],
