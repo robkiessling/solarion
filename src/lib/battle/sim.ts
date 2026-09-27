@@ -41,6 +41,8 @@ export interface Battle {
     stats: { [unitType: string]: UnitStats };
     arenaW: number;
     arenaH: number;
+    /** real combatants per field unit (see FIELD_CAP); 1 (or unset, on older saves) = every unit is one droid or hostile */
+    stack: number;
     startingDroids: number;
     startingHostiles: number;
     startingSpawners: number;
@@ -125,6 +127,44 @@ export const FX_TTL_MS = 600;   // hit/death/bomb markers linger this long for t
 // A fresh squad's per-droid hp list (persistence helpers: squad state and save migration use it too).
 export function fullDroidHp(count: number, maxHp: number = DROID_BASE_STATS.hp): number[] {
     return new Array(count).fill(maxHp);
+}
+
+// Field cap. Replication multiplies the fielded squad, and a level is authored as a ratio against it, so
+// late fights are written in the thousands a side. The sim, the popup and the eye all top out at a few
+// hundred, and the arena's formations, ranges and splash radii are tuned there. Above the cap a fight is
+// scaled down at the door instead: one stack factor for the whole engagement (the smallest whole number
+// that brings the bigger side under the cap), both rosters divided by it, every unit's hull and damage
+// multiplied by it. Kill times are unchanged (a stack hits k times harder into k times the hull), both
+// sides shrink by the same factor so the authored ratio holds, and a unit on the field simply stands for
+// k real ones. The sim runs the fight the level was tuned at; only the door and the exit know the factor.
+// Survivors and wounds multiply back out at the end (unstackDroidHp), the popup multiplies its counts,
+// and equipment scales its per-unit numbers. Under the cap the factor is 1 and nothing here applies.
+export const FIELD_CAP = 1000;
+
+/** Groups a per-droid hull list into stacks of `stack` droids: each stack's hull is its members' hull summed,
+ * and its max is its member count's worth (a short last stack heals only as far as the droids it holds). */
+function stackDroidHp(droidHp: number[], stack: number, hpMax: number): { hp: number, maxHp: number }[] {
+    const stacks: { hp: number, maxHp: number }[] = [];
+    for (let i = 0; i < droidHp.length; i += stack) {
+        const members = droidHp.slice(i, i + stack);
+        stacks.push({ hp: members.reduce((sum, hp) => sum + hp, 0), maxHp: members.length * hpMax });
+    }
+    return stacks;
+}
+
+/** The per-droid hull list a stack's hull stands for: as many whole droids as it holds, plus one carrying the
+ * remainder. Damage into a stack thus kills its members one at a time, and a stack at full hull is `stack`
+ * unhurt droids. */
+export function unstackDroidHp(stackHp: number[], stack: number, hpMax: number): number[] {
+    if (stack <= 1) return stackHp;
+    const droidHp: number[] = [];
+    for (const hp of stackHp) {
+        const whole = Math.floor(hp / hpMax + 1e-9);
+        for (let i = 0; i < whole; i++) droidHp.push(hpMax);
+        const remainder = hp - whole * hpMax;
+        if (remainder > 1e-9) droidHp.push(remainder);
+    }
+    return droidHp;
 }
 
 /**
@@ -294,13 +334,13 @@ export function battleBlurb(battle: Battle, formation?: HostileFormation): strin
 // One combat-ready unit. `base` selects the unit's deterministic hash streams (opening swing delay,
 // wobble phase/period, collision tie-break angle) and must be unique across every unit the battle will
 // ever hold, including hostiles a spawner adds mid-fight.
-function makeUnit(id: string, side: BattleSide, type: UnitType, stats: UnitStats, base: number, x: number, y: number, arenaW: number, arenaH: number, hp?: number): BattleUnit {
+function makeUnit(id: string, side: BattleSide, type: UnitType, stats: UnitStats, base: number, x: number, y: number, arenaW: number, arenaH: number, hp?: number, maxHp?: number): BattleUnit {
     const unit: BattleUnit = {
         id, side, type,
         x: Math.min(arenaW - 2, Math.max(2, x)),
         y: Math.min(arenaH - 2, Math.max(2, y)),
         hp: hp != null ? hp : stats.hp,
-        maxHp: stats.hp,
+        maxHp: maxHp != null ? maxHp : stats.hp,
         cooldownMs: Math.floor(hash01(base + 200003) * stats.attackMs), // desynchronized opening swings
         seed: hash01(base) * 2 * Math.PI,                // wobble phase (also the collision tie-break angle)
         wobbleMs: 340 + Math.floor(hash01(base + 100003) * 120) // per-unit wobble period, 340-460ms
@@ -311,7 +351,7 @@ function makeUnit(id: string, side: BattleSide, type: UnitType, stats: UnitStats
 
 // roster: [{ type, hp? }] per unit; hp defaults to the type's full pool. Formation positions that land
 // on terrain are relocated to the nearest reachable ground (see freePosition).
-function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number }[], statsByType: Record<UnitType, UnitStats>, arenaW: number, arenaH: number, formation: FormationId, terrainGrid: TerrainGrid | null, anchor: XY | null = null): BattleUnit[] {
+function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number, maxHp?: number }[], statsByType: Record<UnitType, UnitStats>, arenaW: number, arenaH: number, formation: FormationId, terrainGrid: TerrainGrid | null, anchor: XY | null = null): BattleUnit[] {
     const layout = FORMATIONS[formation] || FORMATIONS.column;
     let positions = layout(roster.length, arenaW, arenaH, side);
     if (anchor && positions.length > 0) {
@@ -325,7 +365,7 @@ function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number }[],
             : positions[i];
         return makeUnit(`${side[0]}${i}`, side, entry.type, statsByType[entry.type],
             i * 2 + sideSalt, // distinct hash streams per unit AND per side
-            pos.x, pos.y, arenaW, arenaH, entry.hp);
+            pos.x, pos.y, arenaW, arenaH, entry.hp, entry.maxHp);
     });
 }
 
@@ -351,18 +391,28 @@ function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number }[],
 export function createBattle(droids: number | number[], hostiles: Partial<Record<HostileType, number>>,
                              droidStats: DroidStats = DROID_BASE_STATS, hostileFormation: HostileFormation = 'column',
                              terrainId: TerrainLayoutId | null = null, terrainSalt = 0): Battle {
-    const droidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
-    const stats: Record<UnitType, UnitStats> = { droid: droidStats, ...HOSTILE_TYPES };
+    const realDroidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
+    const realHostiles = typedEntries(hostiles).reduce((n, [, count]) => n + (count || 0), 0);
+    const stack = Math.max(1, Math.ceil(Math.max(realDroidHp.length, realHostiles) / FIELD_CAP));
+    // Stacked: every type's hull and damage carry the factor, so mid-fight spawns and the header's stat reads
+    // scale with the roster. A type too few for a whole stack still fields one unit (a little over strength).
+    const scaled = (unitStats: UnitStats): UnitStats => ({ ...unitStats, hp: unitStats.hp * stack, damage: unitStats.damage * stack });
+    const stats: Record<UnitType, UnitStats> = stack === 1 ? { droid: droidStats, ...HOSTILE_TYPES } :
+        Object.fromEntries(typedEntries({ droid: droidStats, ...HOSTILE_TYPES }).map(([type, unitStats]) => [type, scaled(unitStats)])) as Record<UnitType, UnitStats>;
+    const droidRoster: { type: UnitType, hp: number, maxHp?: number }[] = stack === 1
+        ? realDroidHp.map(hp => ({ type: 'droid', hp }))
+        : stackDroidHp(realDroidHp, stack, droidStats.hp).map(({ hp, maxHp }) => ({ type: 'droid', hp, maxHp }));
     const hostileRoster: { type: HostileType, hp?: number }[] = [];
     typedEntries(hostiles).forEach(([type, n]) => {
-        for (let i = 0; i < n; i++) hostileRoster.push({ type });
+        const count = stack === 1 ? n : (n > 0 ? Math.max(1, Math.round(n / stack)) : 0);
+        for (let i = 0; i < count; i++) hostileRoster.push({ type });
     });
 
     const startingSpawners = hostileRoster.reduce((n, e) => n + (HOSTILE_TYPES[e.type].spawnEveryMs ? 1 : 0), 0);
 
     // Constant-density field: area grows with headcount, so linear dimensions scale with its square root.
     // Small fights stay on the baseline arena (never shrink below it).
-    const arenaScale = Math.max(1, Math.sqrt((droidHp.length + hostileRoster.length) / ARENA_BASELINE_UNITS));
+    const arenaScale = Math.max(1, Math.sqrt((droidRoster.length + hostileRoster.length) / ARENA_BASELINE_UNITS));
     const arenaW = Math.round(ARENA_W * arenaScale);
     const arenaH = Math.round(ARENA_H * arenaScale);
 
@@ -380,7 +430,8 @@ export function createBattle(droids: number | number[], hostiles: Partial<Record
         stats,                          // per-type stat blocks this battle runs on (upgrade snapshot)
         arenaW,                         // field dimensions for this engagement (renderer + clamps)
         arenaH,
-        startingDroids: droidHp.length, // initial force sizes; the header fractions read against these
+        stack,                          // real combatants per field unit; every count below is in field units
+        startingDroids: droidRoster.length, // initial force sizes; the header fractions read against these
         startingHostiles: hostileRoster.length,
         startingSpawners,
         // High-water mark of the field (spawners excluded): the header's hostile-fraction denominator, so a
@@ -393,7 +444,7 @@ export function createBattle(droids: number | number[], hostiles: Partial<Record
         terrain,                        // { id, pieces: [{ art, col, row }] } or null for open ground
         fx: [],                         // { type: 'hit'|'death'|'heal'|'bomb', x, y, t } markers for the renderer
         units: [
-            ...spawnUnits('droid', droidHp.map(hp => ({ type: 'droid', hp })), stats, arenaW, arenaH,
+            ...spawnUnits('droid', droidRoster, stats, arenaW, arenaH,
                 COUNTER_FORMATIONS[hostileFormation] || 'edge', terrainGrid),
             ...spawnUnits('hostile', hostileRoster, stats, arenaW, arenaH, hostileFormation, terrainGrid, hostileAnchor)
         ]
@@ -884,17 +935,22 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
     alive.push(...spawned);
     const hostilesPeak = Math.max(battle.hostilesPeak || 0, fieldHostiles); // field high-water mark (header denominator)
 
+    // The event reports real droids and hostiles: a stacked fight's hulls unstack (see FIELD_CAP)
     const droidsLeft = alive.reduce((n, u) => n + (u.side === 'droid' ? 1 : 0), 0);
     const hostilesLeft = alive.length - droidsLeft;
+    const stack = battle.stack || 1;
+    const perDroidHp = battle.stats.droid.hp / stack;
     if (droidsLeft === 0) {
+        const survivorHp = unstackDroidHp(escapedHp, stack, perDroidHp);
         events.push(escaped > 0
-            ? { type: 'battleOver', result: 'retreated', survivors: escaped, hostilesRemaining: hostilesLeft, droidHp: escapedHp }
-            : { type: 'battleOver', result: 'wiped', survivors: 0, hostilesRemaining: hostilesLeft, droidHp: [] });
+            ? { type: 'battleOver', result: 'retreated', survivors: survivorHp.length, hostilesRemaining: hostilesLeft * stack, droidHp: survivorHp }
+            : { type: 'battleOver', result: 'wiped', survivors: 0, hostilesRemaining: hostilesLeft * stack, droidHp: [] });
     }
     else if (hostilesLeft === 0) {
         const standerHp = alive.filter(u => u.side === 'droid').map(u => u.hp);
-        events.push({ type: 'battleOver', result: 'won', survivors: droidsLeft + escaped,
-            hostilesRemaining: 0, droidHp: [...standerHp, ...escapedHp] });
+        const survivorHp = unstackDroidHp([...standerHp, ...escapedHp], stack, perDroidHp);
+        events.push({ type: 'battleOver', result: 'won', survivors: survivorHp.length,
+            hostilesRemaining: 0, droidHp: survivorHp });
     }
 
     return { ...battle, elapsedMs, escaped, escapedHp, spawnCounter, hostilesPeak, buffs: { overchargeMs }, fx, units: alive };
@@ -909,6 +965,7 @@ export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
     const def = EQUIPMENT_DEFS[itemId];
     if (!def) return battle;
     const effect = def.effect;
+    const stack = battle.stack || 1; // per-unit numbers scale with the stack (see FIELD_CAP)
 
     if (effect.kind === 'aoe') {
         const hostiles = battle.units.filter(u => u.side === 'hostile');
@@ -928,7 +985,7 @@ export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
         for (const u of battle.units) {
             const dx = u.x - center.x, dy = u.y - center.y;
             if (u.side === 'hostile' && dx * dx + dy * dy <= r2) {
-                const hp = u.hp - effect.damage;
+                const hp = u.hp - effect.damage * stack;
                 fx.push({ type: hp <= 0 ? 'death' : 'hit', x: u.x, y: u.y, t: battle.elapsedMs });
                 if (hp > 0) units.push({ ...u, hp });
             }
@@ -939,10 +996,15 @@ export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
 
     if (effect.kind === 'heal') {
         const fx = battle.fx.slice();
+        // A stack heals only the droids it still holds: its cap is its living members' worth (the hull a
+        // whole droid short of full is a dead member, and the rig does not rebuild the destroyed)
+        const perDroidHp = battle.stats.droid.hp / stack;
         const units = battle.units.map(u => {
             if (u.side !== 'droid' || u.hp >= u.maxHp) return u;
+            const cap = stack === 1 ? u.maxHp : Math.min(u.maxHp, Math.ceil(u.hp / perDroidHp - 1e-9) * perDroidHp);
+            if (u.hp >= cap) return u;
             fx.push({ type: 'heal', x: u.x, y: u.y, t: battle.elapsedMs });
-            return { ...u, hp: Math.min(u.maxHp, u.hp + effect.amount) };
+            return { ...u, hp: Math.min(cap, u.hp + effect.amount * stack) };
         });
         return { ...battle, units, fx };
     }
