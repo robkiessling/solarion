@@ -3,6 +3,7 @@ import AUTHORED_MAP_TEXT from "../../database/planet/map.txt?raw";
 import {STATUSES, TERRAINS, VISION_HOPS, type SectorStatus, type SectorStatusDef, type TerrainDef, type TerrainKey} from "../../database/planet/terrain";
 import type {Capabilities} from "../../database/planet/capabilities";
 import {getAdjacentCoords, getApproxDistance, getGraphDistancesFrom, NUM_PLANET_ROWS, PLANET_COLS} from "./geometry";
+import {floor, mod} from "../helpers";
 
 /**
  * The planet map: parsing the painted map (database/planet/map.txt) into sectors and answering questions
@@ -40,6 +41,7 @@ export type PlanetMap = Sector[][];
 export { NUM_SECTORS } from "./geometry";
 
 export const HOME_FRACTION = 0.75; // Defining home to be 75% of the way into planet, this way it lines up with 50% on slider
+const HOME_COL = floor(HOME_FRACTION * PLANET_COLS);
 
 const START_WITH_ADJ_EXPLORED = true;
 
@@ -53,7 +55,7 @@ const START_WITH_ADJ_EXPLORED = true;
  *          unused point is just flatland
  *   1-9    tunnel mouth; every mouth sharing a digit belongs to one tunnel system (sector.tunnel; mechanics later)
  *   ^      mountain      ~  water (sea)      *  ice      =  shallows (crossable with Amphibious Tracks)
- *   #      home (exactly one; column floor(HOME_FRACTION * PLANET_COLS) keeps the noon/slider math honest)
+ *   #      home (exactly one, on any column; the parser turns the drawing so it lands on HOME_COL)
  * Walls are permanent (mountain, water, ice), so every pocket of land is reachable only through what the
  * drawing leaves open; the load-time check below counts orphaned land so a bad edit shows up in the console.
  * Passage between land masses is by tunnel (the digits); there are no gate tiles, a choke is held by whatever
@@ -69,11 +71,20 @@ export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coo
     if (lines.length !== NUM_PLANET_ROWS) {
         throw new Error(`Authored map has ${lines.length} rows, expected ${NUM_PLANET_ROWS}`);
     }
+    // The drawing can put home on any column. The cylinder has no natural seam, so every row is turned by the
+    // same amount to land home on HOME_COL, where the noon/slider math expects it. Game columns are therefore
+    // the drawing's columns minus `turn` (wrapping); errors report the drawing's own columns.
+    const drawnHomeLine = lines.find(line => line.includes('#'));
+    if (!drawnHomeLine) throw new Error('Authored map has no home (#)');
+    const turn = mod(drawnHomeLine.indexOf('#') - HOME_COL, PLANET_COLS);
+    const drawnCoord = ([row, col]: Coord): Coord => [row, mod(col + turn, PLANET_COLS)];
+
     let homeCoord: Coord | null = null;
-    const map = lines.map((line, rowIndex) => {
-        if (line.length !== PLANET_COLS) {
-            throw new Error(`Authored map row ${rowIndex} has ${line.length} cols, expected ${PLANET_COLS}`);
+    const map = lines.map((drawnLine, rowIndex) => {
+        if (drawnLine.length !== PLANET_COLS) {
+            throw new Error(`Authored map row ${rowIndex} has ${drawnLine.length} cols, expected ${PLANET_COLS}`);
         }
+        const line = drawnLine.slice(turn) + drawnLine.slice(0, turn);
         return Array.from(line).map((char, colIndex) => {
             const coord: Coord = [rowIndex, colIndex];
             const flat = () => createSector(TERRAINS.flatland, STATUSES.unknown, coord);
@@ -84,14 +95,14 @@ export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coo
                 case '=': return createSector(TERRAINS.shallows, STATUSES.unknown, coord);
                 case '*': return createSector(TERRAINS.ice, STATUSES.unknown, coord);
                 case '#':
-                    if (homeCoord) throw new Error(`Authored map has two homes: ${homeCoord} and ${[rowIndex, colIndex]}`);
+                    if (homeCoord) throw new Error(`Authored map has two homes: ${drawnCoord(homeCoord)} and ${drawnCoord(coord)}`);
                     homeCoord = [rowIndex, colIndex];
                     return createSector(TERRAINS.home, STATUSES.explored, coord);
                 default:
                     if (char >= 'a' && char <= 'z') { const sector = flat(); sector.zone = char; return sector; }
                     if (char >= 'A' && char <= 'Z') { const sector = flat(); sector.point = char; return sector; }
                     if (char >= '1' && char <= '9') { const sector = flat(); sector.tunnel = char; return sector; }
-                    throw new Error(`Authored map: unknown char '${char}' at row ${rowIndex} col ${colIndex}`);
+                    throw new Error(`Authored map: unknown char '${char}' at row ${rowIndex} col ${drawnCoord(coord)[1]}`);
             }
         });
     });

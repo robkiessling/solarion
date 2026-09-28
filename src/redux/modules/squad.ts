@@ -226,10 +226,16 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
                     ...(action.payload.fromCoord ? { fromCoord: action.payload.fromCoord } : {}),
                     ...(action.payload.sprungAt != null ? { sprungAt: action.payload.sprungAt } : {}) } }
             });
-        case SQUAD_LEAVE_PROMPT:
+        case SQUAD_LEAVE_PROMPT: {
+            // Declining an offer leaves the site standing to come back to, unless it is fleeting (a sighting):
+            // that one is gone either way, without paying anything
+            const left = state.prompt && state.prompt.phase === 'offer' ? state.pois[state.prompt.poiId] : null;
             return update(state, {
-                prompt: { $set: null }
+                prompt: { $set: null },
+                ...(left && left.fleeting && left.status === 'available' ?
+                    { pois: { [left.id]: { status: { $set: 'cleared' } } } } : {})
             });
+        }
         case SQUAD_FIGHT_WON: {
             // The battle's outcome shows in the encounter popup's result phase (losses, reclaimed land, loot)
             const won = state.pois[action.payload.poiId];

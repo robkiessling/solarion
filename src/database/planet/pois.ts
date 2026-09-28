@@ -82,88 +82,146 @@ export const FIELD_EVENT_SPACING = 2;
  * letters and their real places: see database/planet/map.txt.
  */
 export const POI_DEFS: PoiDef[] = [
-    // ---- Home basin (tutorial): one easy site, two caches, the dead-droid story site, the first wreck (its log
-    // points home), scraps, one soft ambush
+    // ---- Zone a
     {
         type: 'settlement', zone: 'a', territoryRadius: 1,
-        approachText: 'Structures along a dry watercourse, a valley of them. Low hundreds of returns across the region, most of them still. A few are moving to meet you.',
-        campApproachText: 'A small group out from the valley, carrying loads. They set the loads down and turn toward you.',
+        // approachText: 'Structures along a dry watercourse, a valley of them. Low hundreds of returns across the region, most of them still. A few are moving to meet you.',
+        // approachText: 'Fires blaze ahead, low to the ground. One by one they go out.',
+        approachText: 'The ground ahead is occupied. Whatever holds it is coming out.',
+        campApproachText: 'Large shapes move towards you from the dark.',
         levels: [
-            { hostiles: { defender: 3 }, reward: { resources: { refinedMinerals: [100, 200] } } }
+            { hostiles: { defender: 7 }, terrain: "rocks", reward: { resources: { refinedMinerals: [40, 60] } } }
         ],
         camps: [
-            { hostiles: { defender: 1, herd: 2 }, reward: { resources: { refinedMinerals: 100 } } }
+            { hostiles: { defender: 4 }, terrain: "rocks" }
         ]
     },
-    // Caches: the map's category is Supply Cache (the scan sees regular geometry, nothing more); the popup title is the
-    // object the optics find. Near home the lines use drop vocabulary (seals intact, a chute), so they read as stores
-    // seeded for the mission; farther out they read as someone else's logistics, abandoned; the vaults say pre-war.
-    // Function words only (crate, pallet, depot, trailer): never a word that settles whose they are.
     {
         type: 'cache', zone: 'a', name: 'Supply Crate',
-        promptText: 'A supply crate on its side, seals intact{loot}. Take it?',
-        reward: { resources: { ore: [500, 1000] } }
+        promptText: 'A supply crate on its side, seals intact{loot}.',
+        reward: { resources: { ore: [1200, 2500] } }
     },
     {
         type: 'cache', zone: 'a', name: 'Drop Pallet',
-        promptText: 'A drop pallet, chute still tangled in the frame{loot}. Take it?',
-        reward: { resources: { refinedMinerals: [200, 400] } }
+        promptText: 'A drop pallet, chute still tangled in the frame{loot}.',
+        reward: { resources: { refinedMinerals: [50, 100] } }
     },
     {
         type: 'storySite', zone: 'a',
-        promptText: 'A shape in the sand the scanner reads as one of ours. Investigate?',
+        promptText: 'A broken droid in the sand. Serial matches our manufacturing line.',
         choices: [
-            { label: 'Explore', resultText: 'A droid chassis, half-buried. The model number matches your own manufacturing line. You did not build it.' }
+            { label: 'Explore', resultText: 'The half-buried droid shows years of weathering. You did not build it.' }
         ]
     },
-    {
-        type: 'fieldEvent', zone: 'a', name: 'Wreck',
-        promptText: 'A chassis in the dust. Your manufacturing line; not your serial.',
-        choices: [
-            { label: 'Search', battery: 15, resultText: 'Its cells still held a charge. Its log did not. The last heading it recorded points home.' }
-        ]
-    },
+    // {
+    //     type: 'fieldEvent', zone: 'a', name: 'Wreck',
+    //     promptText: 'A chassis in the dust. Your manufacturing line; not your serial.',
+    //     choices: [
+    //         { label: 'Search', battery: 15, resultText: 'Its cells still held a charge. Its log did not. The last heading it recorded points home.' }
+    //     ]
+    // },
     {
         type: 'fieldEvent', zone: 'a', name: 'Debris Field',
-        promptText: 'Debris field. Pre-war alloys in the scatter{loot}. Load it?',
+        promptText: 'Scattered remains from an ancient battle{loot}.',
         choices: [
-            { label: 'Load', reward: { resources: { refinedMinerals: [100, 200] } } }
+            { label: 'Load', reward: { resources: { ore: [700, 900], refinedMinerals: [100, 200] } } }
         ]
     },
     {
         type: 'ambush', zone: 'a',
         approachText: 'Sound from the rocks ahead. Then from behind.',
-        hostiles: { defender: 1, runner: 2 }, reward: { resources: { refinedMinerals: [50, 100] } }
+        hostiles: { defender: 3, runner: 3 }, reward: { resources: { refinedMinerals: [50, 100] } }
     },
     {
-        type: 'fieldEvent', zone: 'a', count: 2, name: 'Sighting',
+        type: 'fieldEvent', zone: 'a', count: 2, name: 'Sighting', fleeting: true,
         promptText: 'Thermal signatures at range. Multiple. Receding.',
         choices: [
             { label: 'Observe', resultText: 'Gone over the rise before the optics resolved. No pattern match. Logged.' }
         ]
     },
 
-    // ---- The near belt: Site 2 on a single tile, and the first two-level cluster with its count announced (it
-    // teaches the descend-or-withdraw rule)
+    // ---- Zone b
+    {
+        type: 'site', point: 'A', number: 2, levelsShown: true,
+        approachText: 'A compound on the valley floor, walls intact, gate shut. The design is ours.',
+        levels: [
+            { hostiles: { sentry: 1, defender: 6 }, terrain: 'compound' },
+            { hostiles: { shelter: 1, defender: 6 }, terrain: 'compound' }
+        ]
+    },
     {
         type: 'settlement', zone: 'b', territoryRadius: 2,
-        approachText: 'Shelters cut into a scarp that runs the length of the region. Returns in the hundreds along it, moving between them. The nearest are coming down.',
-        campApproachText: 'A group off the scarp, closing through the rocks. They were out here before you arrived.',
+        approachText: 'Creatures scurry between the rocks, protecting their stash.',
+        campApproachText: 'A small group of hostiles surrounds you.',
         levels: [
-            { hostiles: { heavy: 1, launcher: 1, drone: 2, defender: 6 }, terrain: 'rocks', reward: { resources: { refinedMinerals: [300, 600] } } }
+            { hostiles: { heavy: 1, defender: 6 }, terrain: 'rocks', reward: { resources: { refinedMinerals: [120, 200] } } }
         ],
         camps: [
-            { hostiles: { defender: 2, runner: 2 }, reward: { resources: { refinedMinerals: [100, 200] } } }
+            { hostiles: { defender: 4, }, reward: { resources: { refinedMinerals: [30, 50] } } },
+            { hostiles: { defender: 6, }, terrain: 'rocks', reward: { resources: { refinedMinerals: [50, 100] } } },
+            { hostiles: { defender: 6, }, terrain: 'rocks', reward: { resources: { refinedMinerals: [50, 100] } } },
         ]
     },
-    // Not in the records: the first site is found by exploring, and securing it is what recovers the records
     {
-        type: 'site', zone: 'c', number: 2, levelsShown: true,
-        approachText: 'A pre-war compound on the valley floor, walls intact, gate shut. Dense returns behind the wall and nothing outside it. Fixed emitters on the wall line.',
-        levels: [
-            { hostiles: { shelter: 1, sentry: 2, defender: 14 }, terrain: 'compound' }
+        type: 'storySite', zone: 'b', name: 'Structure',
+        promptText: 'A relay station, collapsed. Part of it was rebuilt later.',
+        choices: [
+            {
+                label: 'Investigate', resultText: 'The data core is scorched, but some components can be scrapped for parts.',
+                reward: { resources: { refinedMinerals: [30, 50] } }
+            }
         ]
     },
+    {
+        type: 'cache', zone: 'b', name: 'Supply Crate',
+        promptText: 'A supply crate on its side, seals intact{loot}.',
+        reward: { resources: { ore: [3000, 4000] } }
+    },
+
+    // ---- Zone c
+    {
+        type: 'settlement', zone: 'c', territoryRadius: 1,
+        approachText: 'Creatures scurry between the rocks, protecting their stash.',
+        campApproachText: 'A small group of hostiles surrounds you.',
+        levels: [
+            { hostiles: { heavy: 1, defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [150, 200] } } }
+        ],
+        camps: [
+            { hostiles: { defender: 10, }, terrain: 'ruins', reward: { resources: { refinedMinerals: [100, 120] } } },
+        ]
+    },
+    {
+        type: 'cache', zone: 'c', name: 'Ore Sacks',
+        promptText: 'Ore sacks under a collapsed awning, never collected{loot}.',
+        reward: { resources: { ore: [2000, 4000] } }
+    },
+    {
+        type: 'ambush', zone: 'c',
+        approachText: 'A swath of creatures rapidly close in.',
+        hostiles: { runner: 12 }, reward: { resources: { refinedMinerals: [100, 120] } }
+    },
+
+    {
+        type: 'settlement', point: 'B', territoryRadius: 0,
+        approachText: 'Creatures scurry between the rocks, protecting their stash.',
+        levels: [
+            { hostiles: { heavy: 1, defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [150, 200] } } }
+        ],
+    },
+    {
+        type: 'settlement', point: 'C', territoryRadius: 1,
+        approachText: 'Creatures scurry between the rocks, protecting their stash.',
+        campApproachText: 'A small group of hostiles surrounds you.',
+        levels: [
+            { hostiles: { heavy: 1, defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [150, 200] } } }
+        ],
+        camps: [
+            { hostiles: { defender: 10, }, terrain: 'ruins', reward: { resources: { refinedMinerals: [100, 120] } } },
+        ]
+    },
+    // ---- Zone e/g
+
+
     {
         type: 'settlement', zone: 'd', territoryRadius: 2, levelsShown: true, discardedKg: [80, 160],
         approachText: 'Terraces climbing a whole ridge, and shafts going down. Returns on every level the optics reach, in the hundreds. The upper ones are already moving.',
@@ -190,21 +248,9 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
     {
-        type: 'cache', zone: 'c', name: 'Ore Sacks',
-        promptText: 'Ore sacks under a collapsed awning, never collected{loot}. Take it?',
-        reward: { resources: { ore: [2000, 4000] } }
-    },
-    {
         type: 'cache', zone: 'd', name: 'Field Depot',
-        promptText: 'A field depot, door forced from outside, shelves still full{loot}. Take it?',
+        promptText: 'A field depot, door forced from outside, shelves still full{loot}.',
         reward: { resources: { refinedMinerals: [1000, 2000] } }
-    },
-    {
-        type: 'storySite', zone: 'b',
-        promptText: 'A collapsed structure. The layout matches your own blueprints. Investigate?',
-        choices: [
-            { label: 'Explore', resultText: 'A collapsed structure of familiar design. Its data core is scorched from the inside.' }
-        ]
     },
     {
         type: 'fieldEvent', zone: ['b', 'd'], name: 'Signal',
@@ -239,7 +285,7 @@ export const POI_DEFS: PoiDef[] = [
         hostiles: { defender: 3 }, reward: { resources: { refinedMinerals: [150, 300] } }
     },
     {
-        type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Sighting',
+        type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Sighting', fleeting: true,
         promptText: 'Movement on the ridge line. Two, then none.',
         choices: [
             { label: 'Observe', resultText: 'Nothing on the second pass. Whatever it was knows the ground better than the optics do.' }
@@ -281,12 +327,12 @@ export const POI_DEFS: PoiDef[] = [
             promptText: 'A vault door under a rockfall. The slab is cracked through; something with a real kick would finish it.',
             choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
         },
-        promptText: 'The rubble is through. Pre-war stores, palletised and dry{loot}. Take it?',
+        promptText: 'The rubble is through. Pre-war stores, palletised and dry{loot}.',
         reward: { resources: { ore: [5000, 9000] } }
     },
     {
         type: 'cache', zone: 'j', name: 'Convoy Trailer',
-        promptText: 'A convoy trailer, uncoupled and left{loot}. Take it?',
+        promptText: 'A convoy trailer, uncoupled and left{loot}.',
         reward: { resources: { refinedMinerals: [2000, 4000] } }
     },
     {
@@ -344,7 +390,7 @@ export const POI_DEFS: PoiDef[] = [
         hostiles: { defender: 7 }, reward: { resources: { refinedMinerals: [350, 700] } }
     },
     {
-        type: 'fieldEvent', zone: ['f', 'g', 'h', 'i', 'j', 'k'], count: 3, name: 'Sighting',
+        type: 'fieldEvent', zone: ['f', 'g', 'h', 'i', 'j', 'k'], count: 3, name: 'Sighting', fleeting: true,
         promptText: 'A column on the horizon, moving in step. Not receding.',
         choices: [
             { label: 'Observe', resultText: 'It held its heading and passed. The optics counted more than the team could take.' }
@@ -389,7 +435,7 @@ export const POI_DEFS: PoiDef[] = [
             promptText: 'A vault door under a rockfall. The slab is cracked through; something with a real kick would finish it.',
             choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
         },
-        promptText: 'Behind the rubble, a strongroom. Refined stock, stamped and racked{loot}. Take it?',
+        promptText: 'Behind the rubble, a strongroom. Refined stock, stamped and racked{loot}.',
         reward: { resources: { refinedMinerals: [5000, 8000] } }
     },
     {
@@ -431,7 +477,7 @@ export const POI_DEFS: PoiDef[] = [
         hostiles: { defender: 8 }, reward: { resources: { refinedMinerals: [400, 800] } }
     },
     {
-        type: 'fieldEvent', zone: ['l', 'm', 'n', 'q', 't'], count: 3, name: 'Sighting',
+        type: 'fieldEvent', zone: ['l', 'm', 'n', 'q', 't'], count: 3, name: 'Sighting', fleeting: true,
         promptText: 'Signatures everywhere the optics turn. None of them moving toward you. Yet.',
         choices: [
             { label: 'Observe', resultText: 'They are not hunting. They are tending something. Logged.' }

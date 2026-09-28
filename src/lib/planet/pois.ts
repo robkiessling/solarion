@@ -69,6 +69,8 @@ export interface Poi {
     concealed?: boolean;
     /** the popup's answers, if authored (see poiChoices); an ambush has `levels` instead */
     choices?: PoiChoice[];
+    /** field events: leaving the offer clears it too (see EventDef.fleeting) */
+    fleeting?: boolean;
     /** ambushes: the zone letters it was authored into, where it lies up again after a failed contact (see
      * relocateAmbush); unset (placed on a point) it never moves */
     zones?: string[];
@@ -277,7 +279,8 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             }
             case 'fieldEvent': { // found by stepping on it
                 const choices = rollChoices(def.choices);
-                add('fieldEvent', sector, { ...base, promptText: def.promptText, choices, reward: choices[0].reward || {}, concealed: true });
+                add('fieldEvent', sector, { ...base, promptText: def.promptText, choices, reward: choices[0].reward || {}, concealed: true,
+                    ...(def.fleeting ? { fleeting: true } : {}) });
                 break;
             }
             case 'ambush': // found by stepping on it, and sprung: encircled unless it names a formation. The def carries
@@ -444,7 +447,7 @@ export function formatResourceList(resources: ResourceAmounts): string {
 
 export function promptTextFor(poi: Poi): string {
     const template = poi.promptText || '';
-    const loot = poi.reward && poi.reward.resources ? ` — ${formatResourceList(poi.reward.resources)}` : '';
+    const loot = poi.reward && poi.reward.resources ? `: ${formatResourceList(poi.reward.resources)}` : '';
     return template.replace('{loot}', loot);
 }
 

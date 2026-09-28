@@ -165,6 +165,8 @@ export interface EventDef extends PlacedDef {
     /** the offer line ({loot} expands to the FIRST answer's rolled reward) */
     promptText: string;
     choices: PoiChoiceDef[];
+    /** something passing, not a place (a sighting): met once, then gone whatever the answer, Leave included */
+    fleeting?: boolean;
 }
 /** A fight on open ground, found by stepping on it and sprung at once: one fight's fields written flat, like a camp's.
  * Opens encircled (surround) unless it names a formation. */
@@ -198,7 +200,7 @@ export type GroundDef = Exclude<PoiDef, TunnelDef>;
 // is the one answer a POI without `choices` gets (a cache's Take). Taking an answer with a resultText holds the
 // popup open on a result phase (story text, salvage, losses) until the player continues or drives away; one
 // without closes it (the map change is the feedback). Garrisoned sites don't offer; they raise the approach card
-// instead (the site's approach line, the ground line from its terrain, the threat estimate), which commits to
+// instead (the site's approach line, the threat estimate), which commits to
 // the fight on Continue. A site the squad chose to walk into can be left from that card; a concealed one (a
 // camp, an ambush) cannot: it is sprung. `clearedLabel` heads the popup's result line after a won fight.
 //

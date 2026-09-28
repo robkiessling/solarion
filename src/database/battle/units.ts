@@ -5,7 +5,7 @@
  * The dividing line between database/ and lib/: if a content pass would edit it, it's a record here;
  * if only a mechanics change would touch it, it's code in lib. The other battle content lives in:
  *   - database/planet/pois.ts     the "levels": each fight's hostiles (a count per type here), formation, terrain
- *   - database/battle/blurbs.ts   the scene text (arena footer, approach card ground line)
+ *   - database/battle/blurbs.ts   the scene text (arena footer)
  *   - database/battle/terrain_art.ts  the arena obstacle art (ASCII pieces)
  * The formation and terrain-layout ids those records reference (column/ring/surround...,
  * rocks/ruins/canyon) are registries of placement algorithms in lib/battle/layouts.ts (FORMATIONS,

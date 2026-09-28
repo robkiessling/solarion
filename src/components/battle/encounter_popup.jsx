@@ -9,7 +9,6 @@ import {ARENA_W, battleBlurb, countSpawners, countUnits} from "../../lib/battle/
 import {CONTACT_MS, POPUP_INPUT_LOCK_MS} from "../../database/squad/tuning";
 import {promptActions} from "../../lib/planet/prompt_actions";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../../database/squad/equipment";
-import {APPROACH_GROUND} from "../../database/battle/blurbs";
 import BattleCanvas from "./canvas";
 import Tooltip from "../ui/tooltip";
 import PopupFrame from "../ui/popup_frame";
@@ -114,11 +113,10 @@ class EncounterPopup extends React.Component {
         );
     }
 
-    // The approach card: what the sensors make of the site from outside (the authored line, the ground ahead, the
-    // threat as a band until a fight has shown the true count), and the choice.
+    // The approach card: what the sensors make of the site from outside (the authored line, which carries any
+    // terrain itself, and the threat as a band until a fight has shown the true count), and the choice.
     renderApproach(poi, prompt) {
         const level = poiLevels(poi)[0];
-        const ground = level && APPROACH_GROUND[level.terrain || 'open'];
         let threat = null;
         if (level) {
             const signatures = fightSignatures(level);
@@ -129,7 +127,6 @@ class EncounterPopup extends React.Component {
             <React.Fragment>
                 <div className="popup-body">
                     <span className="result-line">{approachTextFor(poi)}</span>
-                    {ground && <span className="result-line">{ground}</span>}
                     {threat && <span className="outcome-line">{threat}</span>}
                 </div>
                 {this.renderPromptActions(poi, prompt)}
@@ -150,7 +147,7 @@ class EncounterPopup extends React.Component {
         const onward = tunnel ? 'ahead' : 'below';
         const body = (
             <div className="popup-body">
-                {result.text && <span className="story-text">"{result.text}"</span>}
+                {result.text && <span className="result-line">{result.text}</span>}
                 {result.wiped &&
                     <span className="result-line">
                         Contact lost — all {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'} destroyed.

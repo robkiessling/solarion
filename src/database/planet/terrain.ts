@@ -110,7 +110,7 @@ export const SURVEY_HALO_RADIUS = 7;
 // in a row kills the atmosphere it's there for.
 // PLACEHOLDER copy until the content pass. Zones without an entry (replicating land) print nothing.
 export const TERRAIN_BLURBS: Partial<Record<SquadZone, string>> = {
-    grid: 'Powered ground. Cells topping up.',
+    grid: 'Powered ground. Recharging.',
     flatland: 'Open flatland. Dust and a long horizon.',
     mountain: 'Into the mountains. Slow going; the ridges hide what lies beyond.',
     shallows: 'Shallows. Treads in the surf; the far shore is a line.',
@@ -125,8 +125,8 @@ export const TERRAIN_BLURB_REPEAT_MS = 120000;
 // say only what they are. Same repeat window as the zone notes.
 // PLACEHOLDER copy until the content pass.
 export const TERRAIN_BLOCKED_BLURBS: Partial<Record<TerrainKey, string>> = {
-    mountain: 'Sheer rock. No line up; the ridge stands.',
+    mountain: 'Cascades of mountains block the path.',
     ice: 'Ice sheet. The treads find no grip.',
     shallows: 'Shallows. Too deep for the treads.',
-    water: 'The shore. Dead water to the horizon; the treads stop here.'
+    water: 'The shore. Dark water stretches to the horizon.'
 };

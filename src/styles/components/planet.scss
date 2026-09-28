@@ -125,11 +125,6 @@ $hud-clearance: 6.5rem;
     .popup-body {
       margin-bottom: 0.9rem;
 
-      .story-text {
-        display: block;
-        font-style: italic;
-      }
-
       // Plain narration (e.g. the losses line); gains use .outcome-line green
       .result-line {
         display: block;
