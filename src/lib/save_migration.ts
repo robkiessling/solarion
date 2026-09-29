@@ -12,6 +12,9 @@ import {DROID_BASE_STATS} from '../database/battle/units';
 import {SAVE_FORMAT_VERSION} from './save_version';
 import type {EncounterPrompt} from '../redux/modules/squad';
 import type {Squad} from './planet/squad';
+import type {HostileFormation} from './battle/layouts';
+
+const RENAMED_FORMATIONS: Record<string, HostileFormation> = { column: 'terrain', ring: 'front', clusters: 'groups', scatter: 'groups' };
 
 // lodash merges arrays index-by-index, which would mangle saved maps, droid lists, etc.
 // This customizer makes saved arrays replace default arrays wholesale instead.
@@ -77,6 +80,17 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
             if (!state.planet.prompt) state.planet.prompt = squad.prompt;
             delete squad.prompt;
         }
+    }
+
+    // Formations were renamed (and the scatter's spread became a setting of its own): a placed fight saved
+    // under an old name opens as the nearest new one
+    if (state.planet && state.planet.pois) {
+        Object.values(state.planet.pois).forEach(poi => (poi.levels || []).forEach(level => {
+            const renamed = RENAMED_FORMATIONS[level.formation as string];
+            if (!renamed) return;
+            if ((level.formation as string) === 'scatter') level.spread = 'loose';
+            level.formation = renamed;
+        }));
     }
 
     resyncWithDatabase(state.structures, structuresDatabase);

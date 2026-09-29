@@ -7,9 +7,9 @@
  *   - database/planet/pois.ts     the "levels": each fight's hostiles (a count per type here), formation, terrain
  *   - database/battle/blurbs.ts   the scene text (arena footer)
  *   - database/battle/terrain_art.ts  the arena obstacle art (ASCII pieces)
- * The formation and terrain-layout ids those records reference (column/ring/surround...,
- * rocks/ruins/canyon) are registries of placement algorithms in lib/battle/layouts.ts (FORMATIONS,
- * TERRAIN_LAYOUTS): new ids mean new code there, new combinations of ids are records here.
+ * The formation and terrain-layout ids those records reference (front/groups/surround,
+ * rocks/ruins/canyon) are placement algorithms in lib/battle/layouts.ts (HostileFormation,
+ * TERRAIN_LAYOUTS), the scatter terrains records in database/battle/terrains.ts.
  */
 
 /** The expedition droid stat block: DROID_BASE_STATS plus researched combat upgrades and the authorized chassis spec.

@@ -1,25 +1,45 @@
 /**
- * Battle openings: the spawn formations (FORMATIONS) and the arena terrain generators (TERRAIN_LAYOUTS).
- * Both are registries of deterministic placement algorithms keyed by the ids settlement levels declare
- * (poi.formation, poi.terrain in database/planet/pois.ts). A new formation or built terrain is new code here;
- * a scatter terrain is a record (database/battle/terrains.ts). The sim (sim.ts) takes the results and never
- * cares which layout produced them.
+ * Battle openings: where everyone stands when a fight starts (droidOpening, hostileOpening) and the arena
+ * terrain generators (TERRAIN_LAYOUTS), both deterministic and keyed by what a settlement's level declares
+ * (`formation`, `terrain` in database/planet/pois.ts). A built terrain is code here; a scatter terrain is a
+ * record (database/battle/terrains.ts). The sim (sim.ts) takes the results and never cares what produced them.
  */
-import {TERRAIN_PIECES, terrainPieceLook, type TerrainPieceId} from "../../database/battle/terrain_art";
+import {TERRAIN_DRAWINGS, TERRAIN_PIECES, terrainPieceLook, type TerrainDrawingId, type TerrainPieceId, type TerrainPieceLook} from "../../database/battle/terrain_art";
 import {SCATTER_TERRAINS, type ScatterTerrain, type TerrainBand} from "../../database/battle/terrains";
 import type {BattleSide, BattleTerrainPiece} from "./sim";
 
-/** Spawn layouts: the keys of FORMATIONS */
-export type FormationId = keyof typeof FORMATIONS;
+/**
+ * How a fight opens, as a level declares it (`formation` in database/planet/pois.ts):
+ *   terrain   the place decides: hostiles form up on the terrain's numbered spawn points and the squad starts
+ *             on its `0`. A terrain that marks no points opens like `front`; one with no `0` starts the squad
+ *             at the left edge. What a level gets when it names nothing.
+ *   front     groups in a line down the hostile side, the squad at the left edge
+ *   groups    groups spread over the hostile half, the squad at the left edge
+ *   surround  groups in the corners of the whole field, the squad in the middle (an ambush)
+ * Naming one of the last three overrules the terrain's points and its `0`.
+ */
+export type HostileFormation = 'terrain' | 'front' | 'groups' | 'surround';
 
-/** The formations a settlement may declare; squadron and center are droid-side layouts the engine picks itself */
-export type HostileFormation = Exclude<FormationId, 'squadron' | 'center' | 'edge'>;
+/** How close a group stands around its point: formed up, or caught going about its business */
+export type Spread = 'tight' | 'loose';
+
+/** What a hostile does in the opening, read off its stats (never its name): a `source` produces other units and
+ * takes the centre of a group, a `post` cannot move but attacks and stands where it has a line of fire, and
+ * everything else is the `body` of a group. */
+export type SpawnRole = 'body' | 'source' | 'post';
+
+/** What a terrain marks, in arena units: where the squad starts (`0`), the numbered spawn points (`1` to `9`),
+ * and where posts stand (`P`). See terrainMarks. */
+export interface TerrainMarks {
+    squad: XY | null;
+    points: { n: number, x: number, y: number }[];
+    posts: XY[];
+}
 
 /** Arena obstacle layouts: the keys of TERRAIN_LAYOUTS */
 export type TerrainLayoutId = keyof typeof TERRAIN_LAYOUTS;
 
 export type XY = { x: number, y: number };
-type Layout = (count: number, arenaW: number, arenaH: number, side: BattleSide) => XY[];
 type Placer = ReturnType<typeof makePlacer>;
 
 const FRONT_GAP = 44;              // spawn distance between the two front lines, at any arena size
@@ -37,35 +57,22 @@ export function hash01(n: number) {
     return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-// Quasi-random low-discrepancy sequence (R2): evenly spread points that never clump, without RNG.
-const R2_A1 = 0.7548776662466927, R2_A2 = 0.5698402909980532;
-
 /**
- * Spawn layouts: pure functions (count, arenaW, arenaH, side) -> [{x, y}], deterministic, all spaced at
- * least SPAWN_SPACING apart (just above the collision contact distance, so nobody spawns overlapped).
- * `column` is the historical default; settlements declare theirs via poi.formation, and the droid side always
- * deploys in `squadron` (a small team degrades to a single block). Layouts only shape the opening --
- * targeting takes over after contact -- but the opening decides the geometry: wrap, split, or wall.
+ * The opening: where everyone stands when a fight starts. Pure and deterministic. Hostiles form groups around
+ * spawn points (the terrain's own, or the ones a formation lays out), about GROUP_SIZE to a point, so a bigger
+ * garrison brings more points into use; the squad deploys in squadron blocks. Nobody spawns closer than
+ * SPAWN_SPACING (just above the collision contact distance). The opening only shapes the first contact
+ * (targeting takes over after it), but it decides the geometry: wrap, split, or wall.
  */
 const SPAWN_SPACING = 2.6;
+const GROUP_SIZE = 40;
+// A loose group stands out of line (see groupSlots) and up to twice as far apart: as far as the field has
+// room for, which at design density (a full garrison on a field sized to it) is only a little
+const LOOSE_SPACING = SPAWN_SPACING * 2;
+const LOOSE_FILL = 0.5;          // the share of the hostile half a loose garrison may spread itself over
 
 function frontX(side: BattleSide, arenaW: number) {
     return side === 'droid' ? arenaW / 2 - FRONT_GAP / 2 : arenaW / 2 + FRONT_GAP / 2;
-}
-
-// Deep front of columns growing away from the center line.
-function columnLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
-    const perCol = Math.max(12, Math.ceil(count / 8));
-    const spacing = Math.min(4, (arenaH - 8) / perCol);
-    const front = frontX(side, arenaW);
-    return Array.from({ length: count }, (_, i) => {
-        const col = Math.floor(i / perCol);
-        const colHeight = Math.min(count - col * perCol, perCol);
-        return {
-            x: front + (side === 'droid' ? -1 : 1) * col * 2.5,
-            y: arenaH / 2 + ((i % perCol) - (colHeight - 1) / 2) * spacing
-        };
-    });
 }
 
 // Legion-style blocks: rectangular squadrons of ~24 on a grid with lanes between them. Blocks fill
@@ -91,15 +98,37 @@ function squadronLayout(count: number, arenaW: number, arenaH: number, side: Bat
     });
 }
 
-// Concentric rings around a center: the dense settlement circle. Ring m holds as many units as fit at spacing;
-// per-ring angular offsets stop the radial spokes lining up.
-function ringPositions(count: number, cx: number, cy: number, startIndex = 0): XY[] {
+/**
+ * Where the squad stands. At the left edge by default: it arrives from the side it withdraws to, so a fight
+ * opens with an approach across the field (the blocks' near face a body in from the boundary). A surround
+ * puts it in the middle (an ambush only reads as one if the droids start encircled), and a terrain that marks
+ * a `0` puts it there, unless the level named a formation of its own.
+ */
+export function droidOpening(count: number, formation: HostileFormation, marks: TerrainMarks, arenaW: number, arenaH: number): XY[] {
+    if (count === 0) return [];
+    const blocks = squadronLayout(count, arenaW, arenaH, 'droid');
+    const meanX = blocks.reduce((sum, p) => sum + p.x, 0) / count;
+    const meanY = blocks.reduce((sum, p) => sum + p.y, 0) / count;
+    if (formation === 'terrain' && marks.squad) {
+        const { x, y } = marks.squad;
+        return blocks.map(p => ({ x: p.x + x - meanX, y: p.y + y - meanY }));
+    }
+    if (formation === 'surround') return blocks.map(p => ({ x: p.x + arenaW / 2 - meanX, y: p.y }));
+    const minX = Math.min(...blocks.map(p => p.x));
+    return blocks.map(p => ({ x: p.x - minX + SPAWN_SPACING, y: p.y }));
+}
+
+// Concentric rings around a center: a group standing on its point. Ring m holds as many units as fit at
+// the spacing; per-ring angular offsets stop the radial spokes lining up. A `jitter` salt knocks every slot
+// but the centre out of line (a loose group is not drawn up in rings), by as much as the spacing can spare
+// with any two neighbours still SPAWN_SPACING apart.
+function groupSlots(count: number, cx: number, cy: number, startIndex: number, spacing: number, jitter: number | null): XY[] {
     const positions: { x: number, y: number }[] = [];
     if (count > 0) positions.push({ x: cx, y: cy });
     let ring = 1;
     while (positions.length < count) {
-        const radius = ring * SPAWN_SPACING;
-        const capacity = Math.floor((2 * Math.PI * radius) / SPAWN_SPACING);
+        const radius = ring * spacing;
+        const capacity = Math.floor((2 * Math.PI * radius) / spacing);
         const offset = hash01(startIndex + ring) * 2 * Math.PI;
         for (let j = 0; j < capacity && positions.length < count; j++) {
             const angle = offset + (2 * Math.PI * j) / capacity;
@@ -107,43 +136,37 @@ function ringPositions(count: number, cx: number, cy: number, startIndex = 0): X
         }
         ring++;
     }
-    return positions;
+    if (jitter === null) return positions;
+    const spare = Math.max(0, spacing - SPAWN_SPACING) / (2 * Math.SQRT2);
+    return positions.map((p, i) => (i === 0 ? p : {
+        x: p.x + (hash01(jitter + i * 2) * 2 - 1) * spare,
+        y: p.y + (hash01(jitter + i * 2 + 1) * 2 - 1) * spare
+    }));
 }
 
-function ringLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
-    const radius = SPAWN_SPACING * (Math.sqrt(count / Math.PI) + 1);
-    const dir = side === 'droid' ? -1 : 1;
-    // Near edge sits where the side's front line would be; clamped back inside the arena
-    let cx = frontX(side, arenaW) + dir * radius;
-    cx = dir > 0 ? Math.min(cx, arenaW - radius - 2) : Math.max(cx, radius + 2);
-    return ringPositions(count, cx, Math.max(radius + 2, Math.min(arenaH - radius - 2, arenaH / 2)));
-}
-
-// Exact outer radius of a ringPositions(n) pocket: mirrors its ring-capacity math, so the pocket
-// layouts budget true extents. (An earlier padded estimate cost midgame fights their pockets entirely:
-// pocket area scales with the garrison exactly as arena area scales with the fight, so at design
-// density the fit is genuinely tight and every wasted unit of padding matters.)
-function ringExtent(n: number) {
+// Exact outer radius of a groupSlots(n) group: mirrors its ring-capacity math, so the point layouts budget
+// true extents. (An earlier padded estimate cost midgame fights their groups entirely: group area scales
+// with the garrison exactly as arena area scales with the fight, so at design density the fit is genuinely
+// tight and every wasted unit of padding matters.)
+function groupExtent(n: number, spacing: number) {
     let placed = Math.min(n, 1);
     let ring = 0;
     while (placed < n) {
         ring++;
         placed += Math.floor(2 * Math.PI * ring);
     }
-    return ring * SPAWN_SPACING;
+    return ring * spacing;
 }
 
-// True when every pair of centers ([fx, fy] fractions of a boxW x boxH space; pass 1x1 for absolute
-// coordinates) sits at least minSep apart. The surround layout's fit check: separated pockets need
-// center gaps of both extents plus spawn spacing, or their rings spawn overlapped.
-function fitsApart(centers: [number, number][], boxW: number, boxH: number, minSep: number) {
-    return centers.every(([ax, ay], i) => centers.slice(i + 1).every(([bx, by]) =>
-        Math.hypot((ax - bx) * boxW, (ay - by) * boxH) >= minSep));
+// True when every pair of centers sits at least minSep apart: separated groups need center gaps of both
+// extents plus spawn spacing, or their rings spawn overlapped.
+function fitsApart(centers: XY[], minSep: number) {
+    return centers.every((a, i) => centers.slice(i + 1).every(b => Math.hypot(a.x - b.x, a.y - b.y) >= minSep));
 }
 
-// k pocket centers packed into a boxW x boxH space, all pairs at least minSep apart, or null when no
+// k centers packed into a boxW x boxH space, all pairs at least minSep apart, or null when no
 // arrangement manages it. Picks the rows x cols grid whose smallest neighbor gap is largest (matched to
-// the box's aspect: a tall half stacks pockets, a wide one ranks them), then jitters each center
+// the box's aspect: a tall half stacks groups, a wide one ranks them), then jitters each center
 // deterministically inside its spare separation so the openings stay organic rather than parade-ground.
 // An axis without neighbors (single column/row) is free and jitters across its whole span.
 function packCenters(k: number, boxW: number, boxH: number, minSep: number, salt: number): [number, number][] | null {
@@ -171,94 +194,137 @@ function packCenters(k: number, boxW: number, boxH: number, minSep: number, salt
     });
 }
 
-// Dense mini-rings at the given centers, dealing the count round-robin-ish (remainder to the first
-// pockets). Position order leads with one pocket CENTER per group (slot k = pocket k's center), so a
-// garrison's leading composition entries -- shelters -- distribute one per pocket instead of stacking in
-// the first one; the escort fill follows, pocket by pocket.
-function pocketPositions(centers: [number, number][], count: number): XY[] {
-    const groups = centers.map(([cx, cy], c) => ringPositions(
-        Math.floor(count / centers.length) + (c < count % centers.length ? 1 : 0), cx, cy, c * 1000));
-    const occupied = groups.filter(g => g.length > 0);
-    return [...occupied.map(g => g[0]), ...occupied.flatMap(g => g.slice(1))];
-}
-
-// A few separated groups over the side's half, each a dense mini-ring, packed by packCenters. The
-// ideal pocket count (headcount/40, 2-6) backs off when even the best packing can't fit them with
-// clear water between; the floor is the single ring.
-function clustersLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
-    for (let k = Math.max(2, Math.min(6, Math.round(count / 40))); k >= 2; k--) {
-        const extent = ringExtent(Math.ceil(count / k)); // the largest pocket's true outer radius
-        const margin = extent + 2;                       // clear of the walls (the spawn clamp sits at 2)
-        const left = (side === 'droid' ? 0 : arenaW / 2) + margin;
-        const centers = packCenters(k, arenaW / 2 - 2 * margin, arenaH - 2 * margin,
-            2 * extent + SPAWN_SPACING, count * 31 + k * 7919);
-        if (centers) return pocketPositions(centers.map(([x, y]) => [left + x, margin + y]), count);
+// `front`: the points in a line down the hostile side, their near edge on the front line. A line that is
+// full starts another behind it; when even that runs out of field the groups get bigger instead (fewer
+// points), down to the one group every fight has room for (pulled back inside the arena if it must be).
+function frontPoints(wanted: number, grouped: number, spacing: number, arenaW: number, arenaH: number): XY[] {
+    for (let k = wanted; k >= 1; k--) {
+        const extent = groupExtent(Math.ceil(grouped / k), spacing);
+        const gap = 2 * extent + SPAWN_SPACING;
+        const span = arenaH - 2 * (extent + 2); // clear of the walls (the spawn clamp sits at 2)
+        const perLine = Math.max(1, Math.floor(span / gap));
+        const lines = Math.ceil(k / perLine);
+        const nearest = frontX('hostile', arenaW) + extent;
+        const overrun = nearest + (lines - 1) * gap + extent - (arenaW - 2);
+        if (overrun > 0 && k > 1) continue;
+        return Array.from({ length: k }, (_, i) => {
+            const line = Math.floor(i / perLine);
+            const inLine = Math.min(perLine, k - line * perLine);
+            return {
+                x: nearest + line * gap - Math.max(0, overrun),
+                y: span > 0 ? extent + 2 + span * ((i % perLine) + 0.5) / inLine : arenaH / 2
+            };
+        });
     }
-    return ringLayout(count, arenaW, arenaH, side);
+    return [];
 }
 
-// Disturbed garrison: low-discrepancy spread over the side's half. R2 keeps points evenly spaced (no RNG,
-// no clumps); collision tidies any near-contact pairs on the first substeps.
-function scatterLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
-    const left = side === 'droid' ? 4 : arenaW / 2 + 4;
-    const width = arenaW / 2 - 8;
-    return Array.from({ length: count }, (_, i) => ({
-        x: left + ((0.5 + (i + 1) * R2_A1) % 1) * width,
-        y: 4 + ((0.5 + (i + 1) * R2_A2) % 1) * (arenaH - 8)
-    }));
-}
-
-// Ambush: the garrison opens in corner pockets (same dense mini-rings as clusters, but spread over the
-// WHOLE arena, not the hostile half) with the field's middle left empty for the prey. Paired with its
-// `center` counter-layout below, first contact comes from every direction at once. Four corners when
-// they fit with clear water, backing off to a diagonal pincer, then to the plain ring for fights too
-// big for their field to encircle anything.
-function surroundLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
-    for (const k of [4, 2]) {
-        const extent = ringExtent(Math.ceil(count / k));
+// `groups`: the points spread over the hostile half, packed by packCenters. Never fewer than two while two
+// fit with clear water between; when they do not, it is a front.
+function groupsPoints(wanted: number, grouped: number, spacing: number, arenaW: number, arenaH: number, salt: number): XY[] {
+    for (let k = Math.min(grouped, Math.max(2, wanted)); k >= 2; k--) {
+        const extent = groupExtent(Math.ceil(grouped / k), spacing);
         const margin = extent + 2;
-        const corners: [number, number][] = k === 4
-            ? [[margin, margin], [arenaW - margin, margin],
-               [margin, arenaH - margin], [arenaW - margin, arenaH - margin]]
-            : [[margin, margin], [arenaW - margin, arenaH - margin]];
-        if (fitsApart(corners, 1, 1, 2 * extent + SPAWN_SPACING)) return pocketPositions(corners, count);
+        const centers = packCenters(k, arenaW / 2 - 2 * margin, arenaH - 2 * margin,
+            2 * extent + SPAWN_SPACING, salt + grouped * 31 + k * 7919);
+        if (centers) return centers.map(([x, y]) => ({ x: arenaW / 2 + margin + x, y: margin + y }));
     }
-    return ringLayout(count, arenaW, arenaH, side);
+    return frontPoints(1, grouped, spacing, arenaW, arenaH);
 }
 
-// Squadron blocks re-anchored to the middle of the field: the droid opening when the enemy doesn't
-// have a "side" to face (see COUNTER_FORMATIONS).
-function centerLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
-    const positions = squadronLayout(count, arenaW, arenaH, side);
-    const meanX = positions.reduce((sum, p) => sum + p.x, 0) / count;
-    return positions.map(p => ({ x: p.x + arenaW / 2 - meanX, y: p.y }));
+// `surround`: the points in the corners of the WHOLE arena, the field's middle left empty for the prey, so
+// first contact comes from every direction at once. Four corners when they fit with clear water, backing
+// off to a diagonal pincer, then to a front for fights too big for their field to encircle anything.
+function surroundPoints(grouped: number, spacing: number, arenaW: number, arenaH: number): XY[] {
+    for (const k of [4, 2]) {
+        const extent = groupExtent(Math.ceil(grouped / k), spacing);
+        const margin = extent + 2;
+        const corners: XY[] = k === 4
+            ? [{ x: margin, y: margin }, { x: arenaW - margin, y: margin },
+               { x: margin, y: arenaH - margin }, { x: arenaW - margin, y: arenaH - margin }]
+            : [{ x: margin, y: margin }, { x: arenaW - margin, y: arenaH - margin }];
+        if (fitsApart(corners, 2 * extent + SPAWN_SPACING)) return corners;
+    }
+    return frontPoints(1, grouped, spacing, arenaW, arenaH);
 }
 
-// The squadron blocks pushed back against the left edge: the squad arrives from the side it withdraws to
-// (the droid default), so a fight opens with an approach across the field instead of a drop into the
-// middle of it. The blocks' near face sits a body in from the boundary.
-function edgeLayout(count: number, arenaW: number, arenaH: number, side: BattleSide): XY[] {
-    const positions = squadronLayout(count, arenaW, arenaH, side);
-    const minX = Math.min(...positions.map(p => p.x));
-    return positions.map(p => ({ x: p.x - minX + SPAWN_SPACING, y: p.y }));
+// The spawn points a fight uses. A terrain's own come into use in number order, as many numbers as it takes
+// to have a point for every GROUP_SIZE of the garrison (points that share a number open together); a
+// formation lays out as many as the garrison needs.
+function spawnPoints(formation: HostileFormation, marks: TerrainMarks, grouped: number, spacing: number,
+                     arenaW: number, arenaH: number, salt: number): XY[] {
+    const wanted = Math.max(1, Math.round(grouped / GROUP_SIZE));
+    if (formation === 'terrain' && marks.points.length > 0) {
+        const inOrder = [...marks.points].sort((a, b) => a.n - b.n || a.y - b.y || a.x - b.x);
+        const inUse: typeof inOrder = [];
+        for (const point of inOrder) {
+            if (inUse.length >= wanted && point.n !== inUse[inUse.length - 1].n) break;
+            inUse.push(point);
+        }
+        return inUse.map(({ x, y }) => ({ x, y }));
+    }
+    if (formation === 'surround') return surroundPoints(grouped, spacing, arenaW, arenaH);
+    if (formation === 'groups') return groupsPoints(wanted, grouped, spacing, arenaW, arenaH, salt);
+    return frontPoints(wanted, grouped, spacing, arenaW, arenaH);
 }
 
-// The layout registry (settlements declare theirs via poi.formation). Roster slot 0 -- where a garrison's
-// leading composition entry, e.g. a shelter, ends up -- noted per layout.
-export const FORMATIONS = {
-    column: columnLayout,       // deep battle-line of columns at the front; slot 0: top of the front column
-    squadron: squadronLayout,   // rectangular blocks with lanes at the front; slot 0: first block's corner
-    ring: ringLayout,           // one dense circle behind the front line; slot 0: dead center
-    clusters: clustersLayout,   // 2-6 separated pockets over the side's half; slots 0..k-1: one pocket center each
-    scatter: scatterLayout,     // even scatter over the side's half; slot 0: nothing special (quasi-random)
-    surround: surroundLayout,   // ambush: four corner pockets of the WHOLE arena; slots 0-3: one corner center each
-    center: centerLayout,       // squadron blocks re-anchored mid-field (surround's droid counter-layout)
-    edge: edgeLayout            // squadron blocks against the left edge (the droid default: an approach)
-} satisfies Record<string, Layout>;
+/**
+ * Where the hostiles stand: a position for each of `roles`, in order (the roster's). The sources and the
+ * bodies are dealt evenly over the spawn points in use and each point's group arranges itself: a source at
+ * the centre (dealt one to a point before any point gets a second), the bodies in rings around it. A post
+ * stands on one of the terrain's `P` marks (taken in reading order); a post with no mark left stands just
+ * outside a group, on the side facing `toward` (the squad).
+ */
+export function hostileOpening(roles: SpawnRole[], formation: HostileFormation, marks: TerrainMarks, spread: Spread,
+                               toward: XY, arenaW: number, arenaH: number, salt: number): XY[] {
+    const grouped = roles.filter(role => role !== 'post').length;
+    const room = Math.sqrt((arenaW / 2) * arenaH * LOOSE_FILL / Math.max(1, grouped));
+    const spacing = spread === 'loose' ? Math.min(LOOSE_SPACING, Math.max(SPAWN_SPACING, room)) : SPAWN_SPACING;
+    const points = spawnPoints(formation, marks, grouped, spacing, arenaW, arenaH, salt);
+    const sizes = points.map((_, g) => Math.floor(grouped / points.length) + (g < grouped % points.length ? 1 : 0));
+    const slots = points.map(({ x, y }, g) => groupSlots(sizes[g], x, y, g * 1000, spacing, spread === 'loose' ? salt + g * 7919 : null));
 
-// A hostile formation can dictate the droid side's deployment (createBattle consults this): a surround
-// opening only reads as an ambush if the droids actually start encircled in the middle.
-export const COUNTER_FORMATIONS: Partial<Record<HostileFormation, FormationId>> = { surround: 'center' };
+    // Slot order: every group's centre, then every group's next slot in, and so on. Sources draw from the front
+    // of it (so they sit at centres, one to a group first); bodies fill what is left, group by group.
+    const deepest = Math.max(0, ...sizes);
+    const sourceOrder: XY[] = [];
+    for (let depth = 0; depth < deepest; depth++) slots.forEach(group => { if (depth < group.length) sourceOrder.push(group[depth]); });
+    const sources = roles.filter(role => role === 'source').length;
+    const taken = new Set(sourceOrder.slice(0, sources));
+    const bodyOrder = slots.flat().filter(slot => !taken.has(slot));
+
+    const marked = [...marks.posts].sort((a, b) => a.y - b.y || a.x - b.x);
+    let nextSource = 0, nextBody = 0, nextPost = 0;
+    return roles.map(role => {
+        if (role === 'source') return sourceOrder[nextSource++];
+        if (role === 'body') return bodyOrder[nextBody++];
+        const post = nextPost++;
+        if (post < marked.length) return marked[post];
+        // Unmarked: fanned out just beyond a group's edge, around the line from its point to the squad
+        const unmarked = post - marked.length, g = unmarked % points.length, turn = Math.floor(unmarked / points.length);
+        const facing = Math.atan2(toward.y - points[g].y, toward.x - points[g].x) + Math.ceil(turn / 2) * 0.45 * (turn % 2 ? 1 : -1);
+        const reach = groupExtent(sizes[g], spacing) + SPAWN_SPACING * 1.5;
+        return { x: points[g].x + Math.cos(facing) * reach, y: points[g].y + Math.sin(facing) * reach };
+    });
+}
+
+/**
+ * What a terrain marks for the opening, in arena units: the markers drawn into the looks of its placed pieces
+ * (database/battle/terrain_art.ts), each at the middle of its cell.
+ */
+export function terrainMarks(pieces: BattleTerrainPiece[], arenaW: number, arenaH: number): TerrainMarks {
+    const marks: TerrainMarks = { squad: null, points: [], posts: [] };
+    for (const { art, col, row, look } of pieces) {
+        for (const marker of terrainPieceLook(art, look)?.markers || []) {
+            const at = { x: (col + marker.col + 0.5) * TERRAIN_CELL_W, y: (row + marker.row + 0.5) * TERRAIN_CELL_H };
+            if (at.x >= arenaW || at.y >= arenaH) continue;
+            if (marker.mark === '0') marks.squad = at;
+            else if (marker.mark === 'P') marks.posts.push(at);
+            else marks.points.push({ n: Number(marker.mark), ...at });
+        }
+    }
+    return marks;
+}
 
 /**
  * Terrain layout generators: (arenaW, arenaH, salt) -> [{ art, col, row }], deterministic in the salt.
@@ -405,98 +471,30 @@ function corridorTerrain(arenaW: number, arenaH: number, salt: number): BattleTe
     return placer.pieces;
 }
 
-// A built site: a walled compound on the hostile side of the field, its long wall facing the squad with one
-// or two gaps in it, and buildings in rows inside. The garrison spawns inside (any spawn that lands on a wall
-// or a building is moved by the fixup), so the fight is the approach, the gaps, and the streets. Where the
-// gaps fall, how many, and the building rows come from the salt.
-// The compound's footprint in terrain cells: from a little past mid-field to near the right edge, and most of
-// the arena's height. Shared by the layout and its garrison anchor.
-function compoundBounds(cols: number, rows: number) {
-    return { left: Math.round(cols * 0.55), right: cols - 2, top: 1, bottom: rows - 1 };
-}
-function compoundTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
-    const placer = makePlacer(arenaW, arenaH);
-    const wallH = terrainSize('wallH'), wallV = terrainSize('wallV'), bunker = terrainSize('bunker');
-    const { left, right, top, bottom } = compoundBounds(placer.cols, placer.rows);
-    const gaps = 1 + Math.floor(hash01(salt) * 2);
-    const gapCells = 4; // about four bodies abreast
-    const gapRows: number[] = [];
-    for (let g = 0; g < gaps; g++) {
-        const lo = top + 1 + Math.floor((bottom - top - gapCells - 2) * (g / gaps));
-        const hi = top + 1 + Math.floor((bottom - top - gapCells - 2) * ((g + 1) / gaps));
-        gapRows.push(lo + Math.floor(hash01(salt + 1 + g) * Math.max(1, hi - lo)));
-    }
-    const inGap = (row: number) => gapRows.some(gr => row >= gr && row < gr + gapCells);
-    // The facing wall: each solid run between gaps tiled in wallV, the last tile pulled back so the run ends
-    // exactly at the gap's edge (tiles overlap-place, as the canyon's do)
-    let runStart: number | null = null;
-    for (let row = top; row <= bottom; row++) {
-        const solid = row < bottom && !inGap(row);
-        if (solid && runStart === null) runStart = row;
-        if (!solid && runStart !== null) {
-            const runEnd = row; // exclusive
-            for (let r = runStart; r + wallV.h <= runEnd; r += wallV.h) placer.tryPlace('wallV', left, r, true);
-            if (runEnd - runStart >= wallV.h && (runEnd - runStart) % wallV.h !== 0) placer.tryPlace('wallV', left, runEnd - wallV.h, true);
-            else if (runEnd - runStart < wallV.h && runEnd - wallV.h >= top) placer.tryPlace('wallV', left, runEnd - wallV.h, true);
-            runStart = null;
-        }
-    }
-    // Top and bottom walls, in wallH tiles, to the right edge
-    for (let col = left; col < right; col += wallH.w) {
-        const c = Math.min(col, right - wallH.w);
-        placer.tryPlace('wallH', c, top, true);
-        placer.tryPlace('wallH', c, bottom - wallH.h, true);
-    }
-    // Buildings in rows inside. Streets are three cells wide everywhere (behind the facing wall, under the top
-    // wall, between rows): two is the minimum a body passes, and a one-cell slit is a single-file queue.
-    const STREET = 3;
-    const innerLeft = left + wallV.w + STREET;
-    const rowStep = bunker.h + STREET;
-    // The middle stays open: a plaza the garrison musters in (TERRAIN_ANCHORS.compound), buildings around it.
-    // A small arena has room for one row of bunkers, and that row is the plaza, so it gets low buildings
-    // (arches) hugging the top and bottom walls instead; bigger arenas fit bunker rows above and below.
-    const plazaCol = (left + wallV.w + right) / 2, plazaRow = (top + bottom) / 2;
-    const innerTop = top + wallH.h + STREET, innerBottom = bottom - wallH.h - STREET;
-    const bunkerRows = Math.floor((innerBottom - innerTop + STREET) / rowStep);
-    const art: TerrainPieceId = bunkerRows >= 3 ? 'bunker' : 'arch';
-    const piece = terrainSize(art);
-    const rowStarts = bunkerRows >= 3
-        ? Array.from({ length: bunkerRows }, (_, i) => innerTop + i * rowStep)
-        : [innerTop, innerBottom - piece.h];
-    // The plaza's half-size in cells; a small interior keeps it to the middle row so the low buildings above
-    // and below it survive
-    const plazaHalfW = 3, plazaHalfH = bunkerRows >= 3 ? 2 : 0;
-    for (const row of rowStarts) {
-        if (row < innerTop || row + piece.h > innerBottom) continue;
-        for (let col = innerLeft; col + piece.w <= right - 1; col += piece.w + STREET) {
-            const onPlaza = col <= plazaCol + plazaHalfW && col + piece.w > plazaCol - plazaHalfW &&
-                row <= plazaRow + plazaHalfH && row + piece.h > plazaRow - plazaHalfH;
-            if (onPlaza) continue;
-            if (hash01(salt + 200 + row * 7 + col) < 0.85) placer.tryPlace(art, col, row, true);
-        }
-    }
-    return placer.pieces;
-}
-
-// Where a layout wants the garrison: the hostile formation is re-centred on this point (arena units) before
-// the spawn fixup, so a walled site's defenders start inside its walls instead of wherever the formation's
-// default front happens to fall (which left them scattered around the outside, and the squad pathing round
-// the whole compound to reach them). Layouts without an entry leave the formation where it is.
-export const TERRAIN_ANCHORS: Partial<Record<string, (arenaW: number, arenaH: number, salt: number) => XY>> = {
-    compound: (arenaW, arenaH) => {
-        const cols = Math.ceil(arenaW / TERRAIN_CELL_W), rows = Math.ceil(arenaH / TERRAIN_CELL_H);
-        const { left, right, top, bottom } = compoundBounds(cols, rows);
-        return { x: ((left + terrainSize('wallV').w + right) / 2) * TERRAIN_CELL_W, y: ((top + bottom) / 2) * TERRAIN_CELL_H };
-    }
-};
-
 type TerrainLayout = (arenaW: number, arenaH: number, salt: number) => BattleTerrainPiece[];
 
-// The layout registry (settlements declare theirs via poi.terrain; unset = open ground): the scatter terrains
-// (records in database/battle/terrains.ts) and the built ones.
+// A drawn battlefield's layout: the drawing itself, corner to corner (the arena is cut to it, see drawingArena),
+// in the look the salt picks
+function drawnTerrain(id: TerrainDrawingId): TerrainLayout {
+    return (arenaW, arenaH, salt) => {
+        const look = Math.floor(hash01(salt + 900007) * TERRAIN_DRAWINGS[id].length);
+        return [look ? { art: id, col: 0, row: 0, look } : { art: id, col: 0, row: 0 }];
+    };
+}
+
+/** The arena a drawn battlefield is fought on, whatever the armies: its canvas, cell for cell. Null for a
+ * terrain that is laid out to fit the fight. */
+export function drawingArena(id: TerrainLayoutId | null): { arenaW: number, arenaH: number } | null {
+    const looks = id && (TERRAIN_DRAWINGS as Partial<Record<string, TerrainPieceLook[]>>)[id];
+    if (!looks) return null;
+    return { arenaW: looks[0].solid[0].length * TERRAIN_CELL_W, arenaH: Math.floor(looks[0].solid.length * TERRAIN_CELL_H) };
+}
+
+// The layout registry (settlements declare theirs via poi.terrain; unset = open ground): the built terrains, the
+// scatter terrains (records in database/battle/terrains.ts) and the drawn ones (database/battle/terrain_drawings.ts).
 export const TERRAIN_LAYOUTS = {
-    ...(Object.fromEntries(Object.entries(SCATTER_TERRAINS).map(([id, terrain]) => [id, scatterTerrain(terrain)])) as Record<keyof typeof SCATTER_TERRAINS, TerrainLayout>),
     canyon: canyonTerrain,   // one full-height wall with a single choke
     corridor: corridorTerrain, // a tunnel: rock above and below a narrow band the whole way across
-    compound: compoundTerrain  // a built site: a walled compound with gaps, streets and buildings inside
+    ...(Object.fromEntries(Object.entries(SCATTER_TERRAINS).map(([id, terrain]) => [id, scatterTerrain(terrain)])) as Record<keyof typeof SCATTER_TERRAINS, TerrainLayout>),
+    ...(Object.fromEntries(Object.keys(TERRAIN_DRAWINGS).map(id => [id, drawnTerrain(id as TerrainDrawingId)])) as Record<TerrainDrawingId, TerrainLayout>)
 } satisfies Record<string, TerrainLayout>;

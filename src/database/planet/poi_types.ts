@@ -1,4 +1,4 @@
-import type {HostileFormation, TerrainLayoutId} from "../../lib/battle/layouts";
+import type {HostileFormation, Spread, TerrainLayoutId} from "../../lib/battle/layouts";
 import type {PlanetColorKey} from "./colors";
 import type {HostileType} from "../battle/units";
 import type {Capability} from "./capabilities";
@@ -43,8 +43,7 @@ export interface RewardDef {
     capability?: Capability;
 }
 
-/** The hostiles a fight fields, as authored: a count per type (HOSTILE_TYPES in database/battle/units.ts). Entry order
- * maps to formation slots, so a shelter listed first takes a ring's center. */
+/** The hostiles a fight fields, as authored: a count per type (HOSTILE_TYPES in database/battle/units.ts) */
 export type HostilesDef = Partial<Record<HostileType, Rollable>>;
 
 /** One fight, as authored (a settlement level, a camp, an ambush, a tunnel): who holds it, its battlefield, and what
@@ -54,6 +53,7 @@ export interface FightDef {
      * shelter counts once however many defenders it releases during the fight. */
     hostiles: HostilesDef;
     formation?: HostileFormation;
+    spread?: Spread;
     terrain?: TerrainLayoutId;
     blurb?: string;
     reward?: RewardDef;

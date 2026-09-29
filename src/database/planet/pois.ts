@@ -32,11 +32,14 @@ export const FIELD_EVENT_SPACING = 2;
  * first; most have one. Each level is a full battle of its own, and every other fight (a site's level, a camp, an
  * ambush, a tunnel) is written in the same shape:
  *   `hostiles`    who holds it, a count per type ({ type: count }, see HOSTILE_TYPES in database/battle/units.ts).
- *                 The approach card's signature count is the sum. Entry order maps to formation slots, so a shelter
- *                 listed first takes a ring's center
- *   `formation`   the spawn layout (FORMATIONS in lib/battle/layouts.ts); unset = column front, except that a
- *                 concealed fight (a camp, an ambush) opens `surround`: the hostiles start in all four corners
- *                 with the squad encircled
+ *                 The approach card's signature count is the sum. Where each stands in the opening follows from
+ *                 its stats, not the order here: what produces others takes the centre of a group, what cannot
+ *                 move but attacks stands guard at its edge (or on the terrain's `P` marks)
+ *   `formation`   how the fight opens (HostileFormation in lib/battle/layouts.ts). Unset = `terrain`: the
+ *                 hostiles form up on the terrain's spawn points, or in a front where it marks none. `front`,
+ *                 `groups` and `surround` overrule the terrain. A concealed fight (a camp, an ambush) opens
+ *                 `surround` unless it names another: the hostiles in the corners, the squad encircled
+ *   `spread`      how close each group stands: `tight` (unset) or `loose`
  *   `terrain`     impassable obstacles scattered over the arena (TERRAIN_LAYOUTS in lib/battle/layouts.ts); unset =
  *                 open ground. The battlefield is stable per level (seeded from the map coord), so it can
  *                 be learned
@@ -145,8 +148,8 @@ export const POI_DEFS: PoiDef[] = [
         type: 'site', point: 'A', number: 2, levelsShown: true,
         approachText: 'A compound on the valley floor, walls intact, gate shut. The design is ours.',
         levels: [
-            { hostiles: { sentry: 1, defender: 6 }, terrain: 'compound' },
-            { hostiles: { shelter: 1, defender: 6 }, terrain: 'compound' }
+            { hostiles: { sentry: 1, defender: 6 }, terrain: 'compound1a' },
+            { hostiles: { shelter: 1, defender: 6 }, terrain: 'compound1b' }
         ]
     },
     {
@@ -227,8 +230,8 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'Terraces climbing a whole ridge, and shafts going down. Returns on every level the optics reach, in the hundreds. The upper ones are already moving.',
         campApproachText: 'Stationary returns at the high points of the terraces. They saw you climbing, and now they are not stationary.',
         levels: [
-            { hostiles: { mounted: 2, defender: 10 }, formation: 'scatter', terrain: 'rocks', reward: { resources: { refinedMinerals: [400, 800] } } },
-            { hostiles: { drone: 4, defender: 7 }, formation: 'clusters', terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000], energy: [1000, 2000] } } }
+            { hostiles: { mounted: 2, defender: 10 }, formation: 'groups', spread: 'loose', terrain: 'rocks', reward: { resources: { refinedMinerals: [400, 800] } } },
+            { hostiles: { drone: 4, defender: 7 }, formation: 'groups', terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000], energy: [1000, 2000] } } }
         ],
         camps: [
             { hostiles: { defender: 3, herd: 4 }, reward: { resources: { refinedMinerals: [100, 300] } } },
@@ -240,11 +243,11 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'A ruined town, half of it roofed again. Several hundred returns clustered in the standing blocks. More are moving toward the edge than the optics first counted.',
         campApproachText: 'A group out from the town, more of them than the first count. They fan out as they close.',
         levels: [
-            { hostiles: { heavy: 2, launcher: 2, defender: 14 }, formation: 'clusters', terrain: 'ruins', reward: { resources: { refinedMinerals: [800, 1400] } } }
+            { hostiles: { heavy: 2, launcher: 2, defender: 14 }, formation: 'groups', terrain: 'ruins', reward: { resources: { refinedMinerals: [800, 1400] } } }
         ],
         camps: [
             { hostiles: { defender: 4 }, reward: { resources: { refinedMinerals: [200, 400] } } },
-            { hostiles: { defender: 4 }, formation: 'scatter', reward: { resources: { refinedMinerals: [200, 400] } } }
+            { hostiles: { defender: 4 }, formation: 'groups', spread: 'loose', reward: { resources: { refinedMinerals: [200, 400] } } }
         ]
     },
     {
@@ -313,8 +316,8 @@ export const POI_DEFS: PoiDef[] = [
         type: 'site', zone: 'h', number: 3, levelsShown: true, inRecords: true,
         approachText: 'A facility dug into a canyon wall, stationary returns ringing it at intervals. Dense returns at the core, past counting from here.',
         levels: [
-            { hostiles: { shelter: 1, defender: 18 }, formation: 'ring', terrain: 'canyon', reward: { resources: { refinedMinerals: [1500, 2500] } } },
-            { hostiles: { defender: 16 }, formation: 'clusters', terrain: 'ruins', reward: { resources: { energy: [4000, 7000] } } },
+            { hostiles: { shelter: 1, defender: 18 }, formation: 'front', terrain: 'canyon', reward: { resources: { refinedMinerals: [1500, 2500] } } },
+            { hostiles: { defender: 16 }, formation: 'groups', terrain: 'ruins', reward: { resources: { energy: [4000, 7000] } } },
             { hostiles: { defender: 14 }, formation: 'surround', reward: { resources: { refinedMinerals: [3000, 5000] } } }
         ]
     },
@@ -405,14 +408,14 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'Ruins on the scale of a city, still inhabited. Returns in the thousands, scattered thin across a wide front.',
         campApproachText: 'A group in the ruins, stationary until you were seen. Then all of them moving at once.',
         levels: [
-            { hostiles: { defender: 30 }, formation: 'scatter', terrain: 'ruins', reward: { resources: { refinedMinerals: [2000, 3500] } } },
+            { hostiles: { defender: 30 }, formation: 'groups', spread: 'loose', terrain: 'ruins', reward: { resources: { refinedMinerals: [2000, 3500] } } },
             { hostiles: { defender: 22 }, formation: 'surround', terrain: 'ruins', reward: { resources: { refinedMinerals: [2500, 4000], energy: [6000, 10000] } } },
-            { hostiles: { defender: 4 }, formation: 'clusters', reward: { resources: { refinedMinerals: [8000, 12000] } } }
+            { hostiles: { defender: 4 }, formation: 'groups', reward: { resources: { refinedMinerals: [8000, 12000] } } }
         ],
         camps: [
             { hostiles: { defender: 8 }, reward: { resources: { refinedMinerals: [600, 1000] } } },
             { hostiles: { defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000] } } },
-            { hostiles: { defender: 8 }, formation: 'scatter', reward: { resources: { refinedMinerals: [600, 1000] } } }
+            { hostiles: { defender: 8 }, formation: 'groups', spread: 'loose', reward: { resources: { refinedMinerals: [600, 1000] } } }
         ]
     },
     {
@@ -420,7 +423,7 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'A fortress in a canyon mouth. Rings of returns around something that does not move, hundreds deep.',
         campApproachText: 'An outer ring of the fortress, turning inward on you.',
         levels: [
-            { hostiles: { shelter: 2, defender: 32 }, formation: 'ring', terrain: 'canyon', reward: { resources: { refinedMinerals: [3000, 5000] } } },
+            { hostiles: { shelter: 2, defender: 32 }, formation: 'front', terrain: 'canyon', reward: { resources: { refinedMinerals: [3000, 5000] } } },
             { hostiles: { defender: 28 }, formation: 'surround', terrain: 'canyon', reward: { resources: { refinedMinerals: [5000, 8000], energy: [10000, 15000] } } }
         ],
         camps: [

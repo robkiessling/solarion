@@ -3,7 +3,8 @@
  * `npm run import:art` instead of editing this file.
  *
  * Each piece is a list of looks. `art` is what is drawn; `solid` is the collision mask ('#' = a body cannot
- * be there): every drawn cell, plus the open cells inside or between them that no body could use.
+ * be there): every drawn cell, plus the open cells inside or between them that no body could use; `markers`
+ * is what the look marks for the opening.
  */
 import type {TerrainPieceLook} from "./terrain_art";
 

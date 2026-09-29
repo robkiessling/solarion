@@ -7,13 +7,14 @@ import {CAMPS_ENABLED, FIELD_EVENT_SPACING, POI_DEFS} from "../../database/plane
 import type {Capabilities} from "../../database/planet/capabilities";
 import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
 import type {HostileType} from "../../database/battle/units";
-import type {HostileFormation, TerrainLayoutId} from "../battle/layouts";
+import type {HostileFormation, Spread, TerrainLayoutId} from "../battle/layouts";
 
 /** One placed fight (see FightDef in database/planet/poi_types.ts), hostile counts and rewards rolled. `timesCleared`
  * counts wins on this level across assaults: it indexes the site's reloot schedule. */
 export interface PoiFight {
     hostiles: Partial<Record<HostileType, number>>;
     formation?: HostileFormation;
+    spread?: Spread;
     terrain?: TerrainLayoutId;
     blurb?: string;
     reward: PoiReward;
@@ -333,8 +334,8 @@ function rollReward(def: RewardDef): PoiReward {
 // Rolls one fight's hostile counts and reward. Takes any def carrying a fight's fields (an ambush def has them flat
 // beside its placement fields) and copies only the fight's own.
 function rollFight(def: FightDef): PoiFight {
-    return { hostiles: mapObject(def.hostiles, (type, count) => rollRange(count)), formation: def.formation, terrain: def.terrain,
-        blurb: def.blurb, reward: def.reward ? rollReward(def.reward) : {}, timesCleared: 0 };
+    return { hostiles: mapObject(def.hostiles, (type, count) => rollRange(count)), formation: def.formation, spread: def.spread,
+        terrain: def.terrain, blurb: def.blurb, reward: def.reward ? rollReward(def.reward) : {}, timesCleared: 0 };
 }
 
 // The signature count a scan of a fight reports: every hostile fielded, whatever its type
