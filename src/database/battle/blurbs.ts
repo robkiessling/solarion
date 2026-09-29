@@ -1,16 +1,17 @@
 /**
- * Battle scene text: the arena footer's one-liner. The formation and terrain-layout ids it is keyed by are
- * those of lib/battle/layouts.ts (HostileFormation, TERRAIN_LAYOUTS).
+ * Battle scene text: the arena footer's one-liner. The opening and terrain ids it is keyed by are those of
+ * lib/battle/openings.ts and terrain.ts (Opening, TERRAINS).
  * PLACEHOLDER copy until the content pass.
  */
-import type {HostileFormation, TerrainLayoutId} from '../../lib/battle/layouts';
-import type {TerrainDrawingId} from './terrain_art';
+import type {Opening} from '../../lib/battle/openings';
+import type {TerrainId} from '../../lib/battle/terrain';
+import type {DrawnTerrainId} from './terrain_art';
 
 // One-line scene descriptions for the battle footer, assembled by battleBlurb (lib/battle/sim.ts): a ground
 // clause keyed by the arena terrain layout (open = no layout) plus a hostile clause keyed by the garrison's
-// formation. A drawn battlefield may go without a line of its own (it reads as open ground until it has one).
+// opening. A drawn terrain may go without a line of its own (it reads as open ground until it has one).
 // PLACEHOLDER copy until the content pass.
-export const GROUND_BLURBS: Record<Exclude<TerrainLayoutId, TerrainDrawingId> | 'open', string> & Partial<Record<TerrainDrawingId, string>> = {
+export const GROUND_BLURBS: Record<Exclude<TerrainId, DrawnTerrainId> | 'open', string> & Partial<Record<DrawnTerrainId, string>> = {
     rocks: 'The squad drops into a boulder field',
     ruins: 'The squad drops among shattered ruins',
     rubble: 'The squad drops into a rubble field',
@@ -21,13 +22,13 @@ export const GROUND_BLURBS: Record<Exclude<TerrainLayoutId, TerrainDrawingId> | 
     compound1b: 'The squad is inside the walls',
     open: 'The squad drops onto open ground'
 };
-export const HOSTILE_BLURBS: Record<HostileFormation, string> = {
-    terrain: 'hostiles hold their ground',
+export const OPENING_BLURBS: Record<Opening, string> = {
+    marked: 'hostiles hold their ground',
     front: 'hostiles advance on a broad front',
     groups: 'hostiles mass in scattered pockets',
     surround: 'the ambush closes from all sides'
 };
 
-// A group's centre is where a garrison's source stands (see hostileOpening in lib/battle/layouts.ts):
+// A group's centre is where a garrison's source stands (see hostileOpening in lib/battle/openings.ts):
 // battleBlurb names the objective when it's really there.
 export const SOURCE_BLURBS = { one: 'hostiles circle tight around their source', many: 'hostiles circle tight around their sources' };

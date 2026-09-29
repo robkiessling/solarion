@@ -215,7 +215,7 @@ class EncounterPopup extends React.Component {
                 {this.renderBattleHeader(battle)}
                 <BattleCanvas battle={battle}/>
                 <div className="battle-footer">
-                    <div className="popup-body battle-blurb">{poiLevel.blurb || battleBlurb(battle, poiLevel.formation)}</div>
+                    <div className="popup-body battle-blurb">{poiLevel.blurb || battleBlurb(battle, poiLevel.opening)}</div>
                     <div className="popup-actions">
                         {slots.map((id, i) => (
                             <React.Fragment key={id}>

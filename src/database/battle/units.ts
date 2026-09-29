@@ -4,12 +4,12 @@
  *
  * The dividing line between database/ and lib/: if a content pass would edit it, it's a record here;
  * if only a mechanics change would touch it, it's code in lib. The other battle content lives in:
- *   - database/planet/pois.ts     the "levels": each fight's hostiles (a count per type here), formation, terrain
+ *   - database/planet/pois.ts     the "levels": each fight's hostiles (a count per type here), opening, terrain
  *   - database/battle/blurbs.ts   the scene text (arena footer)
  *   - database/battle/terrain_art.ts  the arena obstacle art (ASCII pieces)
- * The formation and terrain-layout ids those records reference (front/groups/surround,
- * rocks/ruins/canyonSmall) are placement algorithms in lib/battle/layouts.ts (HostileFormation,
- * TERRAIN_LAYOUTS), the scatter terrains records in database/battle/terrains.ts.
+ * The opening and terrain ids those records reference (front/groups/surround, rocks/ruins/canyonSmall) are
+ * those of lib/battle/openings.ts and terrain.ts (Opening, TERRAINS); what a terrain is made of is a record
+ * (database/battle/scattered_terrains.ts) or a drawing (database/battle/drawn_terrains.ts).
  */
 
 /** The expedition droid stat block: DROID_BASE_STATS plus researched combat upgrades and the authorized chassis spec.

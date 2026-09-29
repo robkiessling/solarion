@@ -11,7 +11,7 @@
  * The sweep is make-style: an output is fresh, and skipped before the exporter is even spawned, when it is
  * newer than both its drawing and this script (so a change to the converter regenerates everything).
  */
-import {existsSync, mkdirSync, readdirSync, statSync, watch, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, readFileSync, readdirSync, statSync, watch, writeFileSync} from 'node:fs';
 import {dirname, join, relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFile} from 'node:child_process';
@@ -25,8 +25,8 @@ const repoRoot = join(dirname(scriptPath), '..');
  * `as` picks the converter:
  *   text    the drawing's art as plain text, one line per row (the world map)
  *   pieces    battle terrain pieces, one per frame, as a generated module (see convertPieces)
- *   drawings  whole battlefields, one per frame, as a generated module (see convertDrawings). `from` is a
- *             folder: every drawing in it that no other entry names is a file of battlefields
+ *   terrains  terrains drawn whole, one per frame, as a generated module (see convertTerrains). `from` is a
+ *             folder: every drawing in it that no other entry names is a file of terrains
  *
  * A drawing's art is every VISIBLE layer except the reserved ones, combined. A hidden layer is left out (a
  * sketch, a reference), and a reserved layer is never art whether it shows or not: the converters read those
@@ -35,8 +35,26 @@ const repoRoot = join(dirname(scriptPath), '..');
 const IMPORTS = [
     { from: 'ascii/minochar/planet/map.minochar', as: 'text', to: 'src/database/planet/map.txt' },
     { from: 'ascii/minochar/battle/pieces.minochar', as: 'pieces', to: 'src/database/battle/terrain_pieces.ts' },
-    { from: 'ascii/minochar/battle', as: 'drawings', to: 'src/database/battle/terrain_drawings.ts' }
+    { from: 'ascii/minochar/battle', as: 'terrains', to: 'src/database/battle/drawn_terrains.ts' }
 ];
+
+// Pieces, drawn terrains and scattered terrains are all named into one game, where a name can mean one thing:
+// a drawn terrain is a terrain and a piece both, so it can share its name with neither. The names already in
+// the game are read off the files that hold them (the top-level keys of the one record each exports).
+const NAMED_IN = {
+    piece: 'src/database/battle/terrain_pieces.ts',
+    'drawn terrain': 'src/database/battle/drawn_terrains.ts',
+    'scattered terrain': 'src/database/battle/scattered_terrains.ts'
+};
+function refuseSharedNames(kind, names, against) {
+    for (const other of against) {
+        const file = join(repoRoot, NAMED_IN[other]);
+        if (!existsSync(file)) continue;
+        const taken = [...readFileSync(file, 'utf8').matchAll(/^ {4}(\w+): [[{]/gm)].map(match => match[1]);
+        const shared = names.filter(name => taken.includes(name));
+        if (shared.length > 0) throw new Error(`${shared.map(name => `"${name}"`).join(', ')} is already the name of a ${other} (${NAMED_IN[other]}): a ${kind} needs a name of its own`);
+    }
+}
 
 // The drawings an entry reads: the one it names, or (a folder) every drawing in it no other entry names
 function sources(entry) {
@@ -172,7 +190,7 @@ function readMarkers({ name, frame, marks }, solid, allowed, left, top, width, b
     marks.slice(top, bottom).forEach((line, row) => Array.from(line.slice(left, left + width)).forEach((mark, col) => {
         if (mark === ' ') return;
         const where = `frame ${frame} (${name}): marker "${mark}"`;
-        if (mark === '0' && !allowed.includes('0')) throw new Error(`${where} is the squad's start, which belongs in a drawing, not a piece`);
+        if (mark === '0' && !allowed.includes('0')) throw new Error(`${where} is the squad's start, which belongs in a drawn terrain, not a piece`);
         if (!/^[0-9P]$/.test(mark)) throw new Error(`${where} is not one of 0 to 9 or P`);
         if (solid[row][col] !== ' ') throw new Error(`${where} (column ${left + col + 1}, row ${top + row + 1}) stands on ground that is blocked or cut off`);
         markers.push({ mark, col, row });
@@ -205,6 +223,7 @@ async function convertPieces(from) {
         pieces.get(each.name).push({ art, markers, frame: each.frame, ...mask });
     }
     if (pieces.size === 0) throw new Error('no pieces drawn');
+    refuseSharedNames('piece', [...pieces.keys()], ['drawn terrain']);
 
     const report = [...pieces].map(([piece, looks]) => {
         const closed = looks.filter(each => each.hollows + each.slits > 0).map(each => `frame ${each.frame}: ${closedNote(each)} closed`);
@@ -233,7 +252,7 @@ ${emitLooks(pieces)}
 }
 
 /**
- * The collision mask of a whole battlefield, and what it has room for. As a piece's (solidMask), with the
+ * The collision mask of a terrain drawn whole, and what it has room for. As a piece's (solidMask), with the
  * field's own edges counting as walls, and with "walled in" meaning what the squad cannot walk to from where
  * it starts (its `0`, or the left edge): ground like that is closed, so nothing is ever sent there. A field
  * with no way from the squad's start to the left edge is fine (the inside of a building): the squad
@@ -286,13 +305,13 @@ function fieldMask(art, start) {
 }
 
 /**
- * Whole battlefields. Each frame is one: its name on the `names` layer, its art on the art layer, its markers
+ * Terrains drawn whole. Each frame is one: its name on the `names` layer, its art on the art layer, its markers
  * on the `markers` layer (ascii/minochar/README.md). The canvas is the arena, cell for cell, so nothing is
  * trimmed. Frames sharing a name (a frame with no name continues the one before it) are looks of one
- * battlefield, and have to be the same size. Every marker has to stand on ground the squad can walk to.
+ * terrain, and have to be the same size. Every marker has to stand on ground the squad can walk to.
  */
-async function convertDrawings(from, entry) {
-    const drawings = new Map();
+async function convertTerrains(from, entry) {
+    const terrains = new Map();
     const report = [];
     for (const file of sources(entry)) {
         const { frames, width, height } = await readFrames(file);
@@ -302,32 +321,33 @@ async function convertDrawings(from, entry) {
             const mask = fieldMask(each.art, zero || null);
             if (mask.open === 0) throw new Error(`frame ${each.frame} (${each.name}): no open ground on the left edge for the squad to start from, and no "0" to say where it does`);
             const markers = readMarkers(each, mask.solid, '0123456789P', 0, 0, width, height);
-            const looks = drawings.get(each.name) || [];
+            const looks = terrains.get(each.name) || [];
             if (looks.length > 0 && (looks[0].art.length !== height || looks[0].art[0].length !== width)) {
                 throw new Error(`${each.name}: drawn at ${width}x${height} in ${relative(repoRoot, file)} and at another size elsewhere`);
             }
-            drawings.set(each.name, [...looks, { art: each.art, markers, ...mask }]);
+            terrains.set(each.name, [...looks, { art: each.art, markers, ...mask }]);
             report.push(`  ${each.name.padEnd(14)} ${width}x${height}   room for ${Math.round(mask.open / 3)}` +
                 `   marks ${markers.map(marker => marker.mark).sort().join(' ') || 'none'}` +
                 (mask.hollows + mask.slits > 0 ? `\n${' '.repeat(16)}${closedNote(mask)} closed` : '') +
                 (mask.wayOut ? '' : `\n${' '.repeat(16)}closed off from the left edge: the squad withdraws to its 0`));
         }
     }
-    if (drawings.size === 0) throw new Error('no battlefields drawn');
+    if (terrains.size === 0) throw new Error('no terrains drawn');
+    refuseSharedNames('drawn terrain', [...terrains.keys()], ['piece', 'scattered terrain']);
     console.log(report.join('\n'));
 
     return `/**
- * Generated by scripts/import_art.mjs from the battlefields drawn in ${entry.from}/. Redraw them in minochar
+ * Generated by scripts/import_art.mjs from the terrains drawn in ${entry.from}/. Redraw them in minochar
  * and run \`npm run import:art\` instead of editing this file.
  *
- * Each battlefield is a list of looks the size of its arena. \`art\` is what is drawn; \`solid\` is the collision
+ * Each terrain is a list of looks the size of its arena. \`art\` is what is drawn; \`solid\` is the collision
  * mask ('#' = a body cannot be there): every drawn cell, plus the open ground no body could use or reach;
  * \`markers\` is where the opening puts everyone.
  */
 import type {TerrainPieceLook} from "./terrain_art";
 
-export const IMPORTED_DRAWINGS = {
-${emitLooks(drawings)}
+export const IMPORTED_DRAWN_TERRAINS = {
+${emitLooks(terrains)}
 } satisfies Record<string, TerrainPieceLook[]>;
 `;
 }
@@ -335,7 +355,7 @@ ${emitLooks(drawings)}
 const CONVERTERS = {
     text: async (from) => minochar(['export', from, '-f', 'txt', ...await artLayerFlags(from)]),
     pieces: convertPieces,
-    drawings: convertDrawings
+    terrains: convertTerrains
 };
 
 function isFresh(from, to) {

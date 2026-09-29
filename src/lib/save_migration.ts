@@ -12,9 +12,13 @@ import {DROID_BASE_STATS} from '../database/battle/units';
 import {SAVE_FORMAT_VERSION} from './save_version';
 import type {EncounterPrompt} from '../redux/modules/squad';
 import type {Squad} from './planet/squad';
-import type {HostileFormation} from './battle/layouts';
+import type {Opening} from './battle/openings';
+import type {TerrainId} from './battle/terrain';
 
-const RENAMED_FORMATIONS: Record<string, HostileFormation> = { column: 'terrain', ring: 'front', clusters: 'groups', scatter: 'groups' };
+// What a placed fight's `formation` is as an `opening`, and what its terrain is called now it is drawn
+const FORMATION_AS_OPENING: Record<string, Opening> = { terrain: 'marked', column: 'marked', ring: 'front', clusters: 'groups',
+    scatter: 'groups', front: 'front', groups: 'groups', surround: 'surround' };
+const RENAMED_TERRAINS: Record<string, TerrainId> = { canyon: 'canyonSmall', corridor: 'tunnelSmall', compound: 'compound1a' };
 
 // lodash merges arrays index-by-index, which would mangle saved maps, droid lists, etc.
 // This customizer makes saved arrays replace default arrays wholesale instead.
@@ -82,14 +86,18 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
         }
     }
 
-    // Formations were renamed (and the scatter's spread became a setting of its own): a placed fight saved
-    // under an old name opens as the nearest new one
+    // A placed fight's `formation` became its `opening` (the scatter's spread a setting of its own), and the
+    // terrains that were generated are drawn now, under new names: a fight saved the old way keeps its meaning
     if (state.planet && state.planet.pois) {
-        Object.values(state.planet.pois).forEach(poi => (poi.levels || []).forEach(level => {
-            const renamed = RENAMED_FORMATIONS[level.formation as string];
-            if (!renamed) return;
-            if ((level.formation as string) === 'scatter') level.spread = 'loose';
-            level.formation = renamed;
+        Object.values(state.planet.pois).forEach(poi => (poi.levels || []).forEach(saved => {
+            const level = saved as typeof saved & { formation?: string };
+            if (level.formation !== undefined) {
+                if (level.formation === 'scatter') level.spread = 'loose';
+                level.opening = FORMATION_AS_OPENING[level.formation] || 'marked';
+                delete level.formation;
+            }
+            const renamed = RENAMED_TERRAINS[level.terrain as string];
+            if (renamed) level.terrain = renamed;
         }));
     }
 

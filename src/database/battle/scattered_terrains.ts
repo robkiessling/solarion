@@ -1,5 +1,5 @@
 /**
- * Scatter terrains: battlefields made by dropping pieces (terrain_art.ts, terrain_pieces.ts) at random spots,
+ * Scattered terrains: terrains made by dropping pieces (terrain_art.ts, terrain_pieces.ts) at random spots,
  * the same spots every time a given site is fought (the placer seeds from the site's tile).
  *   scatter  the pieces to pick from; each placement picks a name, then one of that piece's looks. Name a
  *            piece twice to make it twice as likely.
@@ -16,15 +16,15 @@ import type {TerrainPieceId} from "./terrain_art";
 
 export type TerrainBand = 'middle' | 'field' | 'left' | 'right';
 
-export interface ScatterTerrain {
+export interface ScatteredTerrain {
     scatter: TerrainPieceId[];
     count: number;
     band: TerrainBand;
 }
 
-export const SCATTER_TERRAINS = {
+export const SCATTERED_TERRAINS = {
     rocks: { scatter: ['boulder', 'spire', 'boulderBig', 'boulder', 'spire'], count: 5, band: 'middle' },
     ruins: { scatter: ['ruins', 'rubble', 'rubble', 'boulder'], count: 5, band: 'field' },
     rubble: { scatter: ['rubble', 'rubble', 'boulderBig', 'boulder'], count: 6, band: 'field' },
     debris: { scatter: ['debris', 'rubble', 'boulder'], count: 4, band: 'field' }
-} satisfies Record<string, ScatterTerrain>;
+} satisfies Record<string, ScatteredTerrain>;

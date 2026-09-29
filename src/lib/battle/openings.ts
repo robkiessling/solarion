@@ -1,16 +1,15 @@
 /**
- * Battle openings: where everyone stands when a fight starts (droidOpening, hostileOpening) and the arena
- * terrain generators (TERRAIN_LAYOUTS), both deterministic and keyed by what a settlement's level declares
- * (`formation`, `terrain` in database/planet/pois.ts). A built terrain is code here; a scatter terrain is a
- * record (database/battle/terrains.ts). The sim (sim.ts) takes the results and never cares what produced them.
+ * Battle openings: where everyone stands when a fight starts (droidOpening, hostileOpening), deterministic
+ * and keyed by what a settlement's level declares (`opening`, `spread` in database/planet/pois.ts). The sim
+ * (sim.ts) takes the positions and never cares what produced them.
  */
-import {TERRAIN_DRAWINGS, TERRAIN_PIECES, terrainPieceLook, type TerrainDrawingId, type TerrainPieceId, type TerrainPieceLook} from "../../database/battle/terrain_art";
-import {SCATTER_TERRAINS, type ScatterTerrain, type TerrainBand} from "../../database/battle/terrains";
-import type {BattleSide, BattleTerrainPiece} from "./sim";
+import {FRONT_GAP, hash01, type XY} from "./arena";
+import type {BattleSide} from "./sim";
+import type {TerrainMarkers} from "./terrain";
 
 /**
- * How a fight opens, as a level declares it (`formation` in database/planet/pois.ts):
- *   terrain   the place decides: hostiles form up on the terrain's numbered spawn points and the squad starts
+ * How a fight opens, as a level declares it (`opening` in database/planet/pois.ts):
+ *   marked    the place decides: hostiles form up on the terrain's numbered spawn points and the squad starts
  *             on its `0`. A terrain that marks no points opens like `front`; one with no `0` starts the squad
  *             at the left edge. What a level gets when it names nothing.
  *   front     groups in a line down the hostile side, the squad at the left edge
@@ -18,7 +17,7 @@ import type {BattleSide, BattleTerrainPiece} from "./sim";
  *   surround  groups in the corners of the whole field, the squad in the middle (an ambush)
  * Naming one of the last three overrules the terrain's points and its `0`.
  */
-export type HostileFormation = 'terrain' | 'front' | 'groups' | 'surround';
+export type Opening = 'marked' | 'front' | 'groups' | 'surround';
 
 /** How close a group stands around its point: formed up, or caught going about its business */
 export type Spread = 'tight' | 'loose';
@@ -28,38 +27,9 @@ export type Spread = 'tight' | 'loose';
  * everything else is the `body` of a group. */
 export type SpawnRole = 'body' | 'source' | 'post';
 
-/** What a terrain marks, in arena units: where the squad starts (`0`), the numbered spawn points (`1` to `9`),
- * and where posts stand (`P`). See terrainMarks. */
-export interface TerrainMarks {
-    squad: XY | null;
-    points: { n: number, x: number, y: number }[];
-    posts: XY[];
-}
-
-/** Arena obstacle layouts: the keys of TERRAIN_LAYOUTS */
-export type TerrainLayoutId = keyof typeof TERRAIN_LAYOUTS;
-
-export type XY = { x: number, y: number };
-type Placer = ReturnType<typeof makePlacer>;
-
-const FRONT_GAP = 44;              // spawn distance between the two front lines, at any arena size
-const BASELINE_ARENA_W = 100, BASELINE_ARENA_H = 60; // the smallest arena (sim.ts ARENA_W/H): what a scatter terrain's count is written for
-// Arena terrain cell metrics: a body width wide, a glyph tall (the renderer draws obstacle art at these)
-export const TERRAIN_CELL_W = 2;    // arena units; about one monospace char at the unit font size
-export const TERRAIN_CELL_H = 3.2;  // matches the renderer's glyph height, so art cells stay square-ish
-
-// Deterministic 32-bit hash -> [0, 1). Decorrelates per-unit phases (wobble, swing timers, collision
-// tie-breaks) without RNG: linear-in-index seeds made whole formations snake and swing in sync, because
-// neighbors in a lattice have neighboring indices.
-export function hash01(n: number) {
-    let h = Math.imul(n + 1, 2654435761);
-    h = Math.imul(h ^ (h >>> 13), 1597334677);
-    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
-
 /**
  * The opening: where everyone stands when a fight starts. Pure and deterministic. Hostiles form groups around
- * spawn points (the terrain's own, or the ones a formation lays out), about GROUP_SIZE to a point, so a bigger
+ * spawn points (the terrain's own, or the ones a named opening lays out), about GROUP_SIZE to a point, so a bigger
  * garrison brings more points into use; the squad deploys in squadron blocks. Nobody spawns closer than
  * SPAWN_SPACING (just above the collision contact distance). The opening only shapes the first contact
  * (targeting takes over after it), but it decides the geometry: wrap, split, or wall.
@@ -102,18 +72,18 @@ function squadronLayout(count: number, arenaW: number, arenaH: number, side: Bat
  * Where the squad stands. At the left edge by default: it arrives from the side it withdraws to, so a fight
  * opens with an approach across the field (the blocks' near face a body in from the boundary). A surround
  * puts it in the middle (an ambush only reads as one if the droids start encircled), and a terrain that marks
- * a `0` puts it there, unless the level named a formation of its own.
+ * a `0` puts it there, unless the level named an opening of its own.
  */
-export function droidOpening(count: number, formation: HostileFormation, marks: TerrainMarks, arenaW: number, arenaH: number): XY[] {
+export function droidOpening(count: number, opening: Opening, markers: TerrainMarkers, arenaW: number, arenaH: number): XY[] {
     if (count === 0) return [];
     const blocks = squadronLayout(count, arenaW, arenaH, 'droid');
     const meanX = blocks.reduce((sum, p) => sum + p.x, 0) / count;
     const meanY = blocks.reduce((sum, p) => sum + p.y, 0) / count;
-    if (formation === 'terrain' && marks.squad) {
-        const { x, y } = marks.squad;
+    if (opening === 'marked' && markers.squad) {
+        const { x, y } = markers.squad;
         return blocks.map(p => ({ x: p.x + x - meanX, y: p.y + y - meanY }));
     }
-    if (formation === 'surround') return blocks.map(p => ({ x: p.x + arenaW / 2 - meanX, y: p.y }));
+    if (opening === 'surround') return blocks.map(p => ({ x: p.x + arenaW / 2 - meanX, y: p.y }));
     const minX = Math.min(...blocks.map(p => p.x));
     return blocks.map(p => ({ x: p.x - minX + SPAWN_SPACING, y: p.y }));
 }
@@ -144,7 +114,7 @@ function groupSlots(count: number, cx: number, cy: number, startIndex: number, s
     }));
 }
 
-// Exact outer radius of a groupSlots(n) group: mirrors its ring-capacity math, so the point layouts budget
+// Exact outer radius of a groupSlots(n) group: mirrors its ring-capacity math, so the spawn points budget
 // true extents. (An earlier padded estimate cost midgame fights their groups entirely: group area scales
 // with the garrison exactly as arena area scales with the fight, so at design density the fit is genuinely
 // tight and every wasted unit of padding matters.)
@@ -250,12 +220,12 @@ function surroundPoints(grouped: number, spacing: number, arenaW: number, arenaH
 
 // The spawn points a fight uses. A terrain's own come into use in number order, as many numbers as it takes
 // to have a point for every GROUP_SIZE of the garrison (points that share a number open together); a
-// formation lays out as many as the garrison needs.
-function spawnPoints(formation: HostileFormation, marks: TerrainMarks, grouped: number, spacing: number,
+// named opening lays out as many as the garrison needs.
+function spawnPoints(opening: Opening, markers: TerrainMarkers, grouped: number, spacing: number,
                      arenaW: number, arenaH: number, salt: number): XY[] {
     const wanted = Math.max(1, Math.round(grouped / GROUP_SIZE));
-    if (formation === 'terrain' && marks.points.length > 0) {
-        const inOrder = [...marks.points].sort((a, b) => a.n - b.n || a.y - b.y || a.x - b.x);
+    if (opening === 'marked' && markers.points.length > 0) {
+        const inOrder = [...markers.points].sort((a, b) => a.n - b.n || a.y - b.y || a.x - b.x);
         const inUse: typeof inOrder = [];
         for (const point of inOrder) {
             if (inUse.length >= wanted && point.n !== inUse[inUse.length - 1].n) break;
@@ -263,8 +233,8 @@ function spawnPoints(formation: HostileFormation, marks: TerrainMarks, grouped: 
         }
         return inUse.map(({ x, y }) => ({ x, y }));
     }
-    if (formation === 'surround') return surroundPoints(grouped, spacing, arenaW, arenaH);
-    if (formation === 'groups') return groupsPoints(wanted, grouped, spacing, arenaW, arenaH, salt);
+    if (opening === 'surround') return surroundPoints(grouped, spacing, arenaW, arenaH);
+    if (opening === 'groups') return groupsPoints(wanted, grouped, spacing, arenaW, arenaH, salt);
     return frontPoints(wanted, grouped, spacing, arenaW, arenaH);
 }
 
@@ -272,15 +242,15 @@ function spawnPoints(formation: HostileFormation, marks: TerrainMarks, grouped: 
  * Where the hostiles stand: a position for each of `roles`, in order (the roster's). The sources and the
  * bodies are dealt evenly over the spawn points in use and each point's group arranges itself: a source at
  * the centre (dealt one to a point before any point gets a second), the bodies in rings around it. A post
- * stands on one of the terrain's `P` marks (taken in reading order); a post with no mark left stands just
+ * stands on one of the terrain's `P` markers (taken in reading order); a post with no marker left stands just
  * outside a group, on the side facing `toward` (the squad).
  */
-export function hostileOpening(roles: SpawnRole[], formation: HostileFormation, marks: TerrainMarks, spread: Spread,
+export function hostileOpening(roles: SpawnRole[], opening: Opening, markers: TerrainMarkers, spread: Spread,
                                toward: XY, arenaW: number, arenaH: number, salt: number): XY[] {
     const grouped = roles.filter(role => role !== 'post').length;
     const room = Math.sqrt((arenaW / 2) * arenaH * LOOSE_FILL / Math.max(1, grouped));
     const spacing = spread === 'loose' ? Math.min(LOOSE_SPACING, Math.max(SPAWN_SPACING, room)) : SPAWN_SPACING;
-    const points = spawnPoints(formation, marks, grouped, spacing, arenaW, arenaH, salt);
+    const points = spawnPoints(opening, markers, grouped, spacing, arenaW, arenaH, salt);
     const sizes = points.map((_, g) => Math.floor(grouped / points.length) + (g < grouped % points.length ? 1 : 0));
     const slots = points.map(({ x, y }, g) => groupSlots(sizes[g], x, y, g * 1000, spacing, spread === 'loose' ? salt + g * 7919 : null));
 
@@ -293,7 +263,7 @@ export function hostileOpening(roles: SpawnRole[], formation: HostileFormation, 
     const taken = new Set(sourceOrder.slice(0, sources));
     const bodyOrder = slots.flat().filter(slot => !taken.has(slot));
 
-    const marked = [...marks.posts].sort((a, b) => a.y - b.y || a.x - b.x);
+    const marked = [...markers.posts].sort((a, b) => a.y - b.y || a.x - b.x);
     let nextSource = 0, nextBody = 0, nextPost = 0;
     return roles.map(role => {
         if (role === 'source') return sourceOrder[nextSource++];
@@ -307,136 +277,3 @@ export function hostileOpening(roles: SpawnRole[], formation: HostileFormation, 
         return { x: points[g].x + Math.cos(facing) * reach, y: points[g].y + Math.sin(facing) * reach };
     });
 }
-
-/**
- * What a terrain marks for the opening, in arena units: the markers drawn into the looks of its placed pieces
- * (database/battle/terrain_art.ts), each at the middle of its cell.
- */
-export function terrainMarks(pieces: BattleTerrainPiece[], arenaW: number, arenaH: number): TerrainMarks {
-    const marks: TerrainMarks = { squad: null, points: [], posts: [] };
-    for (const { art, col, row, look } of pieces) {
-        for (const marker of terrainPieceLook(art, look)?.markers || []) {
-            const at = { x: (col + marker.col + 0.5) * TERRAIN_CELL_W, y: (row + marker.row + 0.5) * TERRAIN_CELL_H };
-            if (at.x >= arenaW || at.y >= arenaH) continue;
-            if (marker.mark === '0') marks.squad = at;
-            else if (marker.mark === 'P') marks.posts.push(at);
-            else marks.points.push({ n: Number(marker.mark), ...at });
-        }
-    }
-    return marks;
-}
-
-/**
- * Terrain layouts: (arenaW, arenaH, salt) -> [{ art, col, row }], deterministic in the salt. Settlements
- * declare theirs via poi.terrain with a coord-stable salt, so a given settlement always fights on the same
- * ground and players can learn it. A scatter terrain covers a bigger arena by COUNT (its piece budget follows
- * the arena's area), never by inflating the pieces themselves; a drawn one is the size it was drawn.
- */
-function terrainSize(art: TerrainPieceId, look = 0) {
-    const lines = terrainPieceLook(art, look)!.solid;
-    return { w: Math.max(...lines.map((l: string) => l.length)), h: lines.length };
-}
-
-// Shared placement state. tryPlace rejects out-of-bounds spots and anything within `pad` cells of an
-// existing piece: 2 clear cells between pieces guarantees composed gaps stay wide enough for a body to
-// physically pass (a 1-cell slit is open to the BFS but not to a unit).
-function makePlacer(arenaW: number, arenaH: number) {
-    const cols = Math.ceil(arenaW / TERRAIN_CELL_W);
-    const rows = Math.ceil(arenaH / TERRAIN_CELL_H);
-    const occupied = new Set<number>();
-    const pieces: BattleTerrainPiece[] = [];
-    const PAD = 2;
-    return {
-        cols, rows, pieces,
-        tryPlace(art: TerrainPieceId, col: number, row: number, look = 0) {
-            const { w, h } = terrainSize(art, look);
-            if (col < 0 || row < 0 || col + w > cols || row + h > rows) return false;
-            for (let c = col - PAD; c < col + w + PAD; c++) {
-                for (let r = row - PAD; r < row + h + PAD; r++) {
-                    if (occupied.has(r * cols + c)) return false;
-                }
-            }
-            for (let c = col; c < col + w; c++) {
-                for (let r = row; r < row + h; r++) occupied.add(r * cols + c);
-            }
-            pieces.push(look ? { art, col, row, look } : { art, col, row });
-            return true;
-        }
-    };
-}
-
-// Scatters count pieces from the arts pool over the given column band via salted hash draws: the picks first
-// (a piece, and which of its looks), then a spot for each, biggest first so the large pieces get the room
-// they need and the small ones fill in around them. A pick gets a few tries at a spot where it fits inside the
-// band and clear of what is already down; one that finds none is left out, so density degrades gracefully.
-const SCATTER_TRIES = 6;
-function scatterPieces(placer: Placer, arts: TerrainPieceId[], count: number, colMin: number, colMax: number, salt: number) {
-    const picks = Array.from({ length: count }, (_, i) => {
-        const art = arts[Math.floor(hash01(salt + i * 3) * arts.length)];
-        const look = Math.floor(hash01(salt + i * 3 + 500009) * TERRAIN_PIECES[art].length);
-        return { art, look, i, ...terrainSize(art, look) };
-    });
-    picks.sort((a, b) => b.w * b.h - a.w * a.h || a.i - b.i);
-    for (const { art, look, i, w, h } of picks) {
-        for (let attempt = 0; attempt < SCATTER_TRIES; attempt++) {
-            const draw = salt + i * 3 + attempt * 7919;
-            const col = colMin + Math.floor(hash01(draw + 1) * Math.max(1, colMax - colMin - w + 1));
-            const row = 1 + Math.floor(hash01(draw + 2) * Math.max(1, placer.rows - 1 - h));
-            if (placer.tryPlace(art, col, row, look)) break;
-        }
-    }
-}
-
-// A band's columns [from, to) on an arena this wide (see database/battle/terrains.ts). The middle strip is as
-// wide as the gap between the fronts at any arena size, so it never sits on top of a formation; the field
-// leaves breathing room at both spawn ends (spawns that land on a piece are relocated by the fixup).
-function bandCols(band: TerrainBand, arenaW: number): [number, number] {
-    const cols = Math.ceil(arenaW / TERRAIN_CELL_W);
-    const edge = Math.ceil(8 / TERRAIN_CELL_W), half = Math.round(cols / 2);
-    const bandHalf = FRONT_GAP / 2 - 3;
-    switch (band) {
-        case 'middle': return [Math.floor((arenaW / 2 - bandHalf) / TERRAIN_CELL_W), Math.ceil((arenaW / 2 + bandHalf) / TERRAIN_CELL_W)];
-        case 'left': return [edge, half];
-        case 'right': return [half, cols - edge];
-        case 'field': return [edge, cols - edge];
-    }
-}
-
-// A scatter terrain's layout: its pieces over its band, as many as the record counts for the baseline arena
-// and more on a bigger one, in proportion to the band's area (so the cover is as dense at any size).
-function scatterTerrain({ scatter, count, band }: ScatterTerrain) {
-    return (arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] => {
-        const placer = makePlacer(arenaW, arenaH);
-        const [from, to] = bandCols(band, arenaW);
-        const [baseFrom, baseTo] = bandCols(band, BASELINE_ARENA_W);
-        const growth = ((to - from) * arenaH) / ((baseTo - baseFrom) * BASELINE_ARENA_H);
-        scatterPieces(placer, scatter, Math.max(1, Math.round(count * growth)), from, to, salt);
-        return placer.pieces;
-    };
-}
-
-type TerrainLayout = (arenaW: number, arenaH: number, salt: number) => BattleTerrainPiece[];
-
-// A drawn battlefield's layout: the drawing itself, corner to corner (the arena is cut to it, see drawingArena),
-// in the look the salt picks
-function drawnTerrain(id: TerrainDrawingId): TerrainLayout {
-    return (arenaW, arenaH, salt) => {
-        const look = Math.floor(hash01(salt + 900007) * TERRAIN_DRAWINGS[id].length);
-        return [look ? { art: id, col: 0, row: 0, look } : { art: id, col: 0, row: 0 }];
-    };
-}
-
-/** The arena a drawn battlefield is fought on, whatever the armies: its canvas, cell for cell. Null for a
- * terrain that is laid out to fit the fight. */
-export function drawingArena(id: TerrainLayoutId | null): { arenaW: number, arenaH: number } | null {
-    const looks = id && (TERRAIN_DRAWINGS as Partial<Record<string, TerrainPieceLook[]>>)[id];
-    if (!looks) return null;
-    return { arenaW: looks[0].solid[0].length * TERRAIN_CELL_W, arenaH: Math.floor(looks[0].solid.length * TERRAIN_CELL_H) };
-}
-
-// The layout registry (settlements declare theirs via poi.terrain; unset = open ground): the scatter terrains
-// (records in database/battle/terrains.ts) and the drawn ones (database/battle/terrain_drawings.ts).
-export const TERRAIN_LAYOUTS = {
-    ...(Object.fromEntries(Object.entries(SCATTER_TERRAINS).map(([id, terrain]) => [id, scatterTerrain(terrain)])) as Record<keyof typeof SCATTER_TERRAINS, TerrainLayout>),
-    ...(Object.fromEntries(Object.keys(TERRAIN_DRAWINGS).map(id => [id, drawnTerrain(id as TerrainDrawingId)])) as Record<TerrainDrawingId, TerrainLayout>)
-} satisfies Record<string, TerrainLayout>;

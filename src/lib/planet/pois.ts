@@ -7,15 +7,16 @@ import {CAMPS_ENABLED, FIELD_EVENT_SPACING, POI_DEFS} from "../../database/plane
 import type {Capabilities} from "../../database/planet/capabilities";
 import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
 import type {HostileType} from "../../database/battle/units";
-import type {HostileFormation, Spread, TerrainLayoutId} from "../battle/layouts";
+import type {Opening, Spread} from "../battle/openings";
+import type {TerrainId} from "../battle/terrain";
 
 /** One placed fight (see FightDef in database/planet/poi_types.ts), hostile counts and rewards rolled. `timesCleared`
  * counts wins on this level across assaults: it indexes the site's reloot schedule. */
 export interface PoiFight {
     hostiles: Partial<Record<HostileType, number>>;
-    formation?: HostileFormation;
+    opening?: Opening;
     spread?: Spread;
-    terrain?: TerrainLayoutId;
+    terrain?: TerrainId;
     blurb?: string;
     reward: PoiReward;
     timesCleared: number;
@@ -208,14 +209,14 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             // Camps: one per declared entry, each on a random tile of this site's own held ground (the only
             // POIs that live on held ground; pick() keeps everything else off it). A territory squeezed
             // small by mountains or coast simply fits fewer. Concealed, and the fight opens as an ambush
-            // unless the camp names its own formation. Its approach line is its own or the site's shared one.
+            // unless the camp names its own opening. Its approach line is its own or the site's shared one.
             (CAMPS_ENABLED ? def.camps || [] : []).forEach(campDef => {
                 const free = held.filter(tile => beyondStartingVision(tile) && !usedKeys.has(`${tile.coord[0]},${tile.coord[1]}`));
                 if (free.length === 0) return;
                 const tile = getRandomFromArray(free);
                 usedKeys.add(`${tile.coord[0]},${tile.coord[1]}`);
                 const { approachText, ...level } = campDef;
-                add('camp', tile, { levels: [rollFight({ formation: 'surround', ...level })], parentId: poi.id,
+                add('camp', tile, { levels: [rollFight({ opening: 'surround', ...level })], parentId: poi.id,
                     concealed: true, approachText: approachText || def.campApproachText });
             });
             return;
@@ -284,9 +285,9 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
                     ...(def.fleeting ? { fleeting: true } : {}) });
                 break;
             }
-            case 'ambush': // found by stepping on it, and sprung: encircled unless it names a formation. The def carries
+            case 'ambush': // found by stepping on it, and sprung: encircled unless it names an opening. The def carries
                 // its one fight's fields flat. It remembers its zone(s): a failed contact moves it within them.
-                add('ambush', sector, { ...base, approachText: def.approachText, levels: [rollFight({ formation: 'surround', ...def })], concealed: true,
+                add('ambush', sector, { ...base, approachText: def.approachText, levels: [rollFight({ opening: 'surround', ...def })], concealed: true,
                     ...(def.zone ? { zones: Array.isArray(def.zone) ? def.zone : [def.zone] } : {}) });
                 break;
         }
@@ -334,7 +335,7 @@ function rollReward(def: RewardDef): PoiReward {
 // Rolls one fight's hostile counts and reward. Takes any def carrying a fight's fields (an ambush def has them flat
 // beside its placement fields) and copies only the fight's own.
 function rollFight(def: FightDef): PoiFight {
-    return { hostiles: mapObject(def.hostiles, (type, count) => rollRange(count)), formation: def.formation, spread: def.spread,
+    return { hostiles: mapObject(def.hostiles, (type, count) => rollRange(count)), opening: def.opening, spread: def.spread,
         terrain: def.terrain, blurb: def.blurb, reward: def.reward ? rollReward(def.reward) : {}, timesCleared: 0 };
 }
 

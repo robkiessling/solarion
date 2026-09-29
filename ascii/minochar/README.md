@@ -6,16 +6,19 @@ run `npm run import:art` (or leave `npm run watch:art` running). Never edit the 
 Which drawing goes where is the `IMPORTS` table in `scripts/import_art.mjs`. A drawing the table does not
 name is ignored.
 
-Everything here imports: the world map, the battle pieces and the battlefields drawn whole, markers included.
+Everything here imports: the world map, the battle pieces and the terrains drawn whole, markers included.
 
 To see a terrain as the game will lay it out, without playing to it:
 
     npm run preview:terrain -- ruins                  (the smallest arena)
     npm run preview:terrain -- ruins 800 12           (an 800-unit fight, at another site)
     npm run preview:terrain -- ruins 100 1 groups     (with a fight's opening on it: who starts where)
+    npm run preview:terrain -- compound1a 18 3 marked (a drawn terrain, opened by its markers)
     npm run preview:terrain -- open 60 1 surround loose
 
-Which pieces a terrain scatters is a record in `src/database/battle/terrains.ts`.
+A terrain is what a fight is fought on, and a level names one (`terrain: 'ruins'` in
+`src/database/planet/pois.ts`). It is either **scattered** (pieces dropped at seeded spots: which pieces is a
+record in `src/database/battle/scattered_terrains.ts`) or **drawn** (one whole field, drawn here).
 
 ## Files
 
@@ -23,13 +26,13 @@ Which pieces a terrain scatters is a record in `src/database/battle/terrains.ts`
 |---|---|---|
 | `planet/map.minochar` | 120×30 | The world map |
 | `battle/pieces.minochar` | any | Pieces, one per frame (trimmed of empty rows and columns) |
-| any other file in `battle/` | its own | Whole battlefields, one per frame, all the size of the canvas |
+| any other file in `battle/` (`terrainsSmall.minochar`) | its own | Drawn terrains, one per frame, all the size of the canvas |
 
-A battlefield's name is its terrain: a level fights on it by naming it (`terrain: 'compound1a'` in
-`src/database/planet/pois.ts`). Its canvas is its arena, at any army size: 50×19 suits a fight of about 320
+A drawn terrain goes by the name on its frame (`terrain: 'compound1a'`). It can share that name with no
+piece and no scattered terrain (the import says so if it does). Its canvas is its arena, at any army size: 50×19 suits a fight of about 320
 (both sides together), 79×30 about 800, 125×47 about 2000. The import prints what each one has room for
 (the open ground the squad can reach, a unit to three cells); an army too big for it is scaled down to fit
-(each unit on the field stands for several). Frames that share a name are looks of one battlefield, picked
+(each unit on the field stands for several). Frames that share a name are looks of one terrain, picked
 between by site.
 
 ## Layers
@@ -55,11 +58,11 @@ art that blocks bodies but not shots): a layer called either is ignored for now.
 
 | Marker | Meaning |
 |---|---|
-| `0` | The squad starts here (drawings only, never a piece). Without it: the left edge. |
+| `0` | The squad starts here (drawn terrains only, never a piece). Without it: the left edge. On a terrain closed off from the left edge it is also where the squad withdraws to, so such a terrain has to have one. |
 | `1` to `9` | Hostile spawn point. Lower numbers come into use first, as the garrison grows (about 40 to a point); points sharing a number open together. |
 | `P` | Post: a fixed unit that attacks stands here (optional) |
 
-Markers go in drawings and in pieces alike; a piece's markers travel with it to wherever it is placed.
+Markers go in drawn terrains and in pieces alike; a piece's markers travel with it to wherever it is placed.
 
 Each spawn point gets a group, which arranges itself: a fixed unit that produces others takes the centre (so
 to put one somewhere, put a numbered point there), the rest ring around it, and posts stand on the edge facing
@@ -69,11 +72,11 @@ the squad unless `P` markers say where. A level sets how close the group stands:
 Markers position units, they never add them: the counts come from the level in `src/database/planet/pois.ts`.
 Extra units without a marker join the main body; extra markers are ignored.
 
-The level's `formation` says who decides the opening:
+The level's `opening` says who decides where everyone starts:
 
-| `formation` | Hostiles start | The squad starts |
+| `opening` | Hostiles start | The squad starts |
 |---|---|---|
-| `terrain` (or left out) | On the terrain's numbered points; as `front` if it marks none | On the terrain's `0`; at the left edge if it has none |
+| `marked` (or left out) | On the terrain's numbered points; as `front` if it marks none | On the terrain's `0`; at the left edge if it has none |
 | `front` | In groups down the hostile side | At the left edge |
 | `groups` | In groups spread over the hostile half | At the left edge |
 | `surround` | In the corners of the whole field | In the middle |
@@ -89,6 +92,6 @@ marks). A camp or an ambush opens `surround` unless its level names another.
 - Walls: 2 cells thick.
 - Nothing fully sealed: every open area needs a way in.
 - The import closes what no body could use and says so: open cells walled in on every side (the inside of a
-  boulder) and gaps one cell wide. They stay undrawn but block like the art around them. On a battlefield,
+  boulder) and gaps one cell wide. They stay undrawn but block like the art around them. On a drawn terrain,
   "walled in" is whatever the squad cannot walk to from where it starts, and a marker there is an error.
 - A typed space is a character (it hides the layers under it); an empty cell is transparent.

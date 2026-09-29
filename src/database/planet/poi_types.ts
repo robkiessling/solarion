@@ -1,4 +1,5 @@
-import type {HostileFormation, Spread, TerrainLayoutId} from "../../lib/battle/layouts";
+import type {Opening, Spread} from "../../lib/battle/openings";
+import type {TerrainId} from "../../lib/battle/terrain";
 import type {PlanetColorKey} from "./colors";
 import type {HostileType} from "../battle/units";
 import type {Capability} from "./capabilities";
@@ -46,15 +47,15 @@ export interface RewardDef {
 /** The hostiles a fight fields, as authored: a count per type (HOSTILE_TYPES in database/battle/units.ts) */
 export type HostilesDef = Partial<Record<HostileType, Rollable>>;
 
-/** One fight, as authored (a settlement level, a camp, an ambush, a tunnel): who holds it, its battlefield, and what
+/** One fight, as authored (a settlement level, a camp, an ambush, a tunnel): who holds it, its terrain, and what
  * falls out of it. Every fight-bearing POI is written in this shape. */
 export interface FightDef {
     /** who is fielded. The approach card's signature count is the sum, so the scan reports bodies, not threat: a
      * shelter counts once however many defenders it releases during the fight. */
     hostiles: HostilesDef;
-    formation?: HostileFormation;
+    opening?: Opening;
     spread?: Spread;
-    terrain?: TerrainLayoutId;
+    terrain?: TerrainId;
     blurb?: string;
     reward?: RewardDef;
 }
@@ -169,7 +170,7 @@ export interface EventDef extends PlacedDef {
     fleeting?: boolean;
 }
 /** A fight on open ground, found by stepping on it and sprung at once: one fight's fields written flat, like a camp's.
- * Opens encircled (surround) unless it names a formation. */
+ * Opens encircled (surround) unless it names an opening. */
 export interface AmbushDef extends PlacedDef, FightDef {
     type: 'ambush';
     /** the approach card's line */

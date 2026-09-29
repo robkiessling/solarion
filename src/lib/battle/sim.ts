@@ -2,9 +2,13 @@ import {EQUIPMENT_DEFS, type EquipmentId} from "../../database/squad/equipment";
 import {typedEntries} from "../helpers";
 import {terrainPieceLook, type TerrainPieceId} from "../../database/battle/terrain_art";
 import {HOSTILE_TYPES, DROID_BASE_STATS, type HostileType, type DroidStats, type UnitStats, type UnitType} from "../../database/battle/units";
-import {GROUND_BLURBS, HOSTILE_BLURBS, SOURCE_BLURBS} from "../../database/battle/blurbs";
-import {drawingArena, droidOpening, hash01, hostileOpening, terrainMarks, TERRAIN_CELL_H, TERRAIN_CELL_W, TERRAIN_LAYOUTS, type HostileFormation, type SpawnRole, type Spread, type TerrainLayoutId, type XY} from "./layouts";
-export type {HostileFormation, Spread, TerrainLayoutId} from "./layouts";
+import {GROUND_BLURBS, OPENING_BLURBS, SOURCE_BLURBS} from "../../database/battle/blurbs";
+import {ARENA_H, ARENA_W, hash01, TERRAIN_CELL_H, TERRAIN_CELL_W, type XY} from "./arena";
+import {droidOpening, hostileOpening, type Opening, type SpawnRole, type Spread} from "./openings";
+import {drawnArena, terrainMarkers, TERRAINS, type TerrainId} from "./terrain";
+export {ARENA_H, ARENA_W} from "./arena";
+export type {Opening, Spread} from "./openings";
+export type {TerrainId} from "./terrain";
 
 export type BattleSide = 'droid' | 'hostile';
 
@@ -64,7 +68,7 @@ export interface Battle {
     escaped: number;
     escapedHp: number[];
     buffs: { overchargeMs: number };
-    terrain: { id: TerrainLayoutId; pieces: BattleTerrainPiece[] } | null;
+    terrain: { id: TerrainId; pieces: BattleTerrainPiece[] } | null;
     fx: BattleFx[];
     units: BattleUnit[];
 }
@@ -91,8 +95,8 @@ export type BattleEvent = BattleOverEvent;
  *
  * Model: every droid and hostile is an agent with position, hp, and an attack cooldown. Units seek the nearest
  * enemy and trade fixed damage in melee range; bodies collide (both sides), so frontage is physical and
- * rear ranks queue. The opening is data-driven (lib/battle/layouts.ts: hostiles form groups on spawn points,
- * the terrain's own or the ones a level's formation lays out; droids deploy in squadron blocks). Spawner-type hostiles
+ * rear ranks queue. The opening is data-driven (lib/battle/openings.ts: hostiles form groups on spawn points,
+ * the terrain's own or the ones a level's opening lays out; droids deploy in squadron blocks). Spawner-type hostiles
  * (HOSTILE_TYPES rows with spawnEveryMs) sit immobile and feed fresh hostiles into the fight on a fixed clock
  * until killed. The outcome emerges from counts, per-unit stats, the opening geometry, and
  * whatever equipment the player fires mid-fight. Deliberately no RNG anywhere: motion "wobble" is a deterministic
@@ -102,27 +106,22 @@ export type BattleEvent = BattleOverEvent;
  * as armies scale. Neighbor queries go through a spatial hash grid, so endgame armies (hundreds per side)
  * and their catch-up replays stay cheap.
  *
- * Terrain: settlements may declare an obstacle layout (poi.terrain -> TERRAIN_LAYOUTS), which stamps ASCII
+ * Terrain: settlements may declare an obstacle layout (poi.terrain -> TERRAINS), which stamps ASCII
  * pieces (database/battle/terrain_art.ts) onto a coarse cell grid at battle creation. Blocked cells are
  * impassable to both sides: bodies collide with them, target acquisition demands line of sight, the
  * flow field and the withdrawal route path around them, and spawn positions that land inside are
  * relocated to the nearest reachable ground. Since frontage is already physical, walls and chokepoints
  * shape fights with no new combat rules. Pieces are sized in body-widths (they do NOT grow with the
- * arena; layouts place MORE of them), and the whole thing stays deterministic: the placed piece list
+ * arena; a scattered terrain places MORE of them), and the whole thing stays deterministic: the placed piece list
  * lives on battle.terrain, everything else is derived.
  */
 
-// Baseline arena coordinate space. Droids enter from the left, hostiles from the right. Battles above
-// ARENA_BASELINE_UNITS total combatants scale both dimensions up (see createBattle); battle.arenaW/arenaH
-// are the authoritative dimensions, these constants are the floor (and the fallback for pre-scaling saves).
 /** Coarse obstacle grid derived from a battle's terrain pieces; see getTerrainGrid */
 type TerrainGrid = { cols: number, rows: number, blocked: Set<number>, exitDist: Int32Array, exit: XY | null };
 /** Spatial hash of one side's units; see buildGrid */
 type UnitGrid = { cells: Map<number, { unit: BattleUnit, i: number }[]>, cell: number, count: number };
 type FlowField = ReturnType<typeof buildFlowField>;
 
-export const ARENA_W = 100;
-export const ARENA_H = 60;
 const ARENA_BASELINE_UNITS = 320;  // a 160v160 fills the baseline arena at design density
 const CELLS_PER_UNIT = 3;          // the same density in terrain cells of open ground: what a drawn battlefield holds
 
@@ -146,7 +145,7 @@ export function fullDroidHp(count: number, maxHp: number = DROID_BASE_STATS.hp):
 
 // Field cap. Replication multiplies the fielded squad, and a level is authored as a ratio against it, so
 // late fights are written in the thousands a side. The sim, the popup and the eye all top out at a few
-// hundred, and the arena's formations, ranges and splash radii are tuned there. Above the cap a fight is
+// hundred, and the arena's openings, ranges and splash radii are tuned there. Above the cap a fight is
 // scaled down at the door instead: one factor for the whole engagement (the bigger side over the cap, so the
 // bigger side fields exactly the cap and the field never thins as an army grows past a threshold), and every
 // force is dealt into about 1/factor as many field units. A unit stands for a WHOLE number of real combatants
@@ -159,7 +158,7 @@ export function fullDroidHp(count: number, maxHp: number = DROID_BASE_STATS.hp):
 // it holds (memberHp: a hit wears them down one at a time), so survivors and their wounds come back out
 // exactly; the header counts real combatants (battleHeadcount), and equipment works per member.
 // Under the cap the factor is 1, every count is 1, and nothing here applies.
-// A battlefield drawn whole (database/battle/terrain_drawings.ts) is its own cap: it is the size it was drawn,
+// A battlefield drawn whole (database/battle/drawn_terrains.ts) is its own cap: it is the size it was drawn,
 // so a fight too big for the open ground it has is scaled down to fit it the same way (see createBattle).
 export const FIELD_CAP = 1000;
 
@@ -278,7 +277,7 @@ function buildTerrainGrid(pieces: BattleTerrainPiece[], arenaW: number, arenaH: 
         return exitDist;
     };
     const fromLeftEdge = distancesFrom(Array.from({ length: rows }, (_, r) => r * cols));
-    const squad = terrainMarks(pieces, arenaW, arenaH).squad;
+    const squad = terrainMarkers(pieces, arenaW, arenaH).squad;
     if (!squad) return { cols, rows, blocked, exitDist: fromLeftEdge, exit: null };
     const c = Math.floor(squad.x / TERRAIN_CELL_W), r = Math.floor(squad.y / TERRAIN_CELL_H);
     if (fromLeftEdge[r * cols + c] >= 0) return { cols, rows, blocked, exitDist: fromLeftEdge, exit: null };
@@ -359,7 +358,7 @@ function hasLOS(grid: TerrainGrid | null, x0: number, y0: number, x1: number, y1
     return true;
 }
 
-// Spawn fixup: a formation position that lands on blocked or sealed-off ground relocates to the nearest
+// Spawn fixup: an opening position that lands on blocked or sealed-off ground relocates to the nearest
 // reachable open cell (Chebyshev ring scan, fixed order, so it's deterministic). The jitter keeps
 // several relocated units from stacking on the exact cell center; collision separates the rest.
 function freePosition(grid: TerrainGrid, x: number, y: number, salt: number): XY {
@@ -386,18 +385,18 @@ function freePosition(grid: TerrainGrid, x: number, y: number, salt: number): XY
 // One-line scene description for the battle footer: ground clause + the garrison's opening (text records
 // in database/battle/blurbs.ts), matching what the arena actually shows. Pure presentation (derived at render
 // time, nothing reads it back), so existing mid-fight saves get it too.
-export function battleBlurb(battle: Battle, formation?: HostileFormation): string {
+export function battleBlurb(battle: Battle, opening?: Opening): string {
     const ground = GROUND_BLURBS[battle.terrain ? battle.terrain.id : 'open'] || GROUND_BLURBS.open;
-    let hostiles = (formation && HOSTILE_BLURBS[formation]) || HOSTILE_BLURBS.terrain;
+    let hostiles = (opening && OPENING_BLURBS[opening]) || OPENING_BLURBS.marked;
     // A group's centre is where a garrison's source stands (see hostileOpening); name the objective when it's
     // really there. An ambush keeps its own line: the encirclement is the news.
-    if (formation !== 'surround' && battle.startingSpawners > 0) {
+    if (opening !== 'surround' && battle.startingSpawners > 0) {
         hostiles = battle.startingSpawners > 1 ? SOURCE_BLURBS.many : SOURCE_BLURBS.one;
     }
     return `${ground}; ${hostiles}.`;
 }
 
-// A unit's part in the opening, from its stats (see SpawnRole in lib/battle/layouts.ts)
+// A unit's part in the opening, from its stats (see SpawnRole in lib/battle/openings.ts)
 function spawnRole(stats: UnitStats): SpawnRole {
     if (stats.spawnEveryMs) return 'source';
     return stats.speed === 0 && stats.damage > 0 ? 'post' : 'body';
@@ -424,7 +423,7 @@ function makeUnit(id: string, side: BattleSide, type: UnitType, stats: UnitStats
 }
 
 // roster: [{ type, hp? }] per unit; hp defaults to the type's full pool. `positions` is the opening's, one
-// per roster entry (lib/battle/layouts.ts); any that land on terrain are relocated to the nearest reachable
+// per roster entry (lib/battle/openings.ts); any that land on terrain are relocated to the nearest reachable
 // ground (see freePosition).
 function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number, maxHp?: number, count?: number, memberHp?: number[] }[], statsByType: Record<UnitType, UnitStats>, arenaW: number, arenaH: number, positions: XY[], terrainGrid: TerrainGrid | null): BattleUnit[] {
     const sideSalt = side === 'droid' ? 0 : 1;
@@ -447,24 +446,24 @@ function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number, max
  * faces the full garrison and must be decisive.
  * `droidStats` is the squad's effective stat block (base + researched upgrades), snapshotted onto the
  * battle so a mid-fight save replays with the stats the fight started with.
- * `hostileFormation` is how the fight opens (poi.formation; see HostileFormation in lib/battle/layouts.ts):
+ * `opening` is how the fight opens (poi.opening; see Opening in lib/battle/openings.ts):
  * unset, the terrain decides. `spread` is how close each group stands around its point. A hostile's place in
  * the opening follows from its stats (spawnRole), not from where the composition lists it.
- * `terrainId` picks an obstacle layout (poi.terrain; see TERRAIN_LAYOUTS), generated deterministically
+ * `terrainId` picks an obstacle layout (poi.terrain; see TERRAINS), generated deterministically
  * from `terrainSalt`. Callers pass a salt derived from the settlement's map position, so the same settlement always
  * fights on the same ground; unset = open field. A terrain is laid out to fit the fight (the arena grows with
  * the headcount), except a battlefield drawn whole, where the fight is fitted to the drawing.
  */
 export function createBattle(droids: number | number[], hostiles: Partial<Record<HostileType, number>>,
-                             droidStats: DroidStats = DROID_BASE_STATS, hostileFormation: HostileFormation = 'terrain',
-                             terrainId: TerrainLayoutId | null = null, terrainSalt = 0, spread: Spread = 'tight'): Battle {
+                             droidStats: DroidStats = DROID_BASE_STATS, opening: Opening = 'marked',
+                             terrainId: TerrainId | null = null, terrainSalt = 0, spread: Spread = 'tight'): Battle {
     const realDroidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
     const realHostiles = typedEntries(hostiles).reduce((n, [, count]) => n + (count || 0), 0);
 
     // A drawn battlefield comes first: its arena is its canvas, and the open ground the squad can reach on it
     // is what it has room for
-    const drawn = drawingArena(terrainId);
-    const drawnPieces = drawn && terrainId ? TERRAIN_LAYOUTS[terrainId](drawn.arenaW, drawn.arenaH, terrainSalt) : null;
+    const drawn = drawnArena(terrainId);
+    const drawnPieces = drawn && terrainId ? TERRAINS[terrainId](drawn.arenaW, drawn.arenaH, terrainSalt) : null;
     const drawnGrid = drawn && drawnPieces ? buildTerrainGrid(drawnPieces, drawn.arenaW, drawn.arenaH) : null;
     const room = drawnGrid ? Math.max(1, drawnGrid.exitDist.reduce((n, d) => n + (d >= 0 ? 1 : 0), 0) / CELLS_PER_UNIT) : Infinity;
 
@@ -491,22 +490,23 @@ export function createBattle(droids: number | number[], hostiles: Partial<Record
     const arenaW = drawn ? drawn.arenaW : Math.round(ARENA_W * arenaScale);
     const arenaH = drawn ? drawn.arenaH : Math.round(ARENA_H * arenaScale);
 
-    const terrainLayout = terrainId && TERRAIN_LAYOUTS[terrainId];
+    const terrainLayout = terrainId && TERRAINS[terrainId];
     const terrainPieces = drawnPieces || (terrainLayout ? terrainLayout(arenaW, arenaH, terrainSalt) : []);
     const terrain = terrainId && terrainPieces.length > 0 ? { id: terrainId, pieces: terrainPieces } : null;
     const terrainGrid = terrain ? drawnGrid || buildTerrainGrid(terrainPieces, arenaW, arenaH) : null;
     if (terrain) TERRAIN_GRID_CACHE.set(terrain, terrainGrid);
 
-    // The opening. A save made before formations were renamed may still name an old one: the terrain decides.
-    const formation: HostileFormation = ['front', 'groups', 'surround'].includes(hostileFormation) ? hostileFormation : 'terrain';
-    const marks = terrainMarks(terrainPieces, arenaW, arenaH);
-    const droidPositions = droidOpening(droidRoster.length, formation, marks, arenaW, arenaH);
+    // The opening. Anything that is not an opening by name (a save from before they were named this way) is
+    // left to the terrain's markers.
+    const named: Opening = ['front', 'groups', 'surround'].includes(opening) ? opening : 'marked';
+    const markers = terrainMarkers(terrainPieces, arenaW, arenaH);
+    const droidPositions = droidOpening(droidRoster.length, named, markers, arenaW, arenaH);
     const squadAt = droidPositions.length === 0 ? { x: 0, y: arenaH / 2 } : {
         x: droidPositions.reduce((sum, p) => sum + p.x, 0) / droidPositions.length,
         y: droidPositions.reduce((sum, p) => sum + p.y, 0) / droidPositions.length
     };
     const hostilePositions = hostileOpening(hostileRoster.map(entry => spawnRole(HOSTILE_TYPES[entry.type])),
-        formation, marks, spread, squadAt, arenaW, arenaH, terrainSalt);
+        named, markers, spread, squadAt, arenaW, arenaH, terrainSalt);
 
     return {
         phase: 'active',
