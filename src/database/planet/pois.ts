@@ -146,7 +146,7 @@ export const POI_DEFS: PoiDef[] = [
     // ---- Zone b
     {
         type: 'site', point: 'A', number: 2, levelsShown: true,
-        approachText: 'A compound on the valley floor, walls intact, gate shut. The design is ours.',
+        approachText: 'A compound on the valley floor, walls intact, gate ajar. The design is ours.',
         levels: [
             { hostiles: { sentry: 1, defender: 6 }, terrain: 'compound1a' },
             { hostiles: { shelter: 1, defender: 6 }, terrain: 'compound1b' }
@@ -302,7 +302,7 @@ export const POI_DEFS: PoiDef[] = [
         campApproachText: 'A group off the rim with a mass of smaller returns moving with them. The larger ones turn toward you. The smaller do not.',
         levels: [
             { hostiles: { defender: 18 }, formation: 'surround', reward: { resources: { refinedMinerals: [1200, 2000] } } },
-            { hostiles: { defender: 12 }, terrain: 'canyon', reward: { resources: { refinedMinerals: [1500, 2500], energy: [3000, 5000] } } }
+            { hostiles: { defender: 12 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [1500, 2500], energy: [3000, 5000] } } }
         ],
         camps: [
             { hostiles: { defender: 5 }, reward: { resources: { refinedMinerals: [300, 600] } } },
@@ -316,7 +316,7 @@ export const POI_DEFS: PoiDef[] = [
         type: 'site', zone: 'h', number: 3, levelsShown: true, inRecords: true,
         approachText: 'A facility dug into a canyon wall, stationary returns ringing it at intervals. Dense returns at the core, past counting from here.',
         levels: [
-            { hostiles: { shelter: 1, defender: 18 }, formation: 'front', terrain: 'canyon', reward: { resources: { refinedMinerals: [1500, 2500] } } },
+            { hostiles: { shelter: 1, defender: 18 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [1500, 2500] } } },
             { hostiles: { defender: 16 }, formation: 'groups', terrain: 'ruins', reward: { resources: { energy: [4000, 7000] } } },
             { hostiles: { defender: 14 }, formation: 'surround', reward: { resources: { refinedMinerals: [3000, 5000] } } }
         ]
@@ -423,12 +423,12 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'A fortress in a canyon mouth. Rings of returns around something that does not move, hundreds deep.',
         campApproachText: 'An outer ring of the fortress, turning inward on you.',
         levels: [
-            { hostiles: { shelter: 2, defender: 32 }, formation: 'front', terrain: 'canyon', reward: { resources: { refinedMinerals: [3000, 5000] } } },
-            { hostiles: { defender: 28 }, formation: 'surround', terrain: 'canyon', reward: { resources: { refinedMinerals: [5000, 8000], energy: [10000, 15000] } } }
+            { hostiles: { shelter: 2, defender: 32 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [3000, 5000] } } },
+            { hostiles: { defender: 28 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [5000, 8000], energy: [10000, 15000] } } }
         ],
         camps: [
             { hostiles: { defender: 10 }, reward: { resources: { refinedMinerals: [800, 1400] } } },
-            { hostiles: { defender: 10 }, terrain: 'canyon', reward: { resources: { refinedMinerals: [800, 1400] } } },
+            { hostiles: { defender: 10 }, terrain: 'canyonSmall', formation: 'terrain', reward: { resources: { refinedMinerals: [800, 1400] } } },
             { hostiles: { defender: 10 }, formation: 'surround', reward: { resources: { refinedMinerals: [800, 1400] } } }
         ]
     },
@@ -488,14 +488,14 @@ export const POI_DEFS: PoiDef[] = [
     },
 
     // ---- Tunnels: each digit painted on the map (two mouths per digit) is one passage. Stepping into a mouth the
-    // first time is the fight inside, on corridor ground (several `levels` = a long tunnel held in stages, with
+    // first time is the fight inside, on tunnel ground (several `levels` = a long tunnel held in stages, with
     // the same descend-or-withdraw choice between them as a settlement); win the last and the squad emerges at
     // the far mouth, fall back and it returns the way it came. After that, stepping into either mouth crosses
     // at once, for `crossTiles` of battery. PLACEHOLDER hostiles.
     {
         type: 'tunnel', digit: '1',
         approachText: 'A tunnel mouth under the hill. Faint signatures, deep in.',
-        levels: [{ hostiles: { defender: 8 }, terrain: 'corridor', reward: { resources: { refinedMinerals: [200, 400] } } }],
+        levels: [{ hostiles: { defender: 8 }, terrain: 'tunnelSmall', reward: { resources: { refinedMinerals: [200, 400] } } }],
         crossTiles: 3
     },
     // '2' and '3' are rubble-sealed: both mouths raise the seal prompt until the squad clears it (a demolition charge,
@@ -510,8 +510,8 @@ export const POI_DEFS: PoiDef[] = [
         },
         approachText: 'The strait tunnel. Rubble cleared, and behind it a garrison that heard the blast.',
         levels: [
-            { hostiles: { defender: 16 }, terrain: 'corridor', reward: { resources: { refinedMinerals: [600, 1000] } } },
-            { hostiles: { defender: 20 }, terrain: 'corridor', formation: 'surround', reward: { resources: { refinedMinerals: [800, 1400] } } }
+            { hostiles: { defender: 16 }, terrain: 'tunnelSmall', reward: { resources: { refinedMinerals: [600, 1000] } } },
+            { hostiles: { defender: 20 }, terrain: 'tunnelSmall', reward: { resources: { refinedMinerals: [800, 1400] } } }
         ],
         crossTiles: 4
     },
@@ -522,15 +522,15 @@ export const POI_DEFS: PoiDef[] = [
             choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
         },
         approachText: 'A tunnel mouth behind broken rock. Signatures, and the sound of water.',
-        levels: [{ hostiles: { defender: 20 }, terrain: 'corridor', reward: { resources: { refinedMinerals: [800, 1400] } } }],
+        levels: [{ hostiles: { defender: 20 }, terrain: 'tunnelSmall', reward: { resources: { refinedMinerals: [800, 1400] } } }],
         crossTiles: 4
     },
     {
         type: 'tunnel', digit: '4',
         approachText: 'A wide bore, engineered, held. Signatures in ranks.',
         levels: [
-            { hostiles: { defender: 14 }, terrain: 'corridor', reward: { resources: { refinedMinerals: [500, 900] } } },
-            { hostiles: { defender: 18 }, terrain: 'corridor', formation: 'surround', reward: { resources: { refinedMinerals: [1000, 1800] } } }
+            { hostiles: { defender: 14 }, terrain: 'tunnelSmall', reward: { resources: { refinedMinerals: [500, 900] } } },
+            { hostiles: { defender: 18 }, terrain: 'tunnelSmall', reward: { resources: { refinedMinerals: [1000, 1800] } } }
         ],
         crossTiles: 4
     }

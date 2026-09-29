@@ -15,8 +15,8 @@ export const GROUND_BLURBS: Record<Exclude<TerrainLayoutId, TerrainDrawingId> | 
     ruins: 'The squad drops among shattered ruins',
     rubble: 'The squad drops into a rubble field',
     debris: 'The squad drops among scattered debris',
-    canyon: 'The squad drops before a canyon wall',
-    corridor: 'The squad advances into the tunnel',
+    canyonSmall: 'The squad drops before a canyon wall',
+    tunnelSmall: 'The squad advances into the tunnel',
     compound1a: 'The squad advances on the walls',
     compound1b: 'The squad is inside the walls',
     open: 'The squad drops onto open ground'

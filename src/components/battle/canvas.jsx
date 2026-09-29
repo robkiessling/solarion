@@ -1,5 +1,5 @@
 import React from 'react';
-import {ARENA_H, ARENA_W, FX_TTL_MS} from "../../lib/battle/sim";
+import {ARENA_H, ARENA_W, battleExit, FX_TTL_MS} from "../../lib/battle/sim";
 import {TERRAIN_CELL_H, TERRAIN_CELL_W} from "../../lib/battle/layouts";
 import {HOSTILE_TYPES} from "../../database/battle/units";
 import {terrainPieceLook} from "../../database/battle/terrain_art";
@@ -323,11 +323,15 @@ export default class BattleCanvas extends React.Component {
 
         // Withdrawal banner: the field edge the droids are running for glows as the way out
         if (battle.phase === 'withdrawing') {
-            const gradient = ctx.createLinearGradient(0, 0, px(12), 0);
+            // (a battlefield closed off from the left edge is left by the squad's own start: the glow sits there)
+            const exit = battleExit(battle);
+            const gradient = exit ? ctx.createRadialGradient(px(exit.x), py(exit.y), 0, px(exit.x), py(exit.y), px(12))
+                : ctx.createLinearGradient(0, 0, px(12), 0);
             gradient.addColorStop(0, 'rgba(32, 217, 255, 0.25)');
             gradient.addColorStop(1, 'rgba(32, 217, 255, 0)');
             ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, px(12), height);
+            if (exit) ctx.fillRect(px(exit.x - 12), py(exit.y) - px(12), px(24), px(24));
+            else ctx.fillRect(0, 0, px(12), height);
         }
     }
 

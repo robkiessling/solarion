@@ -235,7 +235,9 @@ ${emitLooks(pieces)}
 /**
  * The collision mask of a whole battlefield, and what it has room for. As a piece's (solidMask), with the
  * field's own edges counting as walls, and with "walled in" meaning what the squad cannot walk to from where
- * it starts (its `0`, or the left edge): ground like that is closed, so nothing is ever sent there.
+ * it starts (its `0`, or the left edge): ground like that is closed, so nothing is ever sent there. A field
+ * with no way from the squad's start to the left edge is fine (the inside of a building): the squad
+ * withdraws to where it started instead.
  */
 function fieldMask(art, start) {
     const rows = art.length, cols = art[0].length;
@@ -298,6 +300,7 @@ async function convertDrawings(from, entry) {
             const zero = each.marks.flatMap((line, row) => Array.from(line, (mark, col) => (mark === '0' ? { row, col } : null))).find(Boolean);
             if (zero && each.art[zero.row][zero.col] !== ' ') throw new Error(`frame ${each.frame} (${each.name}): marker "0" stands on the art`);
             const mask = fieldMask(each.art, zero || null);
+            if (mask.open === 0) throw new Error(`frame ${each.frame} (${each.name}): no open ground on the left edge for the squad to start from, and no "0" to say where it does`);
             const markers = readMarkers(each, mask.solid, '0123456789P', 0, 0, width, height);
             const looks = drawings.get(each.name) || [];
             if (looks.length > 0 && (looks[0].art.length !== height || looks[0].art[0].length !== width)) {
@@ -307,7 +310,7 @@ async function convertDrawings(from, entry) {
             report.push(`  ${each.name.padEnd(14)} ${width}x${height}   room for ${Math.round(mask.open / 3)}` +
                 `   marks ${markers.map(marker => marker.mark).sort().join(' ') || 'none'}` +
                 (mask.hollows + mask.slits > 0 ? `\n${' '.repeat(16)}${closedNote(mask)} closed` : '') +
-                (mask.wayOut ? '' : `\n${' '.repeat(16)}no way from the squad's start to the left edge: it cannot withdraw`));
+                (mask.wayOut ? '' : `\n${' '.repeat(16)}closed off from the left edge: the squad withdraws to its 0`));
         }
     }
     if (drawings.size === 0) throw new Error('no battlefields drawn');

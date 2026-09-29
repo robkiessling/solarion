@@ -327,20 +327,19 @@ export function terrainMarks(pieces: BattleTerrainPiece[], arenaW: number, arena
 }
 
 /**
- * Terrain layout generators: (arenaW, arenaH, salt) -> [{ art, col, row }], deterministic in the salt.
- * Settlements declare theirs via poi.terrain with a coord-stable salt, so a given settlement always fights on the
- * same ground and players can learn it. Coverage scales by COUNT (piece budget follows arena area, and
- * the canyon tiles wall segments into longer runs), never by inflating the pieces themselves.
+ * Terrain layouts: (arenaW, arenaH, salt) -> [{ art, col, row }], deterministic in the salt. Settlements
+ * declare theirs via poi.terrain with a coord-stable salt, so a given settlement always fights on the same
+ * ground and players can learn it. A scatter terrain covers a bigger arena by COUNT (its piece budget follows
+ * the arena's area), never by inflating the pieces themselves; a drawn one is the size it was drawn.
  */
 function terrainSize(art: TerrainPieceId, look = 0) {
     const lines = terrainPieceLook(art, look)!.solid;
     return { w: Math.max(...lines.map((l: string) => l.length)), h: lines.length };
 }
 
-// Shared placement state. tryPlace rejects out-of-bounds spots and, unless forced, anything within
-// `pad` cells of an existing piece: 2 clear cells between pieces guarantees composed gaps stay wide
-// enough for a body to physically pass (a 1-cell slit is open to the BFS but not to a unit). `force`
-// lets a layout intentionally merge pieces into one mass, like the canyon's wall runs.
+// Shared placement state. tryPlace rejects out-of-bounds spots and anything within `pad` cells of an
+// existing piece: 2 clear cells between pieces guarantees composed gaps stay wide enough for a body to
+// physically pass (a 1-cell slit is open to the BFS but not to a unit).
 function makePlacer(arenaW: number, arenaH: number) {
     const cols = Math.ceil(arenaW / TERRAIN_CELL_W);
     const rows = Math.ceil(arenaH / TERRAIN_CELL_H);
@@ -349,14 +348,12 @@ function makePlacer(arenaW: number, arenaH: number) {
     const PAD = 2;
     return {
         cols, rows, pieces,
-        tryPlace(art: TerrainPieceId, col: number, row: number, force = false, look = 0) {
+        tryPlace(art: TerrainPieceId, col: number, row: number, look = 0) {
             const { w, h } = terrainSize(art, look);
             if (col < 0 || row < 0 || col + w > cols || row + h > rows) return false;
-            if (!force) {
-                for (let c = col - PAD; c < col + w + PAD; c++) {
-                    for (let r = row - PAD; r < row + h + PAD; r++) {
-                        if (occupied.has(r * cols + c)) return false;
-                    }
+            for (let c = col - PAD; c < col + w + PAD; c++) {
+                for (let r = row - PAD; r < row + h + PAD; r++) {
+                    if (occupied.has(r * cols + c)) return false;
                 }
             }
             for (let c = col; c < col + w; c++) {
@@ -385,7 +382,7 @@ function scatterPieces(placer: Placer, arts: TerrainPieceId[], count: number, co
             const draw = salt + i * 3 + attempt * 7919;
             const col = colMin + Math.floor(hash01(draw + 1) * Math.max(1, colMax - colMin - w + 1));
             const row = 1 + Math.floor(hash01(draw + 2) * Math.max(1, placer.rows - 1 - h));
-            if (placer.tryPlace(art, col, row, false, look)) break;
+            if (placer.tryPlace(art, col, row, look)) break;
         }
     }
 }
@@ -418,59 +415,6 @@ function scatterTerrain({ scatter, count, band }: ScatterTerrain) {
     };
 }
 
-// A full-height wall across the middle of the field with one choke (4 cells, about 4 bodies abreast) at
-// a salted height, plus light cover on both approaches. The wall meets both arena edges on purpose:
-// otherwise the boundary strip becomes a rat line and armies single-file along it.
-function canyonTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
-    const placer = makePlacer(arenaW, arenaH);
-    const tileH = terrainSize('wallV').h;
-    const col = Math.round(placer.cols / 2) - 1 + Math.floor(hash01(salt) * 5) - 2;
-    const gapCells = 4;
-    const gapTop = Math.round((placer.rows - gapCells) * (0.3 + 0.4 * hash01(salt + 1)));
-    // Two solid runs, one above and one below the choke. Tiles overlap-place (force) so each run ends
-    // exactly at its segment edge instead of rounding the choke wider by a partial tile.
-    for (const [from, to] of [[0, gapTop], [gapTop + gapCells, placer.rows]]) {
-        let row = from;
-        for (; row + tileH <= to; row += tileH) placer.tryPlace('wallV', col, row, true);
-        if (row < to && to - tileH >= 0) placer.tryPlace('wallV', col, to - tileH, true);
-    }
-    // Cover on the approaches, kept a few cells clear of the wall so the choke stays the only pass
-    for (let i = 0; i < Math.max(4, Math.round((arenaW * arenaH) / 2200)); i++) {
-        const art = hash01(salt + 100 + i * 3) < 0.5 ? 'boulder' : 'spire';
-        const side = i % 2 === 0 ? -1 : 1;
-        const offset = 5 + Math.floor(hash01(salt + 101 + i * 3) * Math.max(1, placer.cols / 2 - 9));
-        placer.tryPlace(art, col + (side > 0 ? offset : -offset - terrainSize(art).w),
-            1 + Math.floor(hash01(salt + 102 + i * 3) * Math.max(1, placer.rows - 5)));
-    }
-    return placer.pieces;
-}
-
-// A tunnel: solid rock above and below a band a few bodies tall running the whole width, so both sides
-// meet head-on in a narrow front and numbers count for less than the queue. A little rubble inside the band
-// breaks it up. The band's height and where it sits come from the salt.
-function corridorTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
-    const placer = makePlacer(arenaW, arenaH);
-    const tile = terrainSize('wallH');
-    const bandRows = 5 + Math.floor(hash01(salt) * 3); // 5..7 cells
-    const bandTop = Math.round((placer.rows - bandRows) * (0.3 + 0.4 * hash01(salt + 1)));
-    // Rock fill in wallH tiles; runs end exactly at the band's edges (force-placed, overlapping) and at the
-    // right arena edge, so no seam is left open
-    for (const [from, to] of [[0, bandTop], [bandTop + bandRows, placer.rows]]) {
-        for (let row = from; row < to; row += tile.h) {
-            const r = Math.min(row, to - tile.h);
-            if (r < from) break;
-            for (let col = 0; col < placer.cols; col += tile.w) placer.tryPlace('wallH', Math.min(col, placer.cols - tile.w), r, true);
-        }
-    }
-    // Rubble in the band, clear of both spawn ends
-    const edge = Math.ceil(10 / TERRAIN_CELL_W);
-    for (let i = 0; i < Math.max(2, Math.round(arenaW / 40)); i++) {
-        const col = edge + Math.floor(hash01(salt + 50 + i * 2) * Math.max(1, placer.cols - 2 * edge));
-        placer.tryPlace('boulder', col, bandTop + 1 + Math.floor(hash01(salt + 51 + i * 2) * Math.max(1, bandRows - 3)));
-    }
-    return placer.pieces;
-}
-
 type TerrainLayout = (arenaW: number, arenaH: number, salt: number) => BattleTerrainPiece[];
 
 // A drawn battlefield's layout: the drawing itself, corner to corner (the arena is cut to it, see drawingArena),
@@ -490,11 +434,9 @@ export function drawingArena(id: TerrainLayoutId | null): { arenaW: number, aren
     return { arenaW: looks[0].solid[0].length * TERRAIN_CELL_W, arenaH: Math.floor(looks[0].solid.length * TERRAIN_CELL_H) };
 }
 
-// The layout registry (settlements declare theirs via poi.terrain; unset = open ground): the built terrains, the
-// scatter terrains (records in database/battle/terrains.ts) and the drawn ones (database/battle/terrain_drawings.ts).
+// The layout registry (settlements declare theirs via poi.terrain; unset = open ground): the scatter terrains
+// (records in database/battle/terrains.ts) and the drawn ones (database/battle/terrain_drawings.ts).
 export const TERRAIN_LAYOUTS = {
-    canyon: canyonTerrain,   // one full-height wall with a single choke
-    corridor: corridorTerrain, // a tunnel: rock above and below a narrow band the whole way across
     ...(Object.fromEntries(Object.entries(SCATTER_TERRAINS).map(([id, terrain]) => [id, scatterTerrain(terrain)])) as Record<keyof typeof SCATTER_TERRAINS, TerrainLayout>),
     ...(Object.fromEntries(Object.keys(TERRAIN_DRAWINGS).map(id => [id, drawnTerrain(id as TerrainDrawingId)])) as Record<TerrainDrawingId, TerrainLayout>)
 } satisfies Record<string, TerrainLayout>;

@@ -116,7 +116,7 @@ export type BattleEvent = BattleOverEvent;
 // ARENA_BASELINE_UNITS total combatants scale both dimensions up (see createBattle); battle.arenaW/arenaH
 // are the authoritative dimensions, these constants are the floor (and the fallback for pre-scaling saves).
 /** Coarse obstacle grid derived from a battle's terrain pieces; see getTerrainGrid */
-type TerrainGrid = { cols: number, rows: number, blocked: Set<number>, exitDist: Int32Array };
+type TerrainGrid = { cols: number, rows: number, blocked: Set<number>, exitDist: Int32Array, exit: XY | null };
 /** Spatial hash of one side's units; see buildGrid */
 type UnitGrid = { cells: Map<number, { unit: BattleUnit, i: number }[]>, cell: number, count: number };
 type FlowField = ReturnType<typeof buildFlowField>;
@@ -135,6 +135,7 @@ const UNIT_RADIUS = 1.2;        // hard collision radius, both sides: pairs clos
 const WOBBLE = 3;               // units/sec of deterministic lateral drift (organic motion without RNG)
 const WITHDRAW_SPEED = 13;      // faster than hostiles, so disengaging works once contact is broken
 const ESCAPE_X = 1.5;           // a withdrawing droid past this x has left the field
+const EXIT_REACH = 2;           // ...as has one within this many cells of a marked way out (see buildTerrainGrid)
 const SUBSTEP_MS = 50;          // integration cap; callers may pass any dt (catch-up replays big ones)
 export const FX_TTL_MS = 600;   // hit/death/bomb markers linger this long for the renderer
 
@@ -219,10 +220,12 @@ function hurt(unit: BattleUnit, damage: number) {
  * object, so save reloads rebuild them transparently).
  */
 
-// Derived per-battle terrain data: { cols, rows, blocked (Set of row*cols+col), exitDist }. exitDist is
-// a BFS distance-to-the-left-edge per cell, -1 for blocked cells: it routes withdrawing droids around
+// Derived per-battle terrain data: { cols, rows, blocked (Set of row*cols+col), exitDist, exit }. exitDist
+// is a BFS distance-to-the-way-out per cell, -1 for blocked cells: it routes withdrawing droids around
 // walls, and doubles as the reachability mask (exitDist >= 0 means open AND connected to the field) that
-// the spawn fixup checks, so nothing ever starts sealed inside a hollow.
+// the spawn fixup checks, so nothing ever starts sealed inside a hollow. The way out is the left edge, the
+// side the squad came from. A battlefield drawn closed off from it (the inside of a building) is left the
+// way it was entered: by the squad's own start, its `0`, which is then `exit`.
 const TERRAIN_GRID_CACHE = new WeakMap();
 
 export function getTerrainGrid(battle: Battle) {
@@ -250,29 +253,49 @@ function buildTerrainGrid(pieces: BattleTerrainPiece[], arenaW: number, arenaH: 
             }
         });
     }
-    const exitDist = new Int32Array(cols * rows).fill(-1);
-    const queue: number[] = [];
-    for (let r = 0; r < rows; r++) {
-        if (!blocked.has(r * cols)) { exitDist[r * cols] = 0; queue.push(r * cols); }
-    }
-    for (let head = 0; head < queue.length; head++) {
-        const idx = queue[head];
-        const c = idx % cols, r = (idx - c) / cols;
-        for (let dr = -1; dr <= 1; dr++) {
-            for (let dc = -1; dc <= 1; dc++) {
-                if (!dc && !dr) continue;
-                const nc = c + dc, nr = r + dr;
-                if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
-                const nIdx = nr * cols + nc;
-                if (exitDist[nIdx] >= 0 || blocked.has(nIdx)) continue;
-                // No corner cutting: a diagonal step needs both orthogonal cells open too
-                if (dc && dr && (blocked.has(r * cols + nc) || blocked.has(nr * cols + c))) continue;
-                exitDist[nIdx] = exitDist[idx] + 1;
-                queue.push(nIdx);
+    // The distance of every cell a body can walk to from the cells it is given (the ways out)
+    const distancesFrom = (exits: number[]) => {
+        const exitDist = new Int32Array(cols * rows).fill(-1);
+        const queue = exits.filter(idx => !blocked.has(idx));
+        queue.forEach(idx => { exitDist[idx] = 0; });
+        for (let head = 0; head < queue.length; head++) {
+            const idx = queue[head];
+            const c = idx % cols, r = (idx - c) / cols;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (!dc && !dr) continue;
+                    const nc = c + dc, nr = r + dr;
+                    if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+                    const nIdx = nr * cols + nc;
+                    if (exitDist[nIdx] >= 0 || blocked.has(nIdx)) continue;
+                    // No corner cutting: a diagonal step needs both orthogonal cells open too
+                    if (dc && dr && (blocked.has(r * cols + nc) || blocked.has(nr * cols + c))) continue;
+                    exitDist[nIdx] = exitDist[idx] + 1;
+                    queue.push(nIdx);
+                }
             }
         }
+        return exitDist;
+    };
+    const fromLeftEdge = distancesFrom(Array.from({ length: rows }, (_, r) => r * cols));
+    const squad = terrainMarks(pieces, arenaW, arenaH).squad;
+    if (!squad) return { cols, rows, blocked, exitDist: fromLeftEdge, exit: null };
+    const c = Math.floor(squad.x / TERRAIN_CELL_W), r = Math.floor(squad.y / TERRAIN_CELL_H);
+    if (fromLeftEdge[r * cols + c] >= 0) return { cols, rows, blocked, exitDist: fromLeftEdge, exit: null };
+    // Closed off from the left edge: the way out is the ground around the squad's start
+    const around: number[] = [];
+    for (let dr = -EXIT_REACH; dr <= EXIT_REACH; dr++) {
+        for (let dc = -EXIT_REACH; dc <= EXIT_REACH; dc++) {
+            if (c + dc >= 0 && r + dr >= 0 && c + dc < cols && r + dr < rows) around.push((r + dr) * cols + c + dc);
+        }
     }
-    return { cols, rows, blocked, exitDist };
+    return { cols, rows, blocked, exitDist: distancesFrom(around), exit: squad };
+}
+
+/** Where the squad withdraws to when it is not the left edge (see buildTerrainGrid); null when it is */
+export function battleExit(battle: Battle): XY | null {
+    const grid = getTerrainGrid(battle);
+    return grid ? grid.exit : null;
 }
 
 // Circle-vs-blocked-cells resolution: pushes the unit fully out of any terrain cell it overlaps.
@@ -807,7 +830,7 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
         }
         return flowSteer(flow, tGrid, unit);
     };
-    // Withdrawal descends the exit field (BFS distance to the left edge) so routed droids round walls
+    // Withdrawal descends the exit field (BFS distance to the way out) so routed droids round walls
     // instead of pressing into them; on open ground it stays the straight leftward sprint.
     const NEIGHBORS8 = [[-1, 0], [-1, -1], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 1], [1, 0]];
     const withdrawStep = (unit: BattleUnit) => {
@@ -834,8 +857,14 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
                     return;
                 }
             }
+            if (tGrid.exit) return; // at the way out (or cut off from it): nowhere further to run
         }
         unit.x -= WITHDRAW_SPEED * dtSec;
+    };
+    const atExit = (unit: BattleUnit) => {
+        if (!tGrid || !tGrid.exit) return unit.x <= ESCAPE_X;
+        const c = Math.floor(unit.x / TERRAIN_CELL_W), r = Math.floor(unit.y / TERRAIN_CELL_H);
+        return tGrid.exitDist[r * tGrid.cols + c] === 0;
     };
     const hostileGrid = buildGrid(units, 'hostile', TARGET_CELL);
     const hostileFlow = buildFlowField(units, 'hostile', tGrid, arenaW, arenaH);
@@ -903,7 +932,7 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
         unit.y += pushY;
         // Terrain is the other immovable body: whatever the crush did, walls win
         if (tGrid) collideTerrain(tGrid, unit);
-        unit.x = Math.min(arenaW - 1, Math.max(withdrawing && unit.side === 'droid' ? -2 : 1, unit.x));
+        unit.x = Math.min(arenaW - 1, Math.max(withdrawing && unit.side === 'droid' && !(tGrid && tGrid.exit) ? -2 : 1, unit.x));
         unit.y = Math.min(arenaH - 1, Math.max(1, unit.y));
         const newKey = cellKey(Math.floor(unit.x / contact), Math.floor(unit.y / contact));
         if (newKey !== oldKey) {
@@ -987,7 +1016,7 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
     const alive: BattleUnit[] = [];
     for (const unit of units) {
         if (unit.hp <= 0) continue;
-        if (unit.side === 'droid' && withdrawing && unit.x <= ESCAPE_X) { escaped++; escapedHp.push(...droidMembers(unit)); continue; }
+        if (unit.side === 'droid' && withdrawing && atExit(unit)) { escaped++; escapedHp.push(...droidMembers(unit)); continue; }
         alive.push(unit);
     }
 
