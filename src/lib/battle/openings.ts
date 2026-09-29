@@ -172,7 +172,7 @@ function frontPoints(wanted: number, grouped: number, spacing: number, arenaW: n
         const extent = groupExtent(Math.ceil(grouped / k), spacing);
         const gap = 2 * extent + SPAWN_SPACING;
         const span = arenaH - 2 * (extent + 2); // clear of the walls (the spawn clamp sits at 2)
-        const perLine = Math.max(1, Math.floor(span / gap));
+        const perLine = Math.max(1, Math.floor(span / gap) + 1); // centres anywhere in the span, a gap apart
         const lines = Math.ceil(k / perLine);
         const nearest = frontX('hostile', arenaW) + extent;
         const overrun = nearest + (lines - 1) * gap + extent - (arenaW - 2);
@@ -180,9 +180,12 @@ function frontPoints(wanted: number, grouped: number, spacing: number, arenaW: n
         return Array.from({ length: k }, (_, i) => {
             const line = Math.floor(i / perLine);
             const inLine = Math.min(perLine, k - line * perLine);
+            // A line's groups stand about the middle of the field, as far apart as an even share of its
+            // height gives them (never closer than they fit, never so far that the outer ones leave the span)
+            const apart = inLine > 1 ? Math.min(span / (inLine - 1), Math.max(gap, arenaH / inLine)) : 0;
             return {
                 x: nearest + line * gap - Math.max(0, overrun),
-                y: span > 0 ? extent + 2 + span * ((i % perLine) + 0.5) / inLine : arenaH / 2
+                y: arenaH / 2 + ((i % perLine) - (inLine - 1) / 2) * apart
             };
         });
     }
