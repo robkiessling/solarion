@@ -1,38 +1,30 @@
 /**
- * Battle-arena obstacle art: multi-line ASCII pieces stamped onto the arena's terrain grid (lib/battle/sim.ts).
- * The drawing IS the collision map: every non-space character blocks one terrain cell (about one body
- * wide), spaces are passable. So a gap drawn into a wall plays as a doorway, and editing a piece here is
- * a gameplay change, not just a visual one.
+ * Battle-arena obstacle pieces, stamped onto the arena's terrain grid (lib/battle/sim.ts). A piece is a list
+ * of looks (the placer picks one per placement); a look is its `art` (what is drawn) and its `solid` mask
+ * (the collision map: '#' blocks one terrain cell, about one body wide).
  *
- * Authoring rules:
+ * Pieces are drawn in minochar (ascii/minochar/battle/pieces.minochar) and imported by `npm run import:art`
+ * into terrain_pieces.ts; ascii/minochar/README.md has the drawing rules. The ones below are the hand-written
+ * pieces that have not been redrawn yet: in these every character blocks, so a gap drawn into a wall plays as
+ * a doorway, and editing one is a gameplay change, not just a visual one.
  * - Keep passable gaps at least 2 characters wide; a 1-char slit LOOKS open but a unit body (radius 1.2
  *   on 2-unit-wide cells) cannot physically squeeze through it.
  * - Never draw a fully enclosed hollow. A sealed interior is unreachable; anything that spawns inside
  *   (or gets relocated there) could make a battle unwinnable. The spawn fixup guards against this, but
  *   the art should not rely on it.
- * - Pieces are placed by the TERRAIN_LAYOUTS generators (lib/battle/layouts.ts); add a new piece here, then
- *   reference its key from a layout.
+ * - Pieces are placed by the terrain records (database/battle/terrains.ts) and the TERRAIN_LAYOUTS generators
+ *   (lib/battle/layouts.ts): add a piece, then reference its key from one of them.
  */
-export const TERRAIN_PIECES = {
-    // Small rounded rock, the basic scatter piece
-    boulder: [
-        ' __ ',
-        '/##\\',
-        '\\__/'
-    ],
-    // Bigger rock for anchoring a cluster
-    boulderBig: [
-        '  ___  ',
-        ' /###\\ ',
-        '/#####\\',
-        '\\_____/'
-    ],
-    // Tapered stone spike; narrow footprint, tall silhouette
-    spire: [
-        ' ^ ',
-        '/|\\',
-        '|||'
-    ],
+import {IMPORTED_PIECES} from "./terrain_pieces";
+
+export interface TerrainPieceLook {
+    /** the drawing, one string per row */
+    art: string[];
+    /** the collision mask, the same size: '#' = blocked */
+    solid: string[];
+}
+
+const HAND_WRITTEN = {
     // Straight wall segments; the canyon layout tiles wallV into long runs
     wallH: [
         '######',
@@ -43,11 +35,6 @@ export const TERRAIN_PIECES = {
         '##',
         '##',
         '##'
-    ],
-    // Breached wall: two stubs with a passable 2-cell hole between them
-    ruinWall: [
-        '##_  ###',
-        '##   ###'
     ],
     // Free-standing gateway; the 3-cell gap is a deliberate mini-choke
     arch: [
@@ -64,5 +51,18 @@ export const TERRAIN_PIECES = {
     ]
 } satisfies Record<string, string[]>;
 
-/** Obstacle art pieces: the keys of TERRAIN_PIECES above */
-export type TerrainPieceId = keyof typeof TERRAIN_PIECES;
+const asLook = (art: string[]): TerrainPieceLook => ({ art, solid: art.map(line => line.replace(/\S/g, '#')) });
+
+/** Obstacle pieces: the keys of TERRAIN_PIECES below */
+export type TerrainPieceId = keyof typeof HAND_WRITTEN | keyof typeof IMPORTED_PIECES;
+
+export const TERRAIN_PIECES: Record<TerrainPieceId, TerrainPieceLook[]> = {
+    ...(Object.fromEntries(Object.entries(HAND_WRITTEN).map(([id, art]) => [id, [asLook(art)]])) as Record<keyof typeof HAND_WRITTEN, TerrainPieceLook[]>),
+    ...IMPORTED_PIECES
+};
+
+/** The look a placed piece wears (`look` is unset on a piece placed before pieces had more than one) */
+export function terrainPieceLook(art: TerrainPieceId, look = 0): TerrainPieceLook | undefined {
+    const looks = TERRAIN_PIECES[art];
+    return looks && (looks[look] || looks[0]);
+}

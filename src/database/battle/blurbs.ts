@@ -11,6 +11,8 @@ import type {HostileFormation, TerrainLayoutId} from '../../lib/battle/layouts';
 export const GROUND_BLURBS: Record<TerrainLayoutId | 'open', string> = {
     rocks: 'The squad drops into a boulder field',
     ruins: 'The squad drops among shattered ruins',
+    rubble: 'The squad drops into a rubble field',
+    debris: 'The squad drops among scattered debris',
     canyon: 'The squad drops before a canyon wall',
     corridor: 'The squad advances into the tunnel',
     compound: 'The squad advances on the walls',

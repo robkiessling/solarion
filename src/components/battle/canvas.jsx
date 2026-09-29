@@ -2,7 +2,7 @@ import React from 'react';
 import {ARENA_H, ARENA_W, FX_TTL_MS} from "../../lib/battle/sim";
 import {TERRAIN_CELL_H, TERRAIN_CELL_W} from "../../lib/battle/layouts";
 import {HOSTILE_TYPES} from "../../database/battle/units";
-import {TERRAIN_PIECES} from "../../database/battle/terrain_art";
+import {terrainPieceLook} from "../../database/battle/terrain_art";
 import {PLANET_COLORS} from "../../database/planet/colors";
 
 /**
@@ -90,7 +90,7 @@ export default class BattleCanvas extends React.Component {
     // Terrain never moves, so its ASCII pieces rasterize once to an offscreen canvas and get stamped
     // each frame; the cache invalidates on popup resize or when a different battle's terrain arrives.
     // Chars draw at the terrain cell metrics (TERRAIN_CELL_W/H in lib/battle/layouts.ts), so the art sits
-    // exactly on the cells the sim blocks.
+    // exactly on the cells the sim blocks (the sim also blocks the undrawn cells inside a piece: its solid mask).
     terrainSprite(terrain, width, height, scaleX, scaleY) {
         if (!terrain || !terrain.pieces || terrain.pieces.length === 0) return null;
         const key = `${width}x${height}`;
@@ -103,8 +103,8 @@ export default class BattleCanvas extends React.Component {
         g.textAlign = 'center';
         g.textBaseline = 'middle';
         g.fillStyle = TERRAIN_COLOR;
-        terrain.pieces.forEach(({ art, col, row }) => {
-            const lines = TERRAIN_PIECES[art];
+        terrain.pieces.forEach(({ art, col, row, look }) => {
+            const lines = (terrainPieceLook(art, look) || {}).art;
             if (!lines) return;
             lines.forEach((line, j) => {
                 for (let i = 0; i < line.length; i++) {

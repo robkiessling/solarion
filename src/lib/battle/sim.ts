@@ -1,6 +1,6 @@
 import {EQUIPMENT_DEFS, type EquipmentId} from "../../database/squad/equipment";
 import {typedEntries} from "../helpers";
-import {TERRAIN_PIECES, type TerrainPieceId} from "../../database/battle/terrain_art";
+import {terrainPieceLook, type TerrainPieceId} from "../../database/battle/terrain_art";
 import {HOSTILE_TYPES, DROID_BASE_STATS, type HostileType, type DroidStats, type UnitStats, type UnitType} from "../../database/battle/units";
 import {GROUND_BLURBS, HOSTILE_BLURBS, RING_SPAWNER_BLURBS} from "../../database/battle/blurbs";
 import {COUNTER_FORMATIONS, FORMATIONS, hash01, TERRAIN_ANCHORS, TERRAIN_CELL_H, TERRAIN_CELL_W, TERRAIN_LAYOUTS, type FormationId, type HostileFormation, type TerrainLayoutId, type XY} from "./layouts";
@@ -35,8 +35,9 @@ export interface BattleUnit {
  * A 'blast' is a splash burst of radius r (the squad's bomb draws its own 'bomb' ring at the bomb's fixed size). */
 export interface BattleFx { type: 'hit' | 'death' | 'heal' | 'bomb' | 'spawn' | 'shot' | 'blast'; x: number; y: number; t: number; x2?: number; y2?: number; r?: number }
 
-/** A placed obstacle: `art` names a TERRAIN_PIECES entry (database/battle/terrain_art.ts) */
-export interface BattleTerrainPiece { art: TerrainPieceId; col: number; row: number }
+/** A placed obstacle: `art` names a TERRAIN_PIECES entry (database/battle/terrain_art.ts), `look` which of
+ * its looks (unset = the first) */
+export interface BattleTerrainPiece { art: TerrainPieceId; col: number; row: number; look?: number }
 
 export type BattlePhase = 'active' | 'withdrawing';
 
@@ -236,8 +237,8 @@ function buildTerrainGrid(pieces: BattleTerrainPiece[], arenaW: number, arenaH: 
     const cols = Math.ceil(arenaW / TERRAIN_CELL_W);
     const rows = Math.ceil(arenaH / TERRAIN_CELL_H);
     const blocked = new Set<number>();
-    for (const { art, col, row } of pieces) {
-        const lines = TERRAIN_PIECES[art];
+    for (const { art, col, row, look } of pieces) {
+        const lines = terrainPieceLook(art, look)?.solid;
         if (!lines) continue; // a save from a version with pieces this build lacks: skip, stay playable
         lines.forEach((line, j) => {
             for (let i = 0; i < line.length; i++) {

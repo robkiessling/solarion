@@ -1,10 +1,12 @@
 /**
  * Battle openings: the spawn formations (FORMATIONS) and the arena terrain generators (TERRAIN_LAYOUTS).
  * Both are registries of deterministic placement algorithms keyed by the ids settlement levels declare
- * (poi.formation, poi.terrain in database/planet/pois.ts). A new id is new code here; the sim (sim.ts)
- * takes the results and never cares which layout produced them.
+ * (poi.formation, poi.terrain in database/planet/pois.ts). A new formation or built terrain is new code here;
+ * a scatter terrain is a record (database/battle/terrains.ts). The sim (sim.ts) takes the results and never
+ * cares which layout produced them.
  */
-import {TERRAIN_PIECES, type TerrainPieceId} from "../../database/battle/terrain_art";
+import {TERRAIN_PIECES, terrainPieceLook, type TerrainPieceId} from "../../database/battle/terrain_art";
+import {SCATTER_TERRAINS, type ScatterTerrain, type TerrainBand} from "../../database/battle/terrains";
 import type {BattleSide, BattleTerrainPiece} from "./sim";
 
 /** Spawn layouts: the keys of FORMATIONS */
@@ -21,6 +23,7 @@ type Layout = (count: number, arenaW: number, arenaH: number, side: BattleSide) 
 type Placer = ReturnType<typeof makePlacer>;
 
 const FRONT_GAP = 44;              // spawn distance between the two front lines, at any arena size
+const BASELINE_ARENA_W = 100, BASELINE_ARENA_H = 60; // the smallest arena (sim.ts ARENA_W/H): what a scatter terrain's count is written for
 // Arena terrain cell metrics: a body width wide, a glyph tall (the renderer draws obstacle art at these)
 export const TERRAIN_CELL_W = 2;    // arena units; about one monospace char at the unit font size
 export const TERRAIN_CELL_H = 3.2;  // matches the renderer's glyph height, so art cells stay square-ish
@@ -263,8 +266,8 @@ export const COUNTER_FORMATIONS: Partial<Record<HostileFormation, FormationId>> 
  * same ground and players can learn it. Coverage scales by COUNT (piece budget follows arena area, and
  * the canyon tiles wall segments into longer runs), never by inflating the pieces themselves.
  */
-function terrainSize(art: TerrainPieceId) {
-    const lines = TERRAIN_PIECES[art];
+function terrainSize(art: TerrainPieceId, look = 0) {
+    const lines = terrainPieceLook(art, look)!.solid;
     return { w: Math.max(...lines.map((l: string) => l.length)), h: lines.length };
 }
 
@@ -280,8 +283,8 @@ function makePlacer(arenaW: number, arenaH: number) {
     const PAD = 2;
     return {
         cols, rows, pieces,
-        tryPlace(art: TerrainPieceId, col: number, row: number, force = false) {
-            const { w, h } = terrainSize(art);
+        tryPlace(art: TerrainPieceId, col: number, row: number, force = false, look = 0) {
+            const { w, h } = terrainSize(art, look);
             if (col < 0 || row < 0 || col + w > cols || row + h > rows) return false;
             if (!force) {
                 for (let c = col - PAD; c < col + w + PAD; c++) {
@@ -293,43 +296,60 @@ function makePlacer(arenaW: number, arenaH: number) {
             for (let c = col; c < col + w; c++) {
                 for (let r = row; r < row + h; r++) occupied.add(r * cols + c);
             }
-            pieces.push({ art, col, row });
+            pieces.push(look ? { art, col, row, look } : { art, col, row });
             return true;
         }
     };
 }
 
-// Scatters count pieces from the arts pool over the given column band via salted hash draws; spots that
-// collide with earlier pieces or the bounds are simply skipped, so density degrades gracefully.
+// Scatters count pieces from the arts pool over the given column band via salted hash draws: the picks first
+// (a piece, and which of its looks), then a spot for each, biggest first so the large pieces get the room
+// they need and the small ones fill in around them. A pick gets a few tries at a spot where it fits inside the
+// band and clear of what is already down; one that finds none is left out, so density degrades gracefully.
+const SCATTER_TRIES = 6;
 function scatterPieces(placer: Placer, arts: TerrainPieceId[], count: number, colMin: number, colMax: number, salt: number) {
-    for (let i = 0; placer.pieces.length < count && i < count * 5; i++) {
+    const picks = Array.from({ length: count }, (_, i) => {
         const art = arts[Math.floor(hash01(salt + i * 3) * arts.length)];
-        const col = colMin + Math.floor(hash01(salt + i * 3 + 1) * Math.max(1, colMax - colMin));
-        const row = 1 + Math.floor(hash01(salt + i * 3 + 2) * Math.max(1, placer.rows - 2));
-        placer.tryPlace(art, col, row);
+        const look = Math.floor(hash01(salt + i * 3 + 500009) * TERRAIN_PIECES[art].length);
+        return { art, look, i, ...terrainSize(art, look) };
+    });
+    picks.sort((a, b) => b.w * b.h - a.w * a.h || a.i - b.i);
+    for (const { art, look, i, w, h } of picks) {
+        for (let attempt = 0; attempt < SCATTER_TRIES; attempt++) {
+            const draw = salt + i * 3 + attempt * 7919;
+            const col = colMin + Math.floor(hash01(draw + 1) * Math.max(1, colMax - colMin - w + 1));
+            const row = 1 + Math.floor(hash01(draw + 2) * Math.max(1, placer.rows - 1 - h));
+            if (placer.tryPlace(art, col, row, false, look)) break;
+        }
     }
 }
 
-// Boulder field over the mid-field strip between the two spawn fronts: breaks the clean line clash into
-// local skirmishes without ever sitting on top of a formation.
-function rocksTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
-    const placer = makePlacer(arenaW, arenaH);
+// A band's columns [from, to) on an arena this wide (see database/battle/terrains.ts). The middle strip is as
+// wide as the gap between the fronts at any arena size, so it never sits on top of a formation; the field
+// leaves breathing room at both spawn ends (spawns that land on a piece are relocated by the fixup).
+function bandCols(band: TerrainBand, arenaW: number): [number, number] {
+    const cols = Math.ceil(arenaW / TERRAIN_CELL_W);
+    const edge = Math.ceil(8 / TERRAIN_CELL_W), half = Math.round(cols / 2);
     const bandHalf = FRONT_GAP / 2 - 3;
-    scatterPieces(placer, ['boulder', 'spire', 'boulderBig', 'boulder', 'spire'],
-        Math.max(3, Math.round((arenaW * arenaH) / 1100)),
-        Math.floor((arenaW / 2 - bandHalf) / TERRAIN_CELL_W),
-        Math.ceil((arenaW / 2 + bandHalf) / TERRAIN_CELL_W), salt);
-    return placer.pieces;
+    switch (band) {
+        case 'middle': return [Math.floor((arenaW / 2 - bandHalf) / TERRAIN_CELL_W), Math.ceil((arenaW / 2 + bandHalf) / TERRAIN_CELL_W)];
+        case 'left': return [edge, half];
+        case 'right': return [half, cols - edge];
+        case 'field': return [edge, cols - edge];
+    }
 }
 
-// Broken structures over the whole field (minus breathing room at both spawn edges): walls, arches, and
-// bunkers that funnel the approach. Spawns that land on a ruin get relocated by the fixup.
-function ruinsTerrain(arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] {
-    const placer = makePlacer(arenaW, arenaH);
-    const edge = Math.ceil(8 / TERRAIN_CELL_W);
-    scatterPieces(placer, ['ruinWall', 'wallV', 'bunker', 'arch', 'wallH', 'boulder'],
-        Math.max(4, Math.round((arenaW * arenaH) / 850)), edge, placer.cols - edge, salt);
-    return placer.pieces;
+// A scatter terrain's layout: its pieces over its band, as many as the record counts for the baseline arena
+// and more on a bigger one, in proportion to the band's area (so the cover is as dense at any size).
+function scatterTerrain({ scatter, count, band }: ScatterTerrain) {
+    return (arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] => {
+        const placer = makePlacer(arenaW, arenaH);
+        const [from, to] = bandCols(band, arenaW);
+        const [baseFrom, baseTo] = bandCols(band, BASELINE_ARENA_W);
+        const growth = ((to - from) * arenaH) / ((baseTo - baseFrom) * BASELINE_ARENA_H);
+        scatterPieces(placer, scatter, Math.max(1, Math.round(count * growth)), from, to, salt);
+        return placer.pieces;
+    };
 }
 
 // A full-height wall across the middle of the field with one choke (4 cells, about 4 bodies abreast) at
@@ -470,11 +490,13 @@ export const TERRAIN_ANCHORS: Partial<Record<string, (arenaW: number, arenaH: nu
     }
 };
 
-// The layout registry (settlements declare theirs via poi.terrain; unset = open ground).
+type TerrainLayout = (arenaW: number, arenaH: number, salt: number) => BattleTerrainPiece[];
+
+// The layout registry (settlements declare theirs via poi.terrain; unset = open ground): the scatter terrains
+// (records in database/battle/terrains.ts) and the built ones.
 export const TERRAIN_LAYOUTS = {
-    rocks: rocksTerrain,     // boulder field over the mid-field strip
-    ruins: ruinsTerrain,     // broken structures over the whole field
+    ...(Object.fromEntries(Object.entries(SCATTER_TERRAINS).map(([id, terrain]) => [id, scatterTerrain(terrain)])) as Record<keyof typeof SCATTER_TERRAINS, TerrainLayout>),
     canyon: canyonTerrain,   // one full-height wall with a single choke
     corridor: corridorTerrain, // a tunnel: rock above and below a narrow band the whole way across
     compound: compoundTerrain  // a built site: a walled compound with gaps, streets and buildings inside
-} satisfies Record<string, (arenaW: number, arenaH: number, salt: number) => BattleTerrainPiece[]>;
+} satisfies Record<string, TerrainLayout>;
