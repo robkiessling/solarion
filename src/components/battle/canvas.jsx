@@ -306,8 +306,8 @@ export default class BattleCanvas extends React.Component {
             // (the header's fraction tracks them), and hiding them halves the clutter that makes bar
             // ownership ambiguous. Hostiles tougher than a standard defender (elites and bosses) do earn one,
             // at any scale; friendlies show theirs only in small fights (see HP_BAR_FORCE_LIMIT).
-            // (against this battle's defender, so a stacked fight's scaled rank-and-file stay bare; see FIELD_CAP)
-            const elite = !droid && unit.maxHp > (battle.stats.defender || HOSTILE_TYPES.defender).hp;
+            // (per member it stands for, so a rank-and-file unit standing for several stays bare; see FIELD_CAP)
+            const elite = !droid && unit.maxHp / (unit.count || 1) > (battle.stats.defender || HOSTILE_TYPES.defender).hp;
             if (elite || (droid && !bigFight)) {
                 const fraction = unit.hp / unit.maxHp;
                 // A scaled glyph's bar matches it (wider, lifted clear of the bigger mark)

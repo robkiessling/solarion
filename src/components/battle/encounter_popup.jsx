@@ -5,7 +5,7 @@ import {approachTextFor, estimateSignatureRange, formatResourceList, isGarrisone
 import {POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../../database/planet/poi_types";
 import {CAPABILITY_LABELS} from "../../database/planet/capabilities";
 import {PLANET_COLORS} from "../../database/planet/colors";
-import {ARENA_W, battleBlurb, countSpawners, countUnits} from "../../lib/battle/sim";
+import {ARENA_W, battleBlurb, battleHeadcount} from "../../lib/battle/sim";
 import {CONTACT_MS, POPUP_INPUT_LOCK_MS} from "../../database/squad/tuning";
 import {promptActions} from "../../lib/planet/prompt_actions";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../../database/squad/equipment";
@@ -72,23 +72,20 @@ class EncounterPopup extends React.Component {
     // a shelters fraction -- kill the sources or the field never drains. Shared between the live fight
     // and the result phase's frozen final frame, so the header doesn't jump when the battle ends.
     renderBattleHeader(battle) {
-        // Counts are real combatants: a stacked fight's field units each stand for `stack` of them (see FIELD_CAP)
-        const stack = battle.stack || 1;
-        const droids = (countUnits(battle, 'droid') + battle.escaped) * stack;
-        const spawners = countSpawners(battle) * stack;
-        const hostiles = countUnits(battle, 'hostile') * stack - spawners;
+        // Counts are real combatants: above the field cap a unit on the field stands for several (see FIELD_CAP)
+        const { droids, droidsOf, spawners, spawnersOf, hostiles, hostilesOf } = battleHeadcount(battle);
         return (
             <div className="battle-header">
                 <span className="battle-side">
-                    <span className="battle-count droids">Droids {droids}/{battle.startingDroids * stack}</span>
+                    <span className="battle-count droids">Droids {droids}/{droidsOf}</span>
                 </span>
                 <span className={`battle-vs${battle.buffs.overchargeMs > 0 ? ' overcharged' : ''}`}>
                     {battle.buffs.overchargeMs > 0 ? 'OVERCHARGE' : 'vs'}
                 </span>
                 <span className="battle-side hostiles">
-                    {battle.startingSpawners > 0 &&
-                        <span className="battle-count shelters">{spawners}/{battle.startingSpawners * stack} Sources</span>}
-                    <span className="battle-count hostiles">{hostiles}/{battle.hostilesPeak * stack} Hostiles</span>
+                    {spawnersOf > 0 &&
+                        <span className="battle-count shelters">{spawners}/{spawnersOf} Sources</span>}
+                    <span className="battle-count hostiles">{hostiles}/{hostilesOf} Hostiles</span>
                 </span>
             </div>
         );

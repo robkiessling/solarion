@@ -71,7 +71,8 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
             squad.droidHp = fullDroidHp(squad.squadSize, squad.droidStats.hp); // pre-persistence saves: deploy healthy
         }
         // A mid-fight battle from an older sim shape can't resume; drop the fight, the settlement remains
-        if (squad.fighting && (!squad.fighting.battle || !squad.fighting.battle.stats)) squad.fighting = null;
+        if (squad.fighting && (!squad.fighting.battle || !squad.fighting.battle.stats ||
+            squad.fighting.battle.realDroids == null)) squad.fighting = null;
         if (squad.prompt !== undefined) {
             if (!state.planet.prompt) state.planet.prompt = squad.prompt;
             delete squad.prompt;
