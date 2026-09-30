@@ -10,10 +10,10 @@ import {SCATTERED_TERRAINS, type ScatteredTerrain, type TerrainBand} from "../..
 import {ARENA_H, ARENA_W, FRONT_GAP, hash01, TERRAIN_CELL_H, TERRAIN_CELL_W, type XY} from "./arena";
 import type {BattleTerrainPiece} from "./sim";
 
-/** What a terrain marks, in arena units: where the squad starts (`0`), the numbered spawn points (`1` to `9`),
+/** What a terrain marks, in arena units: where the squad starts (`0`, one or several: it splits between them), the numbered spawn points (`1` to `9`),
  * and where posts stand (`P`). See terrainMarkers. */
 export interface TerrainMarkers {
-    squad: XY | null;
+    squad: XY[];
     points: { n: number, x: number, y: number }[];
     posts: XY[];
 }
@@ -28,12 +28,12 @@ type Placer = ReturnType<typeof makePlacer>;
  * (database/battle/terrain_art.ts), each at the middle of its cell.
  */
 export function terrainMarkers(pieces: BattleTerrainPiece[], arenaW: number, arenaH: number): TerrainMarkers {
-    const markers: TerrainMarkers = { squad: null, points: [], posts: [] };
+    const markers: TerrainMarkers = { squad: [], points: [], posts: [] };
     for (const { art, col, row, look } of pieces) {
         for (const marker of terrainPieceLook(art, look)?.markers || []) {
             const at = { x: (col + marker.col + 0.5) * TERRAIN_CELL_W, y: (row + marker.row + 0.5) * TERRAIN_CELL_H };
             if (at.x >= arenaW || at.y >= arenaH) continue;
-            if (marker.mark === '0') markers.squad = at;
+            if (marker.mark === '0') markers.squad.push(at);
             else if (marker.mark === 'P') markers.posts.push(at);
             else markers.points.push({ n: Number(marker.mark), ...at });
         }

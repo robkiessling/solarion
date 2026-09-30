@@ -14,6 +14,7 @@ To see a terrain as the game will lay it out, without playing to it:
     npm run preview:terrain -- ruins 800 12           (an 800-unit fight, at another site)
     npm run preview:terrain -- ruins 100 1 groups     (with a fight's opening on it: who starts where)
     npm run preview:terrain -- compound1a 18 3 marked (a drawn terrain, opened by its markers)
+    npm run sim:fight -- compound1a 12 sentry:1,defender:6   (and fight it out: who wins, how long it takes)
     npm run preview:terrain -- open 60 1 surround loose
 
 A terrain is what a fight is fought on, and a level names one (`terrain: 'ruins'` in
@@ -58,7 +59,7 @@ art that blocks bodies but not shots): a layer called either is ignored for now.
 
 | Marker | Meaning |
 |---|---|
-| `0` | The squad starts here (drawn terrains only, never a piece). Without it: the left edge. On a terrain closed off from the left edge it is also where the squad withdraws to, so such a terrain has to have one. |
+| `0` | The squad starts here (drawn terrains only, never a piece). Several split the squad evenly between them. Without one: the left edge. On a terrain closed off from the left edge they are also where the squad withdraws to, so such a terrain has to have one. |
 | `1` to `9` | Hostile spawn point. Lower numbers come into use first, as the garrison grows (about 40 to a point); points sharing a number open together. |
 | `P` | Post: a fixed unit that attacks stands here (optional) |
 

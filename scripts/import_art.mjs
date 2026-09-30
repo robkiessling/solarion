@@ -195,7 +195,6 @@ function readMarkers({ name, frame, marks }, solid, allowed, left, top, width, b
         if (solid[row][col] !== ' ') throw new Error(`${where} (column ${left + col + 1}, row ${top + row + 1}) stands on ground that is blocked or cut off`);
         markers.push({ mark, col, row });
     }));
-    if (markers.filter(marker => marker.mark === '0').length > 1) throw new Error(`frame ${frame} (${name}): more than one "0"`);
     return markers;
 }
 
@@ -254,11 +253,11 @@ ${emitLooks(pieces)}
 /**
  * The collision mask of a terrain drawn whole, and what it has room for. As a piece's (solidMask), with the
  * field's own edges counting as walls, and with "walled in" meaning what the squad cannot walk to from where
- * it starts (its `0`, or the left edge): ground like that is closed, so nothing is ever sent there. A field
+ * it starts (its `0`s, or the left edge): ground like that is closed, so nothing is ever sent there. A field
  * with no way from the squad's start to the left edge is fine (the inside of a building): the squad
- * withdraws to where it started instead.
+ * withdraws to where it started instead. Several `0`s split the squad between them.
  */
-function fieldMask(art, start) {
+function fieldMask(art, starts) {
     const rows = art.length, cols = art[0].length;
     const solid = art.map(line => Array.from(line, char => char !== ' '));
     const counts = { hollows: 0, slits: 0 };
@@ -275,7 +274,7 @@ function fieldMask(art, start) {
         }
         // Walk out from the start the way a unit moves: to any of the eight cells around, but never cutting a corner
         const reached = Array.from({ length: rows }, () => new Array(cols).fill(false));
-        const queue = (start ? [[start.row, start.col]] : Array.from({ length: rows }, (_, row) => [row, 0])).filter(([row, col]) => !blocked(row, col));
+        const queue = (starts.length > 0 ? starts.map(start => [start.row, start.col]) : Array.from({ length: rows }, (_, row) => [row, 0])).filter(([row, col]) => !blocked(row, col));
         queue.forEach(([row, col]) => { reached[row][col] = true; });
         while (queue.length > 0) {
             const [row, col] = queue.pop();
@@ -316,9 +315,9 @@ async function convertTerrains(from, entry) {
     for (const file of sources(entry)) {
         const { frames, width, height } = await readFrames(file);
         for (const each of frames) {
-            const zero = each.marks.flatMap((line, row) => Array.from(line, (mark, col) => (mark === '0' ? { row, col } : null))).find(Boolean);
-            if (zero && each.art[zero.row][zero.col] !== ' ') throw new Error(`frame ${each.frame} (${each.name}): marker "0" stands on the art`);
-            const mask = fieldMask(each.art, zero || null);
+            const zeros = each.marks.flatMap((line, row) => Array.from(line, (mark, col) => (mark === '0' ? { row, col } : null))).filter(Boolean);
+            zeros.forEach(zero => { if (each.art[zero.row][zero.col] !== ' ') throw new Error(`frame ${each.frame} (${each.name}): a "0" stands on the art`); });
+            const mask = fieldMask(each.art, zeros);
             if (mask.open === 0) throw new Error(`frame ${each.frame} (${each.name}): no open ground on the left edge for the squad to start from, and no "0" to say where it does`);
             const markers = readMarkers(each, mask.solid, '0123456789P', 0, 0, width, height);
             const looks = terrains.get(each.name) || [];
@@ -329,7 +328,7 @@ async function convertTerrains(from, entry) {
             report.push(`  ${each.name.padEnd(14)} ${width}x${height}   room for ${Math.round(mask.open / 3)}` +
                 `   marks ${markers.map(marker => marker.mark).sort().join(' ') || 'none'}` +
                 (mask.hollows + mask.slits > 0 ? `\n${' '.repeat(16)}${closedNote(mask)} closed` : '') +
-                (mask.wayOut ? '' : `\n${' '.repeat(16)}closed off from the left edge: the squad withdraws to its 0`));
+                (mask.wayOut ? '' : `\n${' '.repeat(16)}closed off from the left edge: the squad withdraws to its 0s`));
         }
     }
     if (terrains.size === 0) throw new Error('no terrains drawn');

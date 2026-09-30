@@ -117,7 +117,7 @@ export type BattleEvent = BattleOverEvent;
  */
 
 /** Coarse obstacle grid derived from a battle's terrain pieces; see getTerrainGrid */
-type TerrainGrid = { cols: number, rows: number, blocked: Set<number>, exitDist: Int32Array, exit: XY | null };
+type TerrainGrid = { cols: number, rows: number, blocked: Set<number>, exitDist: Int32Array, exits: XY[] };
 /** Spatial hash of one side's units; see buildGrid */
 type UnitGrid = { cells: Map<number, { unit: BattleUnit, i: number }[]>, cell: number, count: number };
 type FlowField = ReturnType<typeof buildFlowField>;
@@ -223,8 +223,8 @@ function hurt(unit: BattleUnit, damage: number) {
 // is a BFS distance-to-the-way-out per cell, -1 for blocked cells: it routes withdrawing droids around
 // walls, and doubles as the reachability mask (exitDist >= 0 means open AND connected to the field) that
 // the spawn fixup checks, so nothing ever starts sealed inside a hollow. The way out is the left edge, the
-// side the squad came from. A battlefield drawn closed off from it (the inside of a building) is left the
-// way it was entered: by the squad's own start, its `0`, which is then `exit`.
+// side the squad came from. A terrain drawn closed off from it (the inside of a building) is left the way it
+// was entered: by the squad's own starts, its `0`s, which are then `exits`.
 const TERRAIN_GRID_CACHE = new WeakMap();
 
 export function getTerrainGrid(battle: Battle) {
@@ -278,23 +278,26 @@ function buildTerrainGrid(pieces: BattleTerrainPiece[], arenaW: number, arenaH: 
     };
     const fromLeftEdge = distancesFrom(Array.from({ length: rows }, (_, r) => r * cols));
     const squad = terrainMarkers(pieces, arenaW, arenaH).squad;
-    if (!squad) return { cols, rows, blocked, exitDist: fromLeftEdge, exit: null };
-    const c = Math.floor(squad.x / TERRAIN_CELL_W), r = Math.floor(squad.y / TERRAIN_CELL_H);
-    if (fromLeftEdge[r * cols + c] >= 0) return { cols, rows, blocked, exitDist: fromLeftEdge, exit: null };
-    // Closed off from the left edge: the way out is the ground around the squad's start
+    const cellOf = ({ x, y }: XY) => [Math.floor(y / TERRAIN_CELL_H), Math.floor(x / TERRAIN_CELL_W)];
+    if (squad.length === 0 || squad.some(at => { const [r, c] = cellOf(at); return fromLeftEdge[r * cols + c] >= 0; })) {
+        return { cols, rows, blocked, exitDist: fromLeftEdge, exits: [] };
+    }
+    // Closed off from the left edge: the ways out are the ground around the squad's starts
     const around: number[] = [];
-    for (let dr = -EXIT_REACH; dr <= EXIT_REACH; dr++) {
-        for (let dc = -EXIT_REACH; dc <= EXIT_REACH; dc++) {
-            if (c + dc >= 0 && r + dr >= 0 && c + dc < cols && r + dr < rows) around.push((r + dr) * cols + c + dc);
+    for (const [r, c] of squad.map(cellOf)) {
+        for (let dr = -EXIT_REACH; dr <= EXIT_REACH; dr++) {
+            for (let dc = -EXIT_REACH; dc <= EXIT_REACH; dc++) {
+                if (c + dc >= 0 && r + dr >= 0 && c + dc < cols && r + dr < rows) around.push((r + dr) * cols + c + dc);
+            }
         }
     }
-    return { cols, rows, blocked, exitDist: distancesFrom(around), exit: squad };
+    return { cols, rows, blocked, exitDist: distancesFrom(around), exits: squad };
 }
 
-/** Where the squad withdraws to when it is not the left edge (see buildTerrainGrid); null when it is */
-export function battleExit(battle: Battle): XY | null {
+/** Where the squad withdraws to when it is not the left edge (see buildTerrainGrid); empty when it is */
+export function battleExits(battle: Battle): XY[] {
     const grid = getTerrainGrid(battle);
-    return grid ? grid.exit : null;
+    return grid ? grid.exits : [];
 }
 
 // Circle-vs-blocked-cells resolution: pushes the unit fully out of any terrain cell it overlaps.
@@ -857,12 +860,12 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
                     return;
                 }
             }
-            if (tGrid.exit) return; // at the way out (or cut off from it): nowhere further to run
+            if (tGrid.exits.length > 0) return; // at a way out (or cut off from them): nowhere further to run
         }
         unit.x -= WITHDRAW_SPEED * dtSec;
     };
     const atExit = (unit: BattleUnit) => {
-        if (!tGrid || !tGrid.exit) return unit.x <= ESCAPE_X;
+        if (!tGrid || tGrid.exits.length === 0) return unit.x <= ESCAPE_X;
         const c = Math.floor(unit.x / TERRAIN_CELL_W), r = Math.floor(unit.y / TERRAIN_CELL_H);
         return tGrid.exitDist[r * tGrid.cols + c] === 0;
     };
@@ -932,7 +935,7 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
         unit.y += pushY;
         // Terrain is the other immovable body: whatever the crush did, walls win
         if (tGrid) collideTerrain(tGrid, unit);
-        unit.x = Math.min(arenaW - 1, Math.max(withdrawing && unit.side === 'droid' && !(tGrid && tGrid.exit) ? -2 : 1, unit.x));
+        unit.x = Math.min(arenaW - 1, Math.max(withdrawing && unit.side === 'droid' && !(tGrid && tGrid.exits.length > 0) ? -2 : 1, unit.x));
         unit.y = Math.min(arenaH - 1, Math.max(1, unit.y));
         const newKey = cellKey(Math.floor(unit.x / contact), Math.floor(unit.y / contact));
         if (newKey !== oldKey) {

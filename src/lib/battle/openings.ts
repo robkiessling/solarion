@@ -72,18 +72,23 @@ function squadronLayout(count: number, arenaW: number, arenaH: number, side: Bat
  * Where the squad stands. At the left edge by default: it arrives from the side it withdraws to, so a fight
  * opens with an approach across the field (the blocks' near face a body in from the boundary). A surround
  * puts it in the middle (an ambush only reads as one if the droids start encircled), and a terrain that marks
- * a `0` puts it there, unless the level named an opening of its own.
+ * a `0` puts it there, unless the level named an opening of its own. Several `0`s split the squad evenly
+ * between them (in reading order, so which droids go where is stable), a block of squadrons centred on each.
  */
 export function droidOpening(count: number, opening: Opening, markers: TerrainMarkers, arenaW: number, arenaH: number): XY[] {
     if (count === 0) return [];
-    const blocks = squadronLayout(count, arenaW, arenaH, 'droid');
-    const meanX = blocks.reduce((sum, p) => sum + p.x, 0) / count;
-    const meanY = blocks.reduce((sum, p) => sum + p.y, 0) / count;
-    if (opening === 'marked' && markers.squad) {
-        const { x, y } = markers.squad;
-        return blocks.map(p => ({ x: p.x + x - meanX, y: p.y + y - meanY }));
+    const centred = (n: number, at: XY): XY[] => {
+        const blocks = squadronLayout(n, arenaW, arenaH, 'droid');
+        const meanX = blocks.reduce((sum, p) => sum + p.x, 0) / n;
+        const meanY = blocks.reduce((sum, p) => sum + p.y, 0) / n;
+        return blocks.map(p => ({ x: p.x + at.x - meanX, y: p.y + at.y - meanY }));
+    };
+    if (opening === 'marked' && markers.squad.length > 0) {
+        const starts = [...markers.squad].sort((a, b) => a.y - b.y || a.x - b.x);
+        return starts.flatMap((at, i) => centred(Math.floor(count / starts.length) + (i < count % starts.length ? 1 : 0), at));
     }
-    if (opening === 'surround') return blocks.map(p => ({ x: p.x + arenaW / 2 - meanX, y: p.y }));
+    if (opening === 'surround') return centred(count, { x: arenaW / 2, y: arenaH / 2 });
+    const blocks = squadronLayout(count, arenaW, arenaH, 'droid');
     const minX = Math.min(...blocks.map(p => p.x));
     return blocks.map(p => ({ x: p.x - minX + SPAWN_SPACING, y: p.y }));
 }

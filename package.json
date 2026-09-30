@@ -11,7 +11,8 @@
     "typecheck": "tsc",
     "import:art": "node scripts/import_art.mjs",
     "watch:art": "node scripts/import_art.mjs --watch",
-    "preview:terrain": "npx vite-node scripts/preview_terrain.js"
+    "preview:terrain": "npx vite-node scripts/preview_terrain.js",
+    "sim:fight": "npx vite-node scripts/sim_fight.js"
   },
   "engines": {
     "node": ">=18.0.0"
