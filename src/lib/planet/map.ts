@@ -66,6 +66,20 @@ export function generatePlanetMap(exploreEverything = false): PlanetMap {
     return generateAuthoredMap(exploreEverything);
 }
 
+// How far the drawing is turned to land home on HOME_COL (see parseAuthoredMap): a game column is a drawn
+// column minus this, wrapping
+function mapTurn(text: string): number {
+    const homeLine = text.replace(/\r/g, '').split('\n').find(line => line.includes('#'));
+    return homeLine ? mod(homeLine.indexOf('#') - HOME_COL, PLANET_COLS) : 0;
+}
+const AUTHORED_MAP_TURN = mapTurn(AUTHORED_MAP_TEXT);
+
+/** A game coord as it is drawn in database/planet/map.txt (rows and columns counted from 0): for messages
+ * that point someone at the drawing */
+export function drawnCoord([row, col]: Coord): Coord {
+    return [row, mod(col + AUTHORED_MAP_TURN, PLANET_COLS)];
+}
+
 export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coord } {
     const lines = text.replace(/\r/g, '').split('\n').filter(line => line.length > 0);
     if (lines.length !== NUM_PLANET_ROWS) {
@@ -74,9 +88,8 @@ export function parseAuthoredMap(text: string): { map: PlanetMap, homeCoord: Coo
     // The drawing can put home on any column. The cylinder has no natural seam, so every row is turned by the
     // same amount to land home on HOME_COL, where the noon/slider math expects it. Game columns are therefore
     // the drawing's columns minus `turn` (wrapping); errors report the drawing's own columns.
-    const drawnHomeLine = lines.find(line => line.includes('#'));
-    if (!drawnHomeLine) throw new Error('Authored map has no home (#)');
-    const turn = mod(drawnHomeLine.indexOf('#') - HOME_COL, PLANET_COLS);
+    if (!lines.some(line => line.includes('#'))) throw new Error('Authored map has no home (#)');
+    const turn = mapTurn(text);
     const drawnCoord = ([row, col]: Coord): Coord => [row, mod(col + turn, PLANET_COLS)];
 
     let homeCoord: Coord | null = null;

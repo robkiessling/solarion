@@ -1,5 +1,5 @@
 import {getRandomFromArray, getRandomIntInclusive, mapObject} from "../helpers";
-import {getCrossTime, getHomeBasePosition, type PlanetMap, type Sector} from "./map";
+import {drawnCoord, getCrossTime, getHomeBasePosition, type PlanetMap, type Sector} from "./map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./geometry";
 import {STATUSES, TERRAINS, VISION_HOPS} from "../../database/planet/terrain";
 import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, type FightDef, type GroundDef, type PoiChoiceDef, type PoiReward, type PoiStatus, type PoiType, type RewardDef, type Rollable, type SealDef, type SettlementDef, type SiteDef, type TunnelDef} from "../../database/planet/poi_types";
@@ -125,6 +125,26 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     const describe = (def: GroundDef) => `${def.name || def.type}${def.point ? ` at point ${def.point}` :
         ` in zone ${Array.isArray(def.zone) ? def.zone.join('/') : def.zone}`}${(def.count ?? 1) > 1 ? ` (x${def.count})` : ''}`;
 
+    // Everything in the manifest that could not go where it says, reported in one block at the end (a warning
+    // per entry scrolls past). Each reason says which of the map and the manifest
+    // to fix: a zone or point nobody painted, or painted ground with no room left on it.
+    const problems: string[] = [];
+    const painted = { zones: new Set<string>(), points: new Set<string>() };
+    map.forEach(row => row.forEach(sector => {
+        if (sector.zone) painted.zones.add(sector.zone);
+        if (sector.point) painted.points.add(sector.point);
+    }));
+    const whyNoTile = (def: GroundDef): string => {
+        if (def.point) {
+            if (!painted.points.has(def.point)) return `point ${def.point} is not painted on the map`;
+            return `point ${def.point} is painted where nothing can be placed (not reachable flatland beyond the starting vision, or taken)`;
+        }
+        const zones = Array.isArray(def.zone) ? def.zone : [def.zone!];
+        const missing = zones.filter(zone => !painted.zones.has(zone));
+        if (missing.length === zones.length) return `zone ${missing.join('/')} is not painted on the map`;
+        return `${missing.length > 0 ? `zone ${missing.join('/')} is not painted on the map, and ` : ''}every tile of zone ${zones.filter(zone => painted.zones.has(zone)).join('/')} is taken, held, or out of reach`;
+    };
+
     // A random free tile of the def's zone(s), or its point's tile. Territory never overlaps a placed POI
     // (a settlement rolled inside another's stamp would share ground; a cache under one would be unreachable
     // to scouts), so held tiles are out of the pool. Field events and ambushes also keep their spacing from each other.
@@ -141,7 +161,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             pool = candidates.filter(sector => sector.zone != null && zones.includes(sector.zone));
         }
         else {
-            console.warn(`POI_DEFS: ${def.type} names neither a zone nor a point; skipped`);
+            problems.push(`${def.type} names neither a zone nor a point; skipped`);
             return null;
         }
         pool = pool.filter(sector => !sector.heldBy && !usedKeys.has(`${sector.coord[0]},${sector.coord[1]}`) && !rejected.has(`${sector.coord[0]},${sector.coord[1]}`));
@@ -149,7 +169,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             pool = pool.filter(sector => !getCoordsWithinHops(sector.coord, FIELD_EVENT_SPACING).some(([r, c]) => eventKeys.has(`${r},${c}`)));
         }
         if (pool.length === 0) {
-            if (report) console.warn(`POI_DEFS: no free reachable tile for ${describe(def)}; skipped`);
+            if (report) problems.push(`${describe(def)}: ${whyNoTile(def)}; skipped`);
             return null;
         }
         const sector = getRandomFromArray(pool);
@@ -190,7 +210,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             if (!clean) { // give the tile back (it is not a POI) and try another
                 usedKeys.delete(`${sector.coord[0]},${sector.coord[1]}`);
                 rejected.add(`${sector.coord[0]},${sector.coord[1]}`);
-                if (attempt === 19) console.warn(`POI_DEFS: no clean ground for ${describe(def)}'s territory; skipped`);
+                if (attempt === 19) problems.push(`${describe(def)}: no clean ground for its territory (radius ${territoryRadius}); skipped`);
                 continue;
             }
 
@@ -243,7 +263,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     const addTunnel = (def: TunnelDef) => {
         const ends = mouths[def.digit] || [];
         if (ends.length !== 2) {
-            console.warn(`POI_DEFS: tunnel ${def.digit} has ${ends.length} painted mouths, expected 2; skipped`);
+            problems.push(`tunnel ${def.digit}: ${ends.length === 0 ? 'no mouth is painted on the map' : `${ends.length} mouths painted, expected 2`}; skipped`);
             return;
         }
         delete mouths[def.digit];
@@ -296,7 +316,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     // The content manifest: tunnels on their mouths, then sites, then each ground definition placed in its zone(s)
     // `count` times, settlements first (see above), then everything else in manifest order.
     POI_DEFS.forEach(def => { if (def.type === 'tunnel') addTunnel(def); });
-    Object.keys(mouths).forEach(digit => console.warn(`Authored map: tunnel digit ${digit} has no POI_DEFS entry; its mouths are plain ground`));
+    Object.keys(mouths).forEach(digit => problems.push(`tunnel ${digit} is painted on the map (${mouths[digit].map(sector => drawnCoord(sector.coord)).map(([row, col]) => `row ${row} col ${col}`).join(', ')}, counted from 0) but has no entry; its mouths are plain ground`));
     POI_DEFS.forEach(def => { if (def.type === 'site') addSite(def); });
     POI_DEFS.forEach(def => {
         if (def.type !== 'settlement') return;
@@ -308,12 +328,18 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         for (let i = 0; i < count; i++) {
             const sector = pick(def, false);
             if (!sector) {
-                console.warn(`POI_DEFS: no free reachable tile for ${describe(def)}; ${i > 0 ? `placed ${i} of ${count}` : 'skipped'}`);
+                problems.push(`${describe(def)}: ${whyNoTile(def)}; ${i > 0 ? `placed ${i} of ${count}` : 'skipped'}`);
                 break;
             }
             placeOne(def, sector);
         }
     });
+
+    if (problems.length > 0) {
+        console.warn(`${problems.length} ${problems.length === 1 ? 'entry' : 'entries'} of the content manifest (database/planet/pois.ts) ` +
+            `${problems.length === 1 ? 'has' : 'have'} nowhere to go on the map (database/planet/map.txt):\n` +
+            problems.map(problem => `  - ${problem}`).join('\n'));
+    }
 
     return pois;
 }
