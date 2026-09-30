@@ -40,6 +40,11 @@ export const FIELD_EVENT_SPACING = 2;
  *                 `groups` and `surround` overrule the terrain. A concealed fight (a camp, an ambush) opens
  *                 `surround` unless it names another: the hostiles in the corners, the squad encircled
  *   `spread`      how close each group stands: `tight` (unset) or `loose`
+ *   `waits`       a side that holds where it opened and lets the other come to it: `squad` (droids caught in an
+ *                 ambush stand their ground) or `hostiles` (they keep to their caves). Each of its units holds
+ *                 until an enemy comes close in plain sight or it is hit. Unset = both sides go out to meet,
+ *                 except a camp or an ambush opening `surround`, where the squad waits (`nobody` to have it
+ *                 charge out instead)
  *   `terrain`     impassable obstacles scattered over the arena (TERRAINS in lib/battle/terrain.ts); unset =
  *                 open ground. The battlefield is stable per level (seeded from the map coord), so it can
  *                 be learned
@@ -148,8 +153,8 @@ export const POI_DEFS: PoiDef[] = [
         type: 'site', point: 'A', number: 2, levelsShown: true,
         approachText: 'A compound on the valley floor, walls intact, gate ajar. The design is ours.',
         levels: [
-            { hostiles: { sentry: 1, defender: 6 }, terrain: 'compound1a' },
-            { hostiles: { shelter: 1, defender: 6 }, terrain: 'compound1b' }
+            { hostiles: { defender: 10 }, terrain: 'compound1a' },
+            { hostiles: { heavy: 1, defender: 6 }, terrain: 'compound1b' }
         ]
     },
     {
@@ -167,7 +172,7 @@ export const POI_DEFS: PoiDef[] = [
     },
     {
         type: 'storySite', zone: 'b', name: 'Structure',
-        promptText: 'A relay station, collapsed. Part of it was rebuilt later.',
+        promptText: 'A relay station, collapsed.',
         choices: [
             {
                 label: 'Investigate', resultText: 'The data core is scorched, but some components can be scrapped for parts.',
@@ -184,13 +189,13 @@ export const POI_DEFS: PoiDef[] = [
     // ---- Zone c
     {
         type: 'settlement', zone: 'c', territoryRadius: 1,
-        approachText: 'Creatures scurry between the rocks, protecting their stash.',
-        campApproachText: 'A small group of hostiles surrounds you.',
+        approachText: 'Something stirs within the caves.',
+        campApproachText: 'The hillside is riddled with cave openings. Heat signatures detected.',
         levels: [
-            { hostiles: { heavy: 1, defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [150, 200] } } }
+            { hostiles: { heavy: 3, defender: 6 }, terrain: 'caves', waits: 'hostiles', reward: { resources: { refinedMinerals: [150, 200] } } }
         ],
         camps: [
-            { hostiles: { defender: 10, }, terrain: 'ruins', reward: { resources: { refinedMinerals: [100, 120] } } },
+            { hostiles: { defender: 10, }, terrain: 'caves', waits: 'hostiles', opening: 'marked', reward:{ resources: { refinedMinerals: [100, 120] } } },
         ]
     },
     {
@@ -216,15 +221,14 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'Creatures scurry between the rocks, protecting their stash.',
         campApproachText: 'A small group of hostiles surrounds you.',
         levels: [
-            { hostiles: { heavy: 1, defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [150, 200] } } }
+            { hostiles: { heavy: 1, defender: 8 }, terrain: 'rubble', reward: { resources: { refinedMinerals: [150, 200] } } }
         ],
         camps: [
-            { hostiles: { defender: 10, }, terrain: 'ruins', reward: { resources: { refinedMinerals: [100, 120] } } },
+            { hostiles: { defender: 10, }, terrain: 'rubble', reward: { resources: { refinedMinerals: [100, 120] } } },
         ]
     },
+
     // ---- Zone e/g
-
-
     {
         type: 'settlement', zone: 'd', territoryRadius: 2, levelsShown: true, discardedKg: [80, 160],
         approachText: 'Terraces climbing a whole ridge, and shafts going down. Returns on every level the optics reach, in the hundreds. The upper ones are already moving.',

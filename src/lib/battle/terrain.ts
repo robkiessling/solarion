@@ -6,8 +6,8 @@
  * never cares which it was.
  */
 import {DRAWN_TERRAINS, TERRAIN_PIECES, terrainPieceLook, type DrawnTerrainId, type TerrainPieceId, type TerrainPieceLook} from "../../database/battle/terrain_art";
-import {SCATTERED_TERRAINS, type ScatteredTerrain, type TerrainBand} from "../../database/battle/scattered_terrains";
-import {ARENA_H, ARENA_W, FRONT_GAP, hash01, TERRAIN_CELL_H, TERRAIN_CELL_W, type XY} from "./arena";
+import {ARENA_SIZES, SCATTERED_TERRAINS, type ScatteredTerrain, type TerrainBand} from "../../database/battle/scattered_terrains";
+import {FRONT_GAP, hash01, TERRAIN_CELL_H, TERRAIN_CELL_W, type XY} from "./arena";
 import type {BattleTerrainPiece} from "./sim";
 
 /** What a terrain marks, in arena units: where the squad starts (`0`, one or several: it splits between them), the numbered spawn points (`1` to `9`),
@@ -117,14 +117,20 @@ function bandCols(band: TerrainBand, arenaW: number): [number, number] {
     }
 }
 
+// An arena this many terrain cells across and down, in arena units
+function cellArena(cols: number, rows: number) {
+    return { arenaW: cols * TERRAIN_CELL_W, arenaH: Math.floor(rows * TERRAIN_CELL_H) };
+}
+
 // A scattered terrain's layout: its pieces over its band, as many as the record counts for the baseline arena
 // and more on a bigger one, in proportion to the band's area (so the cover is as dense at any size).
-function scatteredTerrain({ scatter, count, band }: ScatteredTerrain) {
+function scatteredTerrain({ scatter, count, band, minSize = 'small' }: ScatteredTerrain) {
+    const base = cellArena(...ARENA_SIZES[minSize]);
     return (arenaW: number, arenaH: number, salt: number): BattleTerrainPiece[] => {
         const placer = makePlacer(arenaW, arenaH);
         const [from, to] = bandCols(band, arenaW);
-        const [baseFrom, baseTo] = bandCols(band, ARENA_W);
-        const growth = ((to - from) * arenaH) / ((baseTo - baseFrom) * ARENA_H);
+        const [baseFrom, baseTo] = bandCols(band, base.arenaW);
+        const growth = ((to - from) * arenaH) / ((baseTo - baseFrom) * base.arenaH);
         scatterPieces(placer, scatter, Math.max(1, Math.round(count * growth)), from, to, salt);
         return placer.pieces;
     };
@@ -146,7 +152,14 @@ function drawnTerrain(id: DrawnTerrainId): TerrainLayout {
 export function drawnArena(id: TerrainId | null): { arenaW: number, arenaH: number } | null {
     const looks = id && (DRAWN_TERRAINS as Partial<Record<string, TerrainPieceLook[]>>)[id];
     if (!looks) return null;
-    return { arenaW: looks[0].solid[0].length * TERRAIN_CELL_W, arenaH: Math.floor(looks[0].solid.length * TERRAIN_CELL_H) };
+    return cellArena(looks[0].solid[0].length, looks[0].solid.length);
+}
+
+/** The smallest arena a scattered terrain is fought on, if it names one (`minSize` in its record): a small fight
+ * gets this, a bigger one the arena its headcount calls for. Null for the baseline. */
+export function scatteredArena(id: TerrainId | null): { arenaW: number, arenaH: number } | null {
+    const minSize = id && (SCATTERED_TERRAINS as Partial<Record<string, ScatteredTerrain>>)[id]?.minSize;
+    return minSize ? cellArena(...ARENA_SIZES[minSize]) : null;
 }
 
 // The terrains (settlements declare theirs via poi.terrain; unset = open ground): the scattered ones

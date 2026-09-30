@@ -48,15 +48,17 @@ const bullseye = () => (g, mid, size) => { dot(0.14)(g, mid, size); ring(0.32)(g
 const UNIT_LOOKS = {
     droid:    { shape: diamond(0.42) },      // half-diagonal sized to touch at the sim's collision contact distance
     defender: { shape: dot(0.34) },
-    runner:   { shape: dot(0.22) },          // smaller: quick and slight
-    heavy:    { shape: square(0.36) },       // a touch bigger than the dot: bulk
-    mounted:  { shape: triangle(0.4) },
-    launcher: { shape: hollowSquare(0.28) }, // a shape that keeps its distance
-    drone:    { shape: bullseye() },         // a thing that is mostly its payload
+    defender2: { shape: dot(0.42) },
+    runner:   { glyph: '«' },          // smaller: quick and slight
+    heavy:    { glyph: '¶', scale: 1.5 },       // a touch bigger than the dot: bulk
+    mounted:  { glyph: 'λ', scale: 1.3 },
+    launcher: { glyph: '◍', scale: 1.3 }, // a shape that keeps its distance
+    drone:    { glyph: 'ö' },         // a thing that is mostly its payload
     herd:     { shape: ring(0.28) },         // a signature with nothing behind it
-    sentry:   { glyph: '◈' },
+    sentry:   { glyph: 'Ĭ' },
     shelter:  { glyph: '◉', scale: 1.7 }
 };
+// ≡ ◊
 
 // Terrain obstacles: weathered stone, deliberately neutral next to the two sides' colors
 const TERRAIN_COLOR = 'rgba(164, 152, 128, 0.85)';

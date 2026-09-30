@@ -1,4 +1,4 @@
-import type {Opening, Spread} from "../../lib/battle/openings";
+import type {Opening, Spread, Waits} from "../../lib/battle/openings";
 import type {TerrainId} from "../../lib/battle/terrain";
 import type {PlanetColorKey} from "./colors";
 import type {HostileType} from "../battle/units";
@@ -55,6 +55,7 @@ export interface FightDef {
     hostiles: HostilesDef;
     opening?: Opening;
     spread?: Spread;
+    waits?: Waits;
     terrain?: TerrainId;
     blurb?: string;
     reward?: RewardDef;

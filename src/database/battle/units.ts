@@ -18,7 +18,8 @@ export type DroidStats = { hp: number; damage: number; attackMs: number; speed: 
 
 /** Hostile unit types: the keys of HOSTILE_TYPES below. Listed by hand (deriving it from the table would be circular, since
  * UnitStats.spawns names a HostileType), so keep it in step with the table. */
-export type HostileType = 'defender' | 'shelter' | 'runner' | 'heavy' | 'mounted' | 'sentry' | 'launcher' | 'drone' | 'herd';
+export type HostileType = 'defender' | 'defender2' |
+    'shelter' | 'runner' | 'heavy' | 'mounted' | 'sentry' | 'launcher' | 'drone' | 'herd';
 
 export type UnitType = 'droid' | HostileType;
 
@@ -50,36 +51,38 @@ export interface UnitStats extends DroidStats {
 export const DROID_BASE_STATS: DroidStats = { hp: 9, damage: 1, attackMs: 1500, speed: 9 };
 export const HOSTILE_TYPES: Record<HostileType, UnitStats> = {
     defender: { hp: 6, damage: 1, attackMs: 1300, speed: 11 },
+    defender2: { hp: 10, damage: 2, attackMs: 1300, speed: 11 },
+
     // Spawner: a shelter the defenders come out of. Stationary and harmless (speed/damage 0 route it around the whole
     // combat loop; droids still path to it and kill it as the nearest enemy once the escorts are dead)
     // but it sends out spawnBatch fresh `spawns`-type hostiles every spawnEveryMs until killed, holding fire
     // while spawnCap non-spawner hostiles are already afield (saturation, not an unbounded flood). Winning
     // stays emergent: 'won' fires when the hostile side is empty and the shelter is on the hostile side, so "kill
     // the source or it never ends" needs no special case.
-    shelter: { hp: 40, damage: 0, attackMs: 0, speed: 0, spawns: 'defender', spawnEveryMs: 4000, spawnBatch: 2, spawnCap: 24 },
+    shelter: { hp: 10, damage: 0, attackMs: 0, speed: 0, spawns: 'defender', spawnEveryMs: 4000, spawnBatch: 1, spawnCap: 24 },
 
     // The rows below are what the classifier sees, never named to the player as what they are. Each comment says
     // what it really is so the reveal stays true to every line already read. Stats are PLACEHOLDER tuning.
     // Small, fast and fragile; they reach the line first and die first. Truth: dogs running with the scavengers.
-    runner: { hp: 3, damage: 1, attackMs: 900, speed: 16 },
+    runner: { hp: 4, damage: 2, attackMs: 700, speed: 16 },
     // A cold shell over a thermal core, slow and hard to put down; hits harder than a defender and (hp above the
     // standard defender) earns an arena hp bar. Truth: a person in salvaged pre-war armor.
-    heavy: { hp: 20, damage: 2, attackMs: 1800, speed: 7 },
+    heavy: { hp: 20, damage: 5, attackMs: 1800, speed: 7 },
     // One heavy signature carrying two thermal profiles, faster than anything else afield. Truth: a rider on a horse.
     mounted: { hp: 12, damage: 2, attackMs: 1300, speed: 15 },
     // Static (speed 0: never seeks, never displaced, sits like terrain) with no thermal signature at all, and it
     // fires at range: the assault takes hits the whole way in and has to close on it to answer. Walls block its
     // shots, so terrain matters against it. Truth: a pre-war automated defense post, the kind the override module
     // was built to talk down.
-    sentry: { hp: 30, damage: 2, attackMs: 1000, speed: 0, range: 22 },
+    sentry: { hp: 10, damage: 2, attackMs: 1000, speed: 0, range: 25 },
     // Slow, fragile and mobile, it walks to just inside its reach and holds there, lobbing a slow shot that
     // bursts on the droid line (splash: everything near the struck droid takes the hit). Punishes a packed
     // assault; rushing it ends it. Truth: a scavenger with a salvaged pre-war grenade launcher.
-    launcher: { hp: 8, damage: 3, attackMs: 3200, speed: 6, range: 18, splash: 5 },
+    launcher: { hp: 8, damage: 3, attackMs: 2700, speed: 6, range: 22, splash: 5 },
     // The fastest signature afield and gone the moment it arrives: it runs the line and bursts on contact (splash
     // around itself), taking the nearest droids with it. Shot down short of the line it does nothing. Truth: a
     // pre-war loitering munition, salvaged and sent back out.
-    drone: { hp: 2, damage: 4, attackMs: 1000, speed: 22, splash: 4, detonates: true },
+    drone: { hp: 3, damage: 5, attackMs: 1000, speed: 22, splash: 5, detonates: true },
     // Signatures that count on the approach card and never engage (speed 0, damage 0: routed around the whole
     // combat loop like a shelter, but spawning nothing). The fight ends only once the droids have put them down
     // too, so a camp full of them reads as more threat than it is. Truth: livestock penned on the held ground.

@@ -734,7 +734,7 @@ export function squadAttack(poiId: string, fromCoord: Coord, level = 0) {
         if (!poiLevel) return false;
 
         // A level declares who holds it (hostiles, a count per type), and may add how the fight opens (opening,
-        // spread) and an obstacle layout (terrain); unset, the terrain decides the opening. The squad fights with its
+        // spread, waits) and an obstacle layout (terrain); unset, the terrain decides the opening. The squad fights with its
         // deploy-time stat snapshot. The terrain salt derives from the
         // settlement's map coord and the level, so every assault on this level fights on the same ground.
         dispatch({ type: SQUAD_START_FIGHT,
@@ -745,7 +745,8 @@ export function squadAttack(poiId: string, fromCoord: Coord, level = 0) {
                 poiLevel.opening || undefined,
                 poiLevel.terrain || undefined,
                 poi.coord[0] * 337 + poi.coord[1] + level * 7919,
-                poiLevel.spread || undefined) } });
+                poiLevel.spread || undefined,
+                poiLevel.waits) } });
         return true;
     }
 }

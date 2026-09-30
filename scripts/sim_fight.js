@@ -3,6 +3,7 @@
  *   npm run sim:fight -- testLarge 1000 1000                    1000 droids against 1000 defenders on that terrain
  *   npm run sim:fight -- testLarge 1000 shelter:2,sentry:4,defender:994
  *   npm run sim:fight -- open 24 shelter:1,defender:18 5 front loose      open ground, seed 5, that opening and spread
+ *   npm run sim:fight -- caves 10 10 1 marked tight hostiles    the hostiles wait where they open (or: squad)
  * Prints the arena, what the terrain has room for, the scale factor if the fight had to be scaled to fit, the
  * opening (see preview_terrain.js for the key), and then the result: who won, who was left, how long the fight
  * ran, and how long it took to simulate.
@@ -12,9 +13,9 @@ import {TERRAINS} from '../src/lib/battle/terrain.ts';
 import {terrainPieceLook} from '../src/database/battle/terrain_art.ts';
 import {advanceBattle, battleHeadcount, createBattle} from '../src/lib/battle/sim.ts';
 
-const [id, droidsArg, hostilesArg, seed = '1', opening = 'marked', spread = 'tight'] = process.argv.slice(2);
+const [id, droidsArg, hostilesArg, seed = '1', opening = 'marked', spread = 'tight', waits] = process.argv.slice(2);
 if (!id || !droidsArg || !hostilesArg || (id !== 'open' && !TERRAINS[id])) {
-    console.log('usage: npm run sim:fight -- <terrain|open> <droids> <hostiles> [seed] [opening] [spread]');
+    console.log('usage: npm run sim:fight -- <terrain|open> <droids> <hostiles> [seed] [opening] [spread] [waits]');
     console.log(`terrains: open, ${Object.keys(TERRAINS).join(', ')}`);
     console.log('hostiles: a number of defenders, or a composition like shelter:2,sentry:4,defender:994');
     process.exit(1);
@@ -22,7 +23,7 @@ if (!id || !droidsArg || !hostilesArg || (id !== 'open' && !TERRAINS[id])) {
 const hostiles = /^\d+$/.test(hostilesArg) ? { defender: Number(hostilesArg) }
     : Object.fromEntries(hostilesArg.split(',').map(part => { const [type, n] = part.split(':'); return [type.trim(), Number(n)]; }));
 
-let battle = createBattle(Number(droidsArg), hostiles, undefined, opening, id === 'open' ? null : id, Number(seed), spread);
+let battle = createBattle(Number(droidsArg), hostiles, undefined, opening, id === 'open' ? null : id, Number(seed), spread, waits);
 const cols = Math.ceil(battle.arenaW / TERRAIN_CELL_W), rows = Math.ceil(battle.arenaH / TERRAIN_CELL_H);
 
 // The opening, as preview_terrain.js draws it

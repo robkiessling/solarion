@@ -4,10 +4,10 @@ import {terrainPieceLook, type TerrainPieceId} from "../../database/battle/terra
 import {HOSTILE_TYPES, DROID_BASE_STATS, type HostileType, type DroidStats, type UnitStats, type UnitType} from "../../database/battle/units";
 import {GROUND_BLURBS, OPENING_BLURBS, SOURCE_BLURBS} from "../../database/battle/blurbs";
 import {ARENA_H, ARENA_W, hash01, TERRAIN_CELL_H, TERRAIN_CELL_W, type XY} from "./arena";
-import {droidOpening, hostileOpening, type Opening, type SpawnRole, type Spread} from "./openings";
-import {drawnArena, terrainMarkers, TERRAINS, type TerrainId} from "./terrain";
+import {droidOpening, hostileOpening, type Opening, type SpawnRole, type Spread, type Waits} from "./openings";
+import {drawnArena, scatteredArena, terrainMarkers, TERRAINS, type TerrainId} from "./terrain";
 export {ARENA_H, ARENA_W} from "./arena";
-export type {Opening, Spread} from "./openings";
+export type {Opening, Spread, Waits} from "./openings";
 export type {TerrainId} from "./terrain";
 
 export type BattleSide = 'droid' | 'hostile';
@@ -31,6 +31,9 @@ export interface BattleUnit {
     wobbleMs: number;
     spawnMs?: number;
     withdrawing?: boolean;
+    /** holding where the opening put it (its side waits, see Waits in openings.ts) until an enemy comes close
+     * or it is hit */
+    waiting?: true;
     /** cosmetic strike cue for the renderer: lunge direction and when it started */
     strike?: { dx: number, dy: number, t: number };
 }
@@ -129,6 +132,7 @@ const CELLS_PER_UNIT = 3;          // the same density in terrain cells of open 
 // The unit stat blocks (DROID_BASE_STATS, HOSTILE_TYPES) are content records in database/battle/units.ts; the
 // dials below are engine mechanics.
 const ATTACK_RANGE = 3;
+const WAKE_RANGE = 14;          // a waiting unit stirs when an enemy it can see comes this close
 const UNIT_RADIUS = 1.2;        // hard collision radius, both sides: pairs closer than 2R get pushed apart,
                                 // so frontage is physical (only the units that fit can engage; ranks queue)
 const WOBBLE = 3;               // units/sec of deterministic lateral drift (organic motion without RNG)
@@ -200,6 +204,7 @@ function livingMembers(unit: BattleUnit, hpEach: number): number {
 // is left of the hit carrying on into the next.
 function hurt(unit: BattleUnit, damage: number) {
     unit.hp -= damage;
+    if (unit.waiting) delete unit.waiting; // shot from beyond its wake range: it stops waiting all the same
     if (!unit.memberHp) return;
     const memberHp = unit.memberHp.slice(); // the old battle state still holds the list it was given
     let left = damage;
@@ -451,7 +456,8 @@ function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number, max
  * battle so a mid-fight save replays with the stats the fight started with.
  * `opening` is how the fight opens (poi.opening; see Opening in lib/battle/openings.ts):
  * unset, the terrain decides. `spread` is how close each group stands around its point. A hostile's place in
- * the opening follows from its stats (spawnRole), not from where the composition lists it.
+ * the opening follows from its stats (spawnRole), not from where the composition lists it. `waits` names a
+ * side that holds where it opened and lets the other come to it (see Waits in lib/battle/openings.ts).
  * `terrainId` picks an obstacle layout (poi.terrain; see TERRAINS), generated deterministically
  * from `terrainSalt`. Callers pass a salt derived from the settlement's map position, so the same settlement always
  * fights on the same ground; unset = open field. A terrain is laid out to fit the fight (the arena grows with
@@ -459,7 +465,8 @@ function spawnUnits(side: BattleSide, roster: { type: UnitType, hp?: number, max
  */
 export function createBattle(droids: number | number[], hostiles: Partial<Record<HostileType, number>>,
                              droidStats: DroidStats = DROID_BASE_STATS, opening: Opening = 'marked',
-                             terrainId: TerrainId | null = null, terrainSalt = 0, spread: Spread = 'tight'): Battle {
+                             terrainId: TerrainId | null = null, terrainSalt = 0, spread: Spread = 'tight',
+                             waits?: Waits): Battle {
     const realDroidHp = Array.isArray(droids) ? droids : fullDroidHp(droids, droidStats.hp);
     const realHostiles = typedEntries(hostiles).reduce((n, [, count]) => n + (count || 0), 0);
 
@@ -488,10 +495,12 @@ export function createBattle(droids: number | number[], hostiles: Partial<Record
     const realSpawners = hostileRoster.reduce((n, e) => n + (isSpawner(e) ? e.count : 0), 0);
 
     // Constant-density field: area grows with headcount, so linear dimensions scale with its square root.
-    // Small fights stay on the baseline arena (never shrink below it).
+    // Small fights stay on the baseline arena (never shrink below it), or on the bigger one a scattered
+    // terrain asks for.
     const arenaScale = Math.max(1, Math.sqrt((droidRoster.length + hostileRoster.length) / ARENA_BASELINE_UNITS));
-    const arenaW = drawn ? drawn.arenaW : Math.round(ARENA_W * arenaScale);
-    const arenaH = drawn ? drawn.arenaH : Math.round(ARENA_H * arenaScale);
+    const floor = scatteredArena(terrainId);
+    const arenaW = drawn ? drawn.arenaW : Math.max(Math.round(ARENA_W * arenaScale), floor ? floor.arenaW : 0);
+    const arenaH = drawn ? drawn.arenaH : Math.max(Math.round(ARENA_H * arenaScale), floor ? floor.arenaH : 0);
 
     const terrainLayout = terrainId && TERRAINS[terrainId];
     const terrainPieces = drawnPieces || (terrainLayout ? terrainLayout(arenaW, arenaH, terrainSalt) : []);
@@ -510,6 +519,13 @@ export function createBattle(droids: number | number[], hostiles: Partial<Record
     };
     const hostilePositions = hostileOpening(hostileRoster.map(entry => spawnRole(HOSTILE_TYPES[entry.type])),
         named, markers, spread, squadAt, arenaW, arenaH, terrainSalt);
+
+    const droidUnits = spawnUnits('droid', droidRoster, stats, arenaW, arenaH, droidPositions, terrainGrid);
+    const hostileUnits = spawnUnits('hostile', hostileRoster, stats, arenaW, arenaH, hostilePositions, terrainGrid);
+    // The side that waits holds where it opened. What cannot move never waits: it has nothing to hold back.
+    for (const unit of waits === 'squad' ? droidUnits : waits === 'hostiles' ? hostileUnits : []) {
+        if (stats[unit.type].speed > 0) unit.waiting = true;
+    }
 
     return {
         phase: 'active',
@@ -533,10 +549,7 @@ export function createBattle(droids: number | number[], hostiles: Partial<Record
         buffs: { overchargeMs: 0 },
         terrain,                        // { id, pieces: [{ art, col, row }] } or null for open ground
         fx: [],                         // { type: 'hit'|'death'|'heal'|'bomb', x, y, t } markers for the renderer
-        units: [
-            ...spawnUnits('droid', droidRoster, stats, arenaW, arenaH, droidPositions, terrainGrid),
-            ...spawnUnits('hostile', hostileRoster, stats, arenaW, arenaH, hostilePositions, terrainGrid)
-        ]
+        units: [...droidUnits, ...hostileUnits]
     };
 }
 
@@ -869,6 +882,23 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
         const c = Math.floor(unit.x / TERRAIN_CELL_W), r = Math.floor(unit.y / TERRAIN_CELL_H);
         return tGrid.exitDist[r * tGrid.cols + c] === 0;
     };
+    // A waiting unit (its side waits, see Waits in openings.ts) holds where it stands until an enemy it can see
+    // comes within WAKE_RANGE, then fights like any other for the rest of the fight (a hit wakes it too, see
+    // hurt). It still strikes whatever steps into its reach. If nothing on the other side can come to it (all
+    // that is left is a shelter or a post), the wait is over for everyone, or the fight would never end.
+    const waitingSide = units.find(u => u.waiting)?.side;
+    if (waitingSide && !units.some(u => u.side !== waitingSide && battle.stats[u.type].speed > 0)) {
+        for (const unit of units) delete unit.waiting;
+    }
+    const wakeRings = Math.ceil(WAKE_RANGE / TARGET_CELL) + 1;
+    const stillWaiting = (unit: BattleUnit, enemyGrid: UnitGrid) => {
+        if (!unit.waiting) return false;
+        const near = nearestInGrid(enemyGrid, unit.x, unit.y, maxDim, wakeRings);
+        if (!near || (near.x - unit.x) ** 2 + (near.y - unit.y) ** 2 > WAKE_RANGE * WAKE_RANGE) return true;
+        if (!hasLOS(tGrid, unit.x, unit.y, near.x, near.y)) return true;
+        delete unit.waiting;
+        return false;
+    };
     const hostileGrid = buildGrid(units, 'hostile', TARGET_CELL);
     const hostileFlow = buildFlowField(units, 'hostile', tGrid, arenaW, arenaH);
     for (const unit of units) {
@@ -877,13 +907,14 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
             withdrawStep(unit);
             continue;
         }
+        if (stillWaiting(unit, hostileGrid)) continue;
         seek(unit, acquire(unit, hostileGrid, hostileFlow));
     }
     const droidGrid = buildGrid(units, 'droid', TARGET_CELL);
     const droidFlow = buildFlowField(units, 'droid', tGrid, arenaW, arenaH);
     for (const unit of units) {
         // speed-0 units (spawners) don't seek at all: even the wobble term would send the hole wandering
-        if (unit.side === 'hostile' && battle.stats[unit.type].speed > 0) {
+        if (unit.side === 'hostile' && battle.stats[unit.type].speed > 0 && !stillWaiting(unit, droidGrid)) {
             seek(unit, acquire(unit, droidGrid, droidFlow));
         }
     }

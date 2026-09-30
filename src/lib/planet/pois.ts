@@ -7,7 +7,7 @@ import {CAMPS_ENABLED, FIELD_EVENT_SPACING, POI_DEFS} from "../../database/plane
 import type {Capabilities} from "../../database/planet/capabilities";
 import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
 import type {HostileType} from "../../database/battle/units";
-import type {Opening, Spread} from "../battle/openings";
+import type {Opening, Spread, Waits} from "../battle/openings";
 import type {TerrainId} from "../battle/terrain";
 
 /** One placed fight (see FightDef in database/planet/poi_types.ts), hostile counts and rewards rolled. `timesCleared`
@@ -16,6 +16,7 @@ export interface PoiFight {
     hostiles: Partial<Record<HostileType, number>>;
     opening?: Opening;
     spread?: Spread;
+    waits?: Waits;
     terrain?: TerrainId;
     blurb?: string;
     reward: PoiReward;
@@ -236,7 +237,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
                 const tile = getRandomFromArray(free);
                 usedKeys.add(`${tile.coord[0]},${tile.coord[1]}`);
                 const { approachText, ...level } = campDef;
-                add('camp', tile, { levels: [rollFight({ opening: 'surround', ...level })], parentId: poi.id,
+                add('camp', tile, { levels: [rollFight(sprung(level))], parentId: poi.id,
                     concealed: true, approachText: approachText || def.campApproachText });
             });
             return;
@@ -307,7 +308,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             }
             case 'ambush': // found by stepping on it, and sprung: encircled unless it names an opening. The def carries
                 // its one fight's fields flat. It remembers its zone(s): a failed contact moves it within them.
-                add('ambush', sector, { ...base, approachText: def.approachText, levels: [rollFight({ opening: 'surround', ...def })], concealed: true,
+                add('ambush', sector, { ...base, approachText: def.approachText, levels: [rollFight(sprung(def))], concealed: true,
                     ...(def.zone ? { zones: Array.isArray(def.zone) ? def.zone : [def.zone] } : {}) });
                 break;
         }
@@ -358,11 +359,18 @@ function rollReward(def: RewardDef): PoiReward {
     return reward;
 }
 
+// A fight sprung on the squad (a camp, an ambush), with what it opens as unless it says otherwise: encircled, and
+// (while it is encircled) the squad standing its ground instead of going out to meet them.
+function sprung<T extends FightDef>(def: T): T {
+    const opening = def.opening || 'surround';
+    return { ...def, opening, waits: def.waits || (opening === 'surround' ? 'squad' : undefined) };
+}
+
 // Rolls one fight's hostile counts and reward. Takes any def carrying a fight's fields (an ambush def has them flat
 // beside its placement fields) and copies only the fight's own.
 function rollFight(def: FightDef): PoiFight {
     return { hostiles: mapObject(def.hostiles, (type, count) => rollRange(count)), opening: def.opening, spread: def.spread,
-        terrain: def.terrain, blurb: def.blurb, reward: def.reward ? rollReward(def.reward) : {}, timesCleared: 0 };
+        ...(def.waits ? { waits: def.waits } : {}), terrain: def.terrain, blurb: def.blurb, reward: def.reward ? rollReward(def.reward) : {}, timesCleared: 0 };
 }
 
 // The signature count a scan of a fight reports: every hostile fielded, whatever its type
