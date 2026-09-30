@@ -6,6 +6,7 @@ import {getCapacity} from "../redux/modules/resources";
 import {daylightPercent} from "../redux/modules/clock";
 import {hasLifetimeQuantities} from "../redux/modules/resources";
 import {formatInteger} from "../lib/helpers";
+import {numDroidsLost} from "../redux/reducer";
 
 export interface TriggerRecord<S = any> {
     /** the part of the state to listen to (as specific as possible) */
@@ -101,12 +102,22 @@ const database = {
             store.dispatch(fromUpgrades.discover('droidFactory_overchargeCell'));
         }
     }),
-    // Survival and the schematic index: the first fight has ended (won, lost or fled), so health, damage and swing
-    // now mean something. The index opener on the factory card keys off the same counter.
+    // Survival and the schematic index: a fight has ended (won, lost or fled), so health, damage and swing now
+    // mean something, and the team is home or gone, so the factory can be acted on. Waiting for that keeps the
+    // beat out from under a fight's own ending (a wipe narrates first, then this lands once the popup is
+    // dismissed; a win mid-trip waits for the return). The index opener on the factory card keys off the
+    // battle counter alone.
     firstBattleOver: trigger({
-        selector: (state) => state.planet.battlesFought,
-        condition: (fought) => fought >= 1,
+        selector: (state) => state.planet.squad,
+        condition: (squad) => !squad && store.getState().planet.battlesFought >= 1,
         action: () => store.dispatch(fromLog.startLogSequence('firstBattleOver'))
+    }),
+    // Auto-rebuild: the first droid lost in the field, so the factory's cheaper rebuild exists to automate. Watches
+    // the lost count, not the battle count, so a fight without losses offers nothing.
+    firstDroidLost: trigger({
+        selector: (state) => numDroidsLost(state),
+        condition: (lost) => lost >= 1,
+        action: () => store.dispatch(fromUpgrades.discover('droidFactory_assemblyOrder'))
     }),
     // Site replication: a network SITE has fallen (the pre-war facility whose foundations and power tap a command
     // center can be copied onto; ordinary villages don't count) and a squad has come home since. Waiting for the

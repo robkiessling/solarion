@@ -11,7 +11,7 @@ import './styles/app.scss';
 
 // Note: Singleton imports are necessary despite not being used in this file; they initialize the singletons
 import gameClock from "./singletons/game_clock"
-import {preload as preloadSfx, setEnabled as setSfxEnabled} from "./singletons/audio";
+import {preload as preloadSfx, setCurrentTab as setSfxTab, setEnabled as setSfxEnabled} from "./singletons/audio";
 
 import {hasStartedGame} from "./redux/modules/log";
 import {syncTriggers} from "./redux/modules/triggers";
@@ -19,7 +19,11 @@ import {runGameMode} from "./dev/skips";
 
 preloadSfx();
 setSfxEnabled(store.getState().game.soundEnabled);
-store.subscribe(() => setSfxEnabled(store.getState().game.soundEnabled));
+setSfxTab(store.getState().game.currentNavTab);
+store.subscribe(() => {
+    setSfxEnabled(store.getState().game.soundEnabled);
+    setSfxTab(store.getState().game.currentNavTab); // base-tab clips stay quiet while another tab shows
+});
 
 
 if (hasStartedGame(store.getState().log)) {

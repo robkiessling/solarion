@@ -42,8 +42,8 @@ class Ability extends React.Component {
                 (this.props.displayInfo || this.props.autocastable) && <div className='ability-info'>
                     { this.props.displayInfo && <div>{ this.props.displayInfo }</div> }
                     {
-                        // Auto-build (the standing order), under the info line: lit while on. Casts back to back while
-                        // affordable; a stalled order says why.
+                        // Auto-rebuild (the standing order), under the info line: lit while on. Rebuilds losses back to
+                        // back while affordable and holds at the fleet's high-water mark; growing the fleet is a click.
                         this.props.autocastable &&
                         <React.Fragment>
                             <button className={`action-button autocast-toggle${this.props.autocast ? ' on' : ''}`}
@@ -55,14 +55,14 @@ class Ability extends React.Component {
                                         event.currentTarget.blur();
                                         this.props.setAutocast(this.props.id, !this.props.autocast);
                                     }}>
-                                {this.props.autocast ? '■ Auto-build: on' : '□ Auto-build: off'}
+                                {this.props.autocast ? '■ Auto-rebuild' : '□ Auto-rebuild'}
                             </button>
                             {/*{ this.props.autocast && !this.props.canCast && !this.props.isCasting &&*/}
                             {/*    <span className='autocast-waiting'>waiting on resources</span> }*/}
                             <Tooltip id={`ability-${this.props.id}-auto-tip`} {...(this.props.tooltipProps || {})}>
                                 <div>
-                                    <p className='tooltip-header'><span className='ability'>Auto-build</span></p>
-                                    <p>Builds again the moment each build ends, for as long as the factory can pay.</p>
+                                    <p className='tooltip-header'><span className='ability'>Auto-rebuild</span></p>
+                                    <p>Rebuilds lost droids as soon as the factory can pay, back to the most you have had. You must still build by hand to grow the fleet.</p>
                                 </div>
                             </Tooltip>
                         </React.Fragment>

@@ -402,6 +402,7 @@ export default {
             dispatch(addTrigger('squadBatteryHalf'));
             dispatch(addTrigger('settlementSighted'));
             dispatch(addTrigger('firstBattleOver'));
+            dispatch(addTrigger('firstDroidLost'));
             dispatch(addTrigger('siteReplication1'));
             dispatch(addTrigger('siteReplication2'));
             dispatch(addTrigger('siteReplication3'));
@@ -424,8 +425,7 @@ export default {
     firstBattleOver: {
         text: [
             ['', 0],
-            ['Combat telemetry logged.', 500, true],
-            ['Chassis design corpus indexed: see Droid Factory.', 1000, true],
+            ['Chassis design corpus indexed: see Droid Factory.', 500, true],
         ],
         onFinish: (dispatch) => {
             dispatch(fromUpgrades.discover('droidFactory_repairRig'));

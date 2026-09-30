@@ -10,6 +10,8 @@
  * index.jsx pushes the sound setting in via setEnabled.
  */
 
+import type {NavTab} from "../redux/modules/game";
+
 interface PlayOptions {
     /** 0..1, multiplied with the master volume (default 1) */
     volume?: number;
@@ -22,21 +24,28 @@ interface PlayOptions {
 interface Clip extends PlayOptions {
     /** path under public/sfx (Vite copies that folder to the site root untouched) */
     file: string;
+    /**
+     * Heard only while this nav tab is showing. Timed work at the base (a 30s droid build, a long research, an
+     * auto-build order) finishes on its own while the player is driving the squad on the planet tab, and a
+     * confirmation chime for something off screen is just noise. The terminal shows on every tab, so its lines
+     * set no tab.
+     */
+    tab?: NavTab;
 }
 
 // Each clip is the file plus how it's played by default; play() call sites can override any option.
 // Files keep their original names under a source/pack folder so their origin is obvious.
 // Register a new sound by adding a line here and dropping the file in that folder.
 const CLIPS = {
-    click: { file: 'kenney/ui/mouseclick1.ogg', rateJitter: 0.05, volume: 0.15 },
-    researchStart: { file: 'kenney/interface/question_002.ogg', volume: 0.3 },
+    click: { file: 'kenney/ui/mouseclick1.ogg', rateJitter: 0.05, volume: 0.15, tab: 'base' },
+    researchStart: { file: 'kenney/interface/question_002.ogg', volume: 0.3, tab: 'base' },
     // researchFinish: { file: 'kenney/sci-fi/forceField_000.ogg', volume: 0.3 },
     // researchFinish: { file: 'kenney/interface/confirmation_001.ogg', volume: 0.3 },
-    researchFinish: { file: 'kenney/interface/maximize_006.ogg', volume: 0.3 },
-    build: { file: 'kenney/impact/impactMining_000.ogg', volume: 0.5 },
-    castStart: { file: 'kenney/interface/click_002.ogg', volume: 0.3 }, // ability defaults; a record can name its own
-    castFinish: { file: 'kenney/interface/confirmation_004.ogg', volume: 0.2 },
-    chargeMineralProc: { file: 'kenney/interface/confirmation_003.ogg', volume: 0.4 }, // charge click that also finds a mineral
+    researchFinish: { file: 'kenney/interface/maximize_006.ogg', volume: 0.3, tab: 'base' },
+    build: { file: 'kenney/impact/impactMining_000.ogg', volume: 0.5, tab: 'base' },
+    castStart: { file: 'kenney/interface/click_002.ogg', volume: 0.3, tab: 'base' }, // ability defaults; a record can name its own
+    castFinish: { file: 'kenney/interface/confirmation_004.ogg', volume: 0.2, tab: 'base' },
+    chargeMineralProc: { file: 'kenney/interface/confirmation_003.ogg', volume: 0.4, tab: 'base' }, // charge click that also finds a mineral
     logFlash: { file: 'kenney/interface/select_007.ogg', volume: 0.3 },
     // logTypingTick: { file: 'kenney/interface/click_003.ogg', volume: 0.15, rateJitter: 0.2 },
     // logProgressTick: { file: 'kenney/interface/bong_001.ogg', volume: 0.15 },
@@ -63,6 +72,12 @@ if (typeof window !== 'undefined') {
 /** Mirrors the soundEnabled game setting (index.jsx keeps it in sync with the store) */
 export function setEnabled(value: boolean) {
     enabled = value;
+}
+
+// The nav tab showing, pushed in by index.jsx like the sound setting; a clip that names a tab plays only on it
+let currentTab: NavTab = 'base';
+export function setCurrentTab(tab: NavTab) {
+    currentTab = tab;
 }
 
 // A separate switch from `enabled` (which the store keeps re-syncing) for the hidden-tab catch-up: it replays
@@ -124,7 +139,9 @@ export function preload(...names: SfxName[]) {
 
 export function play(name: SfxName, overrides: PlayOptions = {}) {
     if (!enabled || !unlocked || suppressed) return;
-    const options: PlayOptions = { ...CLIPS[name], ...overrides };
+    const clip: Clip = CLIPS[name];
+    if (clip.tab && clip.tab !== currentTab) return;
+    const options: PlayOptions = { ...clip, ...overrides };
 
     const ctx = getContext();
     const buffer = buffers[name];

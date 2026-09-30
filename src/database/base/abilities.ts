@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import {getQuantity, getResource} from "../../redux/modules/resources";
-import {numStandardDroids, type CalculatorSet} from "../../redux/reducer";
+import {maxDroidsOwned, numDroidsLost, numStandardDroids, type CalculatorSet} from "../../redux/reducer";
 import * as fromAbilities from "../../redux/modules/abilities";
 import * as fromPlanet from "../../redux/modules/planet";
 import {upgradesAffectingAbility} from "./upgrades";
@@ -41,6 +41,12 @@ export interface AbilityRecord {
     castStartSound: SfxName | false;
     castFinishSound: SfxName | false;
     autocastable: boolean;
+    /**
+     * Whether a standing order (autocast) has anything to do right now; a calculator keeps it current. The droid
+     * factory's order holds the fleet at its high-water mark: it rebuilds losses and never climbs a rung on its
+     * own, since each new rung is an exponentially larger spend that is the operator's call (the Build button).
+     */
+    autocastDue: boolean;
 }
 
 export interface Ability extends AbilityRecord {
@@ -72,6 +78,7 @@ const base: AbilityRecord = {
     castStartSound: 'castStart',
     castFinishSound: 'castFinish',
     autocastable: false,
+    autocastDue: true,
 }
 
 /** A table entry: the overrides merged over `base` (deep, so a nested field can be overridden on its own) */
@@ -175,20 +182,44 @@ export const calculators: Partial<Record<AbilityId, CalculatorSet<Ability>>> = {
             }
         }
     },
+    // The price climbs the exponential ladder by the most droids ever owned, not by droids alive. While droids
+    // are missing (lost in the field), the build is a rebuild and pays the fleet average (what the ladder cost so
+    // far, divided by its height) instead of a new rung. So five droids lost one at a time cost exactly what five
+    // lost at once cost, and a wipe costs what the fleet cost to build: the price depends on the fleet's size,
+    // never on the order the losses came in.
     droidFactory_buildStandardDroid: {
         variables: (state, ability) => {
             const variables = {
-                castTime: 30
+                castTime: 30,
+                maxDroids: maxDroidsOwned(state),
+                lost: numDroidsLost(state)
             }
             
             applyAllEffects(state, variables, ability)
             
             return variables;
         },
-        cost: (state, ability) => ({
-            ore: 100 * (STANDARD_COST_EXP)**(numStandardDroids(state)),
-            refinedMinerals: 25 * (STANDARD_COST_EXP)**(numStandardDroids(state))
-        }),
+        name: (state, ability, variables) => variables.lost > 0 ? 'Rebuild' : 'Build Droid',
+        autocastDue: (state, ability, variables) => variables.lost > 0,
+        description: (state, ability, variables) => {
+            const lost = variables.lost;
+            if (lost > 0) {
+                return `${lost} droid${lost === 1 ? '' : 's'} lost. Rebuilding a lost droid costs less than adding a new one.`;
+            }
+            return "Droids can be assigned to structures, improving their performance.";
+        },
+        cost: (state, ability, variables) => {
+            const ladder = (n: number) => (STANDARD_COST_EXP)**n;
+            // A rebuild pays what the ladder cost in all (the geometric series) divided by its height; a new droid
+            // pays the next rung
+            const rung = variables.lost > 0
+                ? (ladder(variables.maxDroids) - 1) / (STANDARD_COST_EXP - 1) / variables.maxDroids
+                : ladder(variables.maxDroids);
+            return {
+                ore: Math.round(100 * rung),
+                refinedMinerals: Math.round(25 * rung)
+            };
+        },
         displayInfo: (state, ability) => {
             const total = numStandardDroids(state);
             const remaining = getQuantity(getResource(state.resources, 'standardDroids'));

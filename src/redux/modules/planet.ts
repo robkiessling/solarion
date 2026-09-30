@@ -57,6 +57,8 @@ export interface PlanetState {
     prompt: EncounterPrompt | null;
     battlesFought: number;
     squadsReturned: number;
+    /** the most droids owned at once (see maxDroidsOwned in redux/reducer.ts) */
+    maxDroidsOwned: number;
 }
 
 // Actions
@@ -137,7 +139,10 @@ const initialState: PlanetState = {
     // squad) so a wipe can still narrate its ending after the squad object is gone.
     prompt: null,
     battlesFought: 0, // fights that have ended, whatever the outcome (the first one opens the schematic index)
-    squadsReturned: 0 // squads disbanded back at base (a wipe is not a return; the replication beat waits for one)
+    squadsReturned: 0, // squads disbanded back at base (a wipe is not a return; the replication beat waits for one)
+    // High-water mark of droids owned at once (raised on recalculation, never lowered). The mark minus the live
+    // count is how many droids have been lost, and the droid factory prices rebuilding those below a new build.
+    maxDroidsOwned: 0
 }
 
 // Reducer

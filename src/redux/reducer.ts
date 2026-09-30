@@ -22,6 +22,7 @@ import {HYPER_BEAM_CHARGE_TIME} from "../lib/star";
 import {getStructure, type StructuresState} from "./modules/structures";
 import {DROID_BASE_STATS, type DroidStats} from "../database/battle/units";
 import {SQUAD_BATTERY_CAPACITY} from "../database/squad/tuning";
+import {droidsRecovered} from "../lib/planet/squad";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER, type EquipmentCharges} from "../database/squad/equipment";
 import {applyOperationsToVariables, initOperations, mergeEffectIntoOperations, type Variables} from "../lib/effect";
 import type {Ability, AbilityId} from "../database/base/abilities";
@@ -125,6 +126,12 @@ export function withRecalculation(action: GameAction | Thunk) {
  * @returns Overrides to update various structure values
  */
 function recalculateReducer(state: RootState, onlySlice?: RecalculableSlice, onlyId?: string): RootState {
+    // Raise the droid high-water mark (it only rises; see planet.maxDroidsOwned)
+    const maxDroids = maxDroidsOwned(state);
+    if (maxDroids !== state.planet.maxDroidsOwned) {
+        state = update(state, { planet: { maxDroidsOwned: { $set: maxDroids } } });
+    }
+
     if (onlySlice === undefined || onlySlice === 'structures') {
         state = update(state, {
             structures: {
@@ -528,15 +535,30 @@ export function numStandardDroids(state: RootState): number {
     // Add in the expedition team standing by at base
     total += state.planet.squadDroidData.numDroidsAssigned;
 
-    // Add in droids away with the squad (the assigned droids, not their replicated units)
+    // Add in droids away with the squad: the ones still standing (the assigned droids that would come home now,
+    // not their replicated units). A droid lost in the field leaves the count the moment it falls, so the factory
+    // offers its rebuild while the squad is still out.
     if (state.planet.squad) {
-        total += state.planet.squad.assignedDroids || state.planet.squad.squadSize;
+        total += droidsRecovered(state.planet.squad);
     }
 
     // Add in unused droids
     total += fromResources.getQuantity(fromResources.getResource(state.resources, 'standardDroids'));
 
     return total;
+}
+
+/**
+ * The most droids owned at once. The stored mark is raised on recalculation; the live count is folded in here too
+ * so a save from before the mark, or a grant that has not been recalculated yet, never reads as below the count.
+ */
+export function maxDroidsOwned(state: RootState): number {
+    return Math.max(state.planet.maxDroidsOwned || 0, numStandardDroids(state));
+}
+
+/** Droids lost in the field and not yet rebuilt */
+export function numDroidsLost(state: RootState): number {
+    return maxDroidsOwned(state) - numStandardDroids(state);
 }
 
 

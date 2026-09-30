@@ -190,14 +190,14 @@ export function setAutocastSuspended(value: boolean) {
     autocastSuspended = value;
 }
 
-// An ability under a standing order recasts the moment it is ready and affordable. Called when a cast (or its
-// cooldown) ends and on every tick, so an order that stalled on cost resumes as soon as the resources are there.
-// Nothing is paid ahead: each cast pays its own cost when it starts, the way a click would, which matters for
-// costs that climb per cast (the droid price).
+// An ability under a standing order recasts the moment it is ready, affordable and due (autocastDue: the droid
+// order only rebuilds losses). Called when a cast (or its cooldown) ends and on every tick, so an order that
+// stalled on cost resumes as soon as the resources are there. Nothing is paid ahead: each cast pays its own cost
+// when it starts, the way a click would, which matters for costs that climb per cast (the droid price).
 function autocastIfDue(dispatch: Dispatch, getState: GetState, id: AbilityId) {
     if (autocastSuspended) return;
     const ability = getAbility(getState().abilities, id);
-    if (!ability || !ability.autocast || !ability.autocastable) return;
+    if (!ability || !ability.autocast || !ability.autocastable || ability.autocastDue === false) return;
     if (!canCastAbility(getState(), ability)) return;
     dispatch(startCastUnsafe(ability));
     if (ability.castTime > 0 && ability.castStartSound) { playSfx(ability.castStartSound); }

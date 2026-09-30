@@ -949,17 +949,12 @@ const database = {
             type: 'misc'
         },
     }),
-    // Autocast for droid production: the first standing authorization the player signs on the factory, and a
-    // little faster besides
+    // Autocast for droid production: the first standing authorization the player signs on the factory. Offered by
+    // the firstDroidLost trigger: there is nothing to rebuild until a droid has been lost.
     droidFactory_assemblyOrder: upgrade({
-        name: "Build Automation",
+        name: "Auto-rebuild",
         structure: 'droidFactory',
-        description: 'Allows for continuous droid production. Also reduces droid build time by 5 seconds.',
-        discoverWhen: {
-            resources: {
-                standardDroids: 10
-            }
-        },
+        description: 'Lost droids are rebuilt automatically, up to the most you have had.',
         cost: {
             ore: 3000,
             energy: 2000,
@@ -968,9 +963,6 @@ const database = {
         affects: {
             type: 'ability',
             id: 'droidFactory_buildStandardDroid'
-        },
-        effect: {
-            castTime: { add: -5 }
         }
     }),
     droidFactory_amphibiousTracks: upgrade({
@@ -1028,6 +1020,30 @@ const database = {
         },
         effect: {
             castTime: { add: -15 }
+        }
+    }),
+    // The second build-time cut (Faster Builds is the first), at the fleet size where waiting on the factory starts
+    // to be felt
+    droidFactory_assemblyLine: upgrade({
+        name: "Assembly Line",
+        structure: 'droidFactory',
+        description: 'Reduces droid build time by 5s.',
+        discoverWhen: {
+            upgrades: ['droidFactory_fasterBuild'],
+            resources: {
+                standardDroids: 10
+            }
+        },
+        cost: {
+            ore: 3000,
+            energy: 2000
+        },
+        affects: {
+            type: 'ability',
+            id: 'droidFactory_buildStandardDroid'
+        },
+        effect: {
+            castTime: { add: -5 }
         }
     }),
     // Squad outfitting (equipment, combat stats, battery): database/squad/upgrades.ts
@@ -1245,7 +1261,9 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
     },
     droidFactory_assemblyOrder: {
         onFinish: (dispatch) => {
+            // Researched is wanted: the order starts on, and the toggle is there to pause it while saving up
             dispatch(fromAbilities.setAutocastable('droidFactory_buildStandardDroid'));
+            dispatch(fromAbilities.setAutocast('droidFactory_buildStandardDroid', true));
         }
     },
     droidFactory_amphibiousTracks: {
