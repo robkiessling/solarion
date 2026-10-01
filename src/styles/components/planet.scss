@@ -207,50 +207,43 @@ $hud-clearance: 6.5rem;
         border: 1px solid rgba(120, 140, 160, 0.25);
       }
 
-      // Result phase: the fight's final frame, frozen, with the verdict stamped across it. The canvas
-      // underneath is the same element battle mode uses, so nothing moves when the battle ends.
-      .battle-final {
-        position: relative;
-
-        .battle-verdict {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          padding: 0.35rem 1.4rem;
-          background: rgba(13, 17, 23, 0.82);
-          border: 1px solid rgba(32, 217, 255, 0.55);
-          color: #20d9ff; // friendly cyan: the field is cleared
-          font-size: 1.15em;
-          letter-spacing: 4px;
-          white-space: nowrap;
-
-          &.wiped {
-            border-color: rgba(255, 107, 53, 0.55);
-            color: #ff6b35; // hostile orange: the hostiles hold the field
-          }
-        }
-      }
-
-      // Bottom strip under the canvas: scene blurb over the equipment/retreat row during the fight, the
-      // outcome text over Continue after it. Stacked, so a full loadout's buttons wrap across the strip
-      // instead of crushing the text beside them. A fixed floor height sized for either occupant, so the
-      // popup keeps its size through the ending and only the strip's contents swap.
+      // Bottom strip under the canvas: the scene blurb over the equipment/retreat row during the fight, the
+      // outcome over Continue after it. Stacked, so a full loadout's buttons wrap across the strip instead
+      // of crushing the text beside them. The canvas above is the same element in both phases and the
+      // result holds the height the fight's strip had (the component measures it as the fight ends), so
+      // the popup keeps its size through the ending and only the strip's contents swap.
       .battle-footer {
-        min-height: 5.2rem;
         display: flex;
         flex-direction: column;
-        justify-content: center;
         gap: 0.5rem;
 
+        // The text slot, blurb or outcome: one size for both and room for two lines whichever it holds,
+        // so the swap moves nothing
         > .popup-body {
           margin-bottom: 0;
+          font-size: 0.9em;
+          min-height: 2.8em; // two lines at the popup's 1.4 line-height
+
+          // The outcome reads as one running paragraph in plain text: a line per fact, each in its own
+          // color, is the small prompt's layout and would outgrow the slot
+          .result-line,
+          .outcome-line {
+            display: inline;
+            color: inherit;
+
+            & + *::before { content: ' '; }
+          }
         }
 
-        // The one-line scene description (battleBlurb): quiet narration, subordinate to the action row
+        // The button row sits on the strip's bottom edge in both phases, so Continue lands exactly where
+        // Retreat was
+        > .popup-actions {
+          margin-top: auto;
+        }
+
+        // The scene description (battleBlurb): quiet narration, subordinate to the action row
         > .battle-blurb {
           font-style: italic;
-          font-size: 0.9em;
           color: $ui-text-dim;
         }
       }

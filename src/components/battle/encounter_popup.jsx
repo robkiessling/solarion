@@ -38,12 +38,30 @@ class EncounterPopup extends React.Component {
     constructor(props) {
         super(props);
         this.openedAt = -Infinity; // performance.now() of the last phase opening (the click lock's start)
+        this.footer = React.createRef(); // the battle footer strip, measured as the fight ends
+        this.state = { footerHeight: null }; // px height the last fight's footer had (see getSnapshotBeforeUpdate)
     }
 
-    componentDidUpdate(prevProps) {
+    // A fight just ended in a result: measure its footer while it is still in the DOM. The result's footer
+    // is held at that height, so the popup keeps its size however many rows the equipment buttons took.
+    getSnapshotBeforeUpdate(prevProps) {
+        const wasFighting = prevProps.squad && prevProps.squad.fighting;
+        const fighting = this.props.squad && this.props.squad.fighting;
+        const result = this.props.prompt && this.props.prompt.result;
+        if (wasFighting && !fighting && result && result.finalBattle && this.footer.current) {
+            return this.footer.current.offsetHeight;
+        }
+        return null;
+    }
+
+    componentDidUpdate(prevProps, prevState, footerHeight) {
         const fightStarted = this.props.squad && this.props.squad.fighting && !(prevProps.squad && prevProps.squad.fighting);
         if ((this.props.prompt && this.props.prompt !== prevProps.prompt) || fightStarted) {
             this.openedAt = performance.now();
+        }
+        // Applied before the browser paints, so the result never shows at another height
+        if (footerHeight != null && footerHeight !== this.state.footerHeight) {
+            this.setState({ footerHeight });
         }
     }
 
@@ -133,21 +151,22 @@ class EncounterPopup extends React.Component {
 
     renderResult(poi, prompt) {
         const result = prompt.result;
-        // Battle results hold the field's final frame (frozen, nothing ticks it) with a verdict banner
-        // over it, so the fight's ending stays on screen instead of snapping down to the small prompt;
-        // the outcome text and Continue share the fixed-height footer the action row occupied.
+        // Battle results hold the field's final frame (frozen, nothing ticks it), so the fight's ending
+        // stays on screen instead of snapping down to the small prompt. The outcome takes the scene line's
+        // place in the footer, run together as one paragraph (see .battle-footer), over Continue.
         const finalBattle = result.finalBattle;
         // A level of a deeper site fell: the result doubles as the descend-or-withdraw choice (a tunnel's
         // levels run ahead, not down)
         const descent = result.nextLevel != null;
         const tunnel = poi.type === 'tunnel';
         const onward = tunnel ? 'ahead' : 'below';
+        const unitNoun = result.multiplier > 1 ? 'units' : 'droids';
         const body = (
             <div className="popup-body">
                 {result.text && <span className="result-line">{result.text}</span>}
                 {result.wiped &&
                     <span className="result-line">
-                        Contact lost — all {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'} destroyed.
+                        Contact lost — all {result.squadSize} {unitNoun} destroyed.
                     </span>}
                 {result.wiped && result.cargoLost &&
                     <span className="result-line">
@@ -155,7 +174,7 @@ class EncounterPopup extends React.Component {
                     </span>}
                 {result.losses != null &&
                     <span className="result-line">
-                        {descent ? `Level ${result.level + 1} cleared` : POI_TYPE_DEFAULTS[poi.type].clearedLabel} — lost {result.losses} of {result.squadSize} {result.multiplier > 1 ? 'units' : 'droids'}.
+                        {descent ? `Level ${result.level + 1} cleared` : POI_TYPE_DEFAULTS[poi.type].clearedLabel} — lost {result.losses} of {result.squadSize} {unitNoun}.
                     </span>}
                 {result.landCredit > 0 &&
                     <span className="outcome-line">Reclaimed {result.landCredit} land.</span>}
@@ -187,13 +206,9 @@ class EncounterPopup extends React.Component {
         return (
             <React.Fragment>
                 {this.renderBattleHeader(finalBattle)}
-                <div className="battle-final">
-                    <BattleCanvas battle={finalBattle}/>
-                    <div className={`battle-verdict${result.wiped ? ' wiped' : ''}`}>
-                        {result.wiped ? 'CONTACT LOST' : descent ? 'LEVEL CLEARED' : (POI_TYPE_DEFAULTS[poi.type].clearedLabel || 'Cleared').toUpperCase()}
-                    </div>
-                </div>
-                <div className="battle-footer">
+                <BattleCanvas battle={finalBattle}/>
+                <div className="battle-footer"
+                     style={this.state.footerHeight != null ? { minHeight: this.state.footerHeight } : undefined}>
                     {body}
                     {actions}
                 </div>
@@ -214,7 +229,7 @@ class EncounterPopup extends React.Component {
             <React.Fragment>
                 {this.renderBattleHeader(battle)}
                 <BattleCanvas battle={battle}/>
-                <div className="battle-footer">
+                <div className="battle-footer" ref={this.footer}>
                     <div className="popup-body battle-blurb">{poiLevel.blurb || battleBlurb(battle, poiLevel.opening)}</div>
                     <div className="popup-actions">
                         {slots.map((id, i) => (
