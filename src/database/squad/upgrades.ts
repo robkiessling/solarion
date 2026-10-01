@@ -99,7 +99,7 @@ export const SQUAD_UPGRADES = {
     droidFactory_extendedCells: upgrade({
         squad: true,
         name: "Extended Cells",
-        description: 'Higher-density battery cells for the expedition squad: +50 battery capacity. ' +
+        description: 'Higher-density battery cells for the expedition squad: +25 battery capacity. ' +
             'Refits apply to the next deployed squad.',
         cost: {
             ore: 5000,
@@ -109,7 +109,7 @@ export const SQUAD_UPGRADES = {
             type: 'misc'
         },
         effect: {
-            batteryCapacity: { add: 50 }
+            batteryCapacity: { add: 25 }
         }
     }),
 

@@ -83,12 +83,12 @@
         transition: width 0.25s ease-out;
       }
 
-      // The 25% low-battery threshold, where the fill turns gold
+      // The half-battery threshold, where the fill turns gold: the turn-back point
       .tick {
         position: absolute;
         top: 0;
         bottom: 0;
-        left: 25%;
+        left: 50%;
         width: 1px;
         background: rgba(255, 255, 255, 0.25);
       }
@@ -101,6 +101,12 @@
     .low .hud-value { color: #ffd700; }
     .reserve .fill { background: #ff4d4d; }
     .reserve .hud-value { color: #ff4d4d; }
+
+    // Crossing a battery threshold (gold at half, red at empty): the readout and the fill blink three times
+    // in their new color. Both are remounted on the crossing (see navigation_tabs.jsx), which starts this.
+    .battery.low, .battery.reserve {
+      .hud-value, .fill { animation: hud-battery-blink 0.9s steps(1, end); }
+    }
 
     // The ground underfoot: terrain in its map color, then effects/warnings; one line, fixed height,
     // centered under the meters. Fades in with the labels.
@@ -119,7 +125,7 @@
       // .hud-terrain-warn takes the held map color inline (PLANET_COLORS.held)
     }
 
-    // Reserve-power health burn: the health meter flashes red per tile paid in health (remounted per burn)
+    // Reserve power: the health meter flashes red per tile paid in a droid (remounted per payment)
     .bleed .hud-bar {
       animation: hud-hull-bleed 0.6s ease-out;
       .fill { animation: hud-hull-bleed-fill 0.6s ease-out; }
@@ -129,6 +135,11 @@
 
 @keyframes hud-label-in {
   from { opacity: 0; }
+}
+
+@keyframes hud-battery-blink {
+  0%, 33%, 66% { opacity: 0.15; }
+  16%, 50%, 83%, 100% { opacity: 1; }
 }
 
 @keyframes hud-hull-bleed {

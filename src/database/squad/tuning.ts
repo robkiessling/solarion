@@ -20,13 +20,17 @@ export const CONTACT_MS = 400;
 export const POPUP_INPUT_LOCK_MS = 250;
 
 // Battery model: drains per tile entered while off the powered grid, snaps to full capacity on the
-// grid. At zero the squad runs on reserve power: every unit burns hull each tile, so hull is the
-// overdraft on range; overextend far enough and the squad dies in the field (cargo and all). Speed is
-// unaffected (the bleed is per tile, so slowness would only stretch the dying in real time, not raise
-// the stakes).
+// grid. At zero the squad runs on reserve power: every tile costs a droid (the most wounded first), so
+// the roster is the overdraft on range; overextend far enough and the squad dies in the field (cargo
+// and all). A droid a tile, not a little hull off every unit: that way each step past empty visibly
+// costs something, where an even burn cost nothing for a droid's health in tiles and then took the
+// whole squad on one step. Speed is unaffected (the cost is per tile, so slowness would only stretch
+// the dying in real time, not raise the stakes).
 // Drain is flat per tile, whatever the team size: range is a property of the rig (cells plus upgrades), not
 // of who rides it, so a lone scout and a full army have the same legs. Force sizing costs droids pulled off
 // the base, not range.
-export const SQUAD_BATTERY_CAPACITY = 100;
-export const SQUAD_DRAIN_PER_TILE = 2;    // battery per tile entered off the grid, any team size
-export const RESERVE_HP_PER_TILE = 1;     // hull every unit burns per tile on reserve power
+// One battery unit is one tile: with a flat drain any other rate is only a scale factor, and at 1 the battery
+// readout is the range (no second number to show) and every battery cost or gain reads as tiles.
+export const SQUAD_BATTERY_CAPACITY = 50;
+export const SQUAD_DRAIN_PER_TILE = 1;    // battery per tile entered off the grid, any team size
+export const RESERVE_DROIDS_PER_TILE = 1; // droids that go dark per tile on reserve power

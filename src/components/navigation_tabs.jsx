@@ -5,6 +5,7 @@ import { isOnGrid, squadBatteryCapacity, squadDrainPerTile, squadHp } from "../l
 import {getCrossTime, getTerrain} from "../lib/planet/map";
 import { TERRAINS } from "../database/planet/terrain";
 import { PLANET_COLORS } from "../database/planet/colors";
+import { play as playSfx } from "../singletons/audio";
 
 const formatStat = (n) => Number.isInteger(n) ? n : n.toFixed(1);
 
@@ -20,16 +21,30 @@ class NavigationTabs extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            hpFlash: 0 // bumps per reserve-power health burn; keys the health meter's bleed flash
+            hpFlash: 0 // bumps per droid lost to a reserve-power tile; keys the health meter's bleed flash
         };
     }
 
-    // On reserve power each tile is paid in health; flash the meter per payment
+    // The battery's two thresholds each sound once as they are crossed: half spent (turn back now and the
+    // squad gets home on what is left) and empty. On reserve power each tile then costs a droid; flash
+    // the meter and sound per payment (a payment is a step, so wounds a fight hands back don't count).
     componentDidUpdate(prevProps) {
         const prev = prevProps.squad, cur = this.props.squad;
-        if (!prev || !cur || cur.battery > 0) return;
+        if (!prev || !cur) return;
+
+        const half = squadBatteryCapacity(cur) / 2;
+        if (prev.battery > 0 && cur.battery <= 0) {
+            playSfx('batteryEmpty');
+        }
+        else if (prev.battery > half && cur.battery <= half) {
+            playSfx('batteryHalf');
+        }
+
+        if (cur.battery > 0) return;
         const sum = (s) => (s.droidHp || []).reduce((total, hp) => total + hp, 0);
-        if (sum(cur) < sum(prev)) {
+        const stepped = prev.coord[0] !== cur.coord[0] || prev.coord[1] !== cur.coord[1];
+        if (stepped && sum(cur) < sum(prev)) {
+            playSfx('reserveBurn');
             this.setState({ hpFlash: this.state.hpFlash + 1 });
         }
     }
@@ -51,9 +66,10 @@ class NavigationTabs extends React.Component {
         const capacity = squadBatteryCapacity(squad);
         const battery = squad.battery;
         const reserve = battery <= 0;
-        const batteryLow = !reserve && battery <= capacity * 0.25;
+        // Gold from half: with a flat drain that is the turn-back point (the trip home costs what the trip out did)
+        const batteryLow = !reserve && battery <= capacity * 0.5;
+        const batteryState = reserve ? 'reserve' : batteryLow ? 'low' : '';
         const hpLow = hp <= hpMax * 0.5;
-        const rangeTiles = Math.floor(Math.max(0, battery) / squadDrainPerTile());
         const pct = (value, max) => Math.max(0, Math.min(100, (value / max) * 100));
 
         return (
@@ -63,21 +79,24 @@ class NavigationTabs extends React.Component {
                         <span>Squad Health</span>
                         <span className="hud-value">{formatStat(hp)} / {formatStat(hpMax)}</span>
                     </div>
-                    {/* Keyed by hpFlash so each hull burn remounts the bar (not the label, whose fade-in
+                    {/* Keyed by hpFlash so each droid lost on reserve power remounts the bar (not the label, whose fade-in
                         would replay) and restarts its bleed animation */}
                     <div key={this.state.hpFlash} className="hud-bar">
                         <span className="fill" style={{ width: `${pct(hp, hpMax)}%` }}/>
                     </div>
                 </div>
-                <div className={`hud-meter battery${reserve ? ' reserve' : batteryLow ? ' low' : ''}`}>
+                <div className={`hud-meter battery ${batteryState}`}>
                     <div className="hud-label">
                         <span>Battery</span>
-                        <span className="hud-value">
-                            {reserve ? 'RESERVE' : `${Math.ceil(battery)} / ${capacity} · ${isFinite(rangeTiles) ? `~${rangeTiles} tiles` : 'no drain'}`}
+                        {/* The readout and the fill are keyed by the battery's state, so crossing a threshold
+                            (half, then empty) remounts them and their blink plays once per crossing */}
+                        <span key={batteryState} className="hud-value">
+                            {/* No range readout: a battery unit is a tile. The dev no-drain toggle says so. */}
+                            {reserve ? 'RESERVE' : `${Math.ceil(battery)} / ${capacity}${squadDrainPerTile() === 0 ? ' (no drain)' : ''}`}
                         </span>
                     </div>
                     <div className="hud-bar">
-                        <span className="fill" style={{ width: `${pct(battery, capacity)}%` }}/>
+                        <span key={batteryState} className="fill" style={{ width: `${pct(battery, capacity)}%` }}/>
                         <span className="tick"/>
                     </div>
                 </div>
@@ -95,7 +114,7 @@ class NavigationTabs extends React.Component {
         const terrain = getTerrain(sector.terrain);
         // Crossing-time multiple relative to flatland (integer multiples by construction), shown as a speed
         // divisor and only when the ground actually slows the squad; drain isn't shown (constant per
-        // deployment; the range readout above carries it live)
+        // deployment; the battery readout above carries it live)
         const slowdown = getCrossTime(sector.terrain, capabilities) / TERRAINS.flatland.crossTime;
         const slow = !onGrid && slowdown > 1;
 

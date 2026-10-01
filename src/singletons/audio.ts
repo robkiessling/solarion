@@ -47,6 +47,10 @@ const CLIPS = {
     castFinish: { file: 'kenney/interface/confirmation_004.ogg', volume: 0.2, tab: 'base' },
     chargeMineralProc: { file: 'kenney/interface/confirmation_003.ogg', volume: 0.4, tab: 'base' }, // charge click that also finds a mineral
     logFlash: { file: 'kenney/interface/select_007.ogg', volume: 0.3 },
+    // The fielded squad's battery (the HUD plays these; a fielded squad holds the player on the planet tab)
+    batteryHalf: { file: 'kenney/interface/question_001.ogg', volume: 0.3 }, // half spent: time to turn back
+    batteryEmpty: { file: 'kenney/interface/bong_001.ogg', volume: 0.3 }, // spent: reserve power from here
+    reserveBurn: { file: 'kenney/impact/impactMetal_heavy_000.ogg', volume: 0.2, rateJitter: 0.1 }, // each tile paid in a droid
     // logTypingTick: { file: 'kenney/interface/click_003.ogg', volume: 0.15, rateJitter: 0.2 },
     // logProgressTick: { file: 'kenney/interface/bong_001.ogg', volume: 0.15 },
 } as const satisfies Record<string, Clip>;

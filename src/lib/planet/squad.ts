@@ -2,7 +2,7 @@ import {NUM_PLANET_ROWS, parseCoordKey, PLANET_COLS} from "./geometry";
 import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, type PlanetMap} from "./map";
 import type {Capabilities} from "../../database/planet/capabilities";
 import {STATUSES, type SquadZone} from "../../database/planet/terrain";
-import {CONTACT_MS, RESERVE_HP_PER_TILE, SQUAD_BATTERY_CAPACITY, SQUAD_DRAIN_PER_TILE, SQUAD_SPEED_FACTOR} from "../../database/squad/tuning";
+import {CONTACT_MS, RESERVE_DROIDS_PER_TILE, SQUAD_BATTERY_CAPACITY, SQUAD_DRAIN_PER_TILE, SQUAD_SPEED_FACTOR} from "../../database/squad/tuning";
 import {mapObject, mod, typedEntries} from "../helpers";
 
 import {advanceBattle, type Battle, type BattleOverEvent, fullDroidHp} from "../battle/sim";
@@ -103,14 +103,21 @@ export function squadBatteryCapacity(squad: Squad) {
  * (squad.droidHp) is stale, so read the live battle instead: fielded units' current hp plus the wounds
  * the escapees carried out. That way a bar tracks the fight in real time and already sits at the
  * settlement value when it ends.
+ * The max is the force that deployed, not the survivors: a dead unit takes its health out of the total,
+ * so every loss drops the bar and a grid repair refills it only as far as the droids still standing
+ * (their partial stacks re-replicate there, see restoredOnGrid; a lost droid stays out of the bar).
+ * (Measured against the survivors, losing a wounded unit made the bar climb.) A squad that has picked up
+ * units in the field counts those too.
  */
 export function squadHp(squad: Squad): { hp: number, hpMax: number } {
-    const hpMax = squad.squadSize * ((squad.droidStats || DROID_BASE_STATS).hp);
+    const unitHp = (squad.droidStats || DROID_BASE_STATS).hp;
+    const fielded = Math.max(squad.squadSize, (squad.assignedDroids || squad.squadSize) * (squad.multiplier || 1));
+    const hpMax = fielded * unitHp;
     const battle = squad.fighting && squad.fighting.battle;
     const hp = battle ?
         battle.units.reduce((sum, unit) => sum + (unit.side === 'droid' ? unit.hp : 0), 0) +
-            (battle.escapedHp || []).reduce((sum, unitHp) => sum + unitHp, 0) :
-        (squad.droidHp || []).reduce((sum, unitHp) => sum + unitHp, 0) || hpMax;
+            (battle.escapedHp || []).reduce((sum, hp) => sum + hp, 0) :
+        (squad.droidHp || []).reduce((sum, hp) => sum + hp, 0) || squad.squadSize * unitHp;
     return { hp, hpMax };
 }
 
@@ -147,16 +154,25 @@ export function createSquad(homeCoord: Coord, assignedDroids = 1, multiplier = 1
 // What powered ground does for a squad standing on it: the battery refills, battle wounds repair, and
 // equipment charges reload (everyone heals at home, gear reloads at home). Applied per tile entered by
 // advanceSquad, and in place when the ground under a standing squad becomes powered (a site secured).
-export function restoredOnGrid(squad: Squad): Pick<Squad, 'battery' | 'droidHp' | 'equipment'> {
+// Partial stacks re-replicate here too: the roster tops up to what a disband and redeploy would field
+// (the droids recovered, each a full stack again), so standing down is never a free refill worth
+// clicking through after every fight. It only ever adds units: a roster the settlement would round
+// down keeps what it has until the squad does disband.
+export function restoredOnGrid(squad: Squad): Pick<Squad, 'battery' | 'squadSize' | 'droidHp' | 'equipment'> {
     const maxHp = (squad.droidStats || DROID_BASE_STATS).hp;
-    let { droidHp, equipment } = squad;
-    if (droidHp && droidHp.some(hp => hp < maxHp)) {
+    let { squadSize, droidHp, equipment } = squad;
+    const settledSize = droidsRecovered(squad) * (squad.multiplier || 1);
+    if (settledSize > squadSize) {
+        squadSize = settledSize;
+        droidHp = fullDroidHp(squadSize, maxHp);
+    }
+    else if (droidHp && droidHp.some(hp => hp < maxHp)) {
         droidHp = fullDroidHp(droidHp.length, maxHp);
     }
     if (equipment && typedEntries(equipment).some(([id, n]) => n < EQUIPMENT_DEFS[id].charges)) {
         equipment = mapObject(equipment, id => EQUIPMENT_DEFS[id].charges);
     }
-    return { battery: squadBatteryCapacity(squad), droidHp, equipment };
+    return { battery: squadBatteryCapacity(squad), squadSize, droidHp, equipment };
 }
 
 export function droidsRecovered(squad: Squad): number {
@@ -190,7 +206,7 @@ export function squadCrossMs(map: PlanetMap, coord: Coord, capabilities: Capabil
  *       tile just left, which a settlement assault holds onto so a retreat can walk back out)
  *   { type: 'crossedTunnel', poiId }        (the crossing's contact beat ran out: the squad is at the far mouth)
  *   { type: 'onGrid' }                     (stepped onto powered ground: deliver any cargo)
- *   { type: 'fieldWiped', unitsLost, multiplier, cargoLost } (reserve-power hull burn killed the last
+ *   { type: 'fieldWiped', unitsLost, multiplier, cargoLost } (a reserve-power tile cost the last
  *       unit; the returned squad is null and the caller settles the loss)
  */
 export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: Squad, moveAmountMs: number, capabilities: Capabilities):
@@ -261,18 +277,22 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
         }
 
         if (isOnGrid(map, coord)) {
-            ({ battery, droidHp, equipment } = restoredOnGrid({ ...squad, battery, droidHp, equipment }));
+            ({ battery, squadSize, droidHp, equipment } = restoredOnGrid({ ...squad, battery, squadSize, droidHp, equipment }));
             events.push({ type: 'onGrid' });
         }
         else if (battery <= 0) {
-            // Reserve power: the battery is spent, so the tile is paid in hull instead. Every unit burns
-            // RESERVE_HP_PER_TILE (wounded units go dark first); if the last one dies, the squad is lost
-            // where it stands and the caller settles the loss (see resolveSquadEvent's fieldWiped).
-            droidHp = (droidHp || fullDroidHp(squadSize, (squad.droidStats || DROID_BASE_STATS).hp))
-                .map(hp => hp - RESERVE_HP_PER_TILE).filter(hp => hp > 0);
+            // Reserve power: the battery is spent, so the tile is paid in droids instead. RESERVE_DROIDS_PER_TILE
+            // go dark each tile, the most wounded first: a droid is `multiplier` units, so a replicated squad
+            // pays the same number of droids a plain one does. If the last one dies, the squad is lost where
+            // it stands and the caller settles the loss (see resolveSquadEvent's fieldWiped).
+            const multiplier = squad.multiplier || 1;
+            droidHp = (droidHp || fullDroidHp(squadSize, (squad.droidStats || DROID_BASE_STATS).hp)).slice();
+            for (let lost = 0; lost < RESERVE_DROIDS_PER_TILE * multiplier && droidHp.length > 0; lost++) {
+                droidHp.splice(droidHp.indexOf(Math.min(...droidHp)), 1); // in place, so the survivors keep their order
+            }
             if (droidHp.length === 0) {
-                events.push({ type: 'fieldWiped', unitsLost: squadSize,
-                    multiplier: squad.multiplier || 1, cargoLost: squad.cargo });
+                events.push({ type: 'fieldWiped', unitsLost: (squad.assignedDroids || squad.squadSize) * multiplier,
+                    multiplier, cargoLost: squad.cargo });
                 return { squad: null, reveals: [...reveals].map(parseCoordKey), events };
             }
             squadSize = droidHp.length;

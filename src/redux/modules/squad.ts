@@ -1004,7 +1004,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
             break;
         }
         case 'fieldWiped': {
-            // Overextension death: battery spent, then the hull overdraft too. advanceSquad already
+            // Overextension death: battery spent, then every droid the reserve tiles cost. advanceSquad already
             // returned a null squad (applied via ADVANCE_SQUAD), so there's nothing to delete -- no popup
             // either (no site to anchor one; the map showed the squad go dark); the terminal keeps the record.
             const cargoLost = event.cargoLost && Object.keys(event.cargoLost).length > 0 ? event.cargoLost : null;

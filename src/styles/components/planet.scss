@@ -333,16 +333,10 @@ $hud-clearance: 6.5rem;
   padding: $component-padding;
 
   // Outfitting (staging only): expedition-only upgrades under the droid spec they modify. A section of
-  // the panel, not a panel of its own, so its title is a dim sub-header, not the blue component header.
+  // the panel, not a panel of its own: untitled, set off by the squad card's divider above it.
   .outfitting {
     display: flex;
     flex-direction: column;
-
-    .section-title {
-      color: $ui-text-dim;
-      letter-spacing: 1px;
-      margin-bottom: 0.25rem;
-    }
 
     .spec-line {
       min-height: 1.8em;
@@ -454,26 +448,27 @@ $hud-clearance: 6.5rem;
     // .spec-line (droid combat specs) and .cargo-line rows carry no styling of their own: shared row
     // height above, label/value colors from the card-wide rules.
 
-    // The card's one primary action (Deploy / Disband), styled like the game's other action buttons
-    // (the .progress-button.ability look), centered, with clear air above so it doesn't read as part
-    // of the cargo line. A shared min-width keeps the two labels the same size.
-    .squad-actions {
-      display: flex;
-      justify-content: center;
-      gap: 0.5rem;
-      margin-top: 0.75rem;
-      min-height: 1.75rem;
+  }
 
-      button {
-        @include filled-button;
-        text-align: center;
+  // The panel's one primary action, styled like the game's other action buttons (the
+  // .progress-button.ability look), centered, with clear air above so it doesn't read as part of the
+  // row before it. Deploy closes the staging panel (below Outfitting); Disband closes the fielded card.
+  // A shared min-width keeps the two labels the same size.
+  .squad-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    min-height: 1.75rem;
 
-        // Distinct at a glance despite the similar words: Deploy is the warm go-do-it action (the
-        // ability-button orange), Disband the quiet administrative one (the standard button green)
-        &.deploy { background: $progress-button-ability-bg; }
-      }
+    button {
+      @include filled-button;
+      text-align: center;
+
+      // Distinct at a glance despite the similar words: Deploy is the warm go-do-it action (the
+      // ability-button orange), Disband the quiet administrative one (the standard button green)
+      &.deploy { background: $progress-button-ability-bg; }
     }
-
   }
 
 }
