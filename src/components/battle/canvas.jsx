@@ -68,6 +68,22 @@ const TERRAIN_COLOR = 'rgba(164, 152, 128, 0.85)';
 const LUNGE_MS = 200;
 const LUNGE_DIST = 1.4; // arena units at full extension
 
+// Idle motion: a unit that waits (see Waits in lib/battle/openings.ts) is drawn shifting on the spot, so a side
+// holding its ground reads as alive instead of a frozen picture. About two in three pace a short beat (out,
+// stand, back, stand) along a heading of their own; the rest stand still. Each keeps its own rhythm, off its
+// seed. Render-side only, like the lunge: sim positions never move, so nothing here can change a fight.
+const IDLE_PACERS = 0.65;       // share of waiting units that pace
+const IDLE_PACE_DIST = 0.7;     // arena units either side of where the unit really stands (bodies are 2.4 wide)
+const IDLE_PACE_MS = 3600;      // one full beat, give or take a third per unit
+const idleOffset = (unit, elapsedMs) => {
+    const pick = (unit.seed * 7.3) % 1, vary = (unit.seed * 3.1) % 1; // two more values off the unit's seed
+    if (pick > IDLE_PACERS) return null;
+    const beat = elapsedMs / (IDLE_PACE_MS * (0.67 + 0.66 * vary)) * 2 * Math.PI + unit.seed * 5;
+    // A sine with its peaks cut flat: the unit walks through the middle and stands a while at each end
+    const along = Math.max(-1, Math.min(1, 2.2 * Math.sin(beat))) * IDLE_PACE_DIST * (0.6 + 0.4 * vary);
+    return { dx: Math.cos(unit.seed) * along, dy: Math.sin(unit.seed) * along };
+};
+
 // Per-unit hp bars, StarCraft style: a grey track above each glyph with a colored fill whose hue
 // slides green -> yellow -> orange -> red as hp drops. Sized in arena units so they scale with the popup.
 // Above HP_BAR_FORCE_LIMIT total starting units, rank-and-file bars disappear entirely: at army scale no
@@ -275,7 +291,7 @@ export default class BattleCanvas extends React.Component {
             }
         });
 
-        // Units: the type's look (see UNIT_LOOKS) at position (plus any mid-lunge offset) with a thin hp
+        // Units: the type's look (see UNIT_LOOKS) at position (plus any idle or mid-lunge offset) with a thin hp
         // sliver above it. The bar carries the health information, so the marks stay full-strength colors.
         const barH = Math.max(2, Math.round(HP_BAR_PX * dpr));
         const bigFight = battle.startingDroids + battle.startingHostiles > HP_BAR_FORCE_LIMIT;
@@ -284,6 +300,8 @@ export default class BattleCanvas extends React.Component {
             const look = UNIT_LOOKS[unit.type];
             const scale = look.scale || 1;
             let x = unit.x, y = unit.y;
+            const idle = unit.waiting && idleOffset(unit, battle.elapsedMs);
+            if (idle) { x += idle.dx; y += idle.dy; }
             if (unit.strike) {
                 const age = battle.elapsedMs - unit.strike.t;
                 if (age >= 0 && age < LUNGE_MS) {

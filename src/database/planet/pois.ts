@@ -42,7 +42,8 @@ export const FIELD_EVENT_SPACING = 2;
  *   `spread`      how close each group stands: `tight` (unset) or `loose`
  *   `waits`       a side that holds where it opened and lets the other come to it: `squad` (droids caught in an
  *                 ambush stand their ground) or `hostiles` (they keep to their caves). Each of its units holds
- *                 until an enemy comes close in plain sight or it is hit. Unset = both sides go out to meet,
+ *                 until an enemy comes close in plain sight or it is hit; the whole squad then goes with it,
+ *                 hostiles only the group around it. Unset = both sides go out to meet,
  *                 except a camp or an ambush opening `surround`, where the squad waits (`nobody` to have it
  *                 charge out instead)
  *   `terrain`     impassable obstacles scattered over the arena (TERRAINS in lib/battle/terrain.ts); unset =

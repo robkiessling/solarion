@@ -133,6 +133,7 @@ const CELLS_PER_UNIT = 3;          // the same density in terrain cells of open 
 // dials below are engine mechanics.
 const ATTACK_RANGE = 3;
 const WAKE_RANGE = 14;          // a waiting unit stirs when an enemy it can see comes this close
+const ALARM_RANGE = 8;          // ...and a hostile that stirs takes the waiting hostiles this close with it
 const UNIT_RADIUS = 1.2;        // hard collision radius, both sides: pairs closer than 2R get pushed apart,
                                 // so frontage is physical (only the units that fit can engage; ranks queue)
 const WOBBLE = 3;               // units/sec of deterministic lateral drift (organic motion without RNG)
@@ -213,6 +214,28 @@ function hurt(unit: BattleUnit, damage: number) {
         else left -= memberHp.shift()!;
     }
     unit.memberHp = memberHp;
+}
+
+// A unit that stops waiting takes others with it. The squad is one body: when any droid stirs (or is hit),
+// every droid does, so half of it never stands by while the other half fights. Hostiles answer by earshot:
+// the alarm passes from each one that stirs to the waiting ones within ALARM_RANGE and on from those, walls
+// or not, so a group comes out together while one keeping to another cave stays where it is. `roused` are the
+// units that stopped waiting (the dead among them raise the alarm too).
+function spreadAlarm(units: BattleUnit[], roused: BattleUnit[]) {
+    if (roused.length === 0) return;
+    if (roused.some(unit => unit.side === 'droid')) {
+        for (const unit of units) if (unit.side === 'droid') delete unit.waiting;
+    }
+    const heard = roused.filter(unit => unit.side === 'hostile');
+    for (let head = 0; head < heard.length; head++) {
+        const from = heard[head];
+        for (const unit of units) {
+            if (!unit.waiting || unit.side !== 'hostile') continue;
+            if ((unit.x - from.x) ** 2 + (unit.y - from.y) ** 2 > ALARM_RANGE * ALARM_RANGE) continue;
+            delete unit.waiting;
+            heard.push(unit);
+        }
+    }
 }
 
 /**
@@ -884,9 +907,11 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
     };
     // A waiting unit (its side waits, see Waits in openings.ts) holds where it stands until an enemy it can see
     // comes within WAKE_RANGE, then fights like any other for the rest of the fight (a hit wakes it too, see
-    // hurt). It still strikes whatever steps into its reach. If nothing on the other side can come to it (all
-    // that is left is a shelter or a post), the wait is over for everyone, or the fight would never end.
-    const waitingSide = units.find(u => u.waiting)?.side;
+    // hurt), and it takes others with it (see spreadAlarm, run once this step's hits have landed). It still
+    // strikes whatever steps into its reach. If nothing on the other side can come to it (all that is left is
+    // a shelter or a post), the wait is over for everyone, or the fight would never end.
+    const waitingAtStart = units.filter(u => u.waiting);
+    const waitingSide = waitingAtStart[0]?.side;
     if (waitingSide && !units.some(u => u.side !== waitingSide && battle.stats[u.type].speed > 0)) {
         for (const unit of units) delete unit.waiting;
     }
@@ -1044,6 +1069,8 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
         fx.push({ type: target.hp <= 0 ? 'death' : 'hit', x: target.x, y: target.y, t: elapsedMs });
     }
 
+    spreadAlarm(units, waitingAtStart.filter(u => !u.waiting));
+
     // Sweep the field: drop the dead, bank withdrawing droids that reached the edge (with their hp).
     let escaped = battle.escaped;
     const escapedHp = battle.escapedHp.slice();
@@ -1134,16 +1161,21 @@ export function applyEquipment(battle: Battle, itemId: EquipmentId): Battle {
         }
         const fx: BattleFx[] = [...battle.fx, { type: 'bomb', x: center.x, y: center.y, t: battle.elapsedMs }];
         const units: BattleUnit[] = [];
+        const roused: BattleUnit[] = []; // a blast ends the wait of whatever it catches, as any hit does
         for (const u of battle.units) {
             const dx = u.x - center.x, dy = u.y - center.y;
             if (u.side === 'hostile' && dx * dx + dy * dy <= r2) {
                 const hp = u.hp - effect.damage * (u.count || 1); // per member it stands for (see FIELD_CAP)
                 fx.push({ type: hp <= 0 ? 'death' : 'hit', x: u.x, y: u.y, t: battle.elapsedMs });
-                if (hp > 0) units.push({ ...u, hp });
+                if (u.waiting) roused.push(u);
+                if (hp > 0) { const { waiting, ...awake } = u; units.push({ ...awake, hp }); }
             }
             else units.push(u);
         }
-        return { ...battle, units, fx };
+        if (roused.length === 0) return { ...battle, units, fx };
+        const alarmed = units.map(u => (u.waiting ? { ...u } : u)); // the old battle state keeps its own units
+        spreadAlarm(alarmed, roused);
+        return { ...battle, units: alarmed, fx };
     }
 
     if (effect.kind === 'heal') {

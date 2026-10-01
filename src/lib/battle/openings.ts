@@ -25,7 +25,8 @@ export type Spread = 'tight' | 'loose';
 /** Which side waits, as a level declares it (`waits` in database/planet/pois.ts): it stands where the opening
  * put it and lets the other side come (the squad caught in an ambush, hostiles keeping to their caves). Each of
  * its units holds until an enemy comes close in plain sight or it is hit, then fights like any other (see
- * WAKE_RANGE in sim.ts). Unset = both sides go out to meet, except in a fight sprung on the squad and opened
+ * WAKE_RANGE in sim.ts) and takes others with it: the squad stirs as one, hostiles a group at a time (see
+ * spreadAlarm in sim.ts). Unset = both sides go out to meet, except in a fight sprung on the squad and opened
  * `surround` (a camp, an ambush), where the squad waits; `nobody` says both go out to meet there too. */
 export type Waits = 'squad' | 'hostiles' | 'nobody';
 
