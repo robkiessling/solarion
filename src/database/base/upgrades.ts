@@ -4,7 +4,7 @@ import * as fromLog from "../../redux/modules/log"
 import * as fromAbilities from "../../redux/modules/abilities";
 
 import * as fromGame from "../../redux/modules/game";
-import * as fromPanels from "../../redux/modules/panels";
+import * as fromAuthorizations from "../../redux/modules/authorizations";
 import * as fromPlanet from "../../redux/modules/planet";
 import {generateMap} from "../../redux/modules/planet";
 import * as fromStar from "../../redux/modules/star";
@@ -1177,32 +1177,32 @@ export const callbacks: Partial<Record<UpgradeId, { onFinish?: (dispatch: Dispat
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showTerminal', true));
             // The boot text prints this receipt itself, with the ledger number as a var
-            const number = dispatch(fromPanels.recordAuthorization(null));
-            dispatch(fromLog.startLogSequence('turnOnComputer2', { number: fromPanels.formatAuthNumber(number) }));
+            const number = dispatch(fromAuthorizations.recordAuthorization(null));
+            dispatch(fromLog.startLogSequence('turnOnComputer2', { number: fromAuthorizations.formatAuthNumber(number) }));
         }
     },
     commandCenter_showResourceBar: {
         onFinish: (dispatch) => {
             // dispatch(fromGame.updateSetting('showResourceBar', true));
-            // dispatch(fromPanels.recordAuthorization('MONITOR 2'));
+            // dispatch(fromAuthorizations.recordAuthorization('MONITOR 2'));
             dispatch(fromLog.startLogSequence('showResourceBar'));
         }
     },
     commandCenter_showResourceRates: {
         onFinish: (dispatch) => {
             dispatch(fromGame.updateSetting('showResourceRates', true));
-            dispatch(fromPanels.recordAuthorization('ADV STATS'));
+            dispatch(fromAuthorizations.recordAuthorization('ADV STATS'));
         }
     },
     commandCenter_showPlanetStatus: {
         onFinish: (dispatch) => {
-            // dispatch(fromPanels.recordAuthorization('SENSORS'));
+            // dispatch(fromAuthorizations.recordAuthorization('SENSORS'));
             dispatch(fromLog.startLogSequence('showPlanetStatus'));
         }
     },
     commandCenter_openShutters: {
         onFinish: (dispatch) => {
-            dispatch(fromPanels.recordAuthorization('BLAST SHIELD'));
+            dispatch(fromAuthorizations.recordAuthorization('BLAST SHIELD'));
             dispatch(fromGame.updateSetting('shuttersOpen', true));
             dispatch(fromStructures.learn('harvester'));
             dispatch(fromStructures.buildForFree('harvester', 1));

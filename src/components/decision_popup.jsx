@@ -9,14 +9,13 @@ import ResourceAmounts from "./ui/resource_amounts";
 /**
  * The decision popup: the terminal asking the operator something (database/base/decisions.ts). Opened by the player
  * from a request row on a structure card (structures/decision_row.jsx), never by the game. Viewport-centered on
- * the shared PopupFrame chrome, sibling to the special panels (same overlay, same z-index rule: below the settings
- * modal). Title, optional ascii block, body paragraphs, then the options stacked as buttons numbered 1..N, with
- * Close as the last number (the same rule as the encounter popup: numbered left to right, the way out last, no
- * Esc; see lib/planet/prompt_actions.ts). Close, ✕, or the backdrop close it without answering; the request
- * stays on its card.
+ * the shared PopupFrame chrome (z-index rule: below the settings modal). Title, optional ascii block, body
+ * paragraphs, then the options stacked as buttons, the way out last. Close, ✕, or the backdrop close it without
+ * answering; the request stays on its card.
  *
- * Keys are captured on window in the capture phase and stopped there while a decision is open, so nothing under
- * the popup (the planet's squad driving, the panel host's Escape) sees them.
+ * Mouse only, unlike the encounter popup: it was opened with a click, and an answer here can be permanent, so no
+ * key picks one. Keys are still captured on window in the capture phase and stopped there while a decision is
+ * open, so nothing under the popup (the planet's squad driving) sees them.
  */
 class DecisionPopup extends React.Component {
     constructor(props) {
@@ -34,14 +33,6 @@ class DecisionPopup extends React.Component {
     onKeyDown(event) {
         if (!this.props.record) return;
         event.stopPropagation();
-
-        if (!/^[1-9]$/.test(event.key)) return;
-
-        event.preventDefault();
-        const index = parseInt(event.key, 10) - 1;
-        if (event.repeat) return;
-        if (index === this.props.options.length) this.props.closeDecision();
-        else if (index < this.props.options.length) this.props.chooseOption(index);
     }
 
     render() {
@@ -49,7 +40,7 @@ class DecisionPopup extends React.Component {
         if (!record) return null;
 
         return (
-            <div className="panel-overlay">
+            <div className="popup-overlay">
                 <PopupFrame className="decision-popup" title={record.title}
                             onClose={() => this.props.closeDecision()}
                             onBackdropClick={() => this.props.closeDecision()}>
@@ -62,7 +53,6 @@ class DecisionPopup extends React.Component {
                         {options.map((option, i) => {
                             return (
                                 <button key={i} disabled={!availability[i]} onClick={() => this.props.chooseOption(i)}>
-                                    <kbd>{i + 1}</kbd>
                                     <span className="option-text">
                                         <span className="option-label">{option.label}</span>
                                         {option.detail && <span className="option-detail">{option.detail}</span>}
@@ -76,7 +66,6 @@ class DecisionPopup extends React.Component {
                             );
                         })}
                         <button onClick={() => this.props.closeDecision()}>
-                            <kbd>{options.length + 1}</kbd>
                             <span className="option-text">
                                 <span className="option-label">Close</span>
                             </span>
@@ -100,11 +89,15 @@ const mapStateToProps = (state) => {
         options,
         body: bodyLines(state, record),
         availability: options.map(option => isAvailable(state, option)),
-        // Research options show what choosing spends (short resources highlighted) and how long it takes
-        costs: options.map(option => option.research ? {
-            amounts: highlightCosts(state.resources, researchCost(option)),
-            seconds: Math.round(researchTime(option))
-        } : null)
+        // Research options show what choosing spends (short resources highlighted) and how long it takes; a free,
+        // instant one (a fork's side) has nothing to show
+        costs: options.map(option => {
+            if (!option.research) return null;
+            const seconds = Math.round(researchTime(option));
+            const cost = researchCost(option);
+            if (Object.keys(cost).length === 0 && seconds === 0) return null;
+            return { amounts: highlightCosts(state.resources, cost), seconds };
+        })
     };
 };
 

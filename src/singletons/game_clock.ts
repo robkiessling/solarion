@@ -6,7 +6,6 @@ import {upgradesTick, upgradesTickSlow} from "../redux/modules/upgrades";
 import {abilitiesTick} from "../redux/modules/abilities";
 import {structuresTick} from "../redux/modules/structures";
 import {planetTick} from "../redux/modules/planet";
-import {panelsTick} from "../redux/modules/panels";
 import {catchUp, type CatchUpJob, type CatchUpSummary} from "../lib/catch_up";
 import {dayLength} from "../redux/modules/clock";
 import {updateSetting} from "../redux/modules/game";
@@ -92,7 +91,6 @@ class GameClock {
         this.setInterval('Summable', (iterations, period) => {
             store.dispatch(upgradesTick(iterations * period));
             store.dispatch(abilitiesTick(iterations * period));
-            store.dispatch(panelsTick(iterations * period));
         }, 1000 / ABILITIES_FPS);
 
         this.setInterval('SummableSlow', (iterations, period) => {

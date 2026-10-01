@@ -17,7 +17,6 @@ import Error from "./error";
 import {getStructure} from "../redux/modules/structures";
 import CommandCenter from "./structures/command_center";
 import PlanetPanels from "./planet/panels";
-import PanelHost from "./panels/panel_host";
 import DecisionPopup from "./decision_popup";
 import CatchUpOverlay from "./catch_up_overlay";
 
@@ -226,7 +225,6 @@ class App extends React.Component {
                     </div>
                 </div>
                 <div id={"tooltip-container"}></div>
-                <PanelHost/>
                 <DecisionPopup/>
                 <BlockPointerEvents/>
                 <CatchUpOverlay/>

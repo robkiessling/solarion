@@ -138,7 +138,7 @@ const initialState: PlanetState = {
     // The encounter popup's state: null | { poiId, phase: 'offer'|'result', result }. Planet-level (not on the
     // squad) so a wipe can still narrate its ending after the squad object is gone.
     prompt: null,
-    battlesFought: 0, // fights that have ended, whatever the outcome (the first one opens the schematic index)
+    battlesFought: 0, // fights that have ended, whatever the outcome (the first one offers the survival upgrades)
     squadsReturned: 0, // squads disbanded back at base (a wipe is not a return; the replication beat waits for one)
     // High-water mark of droids owned at once (raised on recalculation, never lowered). The mark minus the live
     // count is how many droids have been lost, and the droid factory prices rebuilding those below a new build.

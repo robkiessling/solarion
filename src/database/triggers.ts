@@ -102,15 +102,25 @@ const database = {
             store.dispatch(fromUpgrades.discover('droidFactory_overchargeCell'));
         }
     }),
-    // Survival and the schematic index: a fight has ended (won, lost or fled), so health, damage and swing now
-    // mean something, and the team is home or gone, so the factory can be acted on. Waiting for that keeps the
-    // beat out from under a fight's own ending (a wipe narrates first, then this lands once the popup is
-    // dismissed; a win mid-trip waits for the return). The index opener on the factory card keys off the
-    // battle counter alone.
+    // Survival: a fight has ended (won, lost or fled), so health now means something, and the team is home or
+    // gone, so the offer can be acted on. Waiting for that keeps the beat out from under a fight's own ending (a
+    // wipe narrates first, then this lands once the popup is dismissed; a win mid-trip waits for the return).
     firstBattleOver: trigger({
         selector: (state) => state.planet.squad,
         condition: (squad) => !squad && store.getState().planet.battlesFought >= 1,
-        action: () => store.dispatch(fromLog.startLogSequence('firstBattleOver'))
+        action: () => {
+            store.dispatch(fromUpgrades.discover('droidFactory_repairRig'));
+            store.dispatch(fromUpgrades.discover('droidFactory_reinforcedPlating'));
+        }
+    }),
+    // The cape archive's droid revisions were sent home from the field (its Upload answer arms this, see
+    // database/planet/pois.ts) and the squad is now off the field. The files went by uplink, not in cargo, so a wipe
+    // on the way back counts the same as a return. Waiting keeps the request out from under the trip itself: the
+    // choice lands on the droid factory's card once the operator is back at the base.
+    capeArchiveUploaded: trigger({
+        selector: (state) => state.planet.squad,
+        condition: (squad) => !squad,
+        action: () => store.dispatch(fromLog.startLogSequence('capeArchiveReceived'))
     }),
     // Auto-rebuild: the first droid lost in the field, so the factory's cheaper rebuild exists to automate. Watches
     // the lost count, not the battle count, so a fight without losses offers nothing.

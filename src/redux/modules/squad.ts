@@ -8,6 +8,7 @@ import {formatResourceList, isGarrisoned, levelPayout, poiChoices, poiLevels, re
 import {applyEquipment, createBattle, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle/sim";
 import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent} from "../../lib/planet/squad";
 import {logInline} from "./log";
+import {addTrigger} from "./triggers";
 import {zoneColor} from "../../database/planet/colors";
 import {CONTACT_MS} from "../../database/squad/tuning";
 import type {PoiReward} from "../../database/planet/poi_types";
@@ -631,6 +632,7 @@ export function squadInteract(choiceIndex = 0) {
             dispatch(grantCapability(reward.capability)); // salvaged tool: permanent, instant (not cargo)
         }
         if (choice.revealNearest) revealNearestConcealed(dispatch, getState, poi);
+        if (choice.arms) dispatch(addTrigger(choice.arms));
         if (choice.units) dispatch(recalculateState());
         return true;
     }

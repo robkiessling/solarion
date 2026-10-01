@@ -16,10 +16,6 @@ export const loadState = () => {
             parsedState.game.settingsModalOpen = false;
             parsedState.game.catchUp = null; // transient overlay state; a save written mid-catch-up must not show it
         }
-        // Same rule for special upgrade panels (schematic index etc.): never load with one open
-        if (parsedState && parsedState.panels) {
-            parsedState.panels.openPanelId = null;
-        }
 
         return parsedState;
     } catch (err) {

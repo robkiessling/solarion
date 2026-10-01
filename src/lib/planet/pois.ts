@@ -6,6 +6,7 @@ import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, type FightDef, type GroundDe
 import {CAMPS_ENABLED, FIELD_EVENT_SPACING, POI_DEFS} from "../../database/planet/pois";
 import type {Capabilities} from "../../database/planet/capabilities";
 import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
+import type {TriggerId} from "../../database/triggers";
 import type {HostileType} from "../../database/battle/units";
 import type {Opening, Spread, Waits} from "../battle/openings";
 import type {TerrainId} from "../battle/terrain";
@@ -32,6 +33,7 @@ export interface PoiChoice {
     units?: number;
     revealNearest?: boolean;
     equipment?: EquipmentId;
+    arms?: TriggerId;
 }
 
 /** A placed seal (see SealDef): the site raises this prompt until one of its answers has cleared it */
@@ -286,7 +288,8 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         ...(choice.battery != null ? { battery: choice.battery } : {}),
         ...(choice.units != null ? { units: choice.units } : {}),
         ...(choice.revealNearest ? { revealNearest: true } : {}),
-        ...(choice.equipment ? { equipment: choice.equipment } : {})
+        ...(choice.equipment ? { equipment: choice.equipment } : {}),
+        ...(choice.arms ? { arms: choice.arms } : {})
     }));
     const rollSeal = (def: SealDef): PoiSeal => ({ promptText: def.promptText, choices: rollChoices(def.choices) });
     const placeOne = (def: Exclude<GroundDef, SettlementDef | SiteDef>, sector: Sector) => {

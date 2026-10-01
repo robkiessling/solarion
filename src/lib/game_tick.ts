@@ -4,7 +4,6 @@ import {structuresTick} from "../redux/modules/structures";
 import {planetTick} from "../redux/modules/planet";
 import {upgradesTick} from "../redux/modules/upgrades";
 import {abilitiesTick} from "../redux/modules/abilities";
-import {panelsTick} from "../redux/modules/panels";
 
 /** The economy's simulation step (ms). The live frame loop runs the economy at this period; replays use it too. */
 export const TICK_MS = 100;
@@ -24,5 +23,4 @@ export function tickGame(dispatch: Dispatch, dt: number) {
     dispatch(planetTick(dt));
     dispatch(upgradesTick(dt));
     dispatch(abilitiesTick(dt));
-    dispatch(panelsTick(dt));
 }

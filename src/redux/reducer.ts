@@ -13,7 +13,7 @@ import abilities, * as fromAbilities from "./modules/abilities";
 import planet, * as fromPlanet from "./modules/planet";
 import * as fromSquad from "./modules/squad";
 import star, {type StarState} from "./modules/star";
-import panels, * as fromPanels from "./modules/panels";
+import authorizations, {type AuthorizationsState} from "./modules/authorizations";
 import decisions, {type DecisionsState} from "./modules/decisions";
 import {INFINITY, mapObject, roundToDecimal, typedEntries} from "../lib/helpers";
 import {getQuantity, getResource, type ResourcesState} from "./modules/resources";
@@ -30,7 +30,6 @@ import type {DroidAssignment, Structure, StructureStatus} from "../database/base
 import type {Upgrade, UpgradeId} from "../database/base/upgrades";
 import type {AbilitiesState} from "./modules/abilities";
 import type {LogState} from "./modules/log";
-import type {PanelsState} from "./modules/panels";
 import type {PlanetState} from "./modules/planet";
 import type {UpgradesState} from "./modules/upgrades";
 import {play as playSfx} from "../singletons/audio";
@@ -53,7 +52,7 @@ export interface RootState {
     abilities: AbilitiesState;
     planet: PlanetState;
     star: StarState;
-    panels: PanelsState;
+    authorizations: AuthorizationsState;
     decisions: DecisionsState;
 }
 
@@ -81,7 +80,7 @@ const sliceReducer = combineReducers<RootState>({
         abilities,
         planet,
         star,
-        panels,
+        authorizations,
         decisions
 });
 
@@ -244,10 +243,11 @@ export function researchUpgrade(upgradeId: UpgradeId) {
 // Returns ids of available abilities for a structure
 // Droid combat upgrades ('misc', applied manually here): each researched entry's effect
 // modifies the expedition droids' unit stats. New combat upgrades just join this list.
-const DROID_COMBAT_UPGRADE_IDS: UpgradeId[] = ['droidFactory_reinforcedPlating', 'droidFactory_weaponCalibration'];
+const DROID_COMBAT_UPGRADE_IDS: UpgradeId[] = ['droidFactory_reinforcedPlating', 'droidFactory_weaponCalibration',
+    'droidFactory_cutterRevision'];
 
 // Squad battery upgrades (squad-level, not per-droid: range belongs to the rig, not the team size).
-const BATTERY_UPGRADE_IDS: UpgradeId[] = ['droidFactory_extendedCells'];
+const BATTERY_UPGRADE_IDS: UpgradeId[] = ['droidFactory_extendedCells', 'droidFactory_cellRevision'];
 
 // Folds every researched upgrade's effect from `upgradeIds` into the `variables` object, in place.
 function applyResearchedUpgradeEffects(state: RootState, upgradeIds: UpgradeId[], variables: Variables) {
@@ -261,23 +261,20 @@ function applyResearchedUpgradeEffects(state: RootState, upgradeIds: UpgradeId[]
     applyOperationsToVariables(operations, variables);
 }
 
-// The effective expedition-droid stat block: DROID_BASE_STATS plus every researched combat upgrade
-// plus the authorized chassis spec (the schematic index panel; fleet-wide, no per-droid variants).
-// Snapshotted onto the squad at deploy (see deploySquad), so refits apply to the NEXT deployment --
+// The effective expedition-droid stat block: DROID_BASE_STATS plus every researched combat upgrade (fleet-wide,
+// no per-droid variants). Snapshotted onto the squad at deploy (see deploySquad), so refits apply to the NEXT deployment --
 // the squad in the field fights with the stats it left base with.
 export function getDroidStats(state: RootState): DroidStats {
     const stats = { ...DROID_BASE_STATS };
     applyResearchedUpgradeEffects(state, DROID_COMBAT_UPGRADE_IDS, stats);
-    fromPanels.applyChassisEffects(state.panels, stats);
     return stats;
 }
 
-// The deployable squad's battery capacity: the base plus every researched battery upgrade plus the
-// authorized chassis spec. Snapshotted onto the squad at deploy under the same refit rule as getDroidStats.
+// The deployable squad's battery capacity: the base plus every researched battery upgrade. Snapshotted onto the
+// squad at deploy under the same refit rule as getDroidStats.
 export function getBatteryCapacity(state: RootState): number {
     const stats = { batteryCapacity: SQUAD_BATTERY_CAPACITY };
     applyResearchedUpgradeEffects(state, BATTERY_UPGRADE_IDS, stats);
-    fromPanels.applyChassisEffects(state.panels, stats);
     return stats.batteryCapacity;
 }
 

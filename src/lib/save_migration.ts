@@ -62,6 +62,14 @@ export function migrateSavedState(savedState: any, defaultState: RootState): Roo
 
     const state: RootState = _.mergeWith({}, defaultState, savedState, replaceArrays);
 
+    // The authorization ledger used to live in a `panels` slice beside the droid schematic index (gone, along with
+    // whatever a save had signed in it): the count carries over so receipts keep numbering from where they were
+    const legacy = state as RootState & { panels?: { authorizationCount?: number } };
+    if (legacy.panels) {
+        if (legacy.panels.authorizationCount) state.authorizations.count = legacy.panels.authorizationCount;
+        delete legacy.panels;
+    }
+
     // Squad shape repairs: the prompt moved off the squad onto the planet slice, equipment was added, and
     // the precomputed-outcome fight state was replaced by the live battle sim (an old mid-fight save can't
     // be resumed as a battle, so the fight is simply dropped; the settlement is still there to re-engage).

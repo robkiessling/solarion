@@ -4,7 +4,7 @@ import database, {type DecisionId, type DecisionOption, type DecisionRecord} fro
 import * as fromLog from './log';
 import * as fromUpgrades from './upgrades';
 import * as fromResources from './resources';
-import * as fromPanels from './panels';
+import * as fromAuthorizations from './authorizations';
 import {rearmTrigger} from './triggers';
 import upgradesDatabase from '../../database/base/upgrades';
 import type {TriggerId} from '../../database/triggers';
@@ -113,7 +113,7 @@ export function chooseOption(index: number) {
             }
             option.action?.(dispatch);
             if (option.receipt) {
-                dispatch(fromPanels.recordAuthorization(option.receipt));
+                dispatch(fromAuthorizations.recordAuthorization(option.receipt));
             }
             if (option.log) {
                 dispatch(fromLog.startLogSequence(option.log));

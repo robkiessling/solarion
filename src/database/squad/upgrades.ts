@@ -112,4 +112,32 @@ export const SQUAD_UPGRADES = {
             batteryCapacity: { add: 50 }
         }
     }),
+
+    // The two droid revisions recovered from the cape archive: the sides of the one permanent either/or at the droid
+    // factory (capeArchive in database/base/decisions.ts). Never discovered on their own: the decision starts the
+    // chosen one and the other stays hidden for good. Free and instant, since the choice is the cost. Applied like
+    // the upgrades above (getDroidStats / getBatteryCapacity in redux/reducer.ts).
+    droidFactory_cutterRevision: upgrade({
+        squad: true,
+        name: "Cutter Revision",
+        description: 'Revised arc cutters: expedition droids deal 20% more damage. Refits apply to the next deployed squad.',
+        affects: {
+            type: 'misc'
+        },
+        effect: {
+            damage: { multiply: 1.2 }
+        }
+    }),
+    droidFactory_cellRevision: upgrade({
+        squad: true,
+        name: "Cell Revision",
+        description: 'Revised cell packs for the expedition squad: 20% more battery capacity. ' +
+            'Refits apply to the next deployed squad.',
+        affects: {
+            type: 'misc'
+        },
+        effect: {
+            batteryCapacity: { multiply: 1.2 }
+        }
+    }),
 } satisfies Record<string, UpgradeRecord>;

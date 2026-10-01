@@ -3,7 +3,7 @@
 
 // Shared popup chrome (components/ui/popup_frame.jsx): backdrop + surface + header row + ✕, plus the
 // body rhythm and the action buttons every popup shares. Positioning is the caller's job
-// (.encounter-popup anchors itself in the planet frame; .special-panel centers inside .panel-overlay).
+// (.encounter-popup anchors itself in the planet frame; .decision-popup centers inside .popup-overlay).
 // Callers override surface border-color / background where they diverge; everything here is the part
 // that must not drift apart.
 
@@ -49,8 +49,9 @@
 
   // Body rhythm: a gap between paragraphs (block lines, <p>s), never after the last
   .popup-body {
-    > * + * { margin-top: 0.6rem; }
     p { margin: 0; }
+    // (the p + p form outranks the reset above, which would otherwise close the gap between paragraphs)
+    > * + *, > p + p { margin-top: 0.6rem; }
   }
 
   // Action buttons: the shared filled button (mixins.scss; Disband is the same) with its hotkey as a small

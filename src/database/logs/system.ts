@@ -7,6 +7,7 @@ import * as fromAbilities from '../../redux/modules/abilities';
 import * as fromGame from '../../redux/modules/game';
 import * as fromPlanet from '../../redux/modules/planet';
 import {addTrigger} from "../../redux/modules/triggers";
+import {requestDecision} from "../../redux/modules/decisions";
 import * as fromLog from "../../redux/modules/log";
 import * as fromStar from "../../redux/modules/star";
 import {batch} from "react-redux";
@@ -121,7 +122,7 @@ export default {
         ],
     },
 
-    // One-line ledger receipt, printed by recordAuthorization (game slice) for the intro cards. Later, receipts are
+    // One-line ledger receipt, printed by recordAuthorization (redux/modules/authorizations.ts) for the intro cards. Later, receipts are
     // for decisions and research only; a receipt per coil swap would be noise.
     authReceipt: {
         text: [
@@ -422,14 +423,16 @@ export default {
         }
     },
 
-    firstBattleOver: {
+    // The cape archive's two droid revisions are in and the squad is off the field: the choice between them goes on
+    // the droid factory's card (capeArchive in database/base/decisions.ts)
+    capeArchiveReceived: {
         text: [
             ['', 0],
-            ['Chassis design corpus indexed: see Droid Factory.', 500, true],
+            ['Cape archive files received: two droid designs.', 500, true],
+            ['Decision required: see Droid Factory.', 1000, true],
         ],
         onFinish: (dispatch) => {
-            dispatch(fromUpgrades.discover('droidFactory_repairRig'));
-            dispatch(fromUpgrades.discover('droidFactory_reinforcedPlating'));
+            dispatch(requestDecision('capeArchive'));
         }
     },
 

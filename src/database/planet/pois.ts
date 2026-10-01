@@ -227,6 +227,19 @@ export const POI_DEFS: PoiDef[] = [
             { hostiles: { defender: 10, }, terrain: 'rubble', reward: { resources: { refinedMinerals: [100, 120] } } },
         ]
     },
+    // The cape at the southern end of zone c's land: a pre-war design archive holding two droid designs. The squad
+    // sends the files home on the spot, and the choice between them (one permanent either/or) is put to the operator
+    // at the droid factory once the squad is off the field: the answer arms the trigger that asks.
+    {
+        type: 'storySite', point: 'G', name: 'Cape Archive',
+        promptText: 'A survey station at the end of the cape. Its archive is still powered.',
+        choices: [
+            {
+                label: 'Upload', arms: 'capeArchiveUploaded',
+                resultText: 'The archive holds two droid designs. Both uploaded to the factory.'
+            }
+        ]
+    },
 
     // ---- Zone e/g
     {

@@ -33,7 +33,6 @@ import * as fromAbilities from "../redux/modules/abilities";
 import * as fromClock from "../redux/modules/clock";
 import {RUNNING_COOLDOWN, structuresTick} from "../redux/modules/structures";
 import {upgradesTick, upgradesTickSlow} from "../redux/modules/upgrades";
-import {panelsTick} from "../redux/modules/panels";
 import {getStructureStatistic} from "../redux/reducer";
 import {SLOW_TICK_MS, TICK_MS, tickGame} from "./game_tick";
 import {setSuppressed as suppressSfx} from "../singletons/audio";
@@ -300,7 +299,6 @@ function applyJump(store: StoreLike, rates: ResourceAmounts, jumpMs: number) {
     dispatch(fromClock.clockTick(jumpMs));
     dispatch(structuresTick(jumpMs));
     dispatch(upgradesTick(jumpMs));
-    dispatch(panelsTick(jumpMs));
     dispatch(upgradesTickSlow(jumpMs));
 }
 

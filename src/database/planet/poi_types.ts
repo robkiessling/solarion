@@ -4,6 +4,7 @@ import type {PlanetColorKey} from "./colors";
 import type {HostileType} from "../battle/units";
 import type {Capability} from "./capabilities";
 import type {EquipmentId} from "../squad/equipment";
+import type {TriggerId} from "../triggers";
 
 /**
  * The POI vocabulary: the kinds of thing that can sit on a map tile, how each behaves when the squad
@@ -79,6 +80,10 @@ export interface PoiChoiceDef {
      * the fielded squad holds a charge of it right now: nothing names the gear, the player finds out what it is for by
      * carrying it. Charges reload on powered ground, so one spent here is one not lobbed in the next fight. */
     equipment?: EquipmentId;
+    /** arms a trigger (database/triggers.ts) the moment the answer is taken: how a find in the field becomes a beat
+     * back at the base (a decision on a structure's card, an offer, a log). The trigger says when it lands, usually
+     * once the squad is off the field. Nothing rides in cargo, so losing the squad afterwards does not lose it. */
+    arms?: TriggerId;
 }
 
 /** A blocker in front of a site (rubble in a tunnel mouth, a vault door): stepping onto the site raises this prompt

@@ -12,7 +12,7 @@
  * (database/battle/scattered_terrains.ts) or a drawing (database/battle/drawn_terrains.ts).
  */
 
-/** The expedition droid stat block: DROID_BASE_STATS plus researched combat upgrades and the authorized chassis spec.
+/** The expedition droid stat block: DROID_BASE_STATS plus researched combat upgrades.
  * A type alias (not an interface) so it is assignable to Variables, which the upgrade effects are applied through. */
 export type DroidStats = { hp: number; damage: number; attackMs: number; speed: number };
 

@@ -2,8 +2,18 @@
 @use '../mixins' as *;
 
 // The decision popup (components/decision_popup.jsx): the terminal asking the operator something. Chrome is the
-// shared PopupFrame (popup.scss); it mounts in a .panel-overlay like the special panels (panels.scss) and reads
-// as a message from the same machine as the terminal, so body text is plain and the options are a stacked list.
+// shared PopupFrame (popup.scss), mounted in a viewport-centering overlay; it reads as a message from the same
+// machine as the terminal, so body text is plain and the options are a stacked list.
+
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3; // below the settings modal (4), same rule as the battle popup
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // The shared .popup-backdrop fills this overlay = the whole viewport
+}
 
 .decision-popup {
   width: 30rem;
@@ -53,7 +63,9 @@
       .option-text {
         display: flex;
         flex-direction: column;
+        align-items: center; // each line centered on the button, whichever of them is the widest
         gap: 0.15rem;
+        text-align: center;
         text-transform: none;
         letter-spacing: 0;
       }
