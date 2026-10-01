@@ -9,6 +9,7 @@ import {ARENA_W, battleBlurb, battleHeadcount, settleBattle} from "../../lib/bat
 import {CONTACT_MS, POPUP_INPUT_LOCK_MS} from "../../database/squad/tuning";
 import {promptActions} from "../../lib/planet/prompt_actions";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../../database/squad/equipment";
+import upgradesDatabase from "../../database/base/upgrades";
 import BattleCanvas from "./canvas";
 import Tooltip from "../ui/tooltip";
 import PopupFrame from "../ui/popup_frame";
@@ -194,6 +195,10 @@ class EncounterPopup extends React.Component {
                     <span className="outcome-line">
                         Salvaged: {CAPABILITY_LABELS[result.capability] || result.capability}
                     </span>}
+                {result.granted &&
+                    <span className="outcome-line">Salvaged: {upgradesDatabase[result.granted].name}.</span>}
+                {result.offered &&
+                    <span className="outcome-line">Design recovered: {upgradesDatabase[result.offered].name}.</span>}
                 {result.loaded &&
                     <span className="outcome-line">Loaded {formatResourceList(result.loaded)}.</span>}
                 {result.battery != null && result.battery !== 0 &&
@@ -253,7 +258,7 @@ class EncounterPopup extends React.Component {
                                     {'●'.repeat(equipment[id]) + '○'.repeat(Math.max(0, EQUIPMENT_DEFS[id].charges - equipment[id]))}
                                 </button>
                                 <Tooltip id={`battle-item-${id}-tip`} place="top">
-                                    {EQUIPMENT_DEFS[id].description} Reloads at base.
+                                    {EQUIPMENT_DEFS[id].description} Recharges at base.
                                 </Tooltip>
                             </React.Fragment>
                         ))}

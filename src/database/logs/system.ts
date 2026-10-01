@@ -399,10 +399,8 @@ export default {
             ['Exploration Progress: 0.08%', 1000, true],
         ],
         onFinish: (dispatch) => {
-            // The rest of the planet tab is revealed by play (see these triggers in database/triggers.ts)
-            dispatch(addTrigger('squadBatteryHalf'));
-            dispatch(addTrigger('settlementSighted'));
-            dispatch(addTrigger('firstBattleOver'));
+            // The rest of the planet tab is revealed by play (see these triggers in database/triggers.ts; the
+            // squad's upgrades are prizes on the map instead, see database/planet/pois.ts)
             dispatch(addTrigger('firstDroidLost'));
             dispatch(addTrigger('siteReplication1'));
             dispatch(addTrigger('siteReplication2'));
@@ -421,6 +419,26 @@ export default {
             dispatch(addTrigger('solarPanel_global'))
             dispatch(fromPlanet.startExploringMap());
         }
+    },
+
+    // A prize won in the field (a reward's `grants` / `offers`, paid by payPermanent in redux/modules/squad.ts). The
+    // encounter popup names it where the squad stands; the terminal keeps the record and says what it does, in the
+    // form the base's own recovered schematics take. {name} and {does} are the upgrade's name and card text;
+    // {found} is "New equipment" for a piece of squad equipment and "Salvaged" for anything else granted.
+    prizeSalvaged: {
+        text: [
+            ['', 0],
+            ['{found}: {name}', 0, true],
+            ['{does}', 0],
+        ]
+    },
+    prizeOffered: {
+        text: [
+            ['', 0],
+            ['New design: {name}', 0, true],
+            ['{does}', 0],
+            ['Requires fabrication at base.', 0],
+        ]
     },
 
     // The cape archive's two droid revisions are in and the squad is off the field: the choice between them goes in

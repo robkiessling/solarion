@@ -85,34 +85,9 @@ const database = {
         condition: (slice) => !!slice,
         action: () => store.dispatch(fromLog.startLogSequence('startExploringMap'))
     }),
-    // The planet tab opens with only the map and the staging card; everything else arrives at the moment the player
-    // has just felt the need for it (armed together by the globeUnlocked sequence).
-    // Range: the battery is half gone for the first time.
-    squadBatteryHalf: trigger({
-        selector: (state) => state.planet.squad?.battery,
-        condition: (battery) => battery != null && battery <= (store.getState().planet.squad?.batteryCapacity ?? 0) / 2,
-        action: () => store.dispatch(fromUpgrades.discover('droidFactory_extendedCells'))
-    }),
-    // Offense: a settlement or a site is on the map, so there is something to aim a launcher at.
-    settlementSighted: trigger({
-        selector: (state) => state.planet.pois,
-        condition: (pois) => Object.values(pois).some(poi => (poi.type === 'settlement' || poi.type === 'site') && poi.status !== 'hidden'),
-        action: () => {
-            store.dispatch(fromUpgrades.discover('droidFactory_demoLauncher'));
-            store.dispatch(fromUpgrades.discover('droidFactory_overchargeCell'));
-        }
-    }),
-    // Survival: a fight has ended (won, lost or fled), so health now means something, and the team is home or
-    // gone, so the offer can be acted on. Waiting for that keeps the beat out from under a fight's own ending (a
-    // wipe narrates first, then this lands once the popup is dismissed; a win mid-trip waits for the return).
-    firstBattleOver: trigger({
-        selector: (state) => state.planet.squad,
-        condition: (squad) => !squad && store.getState().planet.battlesFought >= 1,
-        action: () => {
-            store.dispatch(fromUpgrades.discover('droidFactory_repairRig'));
-            store.dispatch(fromUpgrades.discover('droidFactory_reinforcedPlating'));
-        }
-    }),
+    // The planet tab opens with only the map and the staging card; the rest arrives by play (armed together by the
+    // globeUnlocked sequence). The squad's own upgrades are not here: each is the prize for beating a particular
+    // place (a reward's `grants` / `offers` in database/planet/pois.ts).
     // The cape archive's droid revisions were sent home from the field (its Upload answer arms this, see
     // database/planet/pois.ts) and the squad is now off the field. The files went by uplink, not in cargo, so a wipe
     // on the way back counts the same as a return. Waiting keeps the request out from under the trip itself: the

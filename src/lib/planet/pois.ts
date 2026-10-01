@@ -354,7 +354,7 @@ export function rollRange(value: Rollable, step = 1): number {
     return Array.isArray(value) ? getRandomIntInclusive(value[0] / step, value[1] / step) * step : value;
 }
 
-// A reward as placed: resource amounts rolled in steps of 100; a capability passes through unchanged
+// A reward as placed: resource amounts rolled in steps of 100; the permanent prizes pass through unchanged
 function rollReward(def: RewardDef): PoiReward {
     const { resources, ...rest } = def;
     const reward: PoiReward = { ...rest };
@@ -393,7 +393,8 @@ export function isGarrisoned(poi: Poi): boolean {
 }
 
 // What winning a level pays on THIS clear: its rolled resources scaled by the site's reloot schedule (indexed by
-// how often the level has fallen before; past the end it pays nothing). Salvage is first-clear only.
+// how often the level has fallen before; past the end it pays nothing). The permanent prizes (salvage, an upgrade
+// granted or offered) are first-clear only.
 export function levelPayout(poi: Poi, levelIndex: number): PoiReward {
     const level = poiLevels(poi)[levelIndex];
     const schedule = poi.reloot || POI_TYPE_DEFAULTS[poi.type].reloot || [1];
@@ -402,7 +403,11 @@ export function levelPayout(poi: Poi, levelIndex: number): PoiReward {
     if (level.reward.resources && fraction > 0) {
         reward.resources = mapObject(level.reward.resources, (resource, amount) => Math.floor(amount * fraction));
     }
-    if (level.reward.capability && level.timesCleared === 0) reward.capability = level.reward.capability;
+    if (level.timesCleared === 0) {
+        if (level.reward.capability) reward.capability = level.reward.capability;
+        if (level.reward.grants) reward.grants = level.reward.grants;
+        if (level.reward.offers) reward.offers = level.reward.offers;
+    }
     return reward;
 }
 

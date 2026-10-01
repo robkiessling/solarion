@@ -37,7 +37,7 @@ export const EQUIPMENT_DEFS = {
     },
     repairKit: {
         name: 'Repair Rig',
-        description: 'Restores 3 health to every damaged droid. Destroyed droids stay lost.',
+        description: 'Restores 3 health to every damaged droid.',
         upgradeId: 'droidFactory_repairRig',
         charges: 1,
         effect: { kind: 'heal', amount: 3 }

@@ -11,21 +11,23 @@ import {upgrade, type UpgradeRecord} from "../base/upgrade_record";
 import {EQUIPMENT_DEFS, type EquipmentId} from "./equipment";
 
 // An equipment upgrade's card text: the manifest's own line for the piece (the battle popup shows the same one,
-// so the two can't drift) and its charge count. "Base" covers every powered tile: sites and replicated land are
-// copies of the base, and it is the word the terminal already uses for coming home.
+// so the two can't drift) and where it recharges (a wording that holds for one charge or several). "Base" covers every powered tile: sites and replicated land are
+// copies of the base, and it is the word the terminal already uses for coming home. No charge count: how many
+// charges a piece holds is meant to grow with play, so the count is shown live where the piece is listed (its
+// dots, its tooltip), never frozen into text.
 // `itemId` is an EquipmentId, but naming it in the signature would make the tables' types circular (the manifest's
 // `upgradeId` is typed by this table's keys); a wrong id fails here as the module loads.
 function equipmentDescription(itemId: string): string {
-    const { description, charges } = EQUIPMENT_DEFS[itemId as EquipmentId];
-    return `${description} ${charges} ${charges === 1 ? 'charge' : 'charges'}. Reloads at base.`;
+    return `${EQUIPMENT_DEFS[itemId as EquipmentId].description} Recharges at base.`;
 }
 
 export const SQUAD_UPGRADES = {
     // Squad equipment: one-time acquisitions (see database/squad/equipment.ts). Researching one permanently
     // outfits every future squad with the piece; its charges spend in battle and reload on the grid.
-    // Story salvage can grant these later by researchForFree-ing the same ids.
-    // No discoverWhen on the first tier: each is discovered by the planet-tab trigger that matches the moment the
-    // player first wants it (battery half spent, settlement sighted, first fight over; see database/triggers.ts).
+    // Each is FOUND, not bought: the prize for beating a particular place (a reward's `grants` in
+    // database/planet/pois.ts), researched free on the spot, so it has no cost and never shows as a row. To sell a
+    // piece instead, reward it with `offers` and give it a cost here.
+    // No discoverWhen anywhere in this table: a squad upgrade only ever arrives as a prize.
     // `squad: true` (here and on everything below) instead of a `structure`: these only
     // affect expeditions, so they're offered in the Expedition panel's Outfitting section, not on any
     // structure's card. (Ids keep the droidFactory_ prefix; saves and equipment.ts reference them.)
@@ -33,10 +35,6 @@ export const SQUAD_UPGRADES = {
         squad: true,
         name: "Demo Launcher",
         description: equipmentDescription('demoCharge'),
-        cost: {
-            ore: 4000,
-            refinedMinerals: 800
-        },
         affects: {
             type: 'misc'
         },
@@ -45,10 +43,6 @@ export const SQUAD_UPGRADES = {
         squad: true,
         name: "Repair Rig",
         description: equipmentDescription('repairKit'),
-        cost: {
-            ore: 2500,
-            refinedMinerals: 500
-        },
         affects: {
             type: 'misc'
         },
@@ -57,10 +51,6 @@ export const SQUAD_UPGRADES = {
         squad: true,
         name: "Overcharge Cell",
         description: equipmentDescription('overchargeCell'),
-        cost: {
-            ore: 3000,
-            refinedMinerals: 600
-        },
         affects: {
             type: 'misc'
         },
@@ -70,6 +60,7 @@ export const SQUAD_UPGRADES = {
     // (hp/damage/attackMs/speed), applied by getDroidStats in redux/reducer.ts and snapshotted onto the
     // squad at deploy. Refits apply to the next deployment, not squads already in the field (the card text
     // doesn't say so: Outfitting is only on screen while no squad is out).
+    // These are BOUGHT: beating a place puts the row on offer (a reward's `offers`), at the cost here.
     droidFactory_reinforcedPlating: upgrade({
         squad: true,
         name: "Reinforced Plating",
@@ -89,12 +80,6 @@ export const SQUAD_UPGRADES = {
         squad: true,
         name: "Weapon Calibration",
         description: '+50% Droid Damage.',
-        discoverWhen: {
-            upgrades: ['droidFactory_reinforcedPlating'],
-            resources: {
-                refinedMinerals: 1000
-            }
-        },
         cost: {
             ore: 6000,
             refinedMinerals: 1500
@@ -124,21 +109,11 @@ export const SQUAD_UPGRADES = {
         }
     }),
     // Where the squad can drive: its research grants the capability the shallows require (the callback in
-    // database/base/upgrades.ts). Only the driven squad uses it, so it is outfitting, not a factory upgrade.
+    // database/base/upgrades.ts). Found like the equipment above (a reward's `grants`), so no cost.
     droidFactory_amphibiousTracks: upgrade({
         squad: true,
         name: "Amphibious Tracks",
         description: 'Sealed drivetrain and flotation skirts. The squad drives through shallows it could not cross before.',
-        discoverWhen: {
-            upgrades: ['droidFactory_longerComm'],
-            resources: {
-                refinedMinerals: 1500
-            }
-        },
-        cost: {
-            ore: 6000,
-            refinedMinerals: 2500,
-        },
         affects: {
             type: 'misc'
         },

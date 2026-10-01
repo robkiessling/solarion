@@ -51,7 +51,9 @@ export const FIELD_EVENT_SPACING = 2;
  *                 be learned
  *   `blurb`       a bespoke scene line for the battle footer; unset = generated from terrain + opening
  *                 (GROUND_BLURBS/OPENING_BLURBS in database/battle/blurbs.ts)
- *   `reward`      what falls out of it
+ *   `reward`      what falls out of it: `resources` ride home in cargo; `grants` hands an upgrade over on the spot
+ *                 (free, and a piece of equipment is in hand for the next fight of the same trip); `offers` puts an
+ *                 upgrade's row in Outfitting at its cost. Both pay on the first clear only
  *
  * Winning a level with more beneath it pauses on a descend-or-withdraw choice; the squad's hull damage and
  * spent charges carry down, loot rides in cargo (kept on a withdrawal, lost on a wipe). The site only falls
@@ -83,6 +85,10 @@ export const FIELD_EVENT_SPACING = 2;
  * distance or a travel time: the squad crosses a tile far faster than the tile's size allows, an abstraction
  * the base game shares, and it only shows when the text measures it.
  *
+ * The squad's upgrades are prizes: each is won by beating one particular place, written on that fight's `reward`
+ * (equipment is granted, stat upgrades are offered; database/squad/upgrades.ts). PLACEHOLDER placement, like the
+ * rest of the tuning: moving a prize is moving its one field.
+ *
  * Loot is what scavengers hold and what they are sitting on: worked metal on top (it classifies as minerals),
  * power cells further in, the old facility's stores at the core. Never ore; nothing out here mines.
  * Hostile counts, loot, level counts and event counts are PLACEHOLDER tuning, and the zone
@@ -99,7 +105,7 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'The ground ahead is occupied. Whatever holds it is coming out.',
         campApproachText: 'Large shapes move towards you from the dark.',
         levels: [
-            { hostiles: { defender: 7 }, terrain: "rocks", reward: { resources: { refinedMinerals: [40, 60] } } }
+            { hostiles: { defender: 7 }, terrain: "rocks", reward: { resources: { refinedMinerals: [40, 60] }, grants: 'droidFactory_repairRig' } }
         ],
         camps: [
             { hostiles: { defender: 4 }, terrain: "rocks" }
@@ -163,7 +169,7 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'Creatures scurry between the rocks, protecting their stash.',
         campApproachText: 'A small group of hostiles surrounds you.',
         levels: [
-            { hostiles: { heavy: 1, defender: 6 }, terrain: 'rocks', reward: { resources: { refinedMinerals: [120, 200] } } }
+            { hostiles: { heavy: 1, defender: 6 }, terrain: 'rocks', reward: { resources: { refinedMinerals: [120, 200] }, grants: 'droidFactory_overchargeCell' } }
         ],
         camps: [
             { hostiles: { defender: 4, }, reward: { resources: { refinedMinerals: [30, 50] } } },
@@ -193,7 +199,7 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'Something stirs within the caves.',
         campApproachText: 'The hillside is riddled with cave openings. Heat signatures detected.',
         levels: [
-            { hostiles: { heavy: 3, defender: 6 }, terrain: 'caves', waits: 'hostiles', reward: { resources: { refinedMinerals: [150, 200] } } }
+            { hostiles: { heavy: 3, defender: 6 }, terrain: 'caves', waits: 'hostiles', reward: { resources: { refinedMinerals: [150, 200] }, grants: 'droidFactory_demoLauncher' } }
         ],
         camps: [
             { hostiles: { defender: 10, }, terrain: 'caves', waits: 'hostiles', opening: 'marked', reward:{ resources: { refinedMinerals: [100, 120] } } },
@@ -214,7 +220,7 @@ export const POI_DEFS: PoiDef[] = [
         type: 'settlement', point: 'B', territoryRadius: 0,
         approachText: 'Creatures scurry between the rocks, protecting their stash.',
         levels: [
-            { hostiles: { heavy: 1, defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [150, 200] } } }
+            { hostiles: { heavy: 1, defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [150, 200] }, offers: 'droidFactory_reinforcedPlating' } }
         ],
     },
     {
@@ -261,7 +267,7 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'A ruined town, half of it roofed again. Several hundred returns clustered in the standing blocks. More are moving toward the edge than the optics first counted.',
         campApproachText: 'A group out from the town, more of them than the first count. They fan out as they close.',
         levels: [
-            { hostiles: { heavy: 2, launcher: 2, defender: 14 }, opening: 'groups', terrain: 'ruins', reward: { resources: { refinedMinerals: [800, 1400] } } }
+            { hostiles: { heavy: 2, launcher: 2, defender: 14 }, opening: 'groups', terrain: 'ruins', reward: { resources: { refinedMinerals: [800, 1400] }, grants: 'droidFactory_amphibiousTracks' } }
         ],
         camps: [
             { hostiles: { defender: 4 }, reward: { resources: { refinedMinerals: [200, 400] } } },
@@ -513,7 +519,7 @@ export const POI_DEFS: PoiDef[] = [
     {
         type: 'tunnel', digit: '1',
         approachText: 'A tunnel mouth under the hill. Faint signatures, deep in.',
-        levels: [{ hostiles: { defender: 8 }, terrain: 'tunnelSmall', reward: { resources: { refinedMinerals: [200, 400] } } }],
+        levels: [{ hostiles: { defender: 8 }, terrain: 'tunnelSmall', reward: { resources: { refinedMinerals: [200, 400] }, offers: 'droidFactory_extendedCells' } }],
         crossTiles: 3
     },
     // '2' and '3' are rubble-sealed: both mouths raise the seal prompt until the squad clears it (a demolition charge,
@@ -540,7 +546,7 @@ export const POI_DEFS: PoiDef[] = [
             choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
         },
         approachText: 'A tunnel mouth behind broken rock. Signatures, and the sound of water.',
-        levels: [{ hostiles: { defender: 20 }, terrain: 'tunnelSmall', reward: { resources: { refinedMinerals: [800, 1400] } } }],
+        levels: [{ hostiles: { defender: 20 }, terrain: 'tunnelSmall', reward: { resources: { refinedMinerals: [800, 1400] }, offers: 'droidFactory_weaponCalibration' } }],
         crossTiles: 4
     },
     {

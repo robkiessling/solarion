@@ -7,15 +7,17 @@ import {typedEntries} from "../../lib/helpers";
 import {formatResourceList, isGarrisoned, levelPayout, poiChoices, poiLevels, relocateAmbush, sealChoices, type Poi, type PoiChoice} from "../../lib/planet/pois";
 import {applyEquipment, createBattle, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle/sim";
 import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent} from "../../lib/planet/squad";
-import {logInline} from "./log";
+import {logInline, startLogSequence} from "./log";
 import {addTrigger} from "./triggers";
+import * as fromUpgrades from "./upgrades";
 import {zoneColor} from "../../database/planet/colors";
 import {CONTACT_MS} from "../../database/squad/tuning";
 import type {PoiReward} from "../../database/planet/poi_types";
 import {CAPABILITY_LABELS, type Capability} from "../../database/planet/capabilities";
 import {TELEMETRY, unitNoun} from "../../database/planet/telemetry";
 import {DROID_BASE_STATS, type DroidStats} from "../../database/battle/units";
-import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
+import {EQUIPMENT_DEFS, type EquipmentCharges, type EquipmentId} from "../../database/squad/equipment";
+import type {UpgradeId} from "../../database/base/upgrades";
 import {addRevealUpdates, grantCapability, setRotationMode, type PlanetState} from "./planet";
 
 /**
@@ -42,6 +44,9 @@ export interface EncounterResult {
     /** the narration line (a story site's text, or a field event answer's) */
     text?: string | null;
     capability?: Capability | null;
+    /** an upgrade the find handed over outright, and one it put on offer (see PoiReward) */
+    granted?: UpgradeId | null;
+    offered?: UpgradeId | null;
     loaded?: ResourceAmounts | null;
     /** field event answers: battery gained or spent, units added to the roster, a charge of equipment spent */
     battery?: number;
@@ -90,6 +95,7 @@ export const SQUAD_RETREATED = 'planet/SQUAD_RETREATED' as const;
 export const SQUAD_RETREAT_ORDERED = 'planet/SQUAD_RETREAT_ORDERED' as const;
 export const AMBUSH_MOVED = 'planet/AMBUSH_MOVED' as const;
 export const SQUAD_USE_EQUIPMENT = 'planet/SQUAD_USE_EQUIPMENT' as const;
+export const SQUAD_EQUIP = 'planet/SQUAD_EQUIP' as const;
 export const SQUAD_PROMPT = 'planet/SQUAD_PROMPT' as const;
 export const SQUAD_LEAVE_PROMPT = 'planet/SQUAD_LEAVE_PROMPT' as const;
 export const SQUAD_RESOLVE_POI = 'planet/SQUAD_RESOLVE_POI' as const;
@@ -119,6 +125,8 @@ export type SquadAction =
     /** a sprung ambush the squad did not clear lies up on a new tile, concealed again (see relocateAmbush) */
     | { type: typeof AMBUSH_MOVED; payload: { poiId: string; coord: Coord; distance: number } }
     | { type: typeof SQUAD_USE_EQUIPMENT; payload: { itemId: EquipmentId } }
+    /** pieces the fielded squad picks up mid-trip, at the charges given; a piece it already carries is left as it is */
+    | { type: typeof SQUAD_EQUIP; payload: { equipment: EquipmentCharges } }
     | { type: typeof SQUAD_PROMPT; payload: { poiId: string; phase?: 'seal' | 'offer' | 'approach'; fromCoord?: Coord; sprungAt?: number } }
     | { type: typeof SQUAD_LEAVE_PROMPT }
     /** battery is a delta on the squad (clamped to capacity); units join the roster at full hull; equipment is a
@@ -247,8 +255,7 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
                     droidHp: { $set: action.payload.droidHp },
                     cargo: { $apply: (cargo: ResourceAmounts) => mergeCargo(cargo, action.payload.reward) }
                 },
-                prompt: { $set: { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } },
-                battlesFought: { $set: state.battlesFought + 1 }
+                prompt: { $set: { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } }
             };
 
             // The settlement is dead: its territory stamp retracts (the land becomes sweepable and developable
@@ -310,8 +317,7 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
                     cargo: { $apply: (cargo: ResourceAmounts) => mergeCargo(cargo, action.payload.reward) }
                 },
                 prompt: { $set: { poiId, phase: 'result', result: action.payload.result,
-                    fromCoord: action.payload.fromCoord } },
-                battlesFought: { $set: state.battlesFought + 1 }
+                    fromCoord: action.payload.fromCoord } }
             });
         }
         case SQUAD_WIPED:
@@ -320,8 +326,7 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
             // strength (each side heals at home), so the next assault must be decisive too.
             return update(state, {
                 squad: { $set: null },
-                prompt: { $set: { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } },
-                battlesFought: { $set: state.battlesFought + 1 }
+                prompt: { $set: { poiId: action.payload.poiId, phase: 'result', result: action.payload.result } }
             });
         case SQUAD_RETREATED:
             // Withdrawal complete: the escapees keep driving (no popup to dismiss mid-flight), carrying
@@ -330,8 +335,7 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
                 squad: {
                     squadSize: { $set: action.payload.survivors },
                     droidHp: { $set: action.payload.droidHp }
-                },
-                battlesFought: { $set: state.battlesFought + 1 }
+                }
             });
         case SQUAD_RETREAT_ORDERED:
             return update(state, {
@@ -349,6 +353,11 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
                     equipment: { [action.payload.itemId]: { $apply: (charges: number) => charges - 1 } },
                     fighting: { battle: { $apply: (battle) => applyEquipment(battle, action.payload.itemId) } }
                 }
+            });
+        case SQUAD_EQUIP:
+            if (!state.squad) return state;
+            return update(state, {
+                squad: { equipment: { $apply: (carried: EquipmentCharges) => ({ ...action.payload.equipment, ...carried }) } }
             });
         case SQUAD_RESOLVE_POI: {
             // Player chose to take/explore/open the site: clear it and load any reward as cargo. A 'narrate'
@@ -620,6 +629,8 @@ export function squadInteract(choiceIndex = 0) {
         const result: EncounterResult | null = choice.resultText ? {
             text: choice.resultText,
             capability: reward.capability || null,
+            granted: reward.grants || null,
+            offered: reward.offers || null,
             loaded: reward.resources || null,
             ...(choice.battery ? { battery: choice.battery } : {}),
             ...(choice.units ? { unitsGained: choice.units } : {}),
@@ -628,9 +639,7 @@ export function squadInteract(choiceIndex = 0) {
 
         dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward, result, ...choiceCosts(choice),
             ...(choice.units ? { units: choice.units } : {}) } });
-        if (reward.capability) {
-            dispatch(grantCapability(reward.capability)); // salvaged tool: permanent, instant (not cargo)
-        }
+        payPermanent(dispatch, getState, reward);
         if (choice.revealNearest) revealNearestConcealed(dispatch, getState, poi);
         if (choice.arms) dispatch(addTrigger(choice.arms));
         if (choice.units) dispatch(recalculateState());
@@ -874,6 +883,37 @@ function moveAmbushOn(dispatch: Dispatch, getState: GetState, poi: Poi, avoid: C
     dispatch({ type: AMBUSH_MOVED, payload: { poiId: poi.id, coord: tile.coord, distance: tile.graphDistanceHome } });
 }
 
+// Pays the parts of a reward that are not cargo: permanent, and paid on the spot (a wipe on the way home does not
+// take them back), with a record of the prize in the terminal. A granted upgrade is researched at no cost, and any piece of equipment that came with it joins
+// the squad standing there, so the prize is in hand for the next fight of the same trip instead of the next
+// deployment. An offered upgrade is only discovered: its row appears at its cost. An upgrade the player already
+// has (two places paying the same prize) is left as it is; discovering a researched one would put it back on sale.
+function payPermanent(dispatch: Dispatch, getState: GetState, reward: PoiReward) {
+    if (reward.capability) dispatch(grantCapability(reward.capability));
+    if (reward.grants && !fromUpgrades.isResearched(fromUpgrades.getUpgrade(getState().upgrades, reward.grants))) {
+        dispatch(fromUpgrades.researchForFree(reward.grants));
+        dispatch({ type: SQUAD_EQUIP, payload: { equipment: ownedEquipment(getState()) } });
+        dispatch(startLogSequence('prizeSalvaged', prizeLogVars(getState, reward.grants)));
+    }
+    if (reward.offers) {
+        const known = fromUpgrades.getUpgrade(getState().upgrades, reward.offers);
+        if (!known || known.state === 'hidden') {
+            dispatch(fromUpgrades.discover(reward.offers));
+            dispatch(startLogSequence('prizeOffered', prizeLogVars(getState, reward.offers)));
+        }
+    }
+}
+
+// What the terminal's record of a prize is filled with: the upgrade's name, in the capitals the terminal gives a
+// recovered schematic, and its card text. `found` heads a granted prize's record: a piece of equipment is named
+// as one, the word on the Expedition card's row where it now shows, and anything else is plain salvage.
+function prizeLogVars(getState: GetState, upgradeId: UpgradeId) {
+    const upgrade = fromUpgrades.getUpgrade(getState().upgrades, upgradeId);
+    const isEquipment = Object.values(EQUIPMENT_DEFS).some(def => def.upgradeId === upgradeId);
+    return { name: (upgrade?.name ?? '').toUpperCase(), does: upgrade?.description ?? '',
+        found: isEquipment ? 'New equipment' : 'Salvaged' };
+}
+
 // Applies advanceSquad's contact/fight events (dispatched from planetTick).
 function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad | null, event: SquadEvent) {
     const pois = getState().planet.pois;
@@ -896,15 +936,15 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                         squadSize: squad.squadSize,
                         multiplier: squad.multiplier || 1,
                         capability: reward.capability || null,
+                        granted: reward.grants || null,
+                        offered: reward.offers || null,
                         loaded: reward.resources || null,
                         level: event.level,
                         levelsTotal: poi.levelsShown ? levels.length : null,
                         nextLevel: event.level + 1,
                         finalBattle: event.battle
                     } } });
-                if (reward.capability) {
-                    dispatch(grantCapability(reward.capability));
-                }
+                payPermanent(dispatch, getState, reward);
             }
             else if (event.result === 'won') {
                 const reward = levelPayout(poi, event.level);
@@ -936,6 +976,8 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                         multiplier: squad.multiplier || 1,
                         landCredit,
                         capability: (reward && reward.capability) || null,
+                        granted: (reward && reward.grants) || null,
+                        offered: (reward && reward.offers) || null,
                         loaded: (reward && reward.resources) || null,
                         level: event.level,
                         levelsTotal: levels.length, // the bottom is reached: the count is known now
@@ -945,9 +987,7 @@ function resolveSquadEvent(dispatch: Dispatch, getState: GetState, squad: Squad 
                 if (poi.discardedKg) {
                     dispatch(logInline(TELEMETRY.organicDiscarded(poi.discardedKg)));
                 }
-                if (reward && reward.capability) {
-                    dispatch(grantCapability(reward.capability));
-                }
+                if (reward) payPermanent(dispatch, getState, reward);
                 if (poi.type === 'tunnel') revealFromSquad(dispatch, getState); // it came out the far mouth
                 if (poi.type === 'site' && poi.site != null) {
                     dispatch(logInline(TELEMETRY.siteSecured(poi.site)));

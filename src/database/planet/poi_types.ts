@@ -5,6 +5,7 @@ import type {HostileType} from "../battle/units";
 import type {Capability} from "./capabilities";
 import type {EquipmentId} from "../squad/equipment";
 import type {TriggerId} from "../triggers";
+import type {UpgradeId} from "../base/upgrades";
 
 /**
  * The POI vocabulary: the kinds of thing that can sit on a map tile, how each behaves when the squad
@@ -32,6 +33,11 @@ export type PoiStatus =
 export interface PoiReward {
     resources?: ResourceAmounts;
     capability?: Capability;
+    /** an upgrade handed over outright: researched on the spot at no cost, and if it is a piece of equipment the
+     * fielded squad carries it from the next fight on */
+    grants?: UpgradeId;
+    /** an upgrade put on offer: its row appears (in Outfitting, or on its structure's card) at its cost */
+    offers?: UpgradeId;
 }
 
 /** A tuning number as authored: fixed, or a [lo, hi] range rolled once at map generation (rollRange in
@@ -39,10 +45,12 @@ export interface PoiReward {
 export type Rollable = number | [number, number];
 
 /** A reward as authored: resource amounts (rolled in steps of 100, so [500, 1000] lands on 500, 600, ... 1000) and/or
- * a capability */
+ * the permanent prizes (a capability, an upgrade granted or offered; see PoiReward) */
 export interface RewardDef {
     resources?: Partial<Record<ResourceId, Rollable>>;
     capability?: Capability;
+    grants?: UpgradeId;
+    offers?: UpgradeId;
 }
 
 /** The hostiles a fight fields, as authored: a count per type (HOSTILE_TYPES in database/battle/units.ts) */

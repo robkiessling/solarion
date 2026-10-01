@@ -4,6 +4,7 @@ import {connect} from "react-redux";
 import {deploySquad, disbandSquad} from "../../redux/modules/squad";
 import {formatResourceList} from "../../lib/planet/pois";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../../database/squad/equipment";
+import upgradesDatabase from "../../database/base/upgrades";
 import {pendingForSquad} from "../../redux/modules/decisions";
 import {isOnGrid} from "../../lib/planet/squad";
 import {SQUAD_DRAIN_PER_TILE} from "../../database/squad/tuning";
@@ -35,7 +36,7 @@ class Expedition extends React.Component {
 
         return (
             <React.Fragment>
-                <span className="cargo-line key-value-pair" data-tip data-for="equipment-tip">
+                <span className="cargo-line key-value-pair">
                     <span>Equipment:</span>
                     {/* Each piece is an unbreakable unit, so a long list wraps between pieces (right-aligned
                         under the first line), never mid-name or between a name and its charge dots. The
@@ -45,7 +46,7 @@ class Expedition extends React.Component {
                         {ids.map((id, i) =>
                             <React.Fragment key={id}>
                                 {i > 0 && ' '}
-                                <span className="equipment-item">
+                                <span className="equipment-item" data-tip data-for={`equipment-${id}-tip`}>
                                     {this.props.squad ?
                                         `${EQUIPMENT_DEFS[id].name} ${chargeDots(id, carried[id])}` :
                                         `${EQUIPMENT_DEFS[id].name}${i < ids.length - 1 ? ',' : ''}`}
@@ -53,10 +54,15 @@ class Expedition extends React.Component {
                             </React.Fragment>)}
                     </span>
                 </span>
-                <Tooltip id="equipment-tip">
-                    <p className="tooltip-header">Equipment</p>
-                    <p>Fired with number keys mid-battle; charges reload at base.</p>
-                </Tooltip>
+                {/* One tooltip per piece: what it does (its upgrade's card text, the only place a found piece's
+                    text is read outside a fight) and the charges a fresh loadout holds (read from the state, not
+                    written into the text, so it follows whatever raises it) */}
+                {ids.map(id =>
+                    <Tooltip key={id} id={`equipment-${id}-tip`}>
+                        <p className="tooltip-header">{EQUIPMENT_DEFS[id].name}</p>
+                        <p>{upgradesDatabase[EQUIPMENT_DEFS[id].upgradeId].description}</p>
+                        <p>Charges: {this.props.ownedEquipment[id] ?? EQUIPMENT_DEFS[id].charges}</p>
+                    </Tooltip>)}
             </React.Fragment>
         );
     }
