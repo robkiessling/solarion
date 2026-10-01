@@ -965,24 +965,6 @@ const database = {
             id: 'droidFactory_buildStandardDroid'
         }
     }),
-    droidFactory_amphibiousTracks: upgrade({
-        name: "Amphibious Tracks",
-        structure: 'droidFactory',
-        description: 'Sealed drivetrain and flotation skirts. The squad drives through shallows it could not cross before.',
-        discoverWhen: {
-            upgrades: ['droidFactory_longerComm'],
-            resources: {
-                refinedMinerals: 1500
-            }
-        },
-        cost: {
-            ore: 6000,
-            refinedMinerals: 2500,
-        },
-        affects: {
-            type: 'misc'
-        },
-    }),
     droidFactory_surveyAutomation: upgrade({
         name: "Survey Automation",
         structure: 'droidFactory',
@@ -1046,7 +1028,7 @@ const database = {
             castTime: { add: -5 }
         }
     }),
-    // Squad outfitting (equipment, combat stats, battery): database/squad/upgrades.ts
+    // Squad outfitting (equipment, combat stats, battery, tracks): database/squad/upgrades.ts
     ...SQUAD_UPGRADES,
 
     droidFactory_fasterExplore: upgrade({

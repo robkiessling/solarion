@@ -116,7 +116,7 @@ const database = {
     // The cape archive's droid revisions were sent home from the field (its Upload answer arms this, see
     // database/planet/pois.ts) and the squad is now off the field. The files went by uplink, not in cargo, so a wipe
     // on the way back counts the same as a return. Waiting keeps the request out from under the trip itself: the
-    // choice lands on the droid factory's card once the operator is back at the base.
+    // choice lands in Outfitting, which is only on screen once no squad is out.
     capeArchiveUploaded: trigger({
         selector: (state) => state.planet.squad,
         condition: (squad) => !squad,

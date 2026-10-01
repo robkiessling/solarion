@@ -361,6 +361,12 @@ $hud-clearance: 6.5rem;
           align-items: center;
         }
       }
+
+      // A pending squad decision takes an upgrade row's place in the list, so it takes its box too
+      .decision-row {
+        margin: 0.25rem 0;
+        height: 2rem;
+      }
     }
   }
 

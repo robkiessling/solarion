@@ -423,13 +423,13 @@ export default {
         }
     },
 
-    // The cape archive's two droid revisions are in and the squad is off the field: the choice between them goes on
-    // the droid factory's card (capeArchive in database/base/decisions.ts)
+    // The cape archive's two droid revisions are in and the squad is off the field: the choice between them goes in
+    // the Expedition panel's Outfitting section (capeArchive in database/base/decisions.ts)
     capeArchiveReceived: {
         text: [
             ['', 0],
             ['Cape archive files received: two droid designs.', 500, true],
-            ['Decision required: see Droid Factory.', 1000, true],
+            ['Decision required: see Expedition.', 1000, true],
         ],
         onFinish: (dispatch) => {
             dispatch(requestDecision('capeArchive'));

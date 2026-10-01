@@ -67,7 +67,7 @@ export const HOSTILE_TYPES: Record<HostileType, UnitStats> = {
     runner: { hp: 4, damage: 2, attackMs: 700, speed: 16 },
     // A cold shell over a thermal core, slow and hard to put down; hits harder than a defender and (hp above the
     // standard defender) earns an arena hp bar. Truth: a person in salvaged pre-war armor.
-    heavy: { hp: 20, damage: 5, attackMs: 1800, speed: 7 },
+    heavy: { hp: 20, damage: 5, attackMs: 1800, speed: 6 },
     // One heavy signature carrying two thermal profiles, faster than anything else afield. Truth: a rider on a horse.
     mounted: { hp: 12, damage: 2, attackMs: 1300, speed: 15 },
     // Static (speed 0: never seeks, never displaced, sits like terrain) with no thermal signature at all, and it

@@ -3,10 +3,11 @@ import type {UpgradeId} from './upgrades';
 
 /**
  * Decisions: the terminal asking the operator something, answered in the decision popup (components/decision_popup.jsx).
- * The machine never takes the screen to ask. A request lands as a marked row on the owning structure's card (yellow
- * until opened, grey once seen and left); the player opens it when they choose, so nothing they were doing is
- * blocked. Close or ✕ just closes the popup and the row stays. Picking an option resolves it: the row goes away and
- * the wall's trigger re-arms so it can ask again later with whatever remedies remain.
+ * The machine never takes the screen to ask. A request lands as a marked row on the owning structure's card, or in
+ * the Expedition panel's Outfitting section for a `squad` decision (yellow until opened, grey once seen and left);
+ * the player opens it when they choose, so nothing they were doing is blocked. Close or ✕ just closes the popup and
+ * the row stays. Picking an option resolves it: the row goes away and the wall's trigger re-arms so it can ask again
+ * later with whatever remedies remain.
  *
  * Records are static content; anything that depends on the game state is a function of it, evaluated while the
  * popup is open. Options are clicked, never keyed (an answer can be permanent). `hidden` removes an option (a remedy already taken);
@@ -38,8 +39,10 @@ export interface DecisionOption {
 }
 
 export interface DecisionRecord {
-    /** the card the request row appears on */
-    structure: StructureId;
+    /** the card the request row appears on (absent for a squad decision) */
+    structure?: StructureId;
+    /** expedition-only decision: the row appears in the Expedition panel's Outfitting section, like a squad upgrade */
+    squad?: boolean;
     /** the row's text */
     label: string;
     /** the popup's title */
@@ -70,10 +73,11 @@ function taken(upgradeId: UpgradeId) {
 // eventually have both of is an upgrade on a card, not a decision.
 const database = {
     // The two droid designs sent home from the cape archive (requested by the capeArchiveReceived log once the
-    // squad is off the field). Each option researches its upgrade on the spot (free, instant) and hides the other,
-    // so the side not taken is never offered again.
+    // squad is off the field). Both sides are squad upgrades, so it is asked in Outfitting, beside the stat rows
+    // the answer moves. Each option researches its upgrade on the spot (free, instant) and hides the other, so the
+    // side not taken is never offered again.
     capeArchive: decision({
-        structure: 'droidFactory',
+        squad: true,
         label: 'Cape Archive Designs',
         title: 'Cape Archive Designs',
         body: [
@@ -83,14 +87,14 @@ const database = {
         options: [
             {
                 label: 'Cutter Revision',
-                detail: '+20% droid damage',
+                detail: '+20% Droid Damage',
                 research: 'droidFactory_cutterRevision',
                 receipt: 'CUTTER REV',
                 hidden: taken('droidFactory_cellRevision')
             },
             {
                 label: 'Cell Revision',
-                detail: '+20% droid battery',
+                detail: '+20% Battery',
                 research: 'droidFactory_cellRevision',
                 receipt: 'CELL REV',
                 hidden: taken('droidFactory_cutterRevision')

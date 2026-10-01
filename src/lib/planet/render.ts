@@ -107,7 +107,7 @@ function glyphInkBox(context: CanvasRenderingContext2D, char: string): InkBox | 
 // see planet_map's daylightAt) interpolates between them. Night is deliberately deep: the squad's lantern
 // (cell.lit) and the markers' self-lit floor carry readability, so the ambient can go dark enough that night
 // is unmistakable next to day and the pool of light around the team means something.
-const NIGHT_ALPHA = 0.08;
+const NIGHT_ALPHA = 1;
 // Things with their own light never sink below a floor in the dark. selfLit is that floor (0..1); `true`
 // means the standard running-lights level below (units, the beacon, the command center; replicated land
 // uses a dimmer floor of its own): dimmed enough to still read as night, bright enough to stay findable.

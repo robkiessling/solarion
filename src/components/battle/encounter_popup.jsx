@@ -5,7 +5,7 @@ import {approachTextFor, estimateSignatureRange, formatResourceList, isGarrisone
 import {POI_COLOR_KEYS, POI_GLYPHS, POI_TYPE_DEFAULTS} from "../../database/planet/poi_types";
 import {CAPABILITY_LABELS} from "../../database/planet/capabilities";
 import {PLANET_COLORS} from "../../database/planet/colors";
-import {ARENA_W, battleBlurb, battleHeadcount} from "../../lib/battle/sim";
+import {ARENA_W, battleBlurb, battleHeadcount, settleBattle} from "../../lib/battle/sim";
 import {CONTACT_MS, POPUP_INPUT_LOCK_MS} from "../../database/squad/tuning";
 import {promptActions} from "../../lib/planet/prompt_actions";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../../database/squad/equipment";
@@ -149,11 +149,23 @@ class EncounterPopup extends React.Component {
         );
     }
 
+    // The final frame as it stands now: the game time this result has held it for is counted from the first
+    // render that shows it (a deeper level's result is a new frame and starts its own count), and the frame's
+    // last marks fade over that time.
+    settledBattle(finalBattle) {
+        if (this.heldBattle !== finalBattle) {
+            this.heldBattle = finalBattle;
+            this.heldSince = this.props.elapsedTime;
+        }
+        return settleBattle(finalBattle, this.props.elapsedTime - this.heldSince);
+    }
+
     renderResult(poi, prompt) {
         const result = prompt.result;
-        // Battle results hold the field's final frame (frozen, nothing ticks it), so the fight's ending
-        // stays on screen instead of snapping down to the small prompt. The outcome takes the scene line's
-        // place in the footer, run together as one paragraph (see .battle-footer), over Continue.
+        // Battle results hold the field's final frame (nothing ticks it; only the marks left on it play out,
+        // see settledBattle), so the fight's ending stays on screen instead of snapping down to the small
+        // prompt. The outcome takes the scene line's place in the footer, run together as one paragraph (see
+        // .battle-footer), over Continue.
         const finalBattle = result.finalBattle;
         // A level of a deeper site fell: the result doubles as the descend-or-withdraw choice (a tunnel's
         // levels run ahead, not down)
@@ -206,7 +218,7 @@ class EncounterPopup extends React.Component {
         return (
             <React.Fragment>
                 {this.renderBattleHeader(finalBattle)}
-                <BattleCanvas battle={finalBattle}/>
+                <BattleCanvas battle={this.settledBattle(finalBattle)}/>
                 <div className="battle-footer"
                      style={this.state.footerHeight != null ? { minHeight: this.state.footerHeight } : undefined}>
                     {body}
@@ -241,7 +253,7 @@ class EncounterPopup extends React.Component {
                                     {'●'.repeat(equipment[id]) + '○'.repeat(Math.max(0, EQUIPMENT_DEFS[id].charges - equipment[id]))}
                                 </button>
                                 <Tooltip id={`battle-item-${id}-tip`} place="top">
-                                    {EQUIPMENT_DEFS[id].description} Charges reload on the powered grid.
+                                    {EQUIPMENT_DEFS[id].description} Reloads at base.
                                 </Tooltip>
                             </React.Fragment>
                         ))}

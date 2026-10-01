@@ -4,10 +4,10 @@ import database from '../../database/base/decisions';
 import {openDecision} from '../../redux/modules/decisions';
 
 /**
- * A pending decision request on a structure card: the terminal has something to ask (database/base/decisions.ts) and
- * put it on the desk instead of taking the screen. Sits in the card's upgrade list with a marker that is yellow
- * until the popup has been opened for it, grey after (the request is still there; the player has just looked and
- * left). Click opens the decision popup.
+ * A pending decision request on a structure card (or in the Expedition panel's Outfitting section): the terminal has
+ * something to ask (database/base/decisions.ts) and put it on the desk instead of taking the screen. Sits in the
+ * upgrade list with a marker that is yellow until the popup has been opened for it, grey after (the request is still
+ * there; the player has just looked and left). Click opens the decision popup.
  */
 function DecisionRow({ id, seen, openDecision }) {
     const record = database[id];

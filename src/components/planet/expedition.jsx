@@ -4,9 +4,11 @@ import {connect} from "react-redux";
 import {deploySquad, disbandSquad} from "../../redux/modules/squad";
 import {formatResourceList} from "../../lib/planet/pois";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../../database/squad/equipment";
+import {pendingForSquad} from "../../redux/modules/decisions";
 import {isOnGrid} from "../../lib/planet/squad";
 import {SQUAD_DRAIN_PER_TILE} from "../../database/squad/tuning";
 import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, getSquadUpgradeIds, ownedEquipment} from "../../redux/reducer";
+import DecisionRow from "../structures/decision_row";
 import DroidCount from "../structures/droid_count";
 import Upgrade from "../structures/upgrade";
 import Tooltip from "../ui/tooltip";
@@ -25,7 +27,8 @@ const chargeDots = (itemId, charges) =>
  */
 class Expedition extends React.Component {
     // The squad's gear: owned pieces (one-time factory upgrades / story salvage) ride along automatically.
-    // At base: names only (a fresh squad always leaves fully loaded). Fielded: charge dots per piece.
+    // At base: names only (a fresh squad always leaves fully loaded), comma separated. Fielded: charge dots per
+    // piece, which separate the pieces themselves (a comma after a dot reads as part of the count).
     renderEquipment(carried) {
         const ids = EQUIPMENT_ORDER.filter(id => carried[id] !== undefined);
         if (ids.length === 0) return null;
@@ -45,14 +48,14 @@ class Expedition extends React.Component {
                                 <span className="equipment-item">
                                     {this.props.squad ?
                                         `${EQUIPMENT_DEFS[id].name} ${chargeDots(id, carried[id])}` :
-                                        EQUIPMENT_DEFS[id].name}{i < ids.length - 1 && ','}
+                                        `${EQUIPMENT_DEFS[id].name}${i < ids.length - 1 ? ',' : ''}`}
                                 </span>
                             </React.Fragment>)}
                     </span>
                 </span>
                 <Tooltip id="equipment-tip">
                     <p className="tooltip-header">Equipment</p>
-                    <p>Fired with number keys mid-battle; charges reload on the powered grid.</p>
+                    <p>Fired with number keys mid-battle; charges reload at base.</p>
                 </Tooltip>
             </React.Fragment>
         );
@@ -87,7 +90,7 @@ class Expedition extends React.Component {
                     </span>
                     <Tooltip id="staging-battery-tip">
                         <p className="tooltip-header">Battery</p>
-                        <p>{`Drains ${formatStat(SQUAD_DRAIN_PER_TILE)} per tile off the grid; recharges on powered ground.`}</p>
+                        <p>{`Drains ${formatStat(SQUAD_DRAIN_PER_TILE)} per tile off the grid; recharges at base.`}</p>
                         <p>At zero the squad runs on reserve power: every tile costs a droid.</p>
                     </Tooltip>
                     {this.renderEquipment(this.props.ownedEquipment)}
@@ -125,7 +128,7 @@ class Expedition extends React.Component {
                         <p className="tooltip-header">Disband</p>
                         <p>Settles the expedition: surviving units stand down as whole droids, still
                             assigned to the team.</p>
-                        {!onGrid && <p>Return to powered ground to disband.</p>}
+                        {!onGrid && <p>Return to base to disband.</p>}
                     </Tooltip>
                 </div>
             </div>
@@ -133,11 +136,12 @@ class Expedition extends React.Component {
     }
 
     // Outfitting (staging only): one droid's combat spec, and under it the upgrades that exist purely for
-    // expeditions (equipment, combat stats, battery), offered here and nowhere else. The spec rows stay
-    // up with nothing on offer (the list is simply empty). Refits apply to the next deployment, so the
-    // section folds away while a squad is out.
+    // expeditions (equipment, combat stats, battery, tracks), offered here and nowhere else, with any pending
+    // squad decision above them (the machine asking sits over the machine offering, as on a structure card).
+    // The spec rows stay up with nothing on offer (the list is simply empty). Refits apply to the next
+    // deployment, so the section folds away while a squad is out.
     renderOutfitting() {
-        const { squad, squadUpgradeIds, droidStats } = this.props;
+        const { squad, squadUpgradeIds, squadDecisions, droidStats } = this.props;
         if (squad) return null;
 
         return (
@@ -156,8 +160,9 @@ class Expedition extends React.Component {
                     <span>Droid Swing:</span>
                     <span>{(droidStats.attackMs / 1000).toFixed(1)}s</span>
                 </span>
-                {squadUpgradeIds.length > 0 &&
+                {squadDecisions.length + squadUpgradeIds.length > 0 &&
                     <div className="outfitting-list">
+                        {squadDecisions.map(entry => <DecisionRow key={`decision-${entry.id}`} id={entry.id} seen={entry.seen}/>)}
                         {squadUpgradeIds.map(id => <Upgrade key={id} id={id}/>)}
                     </div>}
             </div>
@@ -207,6 +212,7 @@ const mapStateToProps = (state, ownProps) => {
         batteryCapacity: getBatteryCapacity(state), // staging range preview; fielded squads use their snapshot
         ownedEquipment: ownedEquipment(state),
         squadUpgradeIds: getSquadUpgradeIds(state),
+        squadDecisions: pendingForSquad(state.decisions),
         squadDroidData: state.planet.squadDroidData,
         multiplier: getReplicationMultiplier(state)
     };

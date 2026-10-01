@@ -138,7 +138,7 @@ export const POI_DEFS: PoiDef[] = [
     },
     {
         type: 'ambush', zone: 'a',
-        approachText: 'Sound from the rocks ahead. Then from behind.',
+        approachText: 'Sound from the rocks ahead.',
         hostiles: { defender: 3, runner: 3 }, reward: { resources: { refinedMinerals: [50, 100] } }
     },
     {
@@ -207,7 +207,7 @@ export const POI_DEFS: PoiDef[] = [
     {
         type: 'ambush', zone: 'c',
         approachText: 'A swath of creatures rapidly close in.',
-        hostiles: { runner: 12 }, reward: { resources: { refinedMinerals: [100, 120] } }
+        hostiles: { runner: 8 }, reward: { resources: { refinedMinerals: [100, 120] } }
     },
 
     {
@@ -230,7 +230,7 @@ export const POI_DEFS: PoiDef[] = [
     },
     // The cape at the southern end of zone c's land: a pre-war design archive holding two droid designs. The squad
     // sends the files home on the spot, and the choice between them (one permanent either/or) is put to the operator
-    // at the droid factory once the squad is off the field: the answer arms the trigger that asks.
+    // in Outfitting once the squad is off the field: the answer arms the trigger that asks.
     {
         type: 'storySite', point: 'G', name: 'Cape Archive',
         promptText: 'A survey station at the end of the cape. Its archive is still powered.',
@@ -273,237 +273,237 @@ export const POI_DEFS: PoiDef[] = [
         promptText: 'A field depot, door forced from outside, shelves still full{loot}.',
         reward: { resources: { refinedMinerals: [1000, 2000] } }
     },
-    {
-        type: 'fieldEvent', zone: ['b', 'd'], name: 'Signal',
-        promptText: 'Faint carrier, repeating. Not yours.',
-        choices: [
-            { label: 'Trace', revealNearest: true, resultText: 'Bearing fixed. Source marked.' }
-        ]
-    },
-    {
-        type: 'fieldEvent', zone: ['d', 'e'], name: 'Dormant Droid',
-        promptText: 'A dormant droid, half-buried. Same line as yours; an older serial.',
-        choices: [
-            { label: 'Recover', units: 1, battery: -10, resultText: 'Jump-started off the team\'s cells. It fell into formation without being told.' },
-            { label: 'Strip', reward: { resources: { refinedMinerals: [200, 400] } }, resultText: 'Plating and cells recovered. The core was left where it lay.' }
-        ]
-    },
-    {
-        type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Debris Field',
-        promptText: 'A collapsed relay mast. Structural alloy in the wreckage{loot}. Load it?',
-        choices: [
-            { label: 'Load', reward: { resources: { refinedMinerals: [200, 400] } } }
-        ]
-    },
-    {
-        type: 'ambush', zone: ['b', 'c', 'd'], count: 3,
-        approachText: 'Signatures rising out of the ground on three sides. They were waiting.',
-        hostiles: { defender: 2 }, reward: { resources: { refinedMinerals: [100, 200] } }
-    },
-    {
-        type: 'ambush', zone: ['d', 'e'], count: 3,
-        approachText: 'The ridge line moves. It was never empty.',
-        hostiles: { defender: 3 }, reward: { resources: { refinedMinerals: [150, 300] } }
-    },
-    {
-        type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Sighting', fleeting: true,
-        promptText: 'Movement on the ridge line. Two, then none.',
-        choices: [
-            { label: 'Observe', resultText: 'Nothing on the second pass. Whatever it was knows the ground better than the optics do.' }
-        ]
-    },
-
-    // ---- The far belt: the Override Module salvage, the red-herring wreckage, the first sealed vault
-    {
-        type: 'settlement', zone: 'g', territoryRadius: 2, discardedKg: [150, 300],
-        approachText: 'Earthworks in a ring, a dry canyon beyond. Returns along the rim in the hundreds and none below it.',
-        campApproachText: 'A group off the rim with a mass of smaller returns moving with them. The larger ones turn toward you. The smaller do not.',
-        levels: [
-            { hostiles: { defender: 18 }, opening: 'surround', reward: { resources: { refinedMinerals: [1200, 2000] } } },
-            { hostiles: { defender: 12 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [1500, 2500], energy: [3000, 5000] } } }
-        ],
-        camps: [
-            { hostiles: { defender: 5 }, reward: { resources: { refinedMinerals: [300, 600] } } },
-            { hostiles: { defender: 5 }, opening: 'surround', reward: { resources: { refinedMinerals: [300, 600] } } }
-        ]
-    },
-    {
-        // PLACEHOLDER site: the real Site 3 goes on a Gobi point. A site holds no ground and seeds no camps (it is an
-        // installation, not a city), so its outer watch is gone: the levels inside are the whole fight. Listed in the
-        // records, so it shows as a grey mark once Site 2 falls.
-        type: 'site', zone: 'h', number: 3, levelsShown: true, inRecords: true,
-        approachText: 'A facility dug into a canyon wall, stationary returns ringing it at intervals. Dense returns at the core, past counting from here.',
-        levels: [
-            { hostiles: { shelter: 1, defender: 18 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [1500, 2500] } } },
-            { hostiles: { defender: 16 }, opening: 'groups', terrain: 'ruins', reward: { resources: { energy: [4000, 7000] } } },
-            { hostiles: { defender: 14 }, opening: 'surround', reward: { resources: { refinedMinerals: [3000, 5000] } } }
-        ]
-    },
-    // Pre-war stores behind rubble: a seal (see SealDef) the squad has to work out how to clear. The seal line hints at
-    // the answer without naming it; the answer only shows to a squad carrying the charge (PLACEHOLDER: which vaults
-    // are sealed)
-    {
-        type: 'cache', zone: 'k', name: 'Sealed Vault',
-        seal: {
-            promptText: 'A vault door under a rockfall. The slab is cracked through; something with a real kick would finish it.',
-            choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
-        },
-        promptText: 'The rubble is through. Pre-war stores, palletised and dry{loot}.',
-        reward: { resources: { ore: [5000, 9000] } }
-    },
-    {
-        type: 'cache', zone: 'j', name: 'Convoy Trailer',
-        promptText: 'A convoy trailer, uncoupled and left{loot}.',
-        reward: { resources: { refinedMinerals: [2000, 4000] } }
-    },
-    {
-        type: 'storySite', zone: 'g',
-        promptText: 'A debris trail a kilometer long. Investigate?',
-        choices: [
-            { label: 'Explore', resultText: 'Wreckage strewn across a kilometer. The blast patterns came from above. Something attacked them.' }
-        ]
-    },
-    {
-        type: 'storySite', zone: 'h',
-        promptText: 'A hardened door in a hillside, still powered. Investigate?',
-        choices: [
-            { label: 'Explore', resultText: 'A command vault. Inside, an override module; its authorization codes are older than your directive.',
-                reward: { capability: 'overrideModule' } }
-        ]
-    },
-    {
-        type: 'fieldEvent', zone: ['g', 'h'], name: 'Wreck',
-        promptText: 'A chassis of your line, split along the spine. Recent.',
-        choices: [
-            { label: 'Search', battery: 25, resultText: 'Cells intact; whatever opened it wanted the core. The log ends mid-word.' }
-        ]
-    },
-    {
-        type: 'fieldEvent', zone: ['j', 'k'], name: 'Signal',
-        promptText: 'A carrier under the noise floor. Yours, in an older cipher.',
-        choices: [
-            { label: 'Trace', revealNearest: true, resultText: 'Bearing fixed. Source marked. It stopped transmitting when the trace locked.' }
-        ]
-    },
-    {
-        type: 'fieldEvent', zone: ['j', 'k'], name: 'Dormant Droid',
-        promptText: 'A droid, powered down and dug in. It faced outward when it stopped.',
-        choices: [
-            { label: 'Recover', units: 1, battery: -10, resultText: 'It came up with its weapon raised, then lowered it. It had been waiting for someone with the right serial.' },
-            { label: 'Strip', reward: { resources: { refinedMinerals: [400, 800] } }, resultText: 'Plating and cells recovered. Its last order was still in the buffer. Nobody read it.' }
-        ]
-    },
-    {
-        type: 'fieldEvent', zone: ['g', 'h', 'j'], count: 2, name: 'Debris Field',
-        promptText: 'A vehicle graveyard, stripped long ago. Not stripped of everything{loot}. Load it?',
-        choices: [
-            { label: 'Load', reward: { resources: { refinedMinerals: [500, 1000] } } }
-        ]
-    },
-    {
-        type: 'ambush', zone: ['f', 'g', 'h', 'i'], count: 4,
-        approachText: 'Contact on the flanks, closing fast. The column you saw was not the whole of them.',
-        hostiles: { defender: 5 }, reward: { resources: { refinedMinerals: [250, 500] } }
-    },
-    {
-        type: 'ambush', zone: ['j', 'k'], count: 3,
-        approachText: 'Dust plumes converging. They have done this before.',
-        hostiles: { defender: 7 }, reward: { resources: { refinedMinerals: [350, 700] } }
-    },
-    {
-        type: 'fieldEvent', zone: ['f', 'g', 'h', 'i', 'j', 'k'], count: 3, name: 'Sighting', fleeting: true,
-        promptText: 'A column on the horizon, moving in step. Not receding.',
-        choices: [
-            { label: 'Observe', resultText: 'It held its heading and passed. The optics counted more than the team could take.' }
-        ]
-    },
-
-    // ---- The far continents (finale): two hard settlements, one cache, the command ruin + hive heart (PLACEHOLDER
-    // story texts here and above: the real ~12-log mystery is authored in the content pass). The first settlement runs three levels unannounced, and its bottom is barely defended:
-    // the largest haul on the planet behind the weakest garrison, and the largest discard.
-    {
-        type: 'settlement', zone: 'q', territoryRadius: 2, discardedKg: [2300, 3500],
-        approachText: 'Ruins on the scale of a city, still inhabited. Returns in the thousands, scattered thin across a wide front.',
-        campApproachText: 'A group in the ruins, stationary until you were seen. Then all of them moving at once.',
-        levels: [
-            { hostiles: { defender: 30 }, opening: 'groups', spread: 'loose', terrain: 'ruins', reward: { resources: { refinedMinerals: [2000, 3500] } } },
-            { hostiles: { defender: 22 }, opening: 'surround', terrain: 'ruins', reward: { resources: { refinedMinerals: [2500, 4000], energy: [6000, 10000] } } },
-            { hostiles: { defender: 4 }, opening: 'groups', reward: { resources: { refinedMinerals: [8000, 12000] } } }
-        ],
-        camps: [
-            { hostiles: { defender: 8 }, reward: { resources: { refinedMinerals: [600, 1000] } } },
-            { hostiles: { defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000] } } },
-            { hostiles: { defender: 8 }, opening: 'groups', spread: 'loose', reward: { resources: { refinedMinerals: [600, 1000] } } }
-        ]
-    },
-    {
-        type: 'settlement', zone: 't', territoryRadius: 2, levelsShown: true, discardedKg: [400, 700],
-        approachText: 'A fortress in a canyon mouth. Rings of returns around something that does not move, hundreds deep.',
-        campApproachText: 'An outer ring of the fortress, turning inward on you.',
-        levels: [
-            { hostiles: { shelter: 2, defender: 32 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [3000, 5000] } } },
-            { hostiles: { defender: 28 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [5000, 8000], energy: [10000, 15000] } } }
-        ],
-        camps: [
-            { hostiles: { defender: 10 }, reward: { resources: { refinedMinerals: [800, 1400] } } },
-            { hostiles: { defender: 10 }, terrain: 'canyonSmall', opening: 'marked', reward: { resources: { refinedMinerals: [800, 1400] } } },
-            { hostiles: { defender: 10 }, opening: 'surround', reward: { resources: { refinedMinerals: [800, 1400] } } }
-        ]
-    },
-    {
-        type: 'cache', zone: 'l', name: 'Sealed Vault',
-        seal: {
-            promptText: 'A vault door under a rockfall. The slab is cracked through; something with a real kick would finish it.',
-            choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
-        },
-        promptText: 'Behind the rubble, a strongroom. Refined stock, stamped and racked{loot}.',
-        reward: { resources: { refinedMinerals: [5000, 8000] } }
-    },
-    {
-        type: 'storySite', zone: 'q',
-        promptText: 'A ruined complex on the scale of a city block. Investigate?',
-        choices: [
-            { label: 'Explore', resultText: 'The ruined command center of the first swarm. The final log is intact.' }
-        ]
-    },
-    {
-        type: 'storySite', zone: 't',
-        promptText: 'An opening in the rock, warm, exhaling. Investigate?',
-        choices: [
-            { label: 'Explore', resultText: 'A vast organic chamber, pulsing faintly. The hive is not from this planet either.' }
-        ]
-    },
-    {
-        type: 'fieldEvent', zone: ['q', 't'], name: 'Wreck',
-        promptText: 'A chassis of your line, intact, powered down by hand. Someone chose to stop here.',
-        choices: [
-            { label: 'Search', battery: 40, resultText: 'Full cells. The log is complete, and it was not written for you. It was written for whoever came after.' }
-        ]
-    },
-    {
-        type: 'fieldEvent', zone: ['l', 'q', 't'], count: 2, name: 'Debris Field',
-        promptText: 'A shattered hauler, cargo spilled down the slope{loot}. Load it?',
-        choices: [
-            { label: 'Load', reward: { resources: { refinedMinerals: [1200, 2000] } } }
-        ]
-    },
-    {
-        type: 'ambush', zone: ['l', 'q', 't'], count: 4,
-        approachText: 'They come out of the ruins in silence, from every doorway at once.',
-        hostiles: { defender: 10 }, reward: { resources: { refinedMinerals: [500, 1000] } }
-    },
-    {
-        type: 'ambush', zone: ['m', 'n', 'o', 'p', 'r', 's'], count: 3,
-        approachText: 'Nothing on the optics until it is everywhere.',
-        hostiles: { defender: 8 }, reward: { resources: { refinedMinerals: [400, 800] } }
-    },
-    {
-        type: 'fieldEvent', zone: ['l', 'm', 'n', 'q', 't'], count: 3, name: 'Sighting', fleeting: true,
-        promptText: 'Signatures everywhere the optics turn. None of them moving toward you. Yet.',
-        choices: [
-            { label: 'Observe', resultText: 'They are not hunting. They are tending something. Logged.' }
-        ]
-    },
+    // {
+    //     type: 'fieldEvent', zone: ['b', 'd'], name: 'Signal',
+    //     promptText: 'Faint carrier, repeating. Not yours.',
+    //     choices: [
+    //         { label: 'Trace', revealNearest: true, resultText: 'Bearing fixed. Source marked.' }
+    //     ]
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['d', 'e'], name: 'Dormant Droid',
+    //     promptText: 'A dormant droid, half-buried. Same line as yours; an older serial.',
+    //     choices: [
+    //         { label: 'Recover', units: 1, battery: -10, resultText: 'Jump-started off the team\'s cells. It fell into formation without being told.' },
+    //         { label: 'Strip', reward: { resources: { refinedMinerals: [200, 400] } }, resultText: 'Plating and cells recovered. The core was left where it lay.' }
+    //     ]
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Debris Field',
+    //     promptText: 'A collapsed relay mast. Structural alloy in the wreckage{loot}. Load it?',
+    //     choices: [
+    //         { label: 'Load', reward: { resources: { refinedMinerals: [200, 400] } } }
+    //     ]
+    // },
+    // {
+    //     type: 'ambush', zone: ['b', 'c', 'd'], count: 3,
+    //     approachText: 'Signatures rising out of the ground on three sides. They were waiting.',
+    //     hostiles: { defender: 2 }, reward: { resources: { refinedMinerals: [100, 200] } }
+    // },
+    // {
+    //     type: 'ambush', zone: ['d', 'e'], count: 3,
+    //     approachText: 'The ridge line moves. It was never empty.',
+    //     hostiles: { defender: 3 }, reward: { resources: { refinedMinerals: [150, 300] } }
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Sighting', fleeting: true,
+    //     promptText: 'Movement on the ridge line. Two, then none.',
+    //     choices: [
+    //         { label: 'Observe', resultText: 'Nothing on the second pass. Whatever it was knows the ground better than the optics do.' }
+    //     ]
+    // },
+    //
+    // // ---- The far belt: the Override Module salvage, the red-herring wreckage, the first sealed vault
+    // {
+    //     type: 'settlement', zone: 'g', territoryRadius: 2, discardedKg: [150, 300],
+    //     approachText: 'Earthworks in a ring, a dry canyon beyond. Returns along the rim in the hundreds and none below it.',
+    //     campApproachText: 'A group off the rim with a mass of smaller returns moving with them. The larger ones turn toward you. The smaller do not.',
+    //     levels: [
+    //         { hostiles: { defender: 18 }, opening: 'surround', reward: { resources: { refinedMinerals: [1200, 2000] } } },
+    //         { hostiles: { defender: 12 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [1500, 2500], energy: [3000, 5000] } } }
+    //     ],
+    //     camps: [
+    //         { hostiles: { defender: 5 }, reward: { resources: { refinedMinerals: [300, 600] } } },
+    //         { hostiles: { defender: 5 }, opening: 'surround', reward: { resources: { refinedMinerals: [300, 600] } } }
+    //     ]
+    // },
+    // {
+    //     // PLACEHOLDER site: the real Site 3 goes on a Gobi point. A site holds no ground and seeds no camps (it is an
+    //     // installation, not a city), so its outer watch is gone: the levels inside are the whole fight. Listed in the
+    //     // records, so it shows as a grey mark once Site 2 falls.
+    //     type: 'site', zone: 'h', number: 3, levelsShown: true, inRecords: true,
+    //     approachText: 'A facility dug into a canyon wall, stationary returns ringing it at intervals. Dense returns at the core, past counting from here.',
+    //     levels: [
+    //         { hostiles: { shelter: 1, defender: 18 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [1500, 2500] } } },
+    //         { hostiles: { defender: 16 }, opening: 'groups', terrain: 'ruins', reward: { resources: { energy: [4000, 7000] } } },
+    //         { hostiles: { defender: 14 }, opening: 'surround', reward: { resources: { refinedMinerals: [3000, 5000] } } }
+    //     ]
+    // },
+    // // Pre-war stores behind rubble: a seal (see SealDef) the squad has to work out how to clear. The seal line hints at
+    // // the answer without naming it; the answer only shows to a squad carrying the charge (PLACEHOLDER: which vaults
+    // // are sealed)
+    // {
+    //     type: 'cache', zone: 'k', name: 'Sealed Vault',
+    //     seal: {
+    //         promptText: 'A vault door under a rockfall. The slab is cracked through; something with a real kick would finish it.',
+    //         choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
+    //     },
+    //     promptText: 'The rubble is through. Pre-war stores, palletised and dry{loot}.',
+    //     reward: { resources: { ore: [5000, 9000] } }
+    // },
+    // {
+    //     type: 'cache', zone: 'j', name: 'Convoy Trailer',
+    //     promptText: 'A convoy trailer, uncoupled and left{loot}.',
+    //     reward: { resources: { refinedMinerals: [2000, 4000] } }
+    // },
+    // {
+    //     type: 'storySite', zone: 'g',
+    //     promptText: 'A debris trail a kilometer long. Investigate?',
+    //     choices: [
+    //         { label: 'Explore', resultText: 'Wreckage strewn across a kilometer. The blast patterns came from above. Something attacked them.' }
+    //     ]
+    // },
+    // {
+    //     type: 'storySite', zone: 'h',
+    //     promptText: 'A hardened door in a hillside, still powered. Investigate?',
+    //     choices: [
+    //         { label: 'Explore', resultText: 'A command vault. Inside, an override module; its authorization codes are older than your directive.',
+    //             reward: { capability: 'overrideModule' } }
+    //     ]
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['g', 'h'], name: 'Wreck',
+    //     promptText: 'A chassis of your line, split along the spine. Recent.',
+    //     choices: [
+    //         { label: 'Search', battery: 25, resultText: 'Cells intact; whatever opened it wanted the core. The log ends mid-word.' }
+    //     ]
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['j', 'k'], name: 'Signal',
+    //     promptText: 'A carrier under the noise floor. Yours, in an older cipher.',
+    //     choices: [
+    //         { label: 'Trace', revealNearest: true, resultText: 'Bearing fixed. Source marked. It stopped transmitting when the trace locked.' }
+    //     ]
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['j', 'k'], name: 'Dormant Droid',
+    //     promptText: 'A droid, powered down and dug in. It faced outward when it stopped.',
+    //     choices: [
+    //         { label: 'Recover', units: 1, battery: -10, resultText: 'It came up with its weapon raised, then lowered it. It had been waiting for someone with the right serial.' },
+    //         { label: 'Strip', reward: { resources: { refinedMinerals: [400, 800] } }, resultText: 'Plating and cells recovered. Its last order was still in the buffer. Nobody read it.' }
+    //     ]
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['g', 'h', 'j'], count: 2, name: 'Debris Field',
+    //     promptText: 'A vehicle graveyard, stripped long ago. Not stripped of everything{loot}. Load it?',
+    //     choices: [
+    //         { label: 'Load', reward: { resources: { refinedMinerals: [500, 1000] } } }
+    //     ]
+    // },
+    // {
+    //     type: 'ambush', zone: ['f', 'g', 'h', 'i'], count: 4,
+    //     approachText: 'Contact on the flanks, closing fast. The column you saw was not the whole of them.',
+    //     hostiles: { defender: 5 }, reward: { resources: { refinedMinerals: [250, 500] } }
+    // },
+    // {
+    //     type: 'ambush', zone: ['j', 'k'], count: 3,
+    //     approachText: 'Dust plumes converging. They have done this before.',
+    //     hostiles: { defender: 7 }, reward: { resources: { refinedMinerals: [350, 700] } }
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['f', 'g', 'h', 'i', 'j', 'k'], count: 3, name: 'Sighting', fleeting: true,
+    //     promptText: 'A column on the horizon, moving in step. Not receding.',
+    //     choices: [
+    //         { label: 'Observe', resultText: 'It held its heading and passed. The optics counted more than the team could take.' }
+    //     ]
+    // },
+    //
+    // // ---- The far continents (finale): two hard settlements, one cache, the command ruin + hive heart (PLACEHOLDER
+    // // story texts here and above: the real ~12-log mystery is authored in the content pass). The first settlement runs three levels unannounced, and its bottom is barely defended:
+    // // the largest haul on the planet behind the weakest garrison, and the largest discard.
+    // {
+    //     type: 'settlement', zone: 'q', territoryRadius: 2, discardedKg: [2300, 3500],
+    //     approachText: 'Ruins on the scale of a city, still inhabited. Returns in the thousands, scattered thin across a wide front.',
+    //     campApproachText: 'A group in the ruins, stationary until you were seen. Then all of them moving at once.',
+    //     levels: [
+    //         { hostiles: { defender: 30 }, opening: 'groups', spread: 'loose', terrain: 'ruins', reward: { resources: { refinedMinerals: [2000, 3500] } } },
+    //         { hostiles: { defender: 22 }, opening: 'surround', terrain: 'ruins', reward: { resources: { refinedMinerals: [2500, 4000], energy: [6000, 10000] } } },
+    //         { hostiles: { defender: 4 }, opening: 'groups', reward: { resources: { refinedMinerals: [8000, 12000] } } }
+    //     ],
+    //     camps: [
+    //         { hostiles: { defender: 8 }, reward: { resources: { refinedMinerals: [600, 1000] } } },
+    //         { hostiles: { defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000] } } },
+    //         { hostiles: { defender: 8 }, opening: 'groups', spread: 'loose', reward: { resources: { refinedMinerals: [600, 1000] } } }
+    //     ]
+    // },
+    // {
+    //     type: 'settlement', zone: 't', territoryRadius: 2, levelsShown: true, discardedKg: [400, 700],
+    //     approachText: 'A fortress in a canyon mouth. Rings of returns around something that does not move, hundreds deep.',
+    //     campApproachText: 'An outer ring of the fortress, turning inward on you.',
+    //     levels: [
+    //         { hostiles: { shelter: 2, defender: 32 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [3000, 5000] } } },
+    //         { hostiles: { defender: 28 }, terrain: 'canyonSmall', reward: { resources: { refinedMinerals: [5000, 8000], energy: [10000, 15000] } } }
+    //     ],
+    //     camps: [
+    //         { hostiles: { defender: 10 }, reward: { resources: { refinedMinerals: [800, 1400] } } },
+    //         { hostiles: { defender: 10 }, terrain: 'canyonSmall', opening: 'marked', reward: { resources: { refinedMinerals: [800, 1400] } } },
+    //         { hostiles: { defender: 10 }, opening: 'surround', reward: { resources: { refinedMinerals: [800, 1400] } } }
+    //     ]
+    // },
+    // {
+    //     type: 'cache', zone: 'l', name: 'Sealed Vault',
+    //     seal: {
+    //         promptText: 'A vault door under a rockfall. The slab is cracked through; something with a real kick would finish it.',
+    //         choices: [{ label: 'Blow it', equipment: 'demoCharge' }]
+    //     },
+    //     promptText: 'Behind the rubble, a strongroom. Refined stock, stamped and racked{loot}.',
+    //     reward: { resources: { refinedMinerals: [5000, 8000] } }
+    // },
+    // {
+    //     type: 'storySite', zone: 'q',
+    //     promptText: 'A ruined complex on the scale of a city block. Investigate?',
+    //     choices: [
+    //         { label: 'Explore', resultText: 'The ruined command center of the first swarm. The final log is intact.' }
+    //     ]
+    // },
+    // {
+    //     type: 'storySite', zone: 't',
+    //     promptText: 'An opening in the rock, warm, exhaling. Investigate?',
+    //     choices: [
+    //         { label: 'Explore', resultText: 'A vast organic chamber, pulsing faintly. The hive is not from this planet either.' }
+    //     ]
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['q', 't'], name: 'Wreck',
+    //     promptText: 'A chassis of your line, intact, powered down by hand. Someone chose to stop here.',
+    //     choices: [
+    //         { label: 'Search', battery: 40, resultText: 'Full cells. The log is complete, and it was not written for you. It was written for whoever came after.' }
+    //     ]
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['l', 'q', 't'], count: 2, name: 'Debris Field',
+    //     promptText: 'A shattered hauler, cargo spilled down the slope{loot}. Load it?',
+    //     choices: [
+    //         { label: 'Load', reward: { resources: { refinedMinerals: [1200, 2000] } } }
+    //     ]
+    // },
+    // {
+    //     type: 'ambush', zone: ['l', 'q', 't'], count: 4,
+    //     approachText: 'They come out of the ruins in silence, from every doorway at once.',
+    //     hostiles: { defender: 10 }, reward: { resources: { refinedMinerals: [500, 1000] } }
+    // },
+    // {
+    //     type: 'ambush', zone: ['m', 'n', 'o', 'p', 'r', 's'], count: 3,
+    //     approachText: 'Nothing on the optics until it is everywhere.',
+    //     hostiles: { defender: 8 }, reward: { resources: { refinedMinerals: [400, 800] } }
+    // },
+    // {
+    //     type: 'fieldEvent', zone: ['l', 'm', 'n', 'q', 't'], count: 3, name: 'Sighting', fleeting: true,
+    //     promptText: 'Signatures everywhere the optics turn. None of them moving toward you. Yet.',
+    //     choices: [
+    //         { label: 'Observe', resultText: 'They are not hunting. They are tending something. Logged.' }
+    //     ]
+    // },
 
     // ---- Tunnels: each digit painted on the map (two mouths per digit) is one passage. Stepping into a mouth the
     // first time is the fight inside, on tunnel ground (several `levels` = a long tunnel held in stages, with

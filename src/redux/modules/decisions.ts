@@ -70,7 +70,7 @@ export default function reducer(state: DecisionsState = initialState, action: Ga
 // Action Creators
 
 /**
- * Puts a request on the operator's desk: a marked row on the owning structure's card. Nothing opens. Skipped if the
+ * Puts a request on the operator's desk: a marked row on the owning structure's card (or in Outfitting). Nothing opens. Skipped if the
  * decision is already pending or has nothing left to ask (every option hidden, e.g. both remedies of a wall taken).
  * This is what triggers call.
  */
@@ -158,4 +158,8 @@ export function bodyLines(state: RootState, record: DecisionRecord): string[] {
 /** The pending requests whose row belongs on this structure's card */
 export function pendingForStructure(state: DecisionsState, structureId: StructureId) {
     return state.pending.filter(entry => getRecord(entry.id as DecisionId).structure === structureId);
+}
+/** The pending requests whose row belongs in the Expedition panel's Outfitting section */
+export function pendingForSquad(state: DecisionsState) {
+    return state.pending.filter(entry => getRecord(entry.id as DecisionId).squad);
 }

@@ -38,13 +38,14 @@ export const LOG_SPEED = 1;
 
 // A fresh map starts fully revealed (every tile explored, every site visible). Read by the planet module's
 // generateMap action, at call time, so the import cycle through the redux modules is harmless.
-export const EXPLORE_EVERYTHING = true;
+export const EXPLORE_EVERYTHING = false;
 
 // Draws every concealed POI (camps on held ground, field events on open ground) on the map before the squad
 // has found it, dimmed. Read by the planet component's overlay pass.
-export const SHOW_CONCEALED_POIS = true;
+export const SHOW_CONCEALED_POIS = false;
 
-export const INFINITE_CHARGE = false; // testing toggle: the battery never drains off-grid (no reserve power, no field wipes)
+// Battery never drains off-grid (no reserve power, no field wipes)
+export const INFINITE_CHARGE = false;
 
 export function runGameMode(dispatch: Dispatch) {
     switch (GAME_MODE) {
@@ -313,7 +314,7 @@ function skipToStar(dispatch: Dispatch) {
     ] satisfies UpgradeId[]).forEach(upgrade => dispatch(fromUpgrades.researchForFree(upgrade)));
 
     dispatch(fromPlanet.startExploringMap());
-    // Normally learned once the first settlement is cleared (the replicationOnline sequence)
+    // Normally learned with the third command-center copy (replication_site3 starts the replicationOnline sequence)
     dispatch(fromAbilities.learn('replicate'));
     dispatch(fromResources.produce({
         developedLand: 1000

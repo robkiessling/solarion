@@ -1137,6 +1137,17 @@ function advanceStep(battle: Battle, dtMs: number, events: BattleEvent[]) {
 }
 
 /**
+ * A finished battle's field `sinceMs` after its last tick, for the result popup holding the final frame. Nothing
+ * moves, but the marks still on it (the blast or the deaths that ended the fight, a strike mid-lunge) age and
+ * fade as they would have, instead of standing frozen over the outcome. Settles for good once the last mark
+ * has had its full life.
+ */
+export function settleBattle(battle: Battle, sinceMs: number): Battle {
+    const elapsedMs = battle.elapsedMs + Math.min(Math.max(sinceMs, 0), FX_TTL_MS);
+    return { ...battle, elapsedMs, fx: battle.fx.filter(f => elapsedMs - f.t < FX_TTL_MS) };
+}
+
+/**
  * Applies an equipment piece's effect (EQUIPMENT_DEFS[itemId].effect) to the battle. Pure; charge
  * accounting is the caller's job. All effects are instant and untargeted for now (aiming is a later
  * positional upgrade): the demo charge self-targets the densest hostile clump and never harms droids.

@@ -88,8 +88,9 @@
   }
 }
 
-// The request row on a structure card (structures/decision_row.jsx): styled like an upgrade row, amber where
-// upgrades are green. Stays amber until it's answered; the machine's request doesn't fade for having been read.
+// The request row on a structure card or in Outfitting (structures/decision_row.jsx): styled like an upgrade row,
+// amber where upgrades are green. Stays amber until it's answered; the machine's request doesn't fade for having
+// been read.
 $decision-color: #f2c94c;
 
 .decision-row {
