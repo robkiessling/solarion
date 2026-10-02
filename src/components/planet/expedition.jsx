@@ -55,13 +55,13 @@ class Expedition extends React.Component {
                     </span>
                 </span>
                 {/* One tooltip per piece: what it does (its upgrade's card text, the only place a found piece's
-                    text is read outside a fight) and the charges a fresh loadout holds (read from the state, not
+                    text is read outside a fight) and the stock a fresh loadout holds (read from the state, not
                     written into the text, so it follows whatever raises it) */}
                 {ids.map(id =>
                     <Tooltip key={id} id={`equipment-${id}-tip`}>
                         <p className="tooltip-header">{EQUIPMENT_DEFS[id].name}</p>
                         <p>{upgradesDatabase[EQUIPMENT_DEFS[id].upgradeId].description}</p>
-                        <p>Charges: {this.props.ownedEquipment[id] ?? EQUIPMENT_DEFS[id].charges}</p>
+                        <p>Stock: {this.props.ownedEquipment[id] ?? EQUIPMENT_DEFS[id].charges}</p>
                     </Tooltip>)}
             </React.Fragment>
         );

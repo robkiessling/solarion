@@ -10,15 +10,17 @@
 import {upgrade, type UpgradeRecord} from "../base/upgrade_record";
 import {EQUIPMENT_DEFS, type EquipmentId} from "./equipment";
 
-// An equipment upgrade's card text: the manifest's own line for the piece (the battle popup shows the same one,
-// so the two can't drift) and where it recharges (a wording that holds for one charge or several). "Base" covers every powered tile: sites and replicated land are
-// copies of the base, and it is the word the terminal already uses for coming home. No charge count: how many
-// charges a piece holds is meant to grow with play, so the count is shown live where the piece is listed (its
-// dots, its tooltip), never frozen into text.
+// An equipment upgrade's card text: the manifest's own line for the piece and where its stock comes back (a wording
+// that holds for a stock of one or several; the battle popup shows this same text). The player never reads "charge"
+// or "recharge" for equipment: those words belong to the battery, whose tooltip says "recharges at base", so gear
+// has a "stock" and "restocks". "Base" covers every powered tile: sites and replicated land are copies of the base,
+// and it is the word the terminal already uses for coming home. No count: how much stock a piece holds is meant
+// to grow with play, so the count is shown live where the piece is listed (its dots, its tooltip), never frozen
+// into text.
 // `itemId` is an EquipmentId, but naming it in the signature would make the tables' types circular (the manifest's
 // `upgradeId` is typed by this table's keys); a wrong id fails here as the module loads.
 function equipmentDescription(itemId: string): string {
-    return `${EQUIPMENT_DEFS[itemId as EquipmentId].description} Recharges at base.`;
+    return `${EQUIPMENT_DEFS[itemId as EquipmentId].description} Restocks at base.`;
 }
 
 export const SQUAD_UPGRADES = {

@@ -258,7 +258,7 @@ class EncounterPopup extends React.Component {
                                     {'●'.repeat(equipment[id]) + '○'.repeat(Math.max(0, EQUIPMENT_DEFS[id].charges - equipment[id]))}
                                 </button>
                                 <Tooltip id={`battle-item-${id}-tip`} place="top">
-                                    {EQUIPMENT_DEFS[id].description} Recharges at base.
+                                    {upgradesDatabase[EQUIPMENT_DEFS[id].upgradeId].description}
                                 </Tooltip>
                             </React.Fragment>
                         ))}

@@ -6,7 +6,7 @@
  * battle and reload when the squad touches the powered grid (everyone heals at home, gear reloads at
  * home). WHAT each piece does mechanically lives in the `effect` block (interpreted by lib/battle/sim.ts);
  * `description` says the same thing to the player, numbers included, and is the one text for a piece (the
- * battle popup shows it, and the upgrade's card text is built from it in database/squad/upgrades.ts).
+ * upgrade's card text is built from it in database/squad/upgrades.ts, and the battle popup shows that card text).
  */
 
 import type {UpgradeId} from "../base/upgrades";
