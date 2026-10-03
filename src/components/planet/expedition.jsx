@@ -6,7 +6,7 @@ import {formatResourceList} from "../../lib/planet/pois";
 import {EQUIPMENT_DEFS, EQUIPMENT_ORDER} from "../../database/squad/equipment";
 import upgradesDatabase from "../../database/base/upgrades";
 import {pendingForSquad} from "../../redux/modules/decisions";
-import {isOnGrid} from "../../lib/planet/squad";
+import {isOnGrid, squadFullSize} from "../../lib/planet/squad";
 import {SQUAD_DRAIN_PER_TILE} from "../../database/squad/tuning";
 import {getBatteryCapacity, getDroidStats, getReplicationMultiplier, getSquadUpgradeIds, ownedEquipment} from "../../redux/reducer";
 import DecisionRow from "../structures/decision_row";
@@ -113,7 +113,7 @@ class Expedition extends React.Component {
                             HUD's squad health shows them too, as the part of the bar a grid repair can't refill).
                             A replicated force tints the icon pink instead of spelling out the math. */}
                         <span>
-                            {squad.squadSize} / {(squad.assignedDroids || squad.squadSize) * (squad.multiplier || 1)}{' '}
+                            {squad.squadSize} / {squadFullSize(squad)}{' '}
                             <span className={`icon-vintage-robot${(squad.multiplier || 1) > 1 ? ' replication-x' : ''}`}/>
                         </span>
                     </span>

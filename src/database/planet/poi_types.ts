@@ -80,8 +80,9 @@ export interface PoiChoiceDef {
     reward?: RewardDef;
     /** battery change on the squad, clamped to [0, capacity] */
     battery?: number;
-    /** units added to the fielded roster, at full hull */
-    units?: number;
+    /** droids that join the squad, at full hull, and come home with it: the player owns that many more from here on.
+     * Each is one unit in the field whatever the squad's replication multiplier; it replicates at base. */
+    droids?: number;
     /** flips the nearest concealed POI (camp, event or ambush) to available and marks its tile */
     revealNearest?: boolean;
     /** spends one charge of a piece of squad equipment (database/squad/equipment.ts). The answer is NOT LISTED unless
@@ -133,7 +134,7 @@ export interface CacheDef extends PlacedDef {
     reward: RewardDef;
 }
 /** A ruin with a log, visible once scouted: its answers (usually one Explore that narrates the log, and pays any
- * salvage the site holds). One that proves to be working hardware says what its tile `becomes`. */
+ * salvage the site holds; a find can be a real choice, a droid repaired or scrapped). One that proves to be working hardware says what its tile `becomes`. */
 export interface StorySiteDef extends PlacedDef {
     type: 'storySite';
     promptText: string;

@@ -203,8 +203,8 @@ class EncounterPopup extends React.Component {
                     <span className="outcome-line">Loaded {formatResourceList(result.loaded)}.</span>}
                 {result.battery != null && result.battery !== 0 &&
                     <span className="outcome-line">Battery {result.battery > 0 ? '+' : ''}{result.battery}.</span>}
-                {result.unitsGained > 0 &&
-                    <span className="outcome-line">Recovered {result.unitsGained} {result.unitsGained > 1 ? 'droids' : 'droid'}.</span>}
+                {result.droidsGained > 0 &&
+                    <span className="outcome-line">Recovered {result.droidsGained} {result.droidsGained > 1 ? 'droids' : 'droid'}.</span>}
                 {result.equipmentSpent &&
                     <span className="outcome-line">{EQUIPMENT_DEFS[result.equipmentSpent].name} spent.</span>}
                 {descent &&

@@ -46,8 +46,11 @@ export interface Squad {
     facing: [number, number];
     battery: number;
     batteryCapacity: number;
-    /** droids consumed from the pool at deploy */
+    /** droids consumed from the pool at deploy, plus any recovered in the field */
     assignedDroids: number;
+    /** droids recovered in the field and not yet back at base: each is one unit until the squad touches the grid,
+     * where it replicates into a full stack like the rest */
+    unreplicated?: number;
     /** replication multiplier snapshotted at deploy */
     multiplier: number;
     /** current roster in effective units */
@@ -111,7 +114,7 @@ export function squadBatteryCapacity(squad: Squad) {
  */
 export function squadHp(squad: Squad): { hp: number, hpMax: number } {
     const unitHp = (squad.droidStats || DROID_BASE_STATS).hp;
-    const fielded = Math.max(squad.squadSize, (squad.assignedDroids || squad.squadSize) * (squad.multiplier || 1));
+    const fielded = Math.max(squad.squadSize, squadFullSize(squad));
     const hpMax = fielded * unitHp;
     const battle = squad.fighting && squad.fighting.battle;
     const hp = battle ?
@@ -158,7 +161,7 @@ export function createSquad(homeCoord: Coord, assignedDroids = 1, multiplier = 1
 // (the droids recovered, each a full stack again), so standing down is never a free refill worth
 // clicking through after every fight. It only ever adds units: a roster the settlement would round
 // down keeps what it has until the squad does disband.
-export function restoredOnGrid(squad: Squad): Pick<Squad, 'battery' | 'squadSize' | 'droidHp' | 'equipment'> {
+export function restoredOnGrid(squad: Squad): Pick<Squad, 'battery' | 'squadSize' | 'droidHp' | 'equipment' | 'unreplicated'> {
     const maxHp = (squad.droidStats || DROID_BASE_STATS).hp;
     let { squadSize, droidHp, equipment } = squad;
     const settledSize = droidsRecovered(squad) * (squad.multiplier || 1);
@@ -172,12 +175,21 @@ export function restoredOnGrid(squad: Squad): Pick<Squad, 'battery' | 'squadSize
     if (equipment && typedEntries(equipment).some(([id, n]) => n < EQUIPMENT_DEFS[id].charges)) {
         equipment = mapObject(equipment, id => EQUIPMENT_DEFS[id].charges);
     }
-    return { battery: squadBatteryCapacity(squad), squadSize, droidHp, equipment };
+    return { battery: squadBatteryCapacity(squad), squadSize, droidHp, equipment, unreplicated: 0 };
 }
 
+// The roster with no losses, in units: a full stack per assigned droid, except a droid recovered in the field,
+// which is one unit until the squad touches the grid (replication happens at base)
+export function squadFullSize(squad: Squad): number {
+    const multiplier = squad.multiplier || 1;
+    return (squad.assignedDroids || squad.squadSize) * multiplier - (squad.unreplicated || 0) * (multiplier - 1);
+}
+
+// A droid recovered in the field counts as its whole stack here (it is one droid, whatever it fields)
 export function droidsRecovered(squad: Squad): number {
+    const multiplier = squad.multiplier || 1;
     return Math.min(squad.assignedDroids || squad.squadSize,
-        Math.round(squad.squadSize / (squad.multiplier || 1)));
+        Math.round((squad.squadSize + (squad.unreplicated || 0) * (multiplier - 1)) / multiplier));
 }
 
 // The POI a step onto `coord` makes contact with, or null: an available (discovered, unresolved) one, or a
@@ -233,7 +245,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
         return { squad: {...squad, fighting: null}, reveals: [], events };
     }
 
-    let {coord, path, moveProgress, battery, droidHp, equipment, squadSize} = squad;
+    let {coord, path, moveProgress, battery, droidHp, equipment, squadSize, unreplicated} = squad;
     path = path ? path.slice() : [];
     moveProgress = (moveProgress || 0) + moveAmountMs;
 
@@ -277,7 +289,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
         }
 
         if (isOnGrid(map, coord)) {
-            ({ battery, squadSize, droidHp, equipment } = restoredOnGrid({ ...squad, battery, squadSize, droidHp, equipment }));
+            ({ battery, squadSize, droidHp, equipment, unreplicated } = restoredOnGrid({ ...squad, battery, squadSize, droidHp, equipment, unreplicated }));
             events.push({ type: 'onGrid' });
         }
         else if (map[coord[0]][coord[1]].terrain === TERRAINS.station.key) {
@@ -296,7 +308,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
                 droidHp.splice(droidHp.indexOf(Math.min(...droidHp)), 1); // in place, so the survivors keep their order
             }
             if (droidHp.length === 0) {
-                events.push({ type: 'fieldWiped', unitsLost: (squad.assignedDroids || squad.squadSize) * multiplier,
+                events.push({ type: 'fieldWiped', unitsLost: squadFullSize(squad),
                     multiplier, cargoLost: squad.cargo });
                 return { squad: null, reveals: [...reveals].map(parseCoordKey), events };
             }
@@ -319,7 +331,7 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
     if (path.length === 0) moveProgress = 0;
 
     return {
-        squad: {...squad, coord, path, moveProgress, battery, droidHp, equipment, squadSize},
+        squad: {...squad, coord, path, moveProgress, battery, droidHp, equipment, squadSize, unreplicated},
         reveals: [...reveals].map(parseCoordKey),
         events
     };

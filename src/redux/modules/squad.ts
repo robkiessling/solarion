@@ -6,7 +6,7 @@ import {getApproxDistance, getCoordsWithinHops} from "../../lib/planet/geometry"
 import {typedEntries} from "../../lib/helpers";
 import {formatResourceList, isGarrisoned, levelPayout, poiChoices, poiLevels, relocateAmbush, sealChoices, type Poi, type PoiChoice} from "../../lib/planet/pois";
 import {applyEquipment, createBattle, fullDroidHp, startWithdrawal, type Battle} from "../../lib/battle/sim";
-import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, type Squad, type SquadEvent} from "../../lib/planet/squad";
+import {advanceSquad, createSquad, droidsRecovered, isOnGrid, restoredOnGrid, squadBatteryCapacity, squadDrainPerTile, squadFullSize, type Squad, type SquadEvent} from "../../lib/planet/squad";
 import {logInline, startLogSequence} from "./log";
 import {addTrigger} from "./triggers";
 import * as fromUpgrades from "./upgrades";
@@ -48,9 +48,9 @@ export interface EncounterResult {
     granted?: UpgradeId | null;
     offered?: UpgradeId | null;
     loaded?: ResourceAmounts | null;
-    /** field event answers: battery gained or spent, units added to the roster, a charge of equipment spent */
+    /** field event answers: battery gained or spent, droids added to the squad, a charge of equipment spent */
     battery?: number;
-    unitsGained?: number;
+    droidsGained?: number;
     equipmentSpent?: EquipmentId;
     /** fights in a multi-level settlement: the level just won (0 = surface), and the site's level count when it is known
      * (announced up front, or learned by reaching the bottom) */
@@ -129,10 +129,10 @@ export type SquadAction =
     | { type: typeof SQUAD_EQUIP; payload: { equipment: EquipmentCharges } }
     | { type: typeof SQUAD_PROMPT; payload: { poiId: string; phase?: 'seal' | 'offer' | 'approach'; fromCoord?: Coord; sprungAt?: number } }
     | { type: typeof SQUAD_LEAVE_PROMPT }
-    /** battery is a delta on the squad (clamped to capacity); units join the roster at full hull; equipment is a
+    /** battery is a delta on the squad (clamped to capacity); droids join the squad at full hull; equipment is a
      * charge spent; becomes is the terrain the tile turns into (see PoiChoiceDef.becomes) */
     | { type: typeof SQUAD_RESOLVE_POI; payload: { poiId: string; reward: PoiReward; result: EncounterResult | null;
-        battery?: number; units?: number; equipment?: EquipmentId; becomes?: 'station' } }
+        battery?: number; droids?: number; equipment?: EquipmentId; becomes?: 'station' } }
     /** a seal cleared (from every mouth of a tunnel) at the answer's cost; the popup closes and the site's own
      * arrival follows (raised by the thunk) */
     | { type: typeof SQUAD_CLEAR_SEAL; payload: { poiId: string; battery?: number; equipment?: EquipmentId } }
@@ -372,11 +372,17 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
             };
             // A field event's answer can touch the squad itself: cells found (or spent), a charge spent, a droid recovered
             applyChoiceCosts(updates, state, action.payload);
-            if (action.payload.units && state.squad) {
+            // A recovered droid is a whole droid: it joins the assigned count (so it comes home at disband). In the
+            // field it is the one unit that was found; it replicates into a full stack when the squad touches the
+            // grid (restoredOnGrid)
+            if (action.payload.droids && state.squad) {
                 const maxHp = (state.squad.droidStats || DROID_BASE_STATS).hp;
-                updates.squad.squadSize = { $apply: (size: number) => size + action.payload.units! };
+                const assigned = state.squad.assignedDroids || state.squad.squadSize;
+                updates.squad.assignedDroids = { $set: assigned + action.payload.droids };
+                updates.squad.unreplicated = { $set: (state.squad.unreplicated || 0) + action.payload.droids };
+                updates.squad.squadSize = { $apply: (size: number) => size + action.payload.droids! };
                 updates.squad.droidHp = { $apply: (droidHp: number[]) =>
-                    [...(droidHp || fullDroidHp(state.squad!.squadSize, maxHp)), ...fullDroidHp(action.payload.units!, maxHp)] };
+                    [...(droidHp || fullDroidHp(state.squad!.squadSize, maxHp)), ...fullDroidHp(action.payload.droids!, maxHp)] };
             }
             // The find proved to be working hardware: the cleared marker goes and the terrain carries the glyph
             // from here on, the way a secured site's does
@@ -523,7 +529,7 @@ export function disbandSquad() {
         const delivered = squad.cargo && Object.keys(squad.cargo).length > 0 ? formatResourceList(squad.cargo) : null;
         const mult = squad.multiplier || 1;
         const roster = mult > 1 ?
-            TELEMETRY.rosterMultiplied(squad.squadSize, (squad.assignedDroids || squad.squadSize) * mult, droidsReturned, squad.assignedDroids) :
+            TELEMETRY.rosterMultiplied(squad.squadSize, squadFullSize(squad), droidsReturned, squad.assignedDroids) :
             TELEMETRY.rosterPlain(droidsReturned);
         dispatch(logInline(TELEMETRY.teamReturned(roster, delivered)));
     }
@@ -642,16 +648,16 @@ export function squadInteract(choiceIndex = 0) {
             offered: reward.offers || null,
             loaded: reward.resources || null,
             ...(battery ? { battery } : {}),
-            ...(choice.units ? { unitsGained: choice.units } : {}),
+            ...(choice.droids ? { droidsGained: choice.droids } : {}),
             ...(choice.equipment ? { equipmentSpent: choice.equipment } : {})
         } : null;
 
         dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward, result, ...choiceCosts({ ...choice, battery }),
-            ...(choice.units ? { units: choice.units } : {}), ...(choice.becomes ? { becomes: choice.becomes } : {}) } });
+            ...(choice.droids ? { droids: choice.droids } : {}), ...(choice.becomes ? { becomes: choice.becomes } : {}) } });
         payPermanent(dispatch, getState, reward);
         if (choice.revealNearest) revealNearestConcealed(dispatch, getState, poi);
         if (choice.arms) dispatch(addTrigger(choice.arms));
-        if (choice.units) dispatch(recalculateState());
+        if (choice.droids) dispatch(recalculateState());
         return true;
     }
 }

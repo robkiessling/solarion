@@ -30,7 +30,7 @@ export interface PoiChoice {
     resultText?: string;
     reward?: PoiReward;
     battery?: number;
-    units?: number;
+    droids?: number;
     revealNearest?: boolean;
     equipment?: EquipmentId;
     arms?: TriggerId;
@@ -288,7 +288,7 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         ...(choice.resultText ? { resultText: choice.resultText } : {}),
         ...(choice.reward ? { reward: rollReward(choice.reward) } : {}),
         ...(choice.battery != null ? { battery: choice.battery } : {}),
-        ...(choice.units != null ? { units: choice.units } : {}),
+        ...(choice.droids != null ? { droids: choice.droids } : {}),
         ...(choice.revealNearest ? { revealNearest: true } : {}),
         ...(choice.equipment ? { equipment: choice.equipment } : {}),
         ...(choice.arms ? { arms: choice.arms } : {}),

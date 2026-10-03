@@ -126,7 +126,8 @@ export const POI_DEFS: PoiDef[] = [
         type: 'storySite', zone: 'a',
         promptText: 'A broken droid in the sand. Serial matches our manufacturing line.',
         choices: [
-            { label: 'Explore', resultText: 'The half-buried droid shows years of weathering. You did not build it.' }
+            { label: 'Repair', droids: 1, resultText: 'Years of weathering, but the core still boots. It falls into formation.' },
+            { label: 'Scrap', reward: { resources: { ore: [1500, 2500], refinedMinerals: [150, 250] } }, resultText: 'Years of weathering on the plating, but the parts are still good.' }
         ]
     },
     // {
@@ -142,8 +143,8 @@ export const POI_DEFS: PoiDef[] = [
         hostiles: { defender: 3, runner: 3 }, reward: { resources: { refinedMinerals: [50, 100] } }
     },
     {
-        type: 'fieldEvent', zone: 'a', count: 2, name: 'Sighting', fleeting: true,
-        promptText: 'Thermal signatures at range. Multiple. Receding.',
+        type: 'fieldEvent', zone: 'a', name: 'Sighting', fleeting: true,
+        promptText: 'Thermal signatures at range. Receding.',
         choices: [
             { label: 'Observe', resultText: 'Gone over the rise before the optics resolved. No pattern match. Logged.' }
         ]
@@ -302,7 +303,7 @@ export const POI_DEFS: PoiDef[] = [
         type: 'fieldEvent', zone: 'g', name: 'Dormant Droid',
         promptText: 'A dormant droid, half-buried. Same line as yours; an older serial.',
         choices: [
-            { label: 'Recover', units: 1, battery: -10, resultText: 'Jump-started off the team\'s cells. It fell into formation without being told.' },
+            { label: 'Recover', droids: 1, battery: -10, resultText: 'Jump-started off the team\'s cells. It fell into formation without being told.' },
             { label: 'Strip', reward: { resources: { refinedMinerals: [200, 400] } }, resultText: 'Plating and cells recovered. The core was left where it lay.' }
         ]
     },
@@ -407,7 +408,7 @@ export const POI_DEFS: PoiDef[] = [
     //     type: 'fieldEvent', zone: ['j', 'k'], name: 'Dormant Droid',
     //     promptText: 'A droid, powered down and dug in. It faced outward when it stopped.',
     //     choices: [
-    //         { label: 'Recover', units: 1, battery: -10, resultText: 'It came up with its weapon raised, then lowered it. It had been waiting for someone with the right serial.' },
+    //         { label: 'Recover', droids: 1, battery: -10, resultText: 'It came up with its weapon raised, then lowered it. It had been waiting for someone with the right serial.' },
     //         { label: 'Strip', reward: { resources: { refinedMinerals: [400, 800] } }, resultText: 'Plating and cells recovered. Its last order was still in the buffer. Nobody read it.' }
     //     ]
     // },
