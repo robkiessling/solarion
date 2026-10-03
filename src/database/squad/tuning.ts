@@ -20,7 +20,7 @@ export const CONTACT_MS = 400;
 export const POPUP_INPUT_LOCK_MS = 250;
 
 // Battery model: drains per tile entered while off the powered grid, snaps to full capacity on the
-// grid. At zero the squad runs on reserve power: every tile costs a droid (the most wounded first), so
+// grid (and on a charging station, which gives the battery and nothing else). At zero the squad runs on reserve power: every tile costs a droid (the most wounded first), so
 // the roster is the overdraft on range; overextend far enough and the squad dies in the field (cargo
 // and all). A droid a tile, not a little hull off every unit: that way each step past empty visibly
 // costs something, where an even burn cost nothing for a droid's health in tiles and then took the

@@ -1,7 +1,7 @@
 import {NUM_PLANET_ROWS, parseCoordKey, PLANET_COLS} from "./geometry";
 import {getCrossTime, getTerrain, getVisibleCoords, isOnGrid, type PlanetMap} from "./map";
 import type {Capabilities} from "../../database/planet/capabilities";
-import {STATUSES, type SquadZone} from "../../database/planet/terrain";
+import {STATUSES, TERRAINS, type SquadZone} from "../../database/planet/terrain";
 import {CONTACT_MS, RESERVE_DROIDS_PER_TILE, SQUAD_BATTERY_CAPACITY, SQUAD_DRAIN_PER_TILE, SQUAD_SPEED_FACTOR} from "../../database/squad/tuning";
 import {mapObject, mod, typedEntries} from "../helpers";
 
@@ -197,7 +197,7 @@ export function squadCrossMs(map: PlanetMap, coord: Coord, capabilities: Capabil
  * Advances the squad one tick: battle sim when fighting (movement is locked), otherwise movement along
  * its path. Per tile entered: line-of-sight reveal (getVisibleCoords, so mountains wall off the view; scouts
  * see less, revealing only their 4 orthogonal neighbors, because a crewed squad has better eyes), battery
- * drain off-grid / snap-to-full on-grid, and contact events. Pure; returns the next squad, the coords newly
+ * drain off-grid / snap-to-full on-grid or on a charging station, and contact events. Pure; returns the next squad, the coords newly
  * revealed this tick (still-unknown tiles only), and events for the caller to resolve:
  *   { type: 'battleOver', poiId, result, survivors, hostilesRemaining, battle, fromCoord }  (live fight ended;
  *       `battle` is the final field state, kept so the result popup can hold the last frame, see
@@ -279,6 +279,11 @@ export function advanceSquad(map: PlanetMap, pois: Record<string, Poi>, squad: S
         if (isOnGrid(map, coord)) {
             ({ battery, squadSize, droidHp, equipment } = restoredOnGrid({ ...squad, battery, squadSize, droidHp, equipment }));
             events.push({ type: 'onGrid' });
+        }
+        else if (map[coord[0]][coord[1]].terrain === TERRAINS.station.key) {
+            // A charging station: the battery fills as it does at base, and that is all (wounds, spent equipment
+            // and cargo stay as they are)
+            battery = squadBatteryCapacity(squad);
         }
         else if (battery <= 0) {
             // Reserve power: the battery is spent, so the tile is paid in droids instead. RESERVE_DROIDS_PER_TILE

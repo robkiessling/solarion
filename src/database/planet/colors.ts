@@ -9,6 +9,7 @@ export const PLANET_COLORS = {
     unknown: '#8793a5',   // fog: dim and cool (blue-grey), so warm flatland reads as new ground next to it
     home: '#20d9ff',
     outpost: '#20d9ff', // a secured site: the player's own ground now, in the base's colour
+    station: '#20d9ff', // a live charging station: the same network's power, so the base's colour; its glyph tells it from a base
     flatland: '#7f5d47',  // dusty clay: warm like the mountains but desaturated, so ground recedes yet never matches the cool fog
     developing: '#8c8c8c',    // replicating: inert grey until the cast finishes and the tiles power up
     developed: '#6fd3b0',  // grown land; the same hue toned down so a built-up day side doesn't outshout the terrain

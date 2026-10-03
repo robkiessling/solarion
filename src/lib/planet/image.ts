@@ -452,7 +452,7 @@ export function generateImage(map: PlanetMap, fractionOfDay: number, rotation: n
                 // Held ground: its own glyph and tint; both retract when the settlement is cleared
                 if (sector.heldBy) { char = HELD_GLYPH; colorKey = 'held'; }
                 // City lights (see DEVELOPED_NIGHT_LIGHT_MIN)
-                if (sector.terrain === TERRAINS.home.key || sector.terrain === TERRAINS.outpost.key) { selfLit = true; }
+                if (sector.terrain === TERRAINS.home.key || sector.terrain === TERRAINS.outpost.key || sector.terrain === TERRAINS.station.key) { selfLit = true; }
                 else if (sector.terrain === TERRAINS.developed.key) {
                     const [row, col] = sector.coord;
                     const density = gridNight.density[row][col];

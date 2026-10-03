@@ -130,9 +130,9 @@ export type SquadAction =
     | { type: typeof SQUAD_PROMPT; payload: { poiId: string; phase?: 'seal' | 'offer' | 'approach'; fromCoord?: Coord; sprungAt?: number } }
     | { type: typeof SQUAD_LEAVE_PROMPT }
     /** battery is a delta on the squad (clamped to capacity); units join the roster at full hull; equipment is a
-     * charge spent */
+     * charge spent; becomes is the terrain the tile turns into (see PoiChoiceDef.becomes) */
     | { type: typeof SQUAD_RESOLVE_POI; payload: { poiId: string; reward: PoiReward; result: EncounterResult | null;
-        battery?: number; units?: number; equipment?: EquipmentId } }
+        battery?: number; units?: number; equipment?: EquipmentId; becomes?: 'station' } }
     /** a seal cleared (from every mouth of a tunnel) at the answer's cost; the popup closes and the site's own
      * arrival follows (raised by the thunk) */
     | { type: typeof SQUAD_CLEAR_SEAL; payload: { poiId: string; battery?: number; equipment?: EquipmentId } }
@@ -377,6 +377,12 @@ export function squadReducer(state: PlanetState, action: GameAction): PlanetStat
                 updates.squad.squadSize = { $apply: (size: number) => size + action.payload.units! };
                 updates.squad.droidHp = { $apply: (droidHp: number[]) =>
                     [...(droidHp || fullDroidHp(state.squad!.squadSize, maxHp)), ...fullDroidHp(action.payload.units!, maxHp)] };
+            }
+            // The find proved to be working hardware: the cleared marker goes and the terrain carries the glyph
+            // from here on, the way a secured site's does
+            const resolved = state.pois[action.payload.poiId];
+            if (action.payload.becomes && resolved) {
+                updates.map = { [resolved.coord[0]]: { [resolved.coord[1]]: { terrain: { $set: TERRAINS[action.payload.becomes].key } } } };
             }
             return update(state, updates);
         }
@@ -623,6 +629,9 @@ export function squadInteract(choiceIndex = 0) {
         const choice = poiChoices(poi, squad.equipment || {})[choiceIndex];
         if (!choice) return false;
         const reward: PoiReward = choice.reward || poi.reward;
+        // A station found: the squad is standing on it, so it gets what a step onto one gives (a full battery),
+        // reported as the charge it took
+        const battery = choice.becomes === 'station' ? squadBatteryCapacity(squad) - squad.battery : choice.battery;
 
         // An answer with narration holds the popup open on a result phase; one without closes it. The fields
         // stay serializable and the display strings are composed at render time (capability label, loot list)
@@ -632,13 +641,13 @@ export function squadInteract(choiceIndex = 0) {
             granted: reward.grants || null,
             offered: reward.offers || null,
             loaded: reward.resources || null,
-            ...(choice.battery ? { battery: choice.battery } : {}),
+            ...(battery ? { battery } : {}),
             ...(choice.units ? { unitsGained: choice.units } : {}),
             ...(choice.equipment ? { equipmentSpent: choice.equipment } : {})
         } : null;
 
-        dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward, result, ...choiceCosts(choice),
-            ...(choice.units ? { units: choice.units } : {}) } });
+        dispatch({ type: SQUAD_RESOLVE_POI, payload: { poiId: poi.id, reward, result, ...choiceCosts({ ...choice, battery }),
+            ...(choice.units ? { units: choice.units } : {}), ...(choice.becomes ? { becomes: choice.becomes } : {}) } });
         payPermanent(dispatch, getState, reward);
         if (choice.revealNearest) revealNearestConcealed(dispatch, getState, poi);
         if (choice.arms) dispatch(addTrigger(choice.arms));

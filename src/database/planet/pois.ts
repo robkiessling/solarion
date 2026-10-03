@@ -21,7 +21,8 @@ export const FIELD_EVENT_SPACING = 2;
  * The list reads by region, home outward, so a belt's settlement, camps, ambushes, finds and caches sit side by
  * side and tune as one. Order only matters among field events and ambushes (they take tiles in manifest order,
  * and the spacing between them can squeeze out whatever comes last), so within a region the one-offs are listed
- * before the counted ones. Sites and settlements are placed first whatever their position here.
+ * before the counted ones. Sites and settlements are placed first whatever their position here, and anything
+ * painted to a point before the settlements (so no territory lands on a point).
  *
  * Sites are the pre-war network installations, the same kind of thing as the player's base (the terminal numbers
  * them: Site 2, Site 3; the base is the first). One tile, no territory, no camps: a facility to take for its power
@@ -136,13 +137,6 @@ export const POI_DEFS: PoiDef[] = [
     //     ]
     // },
     {
-        type: 'fieldEvent', zone: 'a', name: 'Debris Field',
-        promptText: 'Scattered remains from an ancient battle{loot}.',
-        choices: [
-            { label: 'Load', reward: { resources: { ore: [700, 900], refinedMinerals: [100, 200] } } }
-        ]
-    },
-    {
         type: 'ambush', zone: 'a',
         approachText: 'Sound from the rocks ahead.',
         hostiles: { defender: 3, runner: 3 }, reward: { resources: { refinedMinerals: [50, 100] } }
@@ -192,6 +186,14 @@ export const POI_DEFS: PoiDef[] = [
         promptText: 'A supply crate on its side, seals intact{loot}.',
         reward: { resources: { ore: [3000, 4000] } }
     },
+    {
+        type: 'fieldEvent', zone: 'b', name: 'Debris Field',
+        promptText: 'Scattered remains from an ancient battle{loot}.',
+        choices: [
+            { label: 'Load', reward: { resources: { ore: [700, 900], refinedMinerals: [100, 200] } } }
+        ]
+    },
+
 
     // ---- Zone c
     {
@@ -220,7 +222,7 @@ export const POI_DEFS: PoiDef[] = [
         type: 'settlement', point: 'B', territoryRadius: 0,
         approachText: 'Creatures scurry between the rocks, protecting their stash.',
         levels: [
-            { hostiles: { heavy: 1, defender: 8 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [150, 200] }, offers: 'droidFactory_reinforcedPlating' } }
+            { hostiles: { heavy: 1, defender: 12 }, terrain: 'ruins', reward: { resources: { refinedMinerals: [150, 200] }, offers: 'droidFactory_reinforcedPlating' } }
         ],
     },
     {
@@ -228,7 +230,7 @@ export const POI_DEFS: PoiDef[] = [
         approachText: 'Creatures scurry between the rocks, protecting their stash.',
         campApproachText: 'A small group of hostiles surrounds you.',
         levels: [
-            { hostiles: { heavy: 1, defender: 8 }, terrain: 'rubble', reward: { resources: { refinedMinerals: [150, 200] } } }
+            { hostiles: { heavy: 1, defender: 10 }, terrain: 'rubble', reward: { resources: { refinedMinerals: [150, 200] } } }
         ],
         camps: [
             { hostiles: { defender: 10, }, terrain: 'rubble', reward: { resources: { refinedMinerals: [100, 120] } } },
@@ -248,36 +250,46 @@ export const POI_DEFS: PoiDef[] = [
         ]
     },
 
-    // ---- Zone e/g
-    {
-        type: 'settlement', zone: 'd', territoryRadius: 2, levelsShown: true, discardedKg: [80, 160],
-        approachText: 'Terraces climbing a whole ridge, and shafts going down. Returns on every level the optics reach, in the hundreds. The upper ones are already moving.',
-        campApproachText: 'Stationary returns at the high points of the terraces. They saw you climbing, and now they are not stationary.',
-        levels: [
-            { hostiles: { mounted: 2, defender: 10 }, opening: 'groups', spread: 'loose', terrain: 'rocks', reward: { resources: { refinedMinerals: [400, 800] } } },
-            { hostiles: { drone: 4, defender: 7 }, opening: 'groups', terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000], energy: [1000, 2000] } } }
-        ],
-        camps: [
-            { hostiles: { defender: 3, herd: 4 }, reward: { resources: { refinedMinerals: [100, 300] } } },
-            { hostiles: { defender: 3 }, terrain: 'rocks', reward: { resources: { refinedMinerals: [100, 300] } } }
-        ]
-    },
+    // ---- Zone e
+    // {
+    //     type: 'cache', zone: 'd', name: 'Field Depot',
+    //     promptText: 'A field depot, door forced from outside, shelves still full{loot}.',
+    //     reward: { resources: { refinedMinerals: [1000, 2000] } }
+    // },
+    // {
+    //     type: 'settlement', zone: 'd', territoryRadius: 2, levelsShown: true, discardedKg: [80, 160],
+    //     approachText: 'Terraces climbing a whole ridge, and shafts going down. Returns on every level the optics reach, in the hundreds. The upper ones are already moving.',
+    //     campApproachText: 'Stationary returns at the high points of the terraces. They saw you climbing, and now they are not stationary.',
+    //     levels: [
+    //         { hostiles: { mounted: 2, defender: 10 }, opening: 'groups', spread: 'loose', terrain: 'rocks', reward: { resources: { refinedMinerals: [400, 800] } } },
+    //         { hostiles: { drone: 4, defender: 7 }, opening: 'groups', terrain: 'ruins', reward: { resources: { refinedMinerals: [600, 1000], energy: [1000, 2000] } } }
+    //     ],
+    //     camps: [
+    //         { hostiles: { defender: 3, herd: 4 }, reward: { resources: { refinedMinerals: [100, 300] } } },
+    //         { hostiles: { defender: 3 }, terrain: 'rocks', reward: { resources: { refinedMinerals: [100, 300] } } }
+    //     ]
+    // },
     {
         type: 'settlement', zone: 'e', territoryRadius: 2,
         approachText: 'A ruined town, half of it roofed again. Several hundred returns clustered in the standing blocks. More are moving toward the edge than the optics first counted.',
         campApproachText: 'A group out from the town, more of them than the first count. They fan out as they close.',
         levels: [
-            { hostiles: { heavy: 2, launcher: 2, defender: 14 }, opening: 'groups', terrain: 'ruins', reward: { resources: { refinedMinerals: [800, 1400] }, grants: 'droidFactory_amphibiousTracks' } }
+            { hostiles: { heavy: 2, defender: 14 }, opening: 'groups', terrain: 'ruins', reward: { resources: { refinedMinerals: [800, 1400] }, grants: 'droidFactory_amphibiousTracks' } }
         ],
         camps: [
-            { hostiles: { defender: 4 }, reward: { resources: { refinedMinerals: [200, 400] } } },
-            { hostiles: { defender: 4 }, opening: 'groups', spread: 'loose', reward: { resources: { refinedMinerals: [200, 400] } } }
+            { hostiles: { defender: 12 }, reward: { resources: { refinedMinerals: [200, 400] } } },
+            { hostiles: { defender: 8, heavy: 1 }, opening: 'groups', spread: 'loose', reward: { resources: { refinedMinerals: [200, 400] } } }
         ]
     },
     {
-        type: 'cache', zone: 'd', name: 'Field Depot',
-        promptText: 'A field depot, door forced from outside, shelves still full{loot}.',
-        reward: { resources: { refinedMinerals: [1000, 2000] } }
+        type: 'storySite', point: 'D', name: 'Structure',
+        promptText: 'A low structure with a mast, half buried. Something inside still draws power.',
+        choices: [
+            {
+                label: 'Investigate', becomes: 'station',
+                resultText: 'A charging station, still live. The couplings match ours.'
+            }
+        ]
     },
     // {
     //     type: 'fieldEvent', zone: ['b', 'd'], name: 'Signal',
@@ -286,14 +298,14 @@ export const POI_DEFS: PoiDef[] = [
     //         { label: 'Trace', revealNearest: true, resultText: 'Bearing fixed. Source marked.' }
     //     ]
     // },
-    // {
-    //     type: 'fieldEvent', zone: ['d', 'e'], name: 'Dormant Droid',
-    //     promptText: 'A dormant droid, half-buried. Same line as yours; an older serial.',
-    //     choices: [
-    //         { label: 'Recover', units: 1, battery: -10, resultText: 'Jump-started off the team\'s cells. It fell into formation without being told.' },
-    //         { label: 'Strip', reward: { resources: { refinedMinerals: [200, 400] } }, resultText: 'Plating and cells recovered. The core was left where it lay.' }
-    //     ]
-    // },
+    {
+        type: 'fieldEvent', zone: 'g', name: 'Dormant Droid',
+        promptText: 'A dormant droid, half-buried. Same line as yours; an older serial.',
+        choices: [
+            { label: 'Recover', units: 1, battery: -10, resultText: 'Jump-started off the team\'s cells. It fell into formation without being told.' },
+            { label: 'Strip', reward: { resources: { refinedMinerals: [200, 400] } }, resultText: 'Plating and cells recovered. The core was left where it lay.' }
+        ]
+    },
     // {
     //     type: 'fieldEvent', zone: ['b', 'c', 'd', 'e'], count: 2, name: 'Debris Field',
     //     promptText: 'A collapsed relay mast. Structural alloy in the wreckage{loot}. Load it?',

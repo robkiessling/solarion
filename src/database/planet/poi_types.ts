@@ -92,6 +92,10 @@ export interface PoiChoiceDef {
      * back at the base (a decision on a structure's card, an offer, a log). The trigger says when it lands, usually
      * once the squad is off the field. Nothing rides in cargo, so losing the squad afterwards does not lose it. */
     arms?: TriggerId;
+    /** what the tile turns into once the answer is taken, for a find that proves to be working hardware: a charging
+     * `station` (TERRAINS.station), which fills the battery of the squad standing on it and of any squad that steps
+     * onto it afterwards. The battery only: no repair, no equipment restock, no cargo banked. */
+    becomes?: 'station';
 }
 
 /** A blocker in front of a site (rubble in a tunnel mouth, a vault door): stepping onto the site raises this prompt
@@ -129,7 +133,7 @@ export interface CacheDef extends PlacedDef {
     reward: RewardDef;
 }
 /** A ruin with a log, visible once scouted: its answers (usually one Explore that narrates the log, and pays any
- * salvage the site holds) */
+ * salvage the site holds). One that proves to be working hardware says what its tile `becomes`. */
 export interface StorySiteDef extends PlacedDef {
     type: 'storySite';
     promptText: string;

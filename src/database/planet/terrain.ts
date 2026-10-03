@@ -6,7 +6,7 @@
 import type {Capability} from "./capabilities";
 
 /** TERRAINS[x].key (the debug meridians add `meridian_<n>` keys at runtime; they never reach a save) */
-export type TerrainKey = 'home' | 'outpost' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'shallows' | 'water';
+export type TerrainKey = 'home' | 'outpost' | 'station' | 'flatland' | 'developing' | 'developed' | 'mountain' | 'ice' | 'shallows' | 'water';
 
 /** How much of a tile the player has seen (the keys of STATUSES below) */
 export type SectorStatus = 'unknown' | 'exploring' | 'explored';
@@ -64,6 +64,11 @@ export const TERRAINS: Record<TerrainKey, TerrainDef> = {
     // (nothing produces here until replication builds on it). Never painted; a settlement with `site` leaves
     // one behind when it falls.
     outpost: { key: 'outpost', display: '#', label: 'Site', crossTime: EXPLORATION_TIME_FACTOR }, // the home glyph: a secured site is the same kind of installation as the base
+    // A pre-war charging station, still live: a squad stepping onto it gets a full battery and nothing else (no
+    // repair, no equipment restock, cargo stays aboard). Not powered ground: scouts do not dock here, the survey
+    // halo does not reach out from it, and replication never builds on it. Never painted; a find leaves one behind
+    // when the answer that opens it is taken (PoiChoiceDef.becomes in database/planet/poi_types.ts).
+    station: { key: 'station', display: '±', label: 'Charging Station', crossTime: EXPLORATION_TIME_FACTOR },
     mountain: { key: 'mountain', display: 'Λ', variants: ['∧'], label: 'Mountain', crossTime: EXPLORATION_TIME_FACTOR * 3, impassable: true, blocksVision: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // A permanent wall; also hides what is behind it
     // ice: { key: 'ice', display: '▲', variants: ['∆'], label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, impassable: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // White glaciers: solid peaks with the odd hollow one, a wall like the mountains but in ice
     ice: { key: 'ice', display: '*', label: 'Ice', crossTime: EXPLORATION_TIME_FACTOR * 3, impassable: true, exploreLength: EXPLORATION_TIME_FACTOR * 3 }, // A permanent wall like the mountains, in ice
@@ -111,6 +116,7 @@ export const SURVEY_HALO_RADIUS = 7;
 // PLACEHOLDER copy until the content pass. Zones without an entry (replicating land) print nothing.
 export const TERRAIN_BLURBS: Partial<Record<SquadZone, string>> = {
     grid: 'Powered ground. Recharging.',
+    station: 'Charging station. Battery full.',
     flatland: 'Open flatland. Dust and a long horizon.',
     mountain: 'Into the mountains. Slow going; the ridges hide what lies beyond.',
     shallows: 'Shallows. Treads in the surf; the far shore is a line.',

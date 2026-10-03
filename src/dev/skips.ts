@@ -38,11 +38,11 @@ export const LOG_SPEED = 1;
 
 // A fresh map starts fully revealed (every tile explored, every site visible). Read by the planet module's
 // generateMap action, at call time, so the import cycle through the redux modules is harmless.
-export const EXPLORE_EVERYTHING = false;
+export const EXPLORE_EVERYTHING = true;
 
 // Draws every concealed POI (camps on held ground, field events on open ground) on the map before the squad
 // has found it, dimmed. Read by the planet component's overlay pass.
-export const SHOW_CONCEALED_POIS = false;
+export const SHOW_CONCEALED_POIS = true;
 
 // Battery never drains off-grid (no reserve power, no field wipes)
 export const INFINITE_CHARGE = false;

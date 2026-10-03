@@ -2,7 +2,7 @@ import {getRandomFromArray, getRandomIntInclusive, mapObject} from "../helpers";
 import {drawnCoord, getCrossTime, getHomeBasePosition, type PlanetMap, type Sector} from "./map";
 import {getAdjacentCoords, getCoordsWithinHops} from "./geometry";
 import {STATUSES, TERRAINS, VISION_HOPS} from "../../database/planet/terrain";
-import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, type FightDef, type GroundDef, type PoiChoiceDef, type PoiReward, type PoiStatus, type PoiType, type RewardDef, type Rollable, type SealDef, type SettlementDef, type SiteDef, type TunnelDef} from "../../database/planet/poi_types";
+import {LOOT_LABELS, POI_LABELS, POI_TYPE_DEFAULTS, type FightDef, type GroundDef, type PoiChoiceDef, type PoiDef, type PoiReward, type PoiStatus, type PoiType, type RewardDef, type Rollable, type SealDef, type SettlementDef, type SiteDef, type TunnelDef} from "../../database/planet/poi_types";
 import {CAMPS_ENABLED, FIELD_EVENT_SPACING, POI_DEFS} from "../../database/planet/pois";
 import type {Capabilities} from "../../database/planet/capabilities";
 import type {EquipmentCharges, EquipmentId} from "../../database/squad/equipment";
@@ -34,6 +34,7 @@ export interface PoiChoice {
     revealNearest?: boolean;
     equipment?: EquipmentId;
     arms?: TriggerId;
+    becomes?: 'station';
 }
 
 /** A placed seal (see SealDef): the site raises this prompt until one of its answers has cleared it */
@@ -98,7 +99,8 @@ export interface Poi {
  * list) or on its point (one exact tile) painted in the authored map, `count` times; a tunnel entry on the two
  * mouths painted with its digit; and a territory stamp around every settlement (sector.heldBy: scout-impassable, not
  * developable, squad-crossable; retracts when the settlement is cleared). Tunnels go first, then sites, then
- * settlements, whatever the manifest's order, since a stamp must not swallow a tile something else already took; the rest follow in
+ * settlements, whatever the manifest's order, since a stamp must not swallow a tile something else already took (entries
+ * painted to a point go in ahead of the settlements for the same reason); the rest follow in
  * manifest order, and field events and ambushes keep FIELD_EVENT_SPACING hops from each other. An entry that cannot be
  * placed (in full) is reported on the console rather than dropped silently: the manifest is the content plan,
  * and a missing entry is a bug in the drawing or the manifest.
@@ -289,7 +291,8 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
         ...(choice.units != null ? { units: choice.units } : {}),
         ...(choice.revealNearest ? { revealNearest: true } : {}),
         ...(choice.equipment ? { equipment: choice.equipment } : {}),
-        ...(choice.arms ? { arms: choice.arms } : {})
+        ...(choice.arms ? { arms: choice.arms } : {}),
+        ...(choice.becomes ? { becomes: choice.becomes } : {})
     }));
     const rollSeal = (def: SealDef): PoiSeal => ({ promptText: def.promptText, choices: rollChoices(def.choices) });
     const placeOne = (def: Exclude<GroundDef, SettlementDef | SiteDef>, sector: Sector) => {
@@ -318,15 +321,11 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
     };
 
     // The content manifest: tunnels on their mouths, then sites, then each ground definition placed in its zone(s)
-    // `count` times, settlements first (see above), then everything else in manifest order.
-    POI_DEFS.forEach(def => { if (def.type === 'tunnel') addTunnel(def); });
-    Object.keys(mouths).forEach(digit => problems.push(`tunnel ${digit} is painted on the map (${mouths[digit].map(sector => drawnCoord(sector.coord)).map(([row, col]) => `row ${row} col ${col}`).join(', ')}, counted from 0) but has no entry; its mouths are plain ground`));
-    POI_DEFS.forEach(def => { if (def.type === 'site') addSite(def); });
-    POI_DEFS.forEach(def => {
-        if (def.type !== 'settlement') return;
-        for (let i = 0; i < (def.count ?? 1); i++) addSettlement(def);
-    });
-    POI_DEFS.forEach(def => {
+    // `count` times, settlements first (see above), then everything else in manifest order. The exception is an
+    // entry painted to a point: it goes before the settlements, since the tile is its own by authorship and a
+    // settlement rolled into the zone around it would otherwise stamp its territory over the point and squeeze
+    // the entry out.
+    const placeRest = (def: PoiDef) => {
         if (def.type === 'settlement' || def.type === 'site' || def.type === 'tunnel') return;
         const count = def.count ?? 1;
         for (let i = 0; i < count; i++) {
@@ -337,7 +336,18 @@ export function generatePois(map: PlanetMap): Record<string, Poi> {
             }
             placeOne(def, sector);
         }
+    };
+    POI_DEFS.forEach(def => { if (def.type === 'tunnel') addTunnel(def); });
+    Object.keys(mouths).forEach(digit => problems.push(`tunnel ${digit} is painted on the map (${mouths[digit].map(sector => drawnCoord(sector.coord)).map(([row, col]) => `row ${row} col ${col}`).join(', ')}, counted from 0) but has no entry; its mouths are plain ground`));
+    POI_DEFS.forEach(def => { if (def.type === 'site') addSite(def); });
+    POI_DEFS.forEach(def => { if (def.type !== 'tunnel' && def.point) placeRest(def); });
+    const placeSettlements = (onPoint: boolean) => POI_DEFS.forEach(def => {
+        if (def.type !== 'settlement' || !!def.point !== onPoint) return;
+        for (let i = 0; i < (def.count ?? 1); i++) addSettlement(def);
     });
+    placeSettlements(true); // the same rule among settlements: one rolled into a zone keeps clear of one painted to a point
+    placeSettlements(false);
+    POI_DEFS.forEach(def => { if (def.type !== 'tunnel' && !def.point) placeRest(def); });
 
     if (problems.length > 0) {
         console.warn(`${problems.length} ${problems.length === 1 ? 'entry' : 'entries'} of the content manifest (database/planet/pois.ts) ` +
